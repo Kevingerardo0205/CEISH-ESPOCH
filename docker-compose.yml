@@ -1,0 +1,32 @@
+services:
+  api:
+    build: .
+    container_name: ceish_api
+    ports:
+      - "3001:3001"
+    environment:
+      - DB_HOST=db
+      - DB_PORT=5432
+      - DB_USERNAME=ceish_user
+      - DB_PASSWORD=ceish_password
+      - DB_NAME=ceish_db
+      - PORT=3001
+    depends_on:
+      - db
+    restart: always
+
+  db:
+    image: postgres:15-alpine
+    container_name: ceish_postgres
+    restart: always
+    environment:
+      POSTGRES_USER: ceish_user
+      POSTGRES_PASSWORD: ceish_password
+      POSTGRES_DB: ceish_db
+    ports:
+      - "3100:5432" # El host usará 3100 para conectarse a la DB
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+
+volumes:
+  postgres_data:
