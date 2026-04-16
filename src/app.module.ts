@@ -6,6 +6,7 @@ import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { ProtocolsModule } from './protocols/protocols.module';
 import { AuthModule } from './auth/auth.module';
+import { DocumentsModule } from './documents/documents.module';
 import { EncryptionService } from './core/encryption/encryption.service';
 import { setEncryptionService } from './core/encryption/encryption.transformer';
 
@@ -27,6 +28,7 @@ import { setEncryptionService } from './core/encryption/encryption.transformer';
     }),
     AuthModule,
     ProtocolsModule,
+    DocumentsModule,
   ],
   controllers: [AppController],
   providers: [AppService, EncryptionService],

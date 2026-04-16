@@ -18,6 +18,7 @@ export class AuthController {
 
   @Post('register')
   async register(@Body() userData: any) {
+    console.log('Received userData:', userData); // Depuración temporal
     return this.authService.register(userData);
   }
 

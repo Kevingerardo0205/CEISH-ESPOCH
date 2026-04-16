@@ -51,6 +51,9 @@ export class Documento {
   @JoinColumn({ name: 'subido_por' })
   subidoPor!: Usuario;
 
+  @Column({ name: 'subido_por', nullable: true })
+  subidoPorId?: number;
+
   @CreateDateColumn({ name: 'creado_en' })
   creadoEn!: Date;
 }
