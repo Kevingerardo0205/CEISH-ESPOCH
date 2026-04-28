@@ -2,13 +2,11 @@ import { Module, OnModuleInit } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import databaseConfig from './config/database.config';
-import { AppController } from './app.controller';
-import { AppService } from './app.service';
-import { ProtocolsModule } from './protocols/protocols.module';
-import { AuthModule } from './auth/auth.module';
-import { DocumentsModule } from './documents/documents.module';
-import { EncryptionService } from './core/encryption/encryption.service';
-import { setEncryptionService } from './core/encryption/encryption.transformer';
+import { ProtocolsModule } from './modules/protocols/protocols.module';
+import { AuthModule } from './modules/auth/auth.module';
+import { DocumentsModule } from './modules/documents/documents.module';
+import { EncryptionService } from './shared/encryption/encryption.service';
+import { setEncryptionService } from './shared/encryption/encryption.transformer';
 
 @Module({
   imports: [
@@ -30,8 +28,8 @@ import { setEncryptionService } from './core/encryption/encryption.transformer';
     ProtocolsModule,
     DocumentsModule,
   ],
-  controllers: [AppController],
-  providers: [AppService, EncryptionService],
+  controllers: [],
+  providers: [EncryptionService],
 })
 export class AppModule implements OnModuleInit {
   constructor(private readonly encryptionService: EncryptionService) {}

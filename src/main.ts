@@ -1,14 +1,15 @@
 import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
-import { AllExceptionsFilter } from './core/filters/exceptions.filter';
-import { ResponseInterceptor } from './core/interceptors/response.interceptor';
+import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
+import { ResponseInterceptor } from './shared/interceptors/response.interceptor';
+import { GlobalValidationPipe } from './shared/pipes/validation.pipe';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
   app.setGlobalPrefix('api');
-  app.useGlobalFilters(new AllExceptionsFilter());
+  app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
+  app.useGlobalPipes(new GlobalValidationPipe());
   await app.listen(process.env.PORT ?? 3002);
 }
 bootstrap();
-
