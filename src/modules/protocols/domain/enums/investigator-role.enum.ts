@@ -1,0 +1,5 @@
+export enum InvestigatorRole {
+  PRINCIPAL = 'PRINCIPAL',
+  CO_INVESTIGADOR = 'CO_INVESTIGADOR',
+  PATROCINADOR = 'PATROCINADOR',
+}

@@ -1,12 +1,10 @@
-import { Entity, PrimaryGeneratedColumn, Column, CreateDateColumn, ManyToMany, JoinTable } from 'typeorm';
+import { Entity, Column, ManyToMany, JoinTable } from 'typeorm';
 import { RoleOrmEntity } from './role.entity.orm';
 import { EncryptionTransformer } from '../../../../shared/encryption/encryption.transformer';
+import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
 
 @Entity({ name: 'usuarios', schema: 'catalogos' })
-export class UserOrmEntity {
-  @PrimaryGeneratedColumn()
-  id!: number;
-
+export class UserOrmEntity extends BaseOrmEntity {
   @Column({ name: 'cedula', unique: true, length: 20 })
   nationalId!: string;
 
@@ -58,11 +56,20 @@ export class UserOrmEntity {
   @Column({ name: 'refresh_token_hash', type: 'varchar', length: 255, nullable: true, select: false })
   refreshTokenHash: string | null = null;
 
-  @CreateDateColumn({ name: 'fecha_creacion' })
-  createdAt!: Date;
-
   @Column({ name: 'ultimo_acceso', type: 'timestamptz', nullable: true })
   lastAccess: Date | null = null;
+
+  @Column({ name: 'email_verificado', default: false })
+  isEmailVerified!: boolean;
+
+  @Column({ name: 'token_confirmacion_hash', type: 'varchar', length: 255, nullable: true })
+  confirmationTokenHash: string | null = null;
+
+  @Column({ name: 'token_recuperacion_hash', type: 'varchar', length: 255, nullable: true })
+  resetPasswordTokenHash: string | null = null;
+
+  @Column({ name: 'token_recuperacion_expira', type: 'timestamptz', nullable: true })
+  resetPasswordExpires: Date | null = null;
 
   @ManyToMany(() => RoleOrmEntity)
   @JoinTable({

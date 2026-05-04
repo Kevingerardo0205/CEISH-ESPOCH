@@ -5,6 +5,11 @@ import databaseConfig from './config/database.config';
 import { ProtocolsModule } from './modules/protocols/protocols.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DocumentsModule } from './modules/documents/documents.module';
+import { ReceptionModule } from './modules/reception/reception.module';
+import { EvaluationsModule } from './modules/evaluations/evaluations.module';
+import { ResolutionsModule } from './modules/resolutions/resolutions.module';
+import { NotificationsModule } from './modules/notifications/notifications.module';
+import { ThrottlerModule } from '@nestjs/throttler';
 import { EncryptionService } from './shared/encryption/encryption.service';
 import { setEncryptionService } from './shared/encryption/encryption.transformer';
 
@@ -24,9 +29,17 @@ import { setEncryptionService } from './shared/encryption/encryption.transformer
         return config;
       },
     }),
+    ThrottlerModule.forRoot([{
+      ttl: 60000,
+      limit: 10,
+    }]),
     AuthModule,
     ProtocolsModule,
     DocumentsModule,
+    ReceptionModule,
+    EvaluationsModule,
+    ResolutionsModule,
+    NotificationsModule,
   ],
   controllers: [],
   providers: [EncryptionService],

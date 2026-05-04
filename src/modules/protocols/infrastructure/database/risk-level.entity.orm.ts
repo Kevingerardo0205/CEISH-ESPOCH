@@ -1,10 +1,8 @@
-import { Entity, PrimaryGeneratedColumn, Column } from 'typeorm';
+import { Entity, Column } from 'typeorm';
+import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
 
 @Entity({ name: 'niveles_riesgo', schema: 'catalogos' })
-export class RiskLevelOrmEntity {
-  @PrimaryGeneratedColumn()
-  id!: number;
-
+export class RiskLevelOrmEntity extends BaseOrmEntity {
   @Column({ name: 'codigo', unique: true, length: 20 })
   code!: string;
 

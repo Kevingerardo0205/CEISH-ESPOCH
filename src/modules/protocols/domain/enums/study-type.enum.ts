@@ -1,7 +1,14 @@
+export enum StudyTypeCode {
+  IO = 'IO', // Observacional
+  EI = 'EI', // Intervención
+  EC = 'EC', // Ensayo Clínico
+  EX = 'EX', // Exento
+}
+
 export class StudyType {
   constructor(
     public readonly id: number,
-    public readonly code: string,
+    public readonly code: StudyTypeCode,
     public readonly name: string,
     public readonly evaluationDeadlineDays?: number,
     public readonly requiresArcsa?: boolean,

@@ -1,9 +1,11 @@
-import { Controller, Post, Body, UseGuards, Request, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, Get, HttpCode, HttpStatus } from '@nestjs/common';
 import { AuthService } from '../../application/services/auth.service';
 import { LocalAuthGuard } from '../guards/local-auth.guard';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
 import { Roles } from '../../../../shared/decorators/roles.decorator';
+import { ForgotPasswordDto, ResetPasswordDto } from '../../application/dtos/password-recovery.dto';
+import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 
 
 @Controller('auth')
@@ -24,6 +26,39 @@ export class AuthController {
   @Post('refresh')
   async refresh(@Body('userId') userId: number, @Body('refreshToken') refreshToken: string) {
     return this.authService.refreshTokens(userId, refreshToken);
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 900000 } }) // 3 requests per 15 minutes
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
+    await this.authService.forgotPassword(forgotPasswordDto.email);
+    return { message: 'Si el correo existe, se ha enviado un enlace de recuperación.' };
+  }
+
+  @Post('reset-password')
+  @HttpCode(HttpStatus.OK)
+  async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
+    await this.authService.resetPassword(resetPasswordDto.token, resetPasswordDto.newPassword);
+    return { message: 'Contraseña actualizada exitosamente.' };
+  }
+
+  @Get('confirm-email')
+  @HttpCode(HttpStatus.OK)
+  async confirmEmail(@Request() req) {
+    const token = req.query.token;
+    await this.authService.confirmEmail(token);
+    return { message: 'Correo electrónico confirmado exitosamente.' };
+  }
+
+  @UseGuards(ThrottlerGuard)
+  @Throttle({ default: { limit: 3, ttl: 900000 } }) // 3 requests per 15 minutes
+  @Post('resend-confirmation')
+  @HttpCode(HttpStatus.OK)
+  async resendConfirmation(@Body('email') email: string) {
+    await this.authService.resendConfirmation(email);
+    return { message: 'Si la cuenta existe y no está confirmada, se ha enviado un nuevo enlace.' };
   }
 
   @UseGuards(JwtAuthGuard)
