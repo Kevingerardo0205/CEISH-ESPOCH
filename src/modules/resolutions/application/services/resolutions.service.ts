@@ -1,9 +1,9 @@
 import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { ResolutionOrmEntity } from '../infrastructure/database/resolution.entity.orm';
-import { IProtocolRepository } from '../../protocols/domain/ports/protocol.repository.port';
-import { IEvaluationRepository } from '../../evaluations/domain/ports/evaluation.repository.port';
+import { ResolutionOrmEntity } from '../../infrastructure/database/resolution.entity.orm';
+import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
+import { IEvaluationRepository } from '../../../evaluations/domain/ports/evaluation.repository.port';
 
 @Injectable()
 export class ResolutionsService {

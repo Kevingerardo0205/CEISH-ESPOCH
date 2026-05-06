@@ -4,6 +4,7 @@ import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.re
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
 import { AssignEvaluatorsDto } from '../dtos/assign-evaluator.dto';
 import { SubmitEvaluationDto } from '../dtos/submit-evaluation.dto';
+import { CreateEvaluatorProfileDto, UpdateEvaluatorProfileDto } from '../dtos/evaluator-profile-crud.dto';
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 
@@ -125,5 +126,30 @@ export class EvaluationsService {
 
   async getProfiles() {
     return this.evaluationRepository.findProfiles();
+  }
+
+  async createProfile(dto: CreateEvaluatorProfileDto) {
+    return this.evaluationRepository.saveProfile({
+      nombre: dto.nombre,
+      descripcion: dto.descripcion,
+      ordenPrioridad: dto.ordenPrioridad || 0,
+      isActive: true,
+    } as any);
+  }
+
+  async updateProfile(id: number, dto: UpdateEvaluatorProfileDto) {
+    const profile = await this.evaluationRepository.findProfileById(id);
+    if (!profile) throw new NotFoundException('Perfil de evaluador no encontrado');
+
+    await this.evaluationRepository.updateProfile(id, dto as any);
+    return this.evaluationRepository.findProfileById(id);
+  }
+
+  async deleteProfile(id: number) {
+    const profile = await this.evaluationRepository.findProfileById(id);
+    if (!profile) throw new NotFoundException('Perfil de evaluador no encontrado');
+
+    await this.evaluationRepository.deleteProfile(id);
+    return { message: 'Perfil de evaluador eliminado exitosamente (soft-delete)' };
   }
 }

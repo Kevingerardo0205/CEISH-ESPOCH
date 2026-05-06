@@ -79,6 +79,22 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     return this.profileRepo.find({ where: { isActive: true } });
   }
 
+  async findProfileById(id: number): Promise<EvaluatorProfileOrmEntity | null> {
+    return this.profileRepo.findOne({ where: { id } });
+  }
+
+  async saveProfile(entity: Partial<EvaluatorProfileOrmEntity>): Promise<EvaluatorProfileOrmEntity> {
+    return this.profileRepo.save(entity as EvaluatorProfileOrmEntity);
+  }
+
+  async updateProfile(id: number, entity: Partial<EvaluatorProfileOrmEntity>): Promise<void> {
+    await this.profileRepo.update(id, entity as any);
+  }
+
+  async deleteProfile(id: number): Promise<void> {
+    await this.profileRepo.update(id, { isActive: false } as any); // Soft delete
+  }
+
   async saveVersion(entity: Partial<ProtocolVersionOrmEntity>): Promise<ProtocolVersionOrmEntity> {
     return this.versionRepo.save(entity as ProtocolVersionOrmEntity);
   }

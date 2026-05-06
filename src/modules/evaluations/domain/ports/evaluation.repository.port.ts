@@ -14,6 +14,10 @@ export abstract class IEvaluationRepository {
   // Evaluators & Profiles
   abstract findEvaluatorsWithWorkload(profileId?: number): Promise<any[]>;
   abstract findProfiles(): Promise<EvaluatorProfileOrmEntity[]>;
+  abstract findProfileById(id: number): Promise<EvaluatorProfileOrmEntity | null>;
+  abstract saveProfile(entity: Partial<EvaluatorProfileOrmEntity>): Promise<EvaluatorProfileOrmEntity>;
+  abstract updateProfile(id: number, entity: Partial<EvaluatorProfileOrmEntity>): Promise<void>;
+  abstract deleteProfile(id: number): Promise<void>;
   
   // Versions
   abstract saveVersion(entity: Partial<ProtocolVersionOrmEntity>): Promise<ProtocolVersionOrmEntity>;

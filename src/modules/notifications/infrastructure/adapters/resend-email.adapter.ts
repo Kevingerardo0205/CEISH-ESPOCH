@@ -29,38 +29,59 @@ export class ResendEmailAdapter implements IEmailServicePort {
 
   async sendPasswordReset(
     email: string,
-    token: string,
+    code: string,
     name: string,
   ): Promise<void> {
-    const url = `${this.baseUrl}/auth/reset-password?token=${token}`;
-    await this.resend.emails.send({
-      from: this.fromEmail,
-      to: email,
-      subject: 'Restablecer contraseña - CEISH-ESPOCH',
-      html: getPasswordResetTemplate(name, url),
-    });
+    try {
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: 'Código de recuperación - CEISH-ESPOCH',
+        html: getPasswordResetTemplate(name, code),
+      });
+      console.log('Código de recuperación enviado:', data);
+    } catch (error) {
+      console.error('Error enviando código de recuperación:', error);
+      throw error;
+    }
   }
 
   async sendWelcomeEmail(email: string, name: string): Promise<void> {
-    await this.resend.emails.send({
-      from: this.fromEmail,
-      to: email,
-      subject: 'Bienvenido a CEISH-ESPOCH',
-      html: getWelcomeTemplate(name),
-    });
+    try {
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: 'Bienvenido a CEISH-ESPOCH',
+        html: getWelcomeTemplate(name),
+      });
+      console.log('Email de bienvenida enviado:', data);
+    } catch (error) {
+      console.error('Error enviando email de bienvenida:', error);
+      throw error;
+    }
   }
 
   async sendEmailConfirmation(
     email: string,
-    token: string,
+    code: string,
     name: string,
   ): Promise<void> {
-    const url = `${this.baseUrl}/auth/confirm-email?token=${token}`;
-    await this.resend.emails.send({
-      from: this.fromEmail,
-      to: email,
-      subject: 'Confirma tu correo electrónico - CEISH-ESPOCH',
-      html: getEmailConfirmationTemplate(name, url),
-    });
+    try {
+      // 🚀 LOG PARA PRUEBAS: Copia el código de aquí si no lo ves en el correo
+      console.log('-----------------------------------------');
+      console.log(`[AUTH] Código de verificación para ${email}: ${code}`);
+      console.log('-----------------------------------------');
+
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: 'Código de confirmación - CEISH-ESPOCH',
+        html: getEmailConfirmationTemplate(name, code),
+      });
+      console.log('Código de confirmación enviado:', data);
+    } catch (error) {
+      console.error('Error enviando código de confirmación:', error);
+      throw error;
+    }
   }
 }

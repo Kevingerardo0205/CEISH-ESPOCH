@@ -1,4 +1,5 @@
 import { Role } from './role.entity';
+import { InvestigatorProfile } from './investigator-profile.entity';
 
 export class User {
   constructor(
@@ -6,11 +7,6 @@ export class User {
     public readonly nationalId: string,
     public readonly fullName: string,
     public readonly institutionalEmail: string,
-    public readonly personalEmail: string | null = null,
-    public readonly phone: string | null = null,
-    public readonly institution: string | null = null,
-    public readonly position: string | null = null,
-    public readonly senescytRegistration: string | null = null,
     public readonly passwordHash?: string,
     public readonly isActive: boolean = true,
     public readonly failedAttempts: number = 0,
@@ -19,5 +15,7 @@ export class User {
     public readonly createdAt: Date = new Date(),
     public readonly lastAccess: Date | null = null,
     public readonly roles: Role[] = [],
+    public readonly isEmailVerified: boolean = false,
+    public readonly investigatorProfile?: InvestigatorProfile,
   ) {}
 }

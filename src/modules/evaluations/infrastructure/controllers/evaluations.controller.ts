@@ -1,7 +1,8 @@
-import { Controller, Get, Post, Body, Query, UseGuards, Request, ParseIntPipe } from '@nestjs/common';
+import { Controller, Get, Post, Body, Query, UseGuards, Request, ParseIntPipe, Patch, Param, Delete } from '@nestjs/common';
 import { EvaluationsService } from '../../application/services/evaluations.service';
 import { AssignEvaluatorsDto } from '../../application/dtos/assign-evaluator.dto';
 import { SubmitEvaluationDto } from '../../application/dtos/submit-evaluation.dto';
+import { CreateEvaluatorProfileDto, UpdateEvaluatorProfileDto } from '../../application/dtos/evaluator-profile-crud.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
 import { Roles } from '../../../../shared/decorators/roles.decorator';
@@ -41,5 +42,26 @@ export class EvaluationsController {
   @Get('profiles')
   async getProfiles() {
     return this.evaluationsService.getProfiles();
+  }
+
+  @Post('profiles')
+  @Roles('presidente', 'admin_ti')
+  @Audit('EVALUATOR_PROFILE_CREATED')
+  async createProfile(@Body() dto: CreateEvaluatorProfileDto) {
+    return this.evaluationsService.createProfile(dto);
+  }
+
+  @Patch('profiles/:id')
+  @Roles('presidente', 'admin_ti')
+  @Audit('EVALUATOR_PROFILE_UPDATED')
+  async updateProfile(@Param('id', ParseIntPipe) id: number, @Body() dto: UpdateEvaluatorProfileDto) {
+    return this.evaluationsService.updateProfile(id, dto);
+  }
+
+  @Delete('profiles/:id')
+  @Roles('presidente', 'admin_ti')
+  @Audit('EVALUATOR_PROFILE_DELETED')
+  async deleteProfile(@Param('id', ParseIntPipe) id: number) {
+    return this.evaluationsService.deleteProfile(id);
   }
 }

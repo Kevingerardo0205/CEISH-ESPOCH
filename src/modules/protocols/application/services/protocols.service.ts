@@ -53,7 +53,10 @@ export class ProtocolsService {
     const studyType = await this.studyTypeRepository.findOne({ where: { id: dto.studyTypeId } });
     if (!studyType) throw new NotFoundException('Study Type not found');
 
-    const principalInvestigator = await this.userRepository.findOne({ where: { id: dto.principalInvestigatorId } });
+    const principalInvestigator = await this.userRepository.findOne({ 
+      where: { id: dto.principalInvestigatorId },
+      relations: ['investigatorProfile'] 
+    });
     if (!principalInvestigator) throw new NotFoundException('Principal Investigator (User) not found');
 
     // 1. Save base protocol
@@ -74,10 +77,10 @@ export class ProtocolsService {
         userId: principalInvestigator.id,
         fullName: principalInvestigator.fullName,
         identification: principalInvestigator.nationalId,
-        position: principalInvestigator.position || 'Investigador',
-        institution: principalInvestigator.institution || 'ESPOCH',
+        position: principalInvestigator.investigatorProfile?.position || 'Investigador',
+        institution: principalInvestigator.investigatorProfile?.institution || 'ESPOCH',
         email: principalInvestigator.institutionalEmail,
-        phone: principalInvestigator.phone || '',
+        phone: principalInvestigator.investigatorProfile?.phone || '',
         education: 'Información en perfil',
         role: InvestigatorRole.PRINCIPAL,
       } as any);
