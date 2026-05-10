@@ -1,4 +1,11 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn, CreateDateColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+  CreateDateColumn,
+} from 'typeorm';
 import { SessionOrmEntity } from './session.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 
@@ -35,7 +42,11 @@ export class MinutesOrmEntity {
   @Column({ name: 'lista_asistentes', type: 'jsonb', nullable: true })
   attendeesList?: any;
 
-  @Column({ name: 'conflictos_interes_registrados', type: 'jsonb', nullable: true })
+  @Column({
+    name: 'conflictos_interes_registrados',
+    type: 'jsonb',
+    nullable: true,
+  })
   conflictsOfInterest?: any;
 
   @Column({ name: 'consultores_externos', type: 'jsonb', nullable: true })

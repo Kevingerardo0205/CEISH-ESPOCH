@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResolutionOrmEntity } from '../../infrastructure/database/resolution.entity.orm';
@@ -16,17 +20,27 @@ export class ResolutionsService {
 
   async createResolution(dto: any, userId: number) {
     const protocol = await this.protocolRepository.findById(dto.protocolId);
-    if (!protocol) throw new NotFoundException(`Protocol ${dto.protocolId} not found`);
+    if (!protocol)
+      throw new NotFoundException(`Protocol ${dto.protocolId} not found`);
 
-    const version = await this.evaluationRepository.findVersionByProtocolId(dto.protocolId, 1);
-    if (!version) throw new BadRequestException('El protocolo no tiene una versión activa para resolución.');
+    const version = await this.evaluationRepository.findVersionByProtocolId(
+      dto.protocolId,
+      1,
+    );
+    if (!version)
+      throw new BadRequestException(
+        'El protocolo no tiene una versión activa para resolución.',
+      );
 
     // Consolidar evaluaciones
-    const assignments = await this.evaluationRepository.findAssignmentsByVersionId(version.id);
-    const completedEvaluations = assignments.filter(a => a.statusId === 2); // EVALUADO
+    const assignments =
+      await this.evaluationRepository.findAssignmentsByVersionId(version.id);
+    const completedEvaluations = assignments.filter((a) => a.statusId === 2); // EVALUADO
 
     if (completedEvaluations.length === 0) {
-      throw new BadRequestException('No existen evaluaciones completadas para este protocolo.');
+      throw new BadRequestException(
+        'No existen evaluaciones completadas para este protocolo.',
+      );
     }
 
     const resolution = this.resolutionRepo.create({

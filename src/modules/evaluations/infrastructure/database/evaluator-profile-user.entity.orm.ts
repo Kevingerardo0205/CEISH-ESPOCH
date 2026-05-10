@@ -18,7 +18,11 @@ export class EvaluatorProfileUserOrmEntity {
   @JoinColumn({ name: 'perfil_id' })
   profile!: EvaluatorProfileOrmEntity;
 
-  @Column({ name: 'fecha_asignacion', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'fecha_asignacion',
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   assignedAt!: Date;
 
   @Column({ name: 'activo', default: true })

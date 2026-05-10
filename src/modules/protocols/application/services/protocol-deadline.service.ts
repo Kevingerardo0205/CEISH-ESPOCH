@@ -12,7 +12,8 @@ export class ProtocolDeadlineService {
     while (count < days) {
       result.setDate(result.getDate() + 1);
       const dayOfWeek = result.getDay();
-      if (dayOfWeek !== 0 && dayOfWeek !== 6) { // 0 = Sunday, 6 = Saturday
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        // 0 = Sunday, 6 = Saturday
         count++;
       }
     }
@@ -31,7 +32,10 @@ export class ProtocolDeadlineService {
    * Expedita: 45 business days
    * Pleno/Ensayo Clínico: 60 business days
    */
-  calculateResponseDeadline(reviewType: ReviewType, receptionDate: Date = new Date()): Date {
+  calculateResponseDeadline(
+    reviewType: ReviewType,
+    receptionDate: Date = new Date(),
+  ): Date {
     const days = reviewType === ReviewType.EXPEDITA ? 45 : 60;
     return this.addBusinessDays(receptionDate, days);
   }
@@ -41,7 +45,10 @@ export class ProtocolDeadlineService {
    * Expedita: 8 business days
    * Pleno: 15 business days
    */
-  calculateEvaluatorDeadline(reviewType: ReviewType, assignmentDate: Date = new Date()): Date {
+  calculateEvaluatorDeadline(
+    reviewType: ReviewType,
+    assignmentDate: Date = new Date(),
+  ): Date {
     const days = reviewType === ReviewType.EXPEDITA ? 8 : 15;
     return this.addBusinessDays(assignmentDate, days);
   }

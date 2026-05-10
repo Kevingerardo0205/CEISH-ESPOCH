@@ -11,7 +11,11 @@ export class EvaluatorProfileOrmEntity {
   @Column({ name: 'descripcion', type: 'text', nullable: true })
   description?: string;
 
-  @Column({ name: 'obligatorio_para_tipo_estudio', type: 'jsonb', nullable: true })
+  @Column({
+    name: 'obligatorio_para_tipo_estudio',
+    type: 'jsonb',
+    nullable: true,
+  })
   mandatoryForStudyTypes?: any;
 
   @Column({ name: 'orden_prioridad', default: 0 })

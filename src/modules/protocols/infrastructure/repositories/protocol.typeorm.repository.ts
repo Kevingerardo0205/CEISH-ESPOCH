@@ -8,10 +8,10 @@ import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
 import { getPaginationParams } from '../../../../shared/db/pagination.helper';
 
 @Injectable()
-export class ProtocolTypeOrmRepository 
-  extends BaseTypeOrmRepository<ProtocolOrmEntity> 
-  implements IProtocolRepository {
-  
+export class ProtocolTypeOrmRepository
+  extends BaseTypeOrmRepository<ProtocolOrmEntity>
+  implements IProtocolRepository
+{
   constructor(
     @InjectRepository(ProtocolOrmEntity)
     private readonly protocolsRepo: Repository<ProtocolOrmEntity>,
@@ -19,11 +19,14 @@ export class ProtocolTypeOrmRepository
     super(protocolsRepo);
   }
 
-  async findAll(query: QueryProtocolDto): Promise<[ProtocolOrmEntity[], number]> {
+  async findAll(
+    query: QueryProtocolDto,
+  ): Promise<[ProtocolOrmEntity[], number]> {
     const { page, limit, skip } = getPaginationParams(query);
     const { studyType, receptionStatus, reviewType } = query;
 
-    const qb = this.protocolsRepo.createQueryBuilder('p')
+    const qb = this.protocolsRepo
+      .createQueryBuilder('p')
       .leftJoinAndSelect('p.studyType', 'studyType')
       .leftJoinAndSelect('p.riskLevel', 'riskLevel')
       .leftJoinAndSelect('p.principalInvestigator', 'pi')
@@ -32,7 +35,8 @@ export class ProtocolTypeOrmRepository
       .leftJoinAndSelect('p.checklist', 'checklist');
 
     if (studyType) qb.andWhere('studyType.code = :studyType', { studyType });
-    if (receptionStatus) qb.andWhere('p.receptionStatus = :receptionStatus', { receptionStatus });
+    if (receptionStatus)
+      qb.andWhere('p.receptionStatus = :receptionStatus', { receptionStatus });
     if (reviewType) qb.andWhere('p.reviewType = :reviewType', { reviewType });
 
     qb.skip(skip).take(limit);

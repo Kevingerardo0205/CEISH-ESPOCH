@@ -31,7 +31,8 @@ export const getBaseTemplate = (content: string) => `
 </html>
 `;
 
-export const getPasswordResetTemplate = (name: string, code: string) => getBaseTemplate(`
+export const getPasswordResetTemplate = (name: string, code: string) =>
+  getBaseTemplate(`
   <h2>Hola, ${name}</h2>
   <p>Has solicitado restablecer tu contraseña para acceder al sistema CEISH-ESPOCH.</p>
   <p>Usa el siguiente código de seguridad para continuar con el proceso:</p>
@@ -40,16 +41,45 @@ export const getPasswordResetTemplate = (name: string, code: string) => getBaseT
   <p>Si no has solicitado este cambio, puedes ignorar este correo de forma segura.</p>
 `);
 
-export const getEmailConfirmationTemplate = (name: string, code: string) => getBaseTemplate(`
+export const getEmailConfirmationTemplate = (name: string, code: string) =>
+  getBaseTemplate(`
   <h2>Bienvenido/a a CEISH-ESPOCH, ${name}</h2>
   <p>Gracias por registrarte en nuestra plataforma. Para activar tu cuenta, por favor ingresa el siguiente código de verificación en el sistema:</p>
   <div class="otp-code">${code}</div>
   <p>Si no has creado una cuenta, por favor ignora este mensaje.</p>
 `);
 
-export const getWelcomeTemplate = (name: string) => getBaseTemplate(`
+export const getWelcomeTemplate = (name: string) =>
+  getBaseTemplate(`
   <h2>¡Registro Exitoso!</h2>
   <p>Hola, ${name}. Tu cuenta en CEISH-ESPOCH ha sido creada y verificada exitosamente.</p>
   <p>Ya puedes acceder a la plataforma para gestionar tus protocolos de investigación.</p>
   <a href="https://ceish-espoch.edu.ec/login" class="button">Ir al Login</a>
+`);
+
+export const getEvaluationAssignmentTemplate = (
+  name: string,
+  protocolCode: string,
+  deadline: string,
+) =>
+  getBaseTemplate(`
+  <h2>Nueva Asignación de Evaluación</h2>
+  <p>Estimado/a ${name},</p>
+  <p>Se le ha asignado un nuevo protocolo para su revisión ética:</p>
+  <p><strong>Código del Protocolo:</strong> ${protocolCode}</p>
+  <p><strong>Fecha Límite de Entrega:</strong> ${deadline}</p>
+  <p>Por favor, ingrese al sistema para descargar la documentación y completar el formulario de evaluación.</p>
+  <a href="https://ceish-espoch.edu.ec/login" class="button">Acceder al Sistema</a>
+`);
+
+export const getEvaluationSubmittedTemplate = (
+  evaluatorName: string,
+  protocolCode: string,
+) =>
+  getBaseTemplate(`
+  <h2>Evaluación Finalizada</h2>
+  <p>Se ha recibido un nuevo dictamen de evaluación:</p>
+  <p><strong>Protocolo:</strong> ${protocolCode}</p>
+  <p><strong>Evaluador:</strong> ${evaluatorName}</p>
+  <p>El informe y los aspectos evaluados ya están disponibles en el sistema para su revisión y trámite correspondiente.</p>
 `);

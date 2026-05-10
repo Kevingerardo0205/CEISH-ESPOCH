@@ -1,4 +1,4 @@
- import {
+import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
   UpdateDateColumn,

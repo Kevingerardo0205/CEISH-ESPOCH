@@ -8,10 +8,10 @@ import { DocumentValidationOrmEntity } from '../database/document-validation.ent
 import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
 
 @Injectable()
-export class ReceptionTypeOrmRepository 
-  extends BaseTypeOrmRepository<ReceptionOrmEntity> 
-  implements IReceptionRepository {
-  
+export class ReceptionTypeOrmRepository
+  extends BaseTypeOrmRepository<ReceptionOrmEntity>
+  implements IReceptionRepository
+{
   constructor(
     @InjectRepository(ReceptionOrmEntity)
     private readonly receptionRepo: Repository<ReceptionOrmEntity>,
@@ -23,32 +23,48 @@ export class ReceptionTypeOrmRepository
     super(receptionRepo);
   }
 
-  async findByProtocolId(protocolId: number): Promise<ReceptionOrmEntity | null> {
+  async findByProtocolId(
+    protocolId: number,
+  ): Promise<ReceptionOrmEntity | null> {
     return this.receptionRepo.findOne({ where: { protocolId } });
   }
 
-  async saveDocument(entity: Partial<ReceptionDocumentOrmEntity>): Promise<ReceptionDocumentOrmEntity> {
+  async saveDocument(
+    entity: Partial<ReceptionDocumentOrmEntity>,
+  ): Promise<ReceptionDocumentOrmEntity> {
     return this.documentRepo.save(entity as ReceptionDocumentOrmEntity);
   }
 
-  async findDocumentById(id: number): Promise<ReceptionDocumentOrmEntity | null> {
+  async findDocumentById(
+    id: number,
+  ): Promise<ReceptionDocumentOrmEntity | null> {
     return this.documentRepo.findOne({ where: { id } });
   }
 
-  async findDocumentsByProtocolId(protocolId: number): Promise<ReceptionDocumentOrmEntity[]> {
+  async findDocumentsByProtocolId(
+    protocolId: number,
+  ): Promise<ReceptionDocumentOrmEntity[]> {
     return this.documentRepo.find({ where: { protocolId } });
   }
 
-  async saveValidation(entity: Partial<DocumentValidationOrmEntity>): Promise<DocumentValidationOrmEntity> {
+  async saveValidation(
+    entity: Partial<DocumentValidationOrmEntity>,
+  ): Promise<DocumentValidationOrmEntity> {
     return this.validationRepo.save(entity as DocumentValidationOrmEntity);
   }
 
-  async findValidationsByDocumentId(documentId: number): Promise<DocumentValidationOrmEntity[]> {
+  async findValidationsByDocumentId(
+    documentId: number,
+  ): Promise<DocumentValidationOrmEntity[]> {
     return this.validationRepo.find({ where: { documentId } });
   }
 
-  async countByYearAndType(year: number, studyTypeCode: string): Promise<number> {
-    const qb = this.receptionRepo.createQueryBuilder('r')
+  async countByYearAndType(
+    year: number,
+    studyTypeCode: string,
+  ): Promise<number> {
+    const qb = this.receptionRepo
+      .createQueryBuilder('r')
       .leftJoin('protocolos', 'p', 'r.protocolo_id = p.id')
       .leftJoin('catalogos.tipos_estudio', 'te', 'p.tipo_estudio_id = te.id')
       .where('EXTRACT(YEAR FROM r.fecha_recepcion) = :year', { year })

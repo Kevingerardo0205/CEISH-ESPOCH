@@ -10,4 +10,15 @@ export abstract class IEmailServicePort {
     code: string,
     name: string,
   ): Promise<void>;
+  abstract sendEvaluationAssignment(
+    email: string,
+    name: string,
+    protocolCode: string,
+    deadline: Date,
+  ): Promise<void>;
+  abstract sendEvaluationSubmitted(
+    email: string,
+    evaluatorName: string,
+    protocolCode: string,
+  ): Promise<void>;
 }

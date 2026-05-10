@@ -6,10 +6,10 @@ import { UserOrmEntity } from '../database/user.entity.orm';
 import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
 
 @Injectable()
-export class UserTypeOrmRepository 
-  extends BaseTypeOrmRepository<UserOrmEntity> 
-  implements IUserRepository {
-  
+export class UserTypeOrmRepository
+  extends BaseTypeOrmRepository<UserOrmEntity>
+  implements IUserRepository
+{
   constructor(
     @InjectRepository(UserOrmEntity)
     private readonly userRepo: Repository<UserOrmEntity>,
@@ -31,12 +31,19 @@ export class UserTypeOrmRepository
     });
   }
 
-  async save(user: Partial<UserOrmEntity>, manager?: any): Promise<UserOrmEntity> {
+  async save(
+    user: Partial<UserOrmEntity>,
+    manager?: any,
+  ): Promise<UserOrmEntity> {
     const repo = manager ? manager.getRepository(UserOrmEntity) : this.userRepo;
     return repo.save(user);
   }
 
-  async update(id: number, data: Partial<UserOrmEntity>, manager?: any): Promise<void> {
+  async update(
+    id: number,
+    data: Partial<UserOrmEntity>,
+    manager?: any,
+  ): Promise<void> {
     const repo = manager ? manager.getRepository(UserOrmEntity) : this.userRepo;
     await repo.update(id, data);
   }
@@ -66,7 +73,13 @@ export class UserTypeOrmRepository
   async findWithToken(where: any): Promise<UserOrmEntity[]> {
     return this.userRepo.find({
       where,
-      select: ['id', 'confirmationTokenHash', 'resetPasswordTokenHash', 'resetPasswordExpires', 'isEmailVerified'],
+      select: [
+        'id',
+        'confirmationTokenHash',
+        'resetPasswordTokenHash',
+        'resetPasswordExpires',
+        'isEmailVerified',
+      ],
     });
   }
 }

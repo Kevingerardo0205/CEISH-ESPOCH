@@ -1,9 +1,4 @@
-import {
-  Entity,
-  Column,
-  ManyToOne,
-  JoinColumn,
-} from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
 import { ProtocolOrmEntity } from './protocol.entity.orm';
 import { InvestigatorRole } from '../../domain/enums/investigator-role.enum';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';

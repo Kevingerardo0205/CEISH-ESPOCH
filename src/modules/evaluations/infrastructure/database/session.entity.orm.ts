@@ -1,4 +1,10 @@
-import { Entity, Column, PrimaryGeneratedColumn, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  PrimaryGeneratedColumn,
+  ManyToOne,
+  JoinColumn,
+} from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 
 @Entity({ name: 'sesiones', schema: 'evaluacion' })

@@ -1,8 +1,20 @@
-import { Controller, Get, Post, Body, Param, Patch, UseGuards, Request } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Param,
+  Patch,
+  UseGuards,
+  Request,
+} from '@nestjs/common';
 import { ReceptionService } from '../../application/services/reception.service';
 import { ValidateDocumentDto } from '../../application/dtos/validate-document.dto';
 import { VerifyReceptionDto } from '../../application/dtos/verify-reception.dto';
-import { UploadDocumentDto, UploadMultipleDocumentsDto } from '../../application/dtos/upload-document.dto';
+import {
+  UploadDocumentDto,
+  UploadMultipleDocumentsDto,
+} from '../../application/dtos/upload-document.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { RequirementStatus } from '../../../protocols/domain/enums/requirement-status.enum';
@@ -14,7 +26,10 @@ export class ReceptionController {
 
   @Post('protocol/:protocolId/start')
   @Audit('RECEPTION_STARTED')
-  async iniciarRecepcion(@Param('protocolId') protocolId: string, @Request() req) {
+  async iniciarRecepcion(
+    @Param('protocolId') protocolId: string,
+    @Request() req,
+  ) {
     return this.receptionService.iniciarRecepcion(+protocolId, req.user.id);
   }
 
@@ -27,17 +42,18 @@ export class ReceptionController {
   @Audit('REQUIREMENTS_VERIFIED')
   async verificar(
     @Param('protocolId') protocolId: string,
-    @Body() dto: VerifyReceptionDto
+    @Body() dto: VerifyReceptionDto,
   ) {
-    return this.receptionService.verificarRequisitos(+protocolId, dto.isComplete, dto.missingItemsList);
+    return this.receptionService.verificarRequisitos(
+      +protocolId,
+      dto.isComplete,
+      dto.missingItemsList,
+    );
   }
 
   @Post('protocol/:protocolId/document')
   @Audit('DOCUMENT_UPLOADED')
-  async uploadDocument(
-    @Request() req,
-    @Body() dto: UploadDocumentDto
-  ) {
+  async uploadDocument(@Request() req, @Body() dto: UploadDocumentDto) {
     return this.receptionService.uploadDocument(dto, req.user.id);
   }
 
@@ -45,7 +61,7 @@ export class ReceptionController {
   @Audit('DOCUMENTS_BULK_UPLOADED')
   async uploadMultipleDocuments(
     @Request() req,
-    @Body() dto: UploadMultipleDocumentsDto
+    @Body() dto: UploadMultipleDocumentsDto,
   ) {
     return this.receptionService.uploadMultipleDocuments(dto, req.user.id);
   }
@@ -67,9 +83,14 @@ export class ReceptionController {
   async validateDocument(
     @Param('documentId') documentId: string,
     @Request() req,
-    @Body() dto: ValidateDocumentDto
+    @Body() dto: ValidateDocumentDto,
   ) {
-    return this.receptionService.validateDocument(+documentId, req.user.id, dto.statusId, dto.observations);
+    return this.receptionService.validateDocument(
+      +documentId,
+      req.user.id,
+      dto.statusId,
+      dto.observations,
+    );
   }
 
   @Get('protocol/:protocolId/documents')
@@ -82,8 +103,12 @@ export class ReceptionController {
   async updateRequirement(
     @Param('protocolId') protocolId: string,
     @Param('reqId') reqId: string,
-    @Body('status') status: RequirementStatus
+    @Body('status') status: RequirementStatus,
   ) {
-    return this.receptionService.updateRequirementStatus(+protocolId, +reqId, status);
+    return this.receptionService.updateRequirementStatus(
+      +protocolId,
+      +reqId,
+      status,
+    );
   }
 }

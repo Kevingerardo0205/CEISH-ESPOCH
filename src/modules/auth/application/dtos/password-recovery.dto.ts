@@ -2,7 +2,10 @@ import { IsEmail, IsNotEmpty, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class ForgotPasswordDto {
-  @ApiProperty({ example: 'investigador@espoch.edu.ec', description: 'Correo institucional del usuario' })
+  @ApiProperty({
+    example: 'investigador@espoch.edu.ec',
+    description: 'Correo institucional del usuario',
+  })
   @IsEmail()
   @IsNotEmpty()
   email!: string;
@@ -14,7 +17,10 @@ export class ConfirmEmailDto {
   @IsNotEmpty()
   email!: string;
 
-  @ApiProperty({ example: '123456', description: 'Código de verificación enviado al correo' })
+  @ApiProperty({
+    example: '123456',
+    description: 'Código de verificación enviado al correo',
+  })
   @IsString()
   @IsNotEmpty()
   @MinLength(6)

@@ -6,10 +6,10 @@ import { InvestigatorProfileOrmEntity } from '../database/investigator-profile.e
 import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
 
 @Injectable()
-export class InvestigatorProfileTypeOrmRepository 
-  extends BaseTypeOrmRepository<InvestigatorProfileOrmEntity> 
-  implements IInvestigatorProfileRepository {
-  
+export class InvestigatorProfileTypeOrmRepository
+  extends BaseTypeOrmRepository<InvestigatorProfileOrmEntity>
+  implements IInvestigatorProfileRepository
+{
   constructor(
     @InjectRepository(InvestigatorProfileOrmEntity)
     private readonly profileRepo: Repository<InvestigatorProfileOrmEntity>,
@@ -17,12 +17,19 @@ export class InvestigatorProfileTypeOrmRepository
     super(profileRepo);
   }
 
-  async save(profile: Partial<InvestigatorProfileOrmEntity>, manager?: any): Promise<InvestigatorProfileOrmEntity> {
-    const repo = manager ? manager.getRepository(InvestigatorProfileOrmEntity) : this.profileRepo;
+  async save(
+    profile: Partial<InvestigatorProfileOrmEntity>,
+    manager?: any,
+  ): Promise<InvestigatorProfileOrmEntity> {
+    const repo = manager
+      ? manager.getRepository(InvestigatorProfileOrmEntity)
+      : this.profileRepo;
     return repo.save(profile);
   }
 
-  async findByUserId(userId: number): Promise<InvestigatorProfileOrmEntity | null> {
+  async findByUserId(
+    userId: number,
+  ): Promise<InvestigatorProfileOrmEntity | null> {
     return this.profileRepo.findOne({
       where: { userId },
     });

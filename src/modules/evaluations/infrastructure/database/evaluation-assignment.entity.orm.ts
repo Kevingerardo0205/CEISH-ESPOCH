@@ -1,7 +1,15 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+} from 'typeorm';
 import { ProtocolVersionOrmEntity } from './protocol-version.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { EvaluatorProfileOrmEntity } from './evaluator-profile.entity.orm';
+import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 
 @Entity({ name: 'asignaciones_evaluacion', schema: 'evaluacion' })
 export class EvaluationAssignmentOrmEntity {
@@ -32,14 +40,28 @@ export class EvaluationAssignmentOrmEntity {
   @Column({ name: 'modalidad_id', nullable: true })
   modalityId?: number;
 
-  @Column({ name: 'estado_id', nullable: true })
-  statusId?: number;
+  @Column({
+    name: 'estado_id',
+    type: 'integer',
+    default: AssignmentStatus.SUGGESTED,
+  })
+  statusId!: number;
 
   @Column({ name: 'fecha_limite', type: 'date', nullable: true })
-  deadline!: Date;
+  deadline?: Date;
 
-  @Column({ name: 'fecha_asignacion', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @CreateDateColumn({ name: 'fecha_asignacion', type: 'timestamp' })
   assignedAt!: Date;
+
+  @Column({
+    name: 'fecha_sugerencia',
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  suggestedAt!: Date;
+
+  @Column({ name: 'fecha_confirmacion', type: 'timestamp', nullable: true })
+  confirmedAt?: Date;
 
   @Column({ name: 'fecha_entrega_real', type: 'timestamp', nullable: true })
   actualSubmissionDate?: Date;
@@ -50,17 +72,24 @@ export class EvaluationAssignmentOrmEntity {
   @Column({ name: 'recomendacion', length: 50, nullable: true })
   recommendation?: string;
 
+  @Column({ name: 'sugerido_por', nullable: true })
+  suggestedByUserId?: number;
+
+  @ManyToOne(() => UserOrmEntity)
+  @JoinColumn({ name: 'sugerido_por' })
+  suggestedBy?: UserOrmEntity;
+
+  @Column({ name: 'confirmado_por', nullable: true })
+  confirmedByUserId?: number;
+
+  @ManyToOne(() => UserOrmEntity)
+  @JoinColumn({ name: 'confirmado_por' })
+  confirmedBy?: UserOrmEntity;
+
+  // Legacy fields for compatibility if needed during migration
   @Column({ name: 'asignado_por', nullable: true })
   assignedByUserId?: number;
 
-  @ManyToOne(() => UserOrmEntity)
-  @JoinColumn({ name: 'asignado_por' })
-  assignedBy?: UserOrmEntity;
-
   @Column({ name: 'aprobado_asignacion_por', nullable: true })
   assignmentApprovedByUserId?: number;
-
-  @ManyToOne(() => UserOrmEntity)
-  @JoinColumn({ name: 'aprobado_asignacion_por' })
-  assignmentApprovedBy?: UserOrmEntity;
 }

@@ -1,4 +1,10 @@
-import { IsNumber, IsOptional, IsString, IsBoolean, IsDateString } from 'class-validator';
+import {
+  IsNumber,
+  IsOptional,
+  IsString,
+  IsBoolean,
+  IsDateString,
+} from 'class-validator';
 
 export class CreateReceptionDto {
   @IsNumber()

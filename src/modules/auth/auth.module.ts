@@ -16,7 +16,11 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([UserOrmEntity, RoleOrmEntity, InvestigatorProfileOrmEntity]),
+    TypeOrmModule.forFeature([
+      UserOrmEntity,
+      RoleOrmEntity,
+      InvestigatorProfileOrmEntity,
+    ]),
     PassportModule,
     JwtModule.register({
       secret: process.env.JWT_SECRET || 'SUPER_SECRET_KEY',
@@ -25,8 +29,8 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
   ],
   controllers: [AuthController],
   providers: [
-    AuthService, 
-    LocalStrategy, 
+    AuthService,
+    LocalStrategy,
     JwtStrategy,
     {
       provide: IUserRepository,

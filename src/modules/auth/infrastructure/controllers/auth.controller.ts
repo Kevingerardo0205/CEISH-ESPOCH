@@ -1,17 +1,31 @@
-import { Controller, Post, Body, UseGuards, Request, Get, HttpCode, HttpStatus, Patch, Param, ParseIntPipe } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Body,
+  UseGuards,
+  Request,
+  Get,
+  HttpCode,
+  HttpStatus,
+  Patch,
+  Param,
+  ParseIntPipe,
+} from '@nestjs/common';
 import { AuthService } from '../../application/services/auth.service';
 import { LocalAuthGuard } from '../guards/local-auth.guard';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
 import { Roles } from '../../../../shared/decorators/roles.decorator';
-import { ForgotPasswordDto, ResetPasswordDto, ConfirmEmailDto } from '../../application/dtos/password-recovery.dto';
+import {
+  ForgotPasswordDto,
+  ResetPasswordDto,
+  ConfirmEmailDto,
+} from '../../application/dtos/password-recovery.dto';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
-
 
 import { RegisterInvestigatorDto } from '../../application/dtos/register-investigator.dto';
 import { CreateUserDto } from '../../application/dtos/create-user.dto';
 import { UpdateUserDto } from '../../application/dtos/update-user.dto';
-
 
 @Controller('auth')
 export class AuthController {
@@ -38,7 +52,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('presidente', 'admin_ti')
   @Patch('users/:id')
-  async updateUser(@Param('id', ParseIntPipe) id: number, @Body() userData: UpdateUserDto) {
+  async updateUser(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() userData: UpdateUserDto,
+  ) {
     return this.authService.updateUser(id, userData);
   }
 
@@ -50,7 +67,10 @@ export class AuthController {
   }
 
   @Post('refresh')
-  async refresh(@Body('userId') userId: number, @Body('refreshToken') refreshToken: string) {
+  async refresh(
+    @Body('userId') userId: number,
+    @Body('refreshToken') refreshToken: string,
+  ) {
     return this.authService.refreshTokens(userId, refreshToken);
   }
 
@@ -60,7 +80,9 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async forgotPassword(@Body() forgotPasswordDto: ForgotPasswordDto) {
     await this.authService.forgotPassword(forgotPasswordDto.email);
-    return { message: 'Si el correo existe, se ha enviado un enlace de recuperación.' };
+    return {
+      message: 'Si el correo existe, se ha enviado un enlace de recuperación.',
+    };
   }
 
   @Post('reset-password')
@@ -77,7 +99,10 @@ export class AuthController {
   @Post('confirm-email')
   @HttpCode(HttpStatus.OK)
   async confirmEmail(@Body() confirmEmailDto: ConfirmEmailDto) {
-    await this.authService.confirmEmail(confirmEmailDto.email, confirmEmailDto.code);
+    await this.authService.confirmEmail(
+      confirmEmailDto.email,
+      confirmEmailDto.code,
+    );
     return { message: 'Correo electrónico confirmado exitosamente.' };
   }
 
@@ -87,7 +112,10 @@ export class AuthController {
   @HttpCode(HttpStatus.OK)
   async resendConfirmation(@Body('email') email: string) {
     await this.authService.resendConfirmation(email);
-    return { message: 'Si la cuenta existe y no está confirmada, se ha enviado un nuevo enlace.' };
+    return {
+      message:
+        'Si la cuenta existe y no está confirmada, se ha enviado un nuevo enlace.',
+    };
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)
@@ -100,7 +128,10 @@ export class AuthController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('presidente', 'admin_ti')
   @Patch('users/:id/roles')
-  async updateUserRoles(@Param('id', ParseIntPipe) id: number, @Body('roles') roles: string[]) {
+  async updateUserRoles(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('roles') roles: string[],
+  ) {
     return this.authService.updateUserRoles(id, roles);
   }
 
@@ -113,7 +144,7 @@ export class AuthController {
   @UseGuards(JwtAuthGuard)
   @Get('me')
   async getMe(@Request() req) {
-    return this.authService.getMe(req.user.sub);
+    return this.authService.getMe(req.user.id);
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard)

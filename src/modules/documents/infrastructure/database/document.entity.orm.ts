@@ -1,31 +1,57 @@
-import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  PrimaryGeneratedColumn,
+  CreateDateColumn,
+} from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
-import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
+import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 
-@Entity({ name: 'documentos', schema: 'public' })
-export class DocumentOrmEntity extends BaseOrmEntity {
-  @Column({ name: 'nombre_archivo', length: 255 })
-  fileName!: string;
+@Entity({ name: 'documentos', schema: 'recepcion' })
+export class DocumentOrmEntity {
+  @PrimaryGeneratedColumn()
+  id!: number;
 
-  @Column({ name: 'tipo_mimetype', length: 100 })
-  mimeType!: string;
-
-  @Column({ name: 'ruta_almacenamiento', length: 500 })
-  storagePath!: string;
-
-  @Column({ name: 'tamano_bytes', type: 'bigint' })
-  sizeBytes!: number;
-
-  @Column({ name: 'hash_verificacion', length: 64, nullable: true })
-  hash!: string;
-
-  @Column({ name: 'version', default: 1 })
-  version!: number;
+  @Column({ name: 'protocolo_id' })
+  protocolId!: number;
 
   @ManyToOne(() => ProtocolOrmEntity)
   @JoinColumn({ name: 'protocolo_id' })
   protocol!: ProtocolOrmEntity;
 
-  @Column({ name: 'protocolo_id' })
-  protocolId!: number;
+  @Column({ name: 'tipo_documento_id', nullable: true })
+  documentTypeId?: number;
+
+  @Column({ name: 'nombre_archivo', length: 200 })
+  fileName!: string;
+
+  @Column({ name: 'ruta', length: 500 })
+  path!: string;
+
+  @Column({ name: 'numero_hojas', nullable: true })
+  pageCount?: number;
+
+  @Column({ name: 'hash_checksum', length: 64, nullable: true })
+  hash!: string;
+
+  @Column({ name: 'tamaño_bytes', type: 'bigint', nullable: true })
+  sizeBytes?: string;
+
+  @Column({ name: 'es_confidencial', default: true })
+  isConfidential!: boolean;
+
+  @Column({ name: 'validado_secretaria', default: false })
+  isValidatedBySecretary!: boolean;
+
+  @Column({ name: 'subido_por', nullable: true })
+  uploadedByUserId?: number;
+
+  @ManyToOne(() => UserOrmEntity)
+  @JoinColumn({ name: 'subido_por' })
+  uploadedBy?: UserOrmEntity;
+
+  @CreateDateColumn({ name: 'creado_en', type: 'timestamp' })
+  createdAt!: Date;
 }

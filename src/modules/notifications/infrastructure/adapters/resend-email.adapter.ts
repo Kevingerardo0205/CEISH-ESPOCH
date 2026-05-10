@@ -6,6 +6,8 @@ import {
   getEmailConfirmationTemplate,
   getPasswordResetTemplate,
   getWelcomeTemplate,
+  getEvaluationAssignmentTemplate,
+  getEvaluationSubmittedTemplate,
 } from '../templates/email-templates';
 
 @Injectable()
@@ -81,6 +83,55 @@ export class ResendEmailAdapter implements IEmailServicePort {
       console.log('Código de confirmación enviado:', data);
     } catch (error) {
       console.error('Error enviando código de confirmación:', error);
+      throw error;
+    }
+  }
+
+  async sendEvaluationAssignment(
+    email: string,
+    name: string,
+    protocolCode: string,
+    deadline: Date,
+  ): Promise<void> {
+    try {
+      const formattedDate = deadline.toLocaleDateString('es-EC', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: `Nueva Asignación CEISH: ${protocolCode}`,
+        html: getEvaluationAssignmentTemplate(
+          name,
+          protocolCode,
+          formattedDate,
+        ),
+      });
+      console.log('Email de asignación enviado:', data);
+    } catch (error) {
+      console.error('Error enviando email de asignación:', error);
+      throw error;
+    }
+  }
+
+  async sendEvaluationSubmitted(
+    email: string,
+    evaluatorName: string,
+    protocolCode: string,
+  ): Promise<void> {
+    try {
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: `Evaluación Recibida: ${protocolCode}`,
+        html: getEvaluationSubmittedTemplate(evaluatorName, protocolCode),
+      });
+      console.log('Email de evaluación finalizada enviado:', data);
+    } catch (error) {
+      console.error('Error enviando email de evaluación finalizada:', error);
       throw error;
     }
   }

@@ -4,18 +4,32 @@ import { DocumentValidationOrmEntity } from '../../infrastructure/database/docum
 
 export abstract class IReceptionRepository {
   abstract findById(id: number): Promise<ReceptionOrmEntity | null>;
-  abstract findByProtocolId(protocolId: number): Promise<ReceptionOrmEntity | null>;
-  abstract save(entity: Partial<ReceptionOrmEntity>): Promise<ReceptionOrmEntity>;
-  
-  abstract saveDocument(entity: Partial<ReceptionDocumentOrmEntity>): Promise<ReceptionDocumentOrmEntity>;
-  abstract findDocumentById(id: number): Promise<ReceptionDocumentOrmEntity | null>;
-  abstract findDocumentsByProtocolId(protocolId: number): Promise<ReceptionDocumentOrmEntity[]>;
-  
-  abstract saveValidation(entity: Partial<DocumentValidationOrmEntity>): Promise<DocumentValidationOrmEntity>;
-  abstract findValidationsByDocumentId(documentId: number): Promise<DocumentValidationOrmEntity[]>;
-  
+  abstract findByProtocolId(
+    protocolId: number,
+  ): Promise<ReceptionOrmEntity | null>;
+  abstract save(
+    entity: Partial<ReceptionOrmEntity>,
+  ): Promise<ReceptionOrmEntity>;
+
+  abstract saveDocument(
+    entity: Partial<ReceptionDocumentOrmEntity>,
+  ): Promise<ReceptionDocumentOrmEntity>;
+  abstract findDocumentById(
+    id: number,
+  ): Promise<ReceptionDocumentOrmEntity | null>;
+  abstract findDocumentsByProtocolId(
+    protocolId: number,
+  ): Promise<ReceptionDocumentOrmEntity[]>;
+
+  abstract saveValidation(
+    entity: Partial<DocumentValidationOrmEntity>,
+  ): Promise<DocumentValidationOrmEntity>;
+  abstract findValidationsByDocumentId(
+    documentId: number,
+  ): Promise<DocumentValidationOrmEntity[]>;
+
   abstract countByYearAndType(
     year: number,
-    studyTypeCode: string
+    studyTypeCode: string,
   ): Promise<number>;
 }

@@ -2,6 +2,7 @@ import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ProtocolController } from './infrastructure/controllers/protocol.controller';
 import { ProtocolsService } from './application/services/protocols.service';
+import { RequirementsService } from './application/services/requirements.service';
 import { ProtocolOrmEntity } from './infrastructure/database/protocol.entity.orm';
 import { StudyTypeOrmEntity } from './infrastructure/database/study-type.entity.orm';
 import { RiskLevelOrmEntity } from './infrastructure/database/risk-level.entity.orm';
@@ -20,19 +21,20 @@ import { forwardRef } from '@nestjs/common';
 @Module({
   imports: [
     TypeOrmModule.forFeature([
-      ProtocolOrmEntity, 
-      StudyTypeOrmEntity, 
-      RiskLevelOrmEntity, 
+      ProtocolOrmEntity,
+      StudyTypeOrmEntity,
+      RiskLevelOrmEntity,
       UserOrmEntity,
       InvestigatorOrmEntity,
       ParticipatingInstitutionOrmEntity,
-      ProtocolRequirementOrmEntity
+      ProtocolRequirementOrmEntity,
     ]),
     forwardRef(() => ReceptionModule),
   ],
   controllers: [ProtocolController],
   providers: [
     ProtocolsService,
+    RequirementsService,
     ProtocolCodeGenerator,
     ProtocolDeadlineService,
     ProtocolChecklistFactory,
@@ -43,6 +45,9 @@ import { forwardRef } from '@nestjs/common';
   ],
   exports: [
     ProtocolsService,
+    RequirementsService,
+
+
     IProtocolRepository,
     ProtocolCodeGenerator,
     ProtocolDeadlineService,

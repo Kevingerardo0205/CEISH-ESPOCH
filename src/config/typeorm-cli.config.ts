@@ -13,16 +13,16 @@ export default new DataSource({
   username: process.env.DB_USERNAME,
   password: process.env.DB_PASSWORD,
   database: process.env.DB_NAME,
-  
+
   // ⚠️ Para CLI: rutas relativas al CWD o imports explícitos
   entities: [
     'src/modules/**/infrastructure/database/*.entity.orm.ts',
     'src/modules/**/domain/entities/*.entity.ts',
   ],
-  
+
   migrations: ['src/migrations/*.ts'],
   migrationsTableName: 'migrations',
-  
+
   // ⚠️ IMPORTANTE: synchronize debe ser FALSE para migraciones
   synchronize: false,
   logging: ['query', 'error'],

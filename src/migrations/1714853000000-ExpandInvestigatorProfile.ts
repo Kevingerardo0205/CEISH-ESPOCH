@@ -1,9 +1,8 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class ExpandInvestigatorProfile1714853000000 implements MigrationInterface {
-
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             ALTER TABLE "catalogos"."perfiles_investigador" 
             ADD "tipo_documento" character varying(50),
             ADD "primer_nombre" character varying(100),
@@ -15,10 +14,10 @@ export class ExpandInvestigatorProfile1714853000000 implements MigrationInterfac
             ADD "acepta_terminos" boolean NOT NULL DEFAULT false,
             ADD "acepta_reglamento" boolean NOT NULL DEFAULT false;
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        await queryRunner.query(`
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    await queryRunner.query(`
             ALTER TABLE "catalogos"."perfiles_investigador" 
             DROP COLUMN "acepta_reglamento",
             DROP COLUMN "acepta_terminos",
@@ -30,6 +29,5 @@ export class ExpandInvestigatorProfile1714853000000 implements MigrationInterfac
             DROP COLUMN "primer_nombre",
             DROP COLUMN "tipo_documento";
         `);
-    }
-
+  }
 }

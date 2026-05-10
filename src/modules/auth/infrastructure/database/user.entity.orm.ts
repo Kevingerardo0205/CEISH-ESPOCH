@@ -27,7 +27,13 @@ export class UserOrmEntity extends BaseOrmEntity {
   @Column({ name: 'bloqueado_hasta', type: 'timestamptz', nullable: true })
   blockedUntil: Date | null = null;
 
-  @Column({ name: 'refresh_token_hash', type: 'varchar', length: 255, nullable: true, select: false })
+  @Column({
+    name: 'refresh_token_hash',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+    select: false,
+  })
   refreshTokenHash: string | null = null;
 
   @Column({ name: 'ultimo_acceso', type: 'timestamptz', nullable: true })
@@ -36,13 +42,27 @@ export class UserOrmEntity extends BaseOrmEntity {
   @Column({ name: 'email_verificado', default: false })
   isEmailVerified!: boolean;
 
-  @Column({ name: 'token_confirmacion_hash', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'token_confirmacion_hash',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   confirmationTokenHash: string | null = null;
 
-  @Column({ name: 'token_recuperacion_hash', type: 'varchar', length: 255, nullable: true })
+  @Column({
+    name: 'token_recuperacion_hash',
+    type: 'varchar',
+    length: 255,
+    nullable: true,
+  })
   resetPasswordTokenHash: string | null = null;
 
-  @Column({ name: 'token_recuperacion_expira', type: 'timestamptz', nullable: true })
+  @Column({
+    name: 'token_recuperacion_expira',
+    type: 'timestamptz',
+    nullable: true,
+  })
   resetPasswordExpires: Date | null = null;
 
   @OneToOne(() => InvestigatorProfileOrmEntity, (profile) => profile.user)

@@ -1,4 +1,11 @@
-import { IsNumber, IsString, IsOptional, IsBoolean, IsArray, ValidateNested } from 'class-validator';
+import {
+  IsNumber,
+  IsString,
+  IsOptional,
+  IsBoolean,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { Type } from 'class-transformer';
 
 export class SingleDocumentDto {

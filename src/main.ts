@@ -12,11 +12,13 @@ async function bootstrap() {
   // Configuración de Swagger
   const config = new DocumentBuilder()
     .setTitle('CEISH-ESPOCH API')
-    .setDescription('Documentación de la API para el Comité de Ética en Investigación de Seres Humanos (CEISH) - ESPOCH')
+    .setDescription(
+      'Documentación de la API para el Comité de Ética en Investigación de Seres Humanos (CEISH) - ESPOCH',
+    )
     .setVersion('1.0')
     .addBearerAuth()
     .build();
-  
+
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document, {
     swaggerOptions: {
@@ -27,9 +29,13 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useGlobalPipes(new GlobalValidationPipe());
-  
+
   await app.listen(process.env.PORT ?? 3002);
-  console.log(`Application is running on: http://localhost:${process.env.PORT ?? 3002}/api`);
-  console.log(`Swagger documentation available at: http://localhost:${process.env.PORT ?? 3002}/docs`);
+  console.log(
+    `Application is running on: http://localhost:${process.env.PORT ?? 3002}/api`,
+  );
+  console.log(
+    `Swagger documentation available at: http://localhost:${process.env.PORT ?? 3002}/docs`,
+  );
 }
 bootstrap();

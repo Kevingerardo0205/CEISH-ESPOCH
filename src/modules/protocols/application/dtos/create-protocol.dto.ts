@@ -1,12 +1,13 @@
-import { 
-  IsString, 
-  IsNumber, 
-  IsOptional, 
-  IsEnum, 
-  IsDateString, 
-  IsArray, 
-  ValidateNested, 
-  IsBoolean 
+import {
+  IsString,
+  IsNumber,
+  IsOptional,
+  IsEnum,
+  IsDateString,
+  IsArray,
+  ValidateNested,
+  IsBoolean,
+  IsNotEmpty,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
@@ -17,14 +18,17 @@ import { CreateInstitutionDto } from './create-institution.dto';
 export class CreateProtocolDto {
   @ApiProperty({ example: 'Título del Protocolo de Investigación' })
   @IsString()
+  @IsNotEmpty()
   title!: string;
 
   @ApiProperty({ example: 30 })
   @IsNumber()
+  @IsNotEmpty()
   principalInvestigatorId!: number;
 
   @ApiProperty({ example: 1 })
   @IsNumber()
+  @IsNotEmpty()
   studyTypeId!: number;
 
   @ApiProperty({ example: 2, required: false })
@@ -47,6 +51,32 @@ export class CreateProtocolDto {
   @IsString()
   financingSources?: string;
 
+  // E5: Datos del Patrocinador
+  @ApiProperty({ example: '1790000000001', required: false })
+  @IsOptional()
+  @IsString()
+  sponsorRuc?: string;
+
+  @ApiProperty({ example: '022999999', required: false })
+  @IsOptional()
+  @IsString()
+  sponsorPhone?: string;
+
+  @ApiProperty({ example: 'Av. Panamericana Sur km 1.5', required: false })
+  @IsOptional()
+  @IsString()
+  sponsorAddress?: string;
+
+  @ApiProperty({ example: 'https://www.espoch.edu.ec', required: false })
+  @IsOptional()
+  @IsString()
+  sponsorWeb?: string;
+
+  @ApiProperty({ example: 'Facultad de Salud Pública', required: false })
+  @IsOptional()
+  @IsString()
+  sponsorExecutingAgency?: string;
+
   @ApiProperty({ example: '2026-06-01', required: false })
   @IsOptional()
   @IsDateString()
@@ -57,7 +87,11 @@ export class CreateProtocolDto {
   @IsDateString()
   estimatedEndDate?: Date;
 
-  @ApiProperty({ enum: GeographicCoverage, example: GeographicCoverage.PROVINCIAL, required: false })
+  @ApiProperty({
+    enum: GeographicCoverage,
+    example: GeographicCoverage.PROVINCIAL,
+    required: false,
+  })
   @IsOptional()
   @IsEnum(GeographicCoverage)
   geographicCoverage?: GeographicCoverage;
@@ -81,6 +115,20 @@ export class CreateProtocolDto {
   @IsOptional()
   @IsBoolean()
   isMulticentric?: boolean;
+
+  @ApiProperty({ example: false, required: false })
+  @IsOptional()
+  @IsBoolean()
+  hasExternalInstitutions?: boolean;
+
+  // E2: Declaración Jurada
+  @ApiProperty({
+    example: true,
+    description: 'Declaración de que la investigación no ha iniciado',
+  })
+  @IsBoolean()
+  @IsNotEmpty()
+  isAffidavitAccepted!: boolean;
 
   @ApiProperty({ type: [CreateInvestigatorDto] })
   @IsArray()

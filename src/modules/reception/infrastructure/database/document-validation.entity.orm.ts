@@ -1,4 +1,10 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { ReceptionDocumentOrmEntity } from './recepcion-document.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 
@@ -27,6 +33,10 @@ export class DocumentValidationOrmEntity {
   @JoinColumn({ name: 'validado_por' })
   validatedBy?: UserOrmEntity;
 
-  @Column({ name: 'fecha_validacion', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'fecha_validacion',
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   validationDate!: Date;
 }

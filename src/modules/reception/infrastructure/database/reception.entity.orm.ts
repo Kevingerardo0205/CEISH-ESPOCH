@@ -1,4 +1,10 @@
-import { Entity, Column, ManyToOne, JoinColumn, PrimaryGeneratedColumn } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  PrimaryGeneratedColumn,
+} from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 
@@ -14,7 +20,11 @@ export class ReceptionOrmEntity {
   @JoinColumn({ name: 'protocolo_id' })
   protocol!: ProtocolOrmEntity;
 
-  @Column({ name: 'fecha_recepcion', type: 'timestamp', default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    name: 'fecha_recepcion',
+    type: 'timestamp',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   receptionDate!: Date;
 
   @Column({ name: 'estado_id', nullable: true })
@@ -26,7 +36,11 @@ export class ReceptionOrmEntity {
   @Column({ name: 'lista_faltantes', type: 'text', nullable: true })
   missingItemsList?: string;
 
-  @Column({ name: 'fecha_notificacion_faltantes', type: 'timestamp', nullable: true })
+  @Column({
+    name: 'fecha_notificacion_faltantes',
+    type: 'timestamp',
+    nullable: true,
+  })
   missingItemsNotificationDate?: Date;
 
   @Column({ name: 'plazo_completar_dias', default: 15 })

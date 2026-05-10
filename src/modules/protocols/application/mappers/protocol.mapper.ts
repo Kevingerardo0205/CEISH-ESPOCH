@@ -16,7 +16,7 @@ export class ProtocolMapper {
       riskLevel: orm.riskLevel?.name,
       receptionStatus: orm.receptionStatus,
       reviewType: orm.reviewType,
-      
+
       // Dates
       receptionDate: orm.receptionDate,
       submissionDeadline: orm.submissionDeadline,
@@ -25,27 +25,31 @@ export class ProtocolMapper {
       expirationDate: orm.expirationDate,
       completionDate: orm.completionDate,
       renewalRequestDeadline: orm.renewalRequestDeadline,
-      
+
       // Financial
       financingAmount: orm.financingAmount,
       financingSources: orm.financingSources,
-      
+
       // Flags
       isVulnerablePopulation: orm.isVulnerablePopulation,
       usesBiologicalSamples: orm.usesBiologicalSamples,
       isMulticentric: orm.isMulticentric,
       currentVersion: orm.currentVersion,
-      
+
       // Control
       missingRequirements: orm.missingRequirements,
       isPresidentNotified: orm.isPresidentNotified,
       presidentNotificationDate: orm.presidentNotificationDate,
-      
+
       // Relations
-      investigators: orm.investigators?.map(inv => InvestigatorMapper.toResponse(inv)),
-      institutions: orm.institutions?.map(inst => InstitutionMapper.toResponse(inst)),
-      checklist: orm.checklist?.map(req => RequirementMapper.toResponse(req)),
-      
+      investigators: orm.investigators?.map((inv) =>
+        InvestigatorMapper.toResponse(inv),
+      ),
+      institutions: orm.institutions?.map((inst) =>
+        InstitutionMapper.toResponse(inst),
+      ),
+      checklist: orm.checklist?.map((req) => RequirementMapper.toResponse(req)),
+
       createdAt: orm.createdAt,
       updatedAt: orm.updatedAt,
     };

@@ -10,7 +10,10 @@ export class DocumentsService {
     private readonly documentsRepository: Repository<DocumentOrmEntity>,
   ) {}
 
-  async create(data: any) {
+  /**
+   * E4: Operaciones unificadas en recepcion.documentos
+   */
+  async create(data: Partial<DocumentOrmEntity>) {
     const document = this.documentsRepository.create(data);
     return this.documentsRepository.save(document);
   }
@@ -22,6 +25,14 @@ export class DocumentsService {
   async findByProtocol(protocolId: number) {
     return this.documentsRepository.find({
       where: { protocolId: protocolId },
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  async updateValidation(id: number, isValidated: boolean, userId: number) {
+    return this.documentsRepository.update(id, {
+      isValidatedBySecretary: isValidated,
+      // Aquí se podrían agregar más campos de auditoría si fuera necesario
     });
   }
 }

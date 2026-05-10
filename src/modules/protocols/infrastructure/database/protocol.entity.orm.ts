@@ -1,10 +1,4 @@
-import {
-  Entity,
-  Column,
-  ManyToOne,
-  JoinColumn,
-  OneToMany,
-} from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { StudyTypeOrmEntity } from './study-type.entity.orm';
 import { RiskLevelOrmEntity } from './risk-level.entity.orm';
@@ -41,12 +35,26 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'nivel_riesgo_id', nullable: true })
   riskLevelId?: number;
 
+  /**
+   * @deprecated Usar investigadorPrincipalInvId (InvestigatorOrmEntity) para la fuente de verdad.
+   */
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'investigador_principal_id' })
   principalInvestigator!: UserOrmEntity;
 
+  /**
+   * @deprecated Usar investigadorPrincipalInvId para la fuente de verdad.
+   */
   @Column({ name: 'investigador_principal_id' })
   principalInvestigatorId!: number;
+
+  // E3: Nueva fuente de verdad para el IP
+  @ManyToOne(() => InvestigatorOrmEntity)
+  @JoinColumn({ name: 'investigador_principal_inv_id' })
+  principalInvestigatorRecord?: InvestigatorOrmEntity;
+
+  @Column({ name: 'investigador_principal_inv_id', nullable: true })
+  principalInvestigatorRecordId?: number;
 
   @Column({ name: 'estado_id', nullable: true })
   statusId?: number;
@@ -54,11 +62,37 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'fecha_recepcion', type: 'timestamp', nullable: true })
   receptionDate?: Date;
 
-  @Column({ name: 'monto_financiamiento', type: 'decimal', precision: 12, scale: 2, nullable: true })
+  @Column({
+    name: 'monto_financiamiento',
+    type: 'decimal',
+    precision: 12,
+    scale: 2,
+    nullable: true,
+  })
   financingAmount?: number;
 
   @Column({ name: 'fuentes_financiamiento', type: 'text', nullable: true })
   financingSources?: string;
+
+  // E5: Datos estructurados del Patrocinador
+  @Column({ name: 'patrocinador_ruc', length: 20, nullable: true })
+  sponsorRuc?: string;
+
+  @Column({
+    name: 'patrocinador_telefono_institucional',
+    length: 30,
+    nullable: true,
+  })
+  sponsorPhone?: string;
+
+  @Column({ name: 'patrocinador_direccion', length: 500, nullable: true })
+  sponsorAddress?: string;
+
+  @Column({ name: 'patrocinador_pagina_web', length: 200, nullable: true })
+  sponsorWeb?: string;
+
+  @Column({ name: 'patrocinador_organo_ejecutor', length: 200, nullable: true })
+  sponsorExecutingAgency?: string;
 
   @Column({ name: 'fecha_estimada_inicio', type: 'date', nullable: true })
   estimatedStartDate?: Date;
@@ -108,7 +142,11 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'requisitos_faltantes', type: 'text', nullable: true })
   missingRequirements?: string;
 
-  @Column({ name: 'fecha_limite_subsanacion', type: 'timestamp', nullable: true })
+  @Column({
+    name: 'fecha_limite_subsanacion',
+    type: 'timestamp',
+    nullable: true,
+  })
   submissionDeadline?: Date;
 
   @Column({ name: 'fecha_limite_respuesta', type: 'timestamp', nullable: true })
@@ -117,19 +155,31 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'notificado_presidente', default: false })
   isPresidentNotified!: boolean;
 
-  @Column({ name: 'fecha_notificacion_presidente', type: 'timestamp', nullable: true })
+  @Column({
+    name: 'fecha_notificacion_presidente',
+    type: 'timestamp',
+    nullable: true,
+  })
   presidentNotificationDate?: Date;
 
   @Column({ name: 'notificado_investigador', default: false })
   isInvestigatorNotified!: boolean;
 
-  @Column({ name: 'fecha_notificacion_investigador', type: 'timestamp', nullable: true })
+  @Column({
+    name: 'fecha_notificacion_investigador',
+    type: 'timestamp',
+    nullable: true,
+  })
   investigatorNotificationDate?: Date;
 
   @Column({ name: 'certificado_recepcion_emitido', default: false })
   isReceptionCertificateIssued!: boolean;
 
-  @Column({ name: 'fecha_emision_certificado', type: 'timestamp', nullable: true })
+  @Column({
+    name: 'fecha_emision_certificado',
+    type: 'timestamp',
+    nullable: true,
+  })
   receptionCertificateDate?: Date;
 
   @Column({ name: 'poblacion_vulnerable', default: false })
@@ -141,15 +191,44 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'multicentrico', default: false })
   isMulticentric!: boolean;
 
+  @Column({ name: 'tiene_instituciones_externas', default: false })
+  hasExternalInstitutions!: boolean;
+
+  // E2: Declaración Jurada
+  @Column({ name: 'declaracion_no_iniciado', default: false })
+  isAffidavitAccepted!: boolean;
+
+  @Column({
+    name: 'fecha_declaracion_no_iniciado',
+    type: 'timestamp',
+    nullable: true,
+  })
+  affidavitDate?: Date;
+
+  @Column({ name: 'ip_declaracion_no_iniciado', length: 45, nullable: true })
+  affidavitIp?: string;
+
   @Column({ name: 'version_actual', default: 1 })
   currentVersion!: number;
 
-  @OneToMany(() => InvestigatorOrmEntity, (investigator) => investigator.protocol, { cascade: true })
+  @OneToMany(
+    () => InvestigatorOrmEntity,
+    (investigator) => investigator.protocol,
+    { cascade: true },
+  )
   investigators!: InvestigatorOrmEntity[];
 
-  @OneToMany(() => ParticipatingInstitutionOrmEntity, (institution) => institution.protocol, { cascade: true })
+  @OneToMany(
+    () => ParticipatingInstitutionOrmEntity,
+    (institution) => institution.protocol,
+    { cascade: true },
+  )
   institutions!: ParticipatingInstitutionOrmEntity[];
 
-  @OneToMany(() => ProtocolRequirementOrmEntity, (requirement) => requirement.protocol, { cascade: true })
+  @OneToMany(
+    () => ProtocolRequirementOrmEntity,
+    (requirement) => requirement.protocol,
+    { cascade: true },
+  )
   checklist!: ProtocolRequirementOrmEntity[];
 }

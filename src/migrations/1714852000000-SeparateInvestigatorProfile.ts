@@ -1,10 +1,9 @@
-import { MigrationInterface, QueryRunner } from "typeorm";
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class SeparateInvestigatorProfile1714852000000 implements MigrationInterface {
-
-    public async up(queryRunner: QueryRunner): Promise<void> {
-        // 1. Crear la tabla de perfiles_investigador
-        await queryRunner.query(`
+  public async up(queryRunner: QueryRunner): Promise<void> {
+    // 1. Crear la tabla de perfiles_investigador
+    await queryRunner.query(`
             CREATE TABLE "catalogos"."perfiles_investigador" (
                 "id" SERIAL PRIMARY KEY,
                 "creado_en" TIMESTAMP WITH TIME ZONE DEFAULT now() NOT NULL,
@@ -20,9 +19,9 @@ export class SeparateInvestigatorProfile1714852000000 implements MigrationInterf
             )
         `);
 
-        // 2. Mover datos existentes de la tabla usuarios a perfiles_investigador
-        // Solo para usuarios que tienen datos de investigador (ej: registro_senescyt o institucion)
-        await queryRunner.query(`
+    // 2. Mover datos existentes de la tabla usuarios a perfiles_investigador
+    // Solo para usuarios que tienen datos de investigador (ej: registro_senescyt o institucion)
+    await queryRunner.query(`
             INSERT INTO "catalogos"."perfiles_investigador" (
                 "usuario_id", "email_personal", "telefono", "institucion_pertenece", "cargo", "registro_senescyt"
             )
@@ -32,8 +31,8 @@ export class SeparateInvestigatorProfile1714852000000 implements MigrationInterf
             WHERE "registro_senescyt" IS NOT NULL OR "institucion_pertenece" IS NOT NULL;
         `);
 
-        // 3. Eliminar las columnas redundantes de la tabla usuarios
-        await queryRunner.query(`
+    // 3. Eliminar las columnas redundantes de la tabla usuarios
+    await queryRunner.query(`
             ALTER TABLE "catalogos"."usuarios" 
             DROP COLUMN "email_personal",
             DROP COLUMN "telefono",
@@ -41,11 +40,11 @@ export class SeparateInvestigatorProfile1714852000000 implements MigrationInterf
             DROP COLUMN "cargo",
             DROP COLUMN "registro_senescyt";
         `);
-    }
+  }
 
-    public async down(queryRunner: QueryRunner): Promise<void> {
-        // 1. Volver a agregar las columnas a usuarios
-        await queryRunner.query(`
+  public async down(queryRunner: QueryRunner): Promise<void> {
+    // 1. Volver a agregar las columnas a usuarios
+    await queryRunner.query(`
             ALTER TABLE "catalogos"."usuarios" 
             ADD "email_personal" character varying(255),
             ADD "telefono" character varying(255),
@@ -54,8 +53,8 @@ export class SeparateInvestigatorProfile1714852000000 implements MigrationInterf
             ADD "registro_senescyt" character varying(50);
         `);
 
-        // 2. Regresar los datos de perfiles_investigador a usuarios
-        await queryRunner.query(`
+    // 2. Regresar los datos de perfiles_investigador a usuarios
+    await queryRunner.query(`
             UPDATE "catalogos"."usuarios" u
             SET 
                 "email_personal" = p."email_personal",
@@ -67,8 +66,7 @@ export class SeparateInvestigatorProfile1714852000000 implements MigrationInterf
             WHERE u."id" = p."usuario_id";
         `);
 
-        // 3. Eliminar la tabla de perfiles
-        await queryRunner.query(`DROP TABLE "catalogos"."perfiles_investigador"`);
-    }
-
+    // 3. Eliminar la tabla de perfiles
+    await queryRunner.query(`DROP TABLE "catalogos"."perfiles_investigador"`);
+  }
 }

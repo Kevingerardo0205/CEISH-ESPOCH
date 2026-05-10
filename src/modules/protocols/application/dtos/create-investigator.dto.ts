@@ -1,4 +1,10 @@
-import { IsString, IsEmail, IsEnum, IsOptional, IsNumber } from 'class-validator';
+import {
+  IsString,
+  IsEmail,
+  IsEnum,
+  IsOptional,
+  IsNumber,
+} from 'class-validator';
 import { InvestigatorRole } from '../../domain/enums/investigator-role.enum';
 
 export class CreateInvestigatorDto {

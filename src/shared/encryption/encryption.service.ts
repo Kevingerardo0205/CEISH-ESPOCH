@@ -7,13 +7,17 @@ export class EncryptionService {
   private readonly key: Buffer;
 
   constructor() {
-    // Se espera una clave de 32 bytes en base64 en .env. 
+    // Se espera una clave de 32 bytes en base64 en .env.
     // El fallback es una cadena de 44 caracteres que decodifica a exactamente 32 bytes.
-    const keyBase64 = process.env.ENCRYPTION_KEY || 'Z9xK8mNpQ2wE5rT7yU1iL4oA3sD6fG9hJ0kL2zXcVbNnM=';
+    const keyBase64 =
+      process.env.ENCRYPTION_KEY ||
+      'Z9xK8mNpQ2wE5rT7yU1iL4oA3sD6fG9hJ0kL2zXcVbNnM=';
     this.key = Buffer.from(keyBase64, 'base64');
-    
+
     if (this.key.length !== 32) {
-      throw new Error(`ENCRYPTION_KEY must be 32 bytes. Current length: ${this.key.length}`);
+      throw new Error(
+        `ENCRYPTION_KEY must be 32 bytes. Current length: ${this.key.length}`,
+      );
     }
   }
 
@@ -31,7 +35,7 @@ export class EncryptionService {
     try {
       const [ivBase64, encrypted] = encryptedData.split(':');
       if (!ivBase64 || !encrypted) return encryptedData; // Retornar tal cual si no tiene el formato esperado
-      
+
       const iv = Buffer.from(ivBase64, 'base64');
       const decipher = crypto.createDecipheriv(this.algorithm, this.key, iv);
       let decrypted = decipher.update(encrypted, 'base64', 'utf8');

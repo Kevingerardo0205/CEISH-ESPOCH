@@ -1,4 +1,10 @@
-import { Injectable, UnauthorizedException, ForbiddenException, BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  Injectable,
+  UnauthorizedException,
+  ForbiddenException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 import { DataSource, In } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -34,12 +40,16 @@ export class AuthService {
     }
 
     if (!user.isEmailVerified) {
-      throw new ForbiddenException('Por favor, confirma tu correo electrónico antes de iniciar sesión.');
+      throw new ForbiddenException(
+        'Por favor, confirma tu correo electrónico antes de iniciar sesión.',
+      );
     }
 
     // Check lockout
     if (user.blockedUntil && user.blockedUntil > new Date()) {
-      throw new ForbiddenException('Account temporarily locked. Try again later.');
+      throw new ForbiddenException(
+        'Account temporarily locked. Try again later.',
+      );
     }
 
     const isMatch = await bcrypt.compare(pass, user.passwordHash);
@@ -51,9 +61,9 @@ export class AuthService {
 
     // Reset failed attempts on success
     if (user.failedAttempts > 0) {
-      await this.userRepository.update(user.id, { 
-        failedAttempts: 0, 
-        blockedUntil: null 
+      await this.userRepository.update(user.id, {
+        failedAttempts: 0,
+        blockedUntil: null,
       });
     }
 
@@ -73,10 +83,10 @@ export class AuthService {
   }
 
   async login(user: any) {
-    const payload = { 
-      email: user.institutionalEmail, 
+    const payload = {
+      email: user.institutionalEmail,
       sub: user.id,
-      roles: user.roles.map(r => r.name)
+      roles: user.roles.map((r) => r.name),
     };
 
     const tokens = await this.generateTokens(payload);
@@ -90,8 +100,8 @@ export class AuthService {
         fullName: user.fullName,
         email: user.institutionalEmail,
         roles: payload.roles,
-        isEmailVerified: user.isEmailVerified
-      }
+        isEmailVerified: user.isEmailVerified,
+      },
     };
   }
 
@@ -106,14 +116,16 @@ export class AuthService {
       email: user.institutionalEmail,
       isEmailVerified: user.isEmailVerified,
       isActive: user.isActive,
-      roles: user.roles.map(r => r.name),
-      investigatorProfile: user.investigatorProfile ? {
-        documentType: user.investigatorProfile.documentType,
-        firstName: user.investigatorProfile.firstName,
-        lastName: user.investigatorProfile.firstLastName,
-        phone: user.investigatorProfile.phone,
-        nationality: user.investigatorProfile.nationality
-      } : null
+      roles: user.roles.map((r) => r.name),
+      investigatorProfile: user.investigatorProfile
+        ? {
+            documentType: user.investigatorProfile.documentType,
+            firstName: user.investigatorProfile.firstName,
+            lastName: user.investigatorProfile.firstLastName,
+            phone: user.investigatorProfile.phone,
+            nationality: user.investigatorProfile.nationality,
+          }
+        : null,
     };
   }
 
@@ -127,10 +139,10 @@ export class AuthService {
     const isMatch = await bcrypt.compare(refreshToken, user.refreshTokenHash);
     if (!isMatch) throw new UnauthorizedException('Access Denied');
 
-    const payload = { 
-      email: user.institutionalEmail, 
+    const payload = {
+      email: user.institutionalEmail,
       sub: user.id,
-      roles: user.roles.map(r => r.name)
+      roles: user.roles.map((r) => r.name),
     };
     const tokens = await this.generateTokens(payload);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
@@ -169,15 +181,23 @@ export class AuthService {
     try {
       // 1. Verificar si ya existe el correo
       const existing = await this.userRepository.findByEmail(dto.email);
-      if (existing) throw new BadRequestException('Este correo electrónico ya está registrado');
+      if (existing)
+        throw new BadRequestException(
+          'Este correo electrónico ya está registrado',
+        );
 
       // 2. Buscar el Rol de Investigador (ID 6 según tu DB)
-      const investigatorRole = await queryRunner.manager.findOne(RoleOrmEntity, {
-        where: { name: 'investigador' },
-      });
+      const investigatorRole = await queryRunner.manager.findOne(
+        RoleOrmEntity,
+        {
+          where: { name: 'investigador' },
+        },
+      );
 
       if (!investigatorRole) {
-        throw new Error('Configuración del sistema incompleta: Rol "investigador" no encontrado.');
+        throw new Error(
+          'Configuración del sistema incompleta: Rol "investigador" no encontrado.',
+        );
       }
 
       // 3. Crear Usuario (Identidad para Auth)
@@ -188,7 +208,8 @@ export class AuthService {
 
       const user = queryRunner.manager.create(UserOrmEntity, {
         nationalId: dto.nationalId,
-        fullName: `${dto.firstName} ${dto.middleName || ''} ${dto.firstLastName} ${dto.secondLastName || ''}`.trim(),
+        fullName:
+          `${dto.firstName} ${dto.middleName || ''} ${dto.firstLastName} ${dto.secondLastName || ''}`.trim(),
         institutionalEmail: dto.email,
         passwordHash: hashedPassword,
         isEmailVerified: false,
@@ -228,9 +249,9 @@ export class AuthService {
       return {
         id: savedUser.id,
         email: savedUser.institutionalEmail,
-        message: 'Registro exitoso. El código de verificación ha sido enviado a su correo.',
+        message:
+          'Registro exitoso. El código de verificación ha sido enviado a su correo.',
       };
-
     } catch (err) {
       await queryRunner.rollbackTransaction();
       console.error('[REGISTRATION FAILED]', err);
@@ -241,8 +262,9 @@ export class AuthService {
   }
 
   async confirmEmail(email: string, code: string): Promise<void> {
-    if (!email || !code) throw new BadRequestException('Email y código son requeridos');
-    
+    if (!email || !code)
+      throw new BadRequestException('Email y código son requeridos');
+
     // 1. Buscar el usuario (el repositorio ahora permite encontrar inactivos)
     const user = await this.userRepository.findByEmail(email);
 
@@ -255,7 +277,9 @@ export class AuthService {
     }
 
     if (!user.confirmationTokenHash) {
-      throw new BadRequestException('No hay una verificación pendiente para este usuario');
+      throw new BadRequestException(
+        'No hay una verificación pendiente para este usuario',
+      );
     }
 
     // 2. Validar el código
@@ -276,10 +300,16 @@ export class AuthService {
       user.confirmationTokenHash = null;
 
       // Asignar rol de investigador si aplica
-      if (user.investigatorProfile && (!user.roles || user.roles.length === 0)) {
-        const investigatorRole = await queryRunner.manager.findOne(RoleOrmEntity, {
-          where: { name: 'investigador' },
-        });
+      if (
+        user.investigatorProfile &&
+        (!user.roles || user.roles.length === 0)
+      ) {
+        const investigatorRole = await queryRunner.manager.findOne(
+          RoleOrmEntity,
+          {
+            where: { name: 'investigador' },
+          },
+        );
         if (investigatorRole) {
           user.roles = [investigatorRole];
         }
@@ -290,10 +320,12 @@ export class AuthService {
       await queryRunner.commitTransaction();
 
       console.log(`[AUTH SUCCESS] Usuario ${email} activado exitosamente.`);
-
     } catch (err) {
       await queryRunner.rollbackTransaction();
-      console.error('[AUTH ERROR] Fallo en la transacción de confirmación:', err);
+      console.error(
+        '[AUTH ERROR] Fallo en la transacción de confirmación:',
+        err,
+      );
       throw err;
     } finally {
       await queryRunner.release();
@@ -301,7 +333,8 @@ export class AuthService {
   }
 
   async resendConfirmation(email: string): Promise<void> {
-    if (!email) throw new BadRequestException('El correo institucional es requerido');
+    if (!email)
+      throw new BadRequestException('El correo institucional es requerido');
 
     const user = await this.userRepository.findByEmail(email);
 
@@ -342,8 +375,13 @@ export class AuthService {
     );
   }
 
-  async resetPassword(email: string, code: string, newPassword: string): Promise<void> {
-    if (!email || !code) throw new BadRequestException('Email y código son requeridos');
+  async resetPassword(
+    email: string,
+    code: string,
+    newPassword: string,
+  ): Promise<void> {
+    if (!email || !code)
+      throw new BadRequestException('Email y código son requeridos');
 
     const user = await this.userRepository.findByEmail(email);
 
@@ -372,14 +410,17 @@ export class AuthService {
 
   async createUser(dto: CreateUserDto) {
     const existing = await this.userRepository.findByEmail(dto.email);
-    if (existing) throw new BadRequestException('El correo electrónico ya está registrado');
+    if (existing)
+      throw new BadRequestException('El correo electrónico ya está registrado');
 
     const roles = await this.dataSource.getRepository(RoleOrmEntity).find({
       where: { name: In(dto.roles) },
     });
 
     if (roles.length === 0) {
-      throw new BadRequestException('Ninguno de los roles proporcionados es válido');
+      throw new BadRequestException(
+        'Ninguno de los roles proporcionados es válido',
+      );
     }
 
     const salt = await bcrypt.genSalt(10);
@@ -395,7 +436,9 @@ export class AuthService {
       roles: roles,
     });
 
-    const savedUser = await this.dataSource.getRepository(UserOrmEntity).save(user);
+    const savedUser = await this.dataSource
+      .getRepository(UserOrmEntity)
+      .save(user);
     const { passwordHash, ...result } = savedUser;
     return result;
   }
@@ -406,11 +449,17 @@ export class AuthService {
 
   async findAllUsers() {
     const users = await this.userRepository.findAll();
-    return users.map(user => {
-      const { passwordHash, refreshTokenHash, confirmationTokenHash, resetPasswordTokenHash, ...result } = user;
+    return users.map((user) => {
+      const {
+        passwordHash,
+        refreshTokenHash,
+        confirmationTokenHash,
+        resetPasswordTokenHash,
+        ...result
+      } = user;
       return {
         ...result,
-        roles: user.roles.map(r => r.name),
+        roles: user.roles.map((r) => r.name),
       };
     });
   }
@@ -432,7 +481,7 @@ export class AuthService {
 
     return {
       message: 'Roles actualizados exitosamente',
-      roles: user.roles.map(r => r.name),
+      roles: user.roles.map((r) => r.name),
     };
   }
 
@@ -442,7 +491,10 @@ export class AuthService {
 
     if (dto.email && dto.email !== user.institutionalEmail) {
       const existing = await this.userRepository.findByEmail(dto.email);
-      if (existing) throw new BadRequestException('El nuevo correo electrónico ya está registrado');
+      if (existing)
+        throw new BadRequestException(
+          'El nuevo correo electrónico ya está registrado',
+        );
       user.institutionalEmail = dto.email;
     }
 
@@ -454,9 +506,12 @@ export class AuthService {
     if (dto.fullName) user.fullName = dto.fullName;
     if (dto.nationalId) user.nationalId = dto.nationalId;
     if (dto.isActive !== undefined) user.isActive = dto.isActive;
-    if (dto.isEmailVerified !== undefined) user.isEmailVerified = dto.isEmailVerified;
+    if (dto.isEmailVerified !== undefined)
+      user.isEmailVerified = dto.isEmailVerified;
 
-    const savedUser = await this.dataSource.getRepository(UserOrmEntity).save(user);
+    const savedUser = await this.dataSource
+      .getRepository(UserOrmEntity)
+      .save(user);
     const { passwordHash, ...result } = savedUser;
     return result;
   }
