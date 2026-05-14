@@ -24,6 +24,11 @@ import {
 import { ReceptionDocumentOrmEntity } from '../../infrastructure/database/recepcion-document.entity.orm';
 import { ProtocolRequirementOrmEntity } from '../../../protocols/infrastructure/database/protocol-requirement.entity.orm';
 
+import { DocumentValidationStatus } from '../../domain/enums/document-validation-status.enum';
+
+import { PdfGeneratorService } from '../../../../shared/utils/pdf-generator.service';
+import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
+
 @Injectable()
 export class ReceptionService {
   constructor(
@@ -31,10 +36,166 @@ export class ReceptionService {
     private readonly protocolRepository: IProtocolRepository,
     private readonly deadlineService: ProtocolDeadlineService,
     private readonly requirementsService: RequirementsService,
+    private readonly pdfGenerator: PdfGeneratorService,
+    private readonly emailService: IEmailServicePort,
 
     @InjectRepository(ProtocolRequirementOrmEntity)
     private readonly requirementRepository: Repository<ProtocolRequirementOrmEntity>,
   ) {}
+
+  /**
+   * Fase 3 y 4: Motor de Decisión y Notificaciones Automáticas
+   */
+  async finalizarRevision(protocolId: number) {
+    const reception =
+      await this.receptionRepository.findByProtocolId(protocolId);
+    if (!reception) throw new NotFoundException('Recepción no encontrada');
+
+    const protocol = await this.protocolRepository.findById(protocolId, {
+      relations: ['principalInvestigator', 'studyType'],
+    } as any);
+    if (!protocol) throw new NotFoundException('Protocolo no encontrado');
+
+    const investigator = protocol.principalInvestigator;
+
+    // ... lógica de validación (idéntica a la anterior)
+    const studyTypeCode =
+      (protocol.studyType?.code as StudyTypeCode) || StudyTypeCode.IO;
+    const requiredDocs = await this.requirementsService.calcularRequeridos(
+      studyTypeCode,
+      {
+        muestras: protocol.usesBiologicalSamples,
+        vulnerable: protocol.isVulnerablePopulation,
+        multicentrico: protocol.isMulticentric,
+        institucionesPublicas: protocol.hasExternalInstitutions,
+        poblacionIndigena: protocol.isIndigenousPopulation,
+      },
+    );
+
+    const latestValidations =
+      await this.receptionRepository.findLatestValidationsByProtocolId(
+        protocolId,
+      );
+    const uploadedDocs =
+      await this.receptionRepository.findDocumentsByProtocolId(protocolId);
+
+    const missingRequirements: string[] = [];
+
+    for (const req of requiredDocs) {
+      if (!req.isRequired) continue;
+      const docsForReq = uploadedDocs.filter(
+        (d) =>
+          d.tipoDocumento?.codigoAnexo === req.code ||
+          d.fileName.includes(req.name),
+      );
+      if (docsForReq.length === 0) {
+        missingRequirements.push(`- Falta documento obligatorio: ${req.name}`);
+        continue;
+      }
+      const hasApproved = docsForReq.some((doc) => {
+        const val = latestValidations.find((v) => v.documentId === doc.id);
+        return val?.statusId === DocumentValidationStatus.APROBADO;
+      });
+      if (!hasApproved) {
+        const lastVal = latestValidations.find((v) =>
+          docsForReq.some((d) => d.id === v.documentId),
+        );
+        const obs = lastVal?.observations
+          ? `: ${lastVal.observations}`
+          : ' (Sin observaciones específicas)';
+        missingRequirements.push(`- ${req.name} requiere corrección${obs}`);
+      }
+    }
+
+    const now = new Date();
+
+    if (missingRequirements.length === 0) {
+      // RESULTADO A: COMPLETO
+      reception.statusId = 2;
+
+      await this.protocolRepository.update(protocolId, {
+        receptionStatus: ReceptionStatus.COMPLETO,
+        receptionDate: now,
+      });
+
+      await this.receptionRepository.save(reception);
+
+      // --- FASE 4: ACCIONES AUTOMÁTICAS (COMPLETO) ---
+      // 1. Recargar protocolo para obtener el CÓDIGO CEISH (generado por trigger SQL)
+      const updatedProtocol =
+        await this.protocolRepository.findById(protocolId);
+      const ceishCode = updatedProtocol?.ceishCode || 'PENDIENTE-ASIGNACION';
+
+      // 2. Generar PDF de Constancia (Anexo 7)
+      const pdfBuffer = await this.pdfGenerator.generateReceptionCertificate({
+        ceishCode: ceishCode,
+        investigatorName: investigator?.fullName || 'Investigador',
+        protocolTitle: protocol.title || 'Sin Título',
+        date: now,
+        studyType: protocol.studyType?.name || 'Observacional',
+      });
+
+      // 3. Enviar Email con el PDF adjunto
+      await this.emailService
+        .sendReceptionComplete(
+          investigator?.institutionalEmail || '',
+          investigator?.fullName || 'Investigador',
+          protocol.title || 'Sin Título',
+          ceishCode,
+          pdfBuffer,
+        )
+        .catch((e) => console.error('Error enviando email completo:', e));
+
+      // 4. Notificar al Presidente
+      await this.emailService
+        .notifyPresidentNewProtocol(
+          'presidente.ceish@espoch.edu.ec', // Configurable
+          protocol.title || 'Sin Título',
+          ceishCode,
+        )
+        .catch((e) => console.error('Error notificando al presidente:', e));
+
+      return {
+        status: ReceptionStatus.COMPLETO,
+        ceishCode: ceishCode,
+        message:
+          'Protocolo completado. Se ha enviado la constancia por correo al investigador.',
+      };
+    } else {
+      // RESULTADO B: INCOMPLETO
+      reception.statusId = 3;
+      reception.completionDeadlineDate =
+        this.deadlineService.calculateSubmissionDeadline(now);
+      const missingList = missingRequirements.join('\n');
+
+      await this.protocolRepository.update(protocolId, {
+        receptionStatus: ReceptionStatus.INCOMPLETO,
+        missingRequirements: missingList,
+        submissionDeadline: reception.completionDeadlineDate,
+      });
+
+      await this.receptionRepository.save(reception);
+
+      // --- FASE 4: ACCIONES AUTOMÁTICAS (INCOMPLETO) ---
+      await this.emailService
+        .sendReceptionIncomplete(
+          investigator?.institutionalEmail || '',
+          investigator?.fullName || 'Investigador',
+          protocol.title || 'Sin Título',
+          missingList,
+          reception.completionDeadlineDate,
+        )
+        .catch((e) => console.error('Error enviando email incompleto:', e));
+
+      return {
+        status: ReceptionStatus.INCOMPLETO,
+        message:
+          'Se han detectado observaciones. Se ha notificado al investigador.',
+        missingItems: missingRequirements,
+        deadline: reception.completionDeadlineDate,
+      };
+    }
+  }
 
   /**
    * PET 4.1.1: Iniciar Recepción
@@ -62,6 +223,7 @@ export class ReceptionService {
         vulnerable: protocol.isVulnerablePopulation,
         multicentrico: protocol.isMulticentric,
         institucionesPublicas: protocol.hasExternalInstitutions,
+        poblacionIndigena: protocol.isIndigenousPopulation,
       });
 
     const checklist = calculatedRequirements.map((req) => ({
@@ -96,8 +258,21 @@ export class ReceptionService {
 
   /**
    * Carga de documento individual unificada en recepcion.documentos
+   * Bloquea la subida si el protocolo ya está en revisión por la secretaria.
    */
   async uploadDocument(dto: UploadDocumentDto, uploadedBy: number) {
+    const protocol = await this.protocolRepository.findById(dto.protocolId);
+    if (!protocol) throw new NotFoundException('Protocolo no encontrado');
+
+    if (
+      protocol.receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA ||
+      protocol.receptionStatus === ReceptionStatus.COMPLETO
+    ) {
+      throw new BadRequestException(
+        'No puede subir documentos mientras el protocolo está en revisión o ya está completo.',
+      );
+    }
+
     const document = await this.receptionRepository.saveDocument({
       protocolId: dto.protocolId,
       fileName: dto.fileName,
@@ -115,9 +290,22 @@ export class ReceptionService {
     dto: UploadMultipleDocumentsDto,
     uploadedBy: number,
   ) {
+    const protocol = await this.protocolRepository.findById(dto.protocolId);
+    if (!protocol) throw new NotFoundException('Protocolo no encontrado');
+
+    if (
+      protocol.receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA ||
+      protocol.receptionStatus === ReceptionStatus.COMPLETO
+    ) {
+      throw new BadRequestException(
+        'No puede subir documentos mientras el protocolo está en revisión.',
+      );
+    }
+
     if (dto.documents.length > 50) {
       throw new BadRequestException('Máximo 50 archivos permitidos por carga.');
     }
+    // ... resto del código anterior
 
     const totalSize = dto.documents.reduce(
       (acc, doc) => acc + parseInt(doc.sizeBytes || '0'),
@@ -294,6 +482,7 @@ export class ReceptionService {
     if (!document)
       throw new NotFoundException(`Document ${documentId} not found`);
 
+    // 1. Registrar validación individual
     const validation = await this.receptionRepository.saveValidation({
       documentId,
       statusId,
@@ -301,6 +490,26 @@ export class ReceptionService {
       validatedByUserId: userId,
       validationDate: new Date(),
     });
+
+    // 2. Marcar documento como procesado por secretaria
+    await this.receptionRepository.saveDocument({
+      ...document,
+      isValidatedBySecretary: true,
+    });
+
+    // 3. Si es la primera validación, cambiar estado del protocolo a EN_REVISION_SECRETARIA
+    const protocol = await this.protocolRepository.findById(
+      document.protocolId,
+    );
+    if (
+      protocol &&
+      protocol.receptionStatus !== ReceptionStatus.EN_REVISION_SECRETARIA &&
+      protocol.receptionStatus !== ReceptionStatus.COMPLETO
+    ) {
+      await this.protocolRepository.update(protocol.id, {
+        receptionStatus: ReceptionStatus.EN_REVISION_SECRETARIA,
+      });
+    }
 
     return DocumentValidationMapper.toResponse(validation);
   }

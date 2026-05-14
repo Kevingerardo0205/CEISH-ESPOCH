@@ -130,6 +130,7 @@ export class ProtocolsService {
       usesBiologicalSamples: cleanData.usesBiologicalSamples || false,
       isMulticentric: cleanData.isMulticentric || false,
       hasExternalInstitutions: cleanData.hasExternalInstitutions || false,
+      isIndigenousPopulation: cleanData.isIndigenousPopulation || false,
       isAffidavitAccepted: true,
       affidavitDate: new Date(),
       affidavitIp: ipAddress,
@@ -196,6 +197,7 @@ export class ProtocolsService {
           vulnerable: savedProtocol.isVulnerablePopulation,
           multicentrico: savedProtocol.isMulticentric,
           institucionesPublicas: cleanData.hasExternalInstitutions,
+          poblacionIndigena: savedProtocol.isIndigenousPopulation,
         },
       );
 

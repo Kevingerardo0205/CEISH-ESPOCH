@@ -59,6 +59,20 @@ export class ReceptionTypeOrmRepository
     return this.validationRepo.find({ where: { documentId } });
   }
 
+  async findLatestValidationsByProtocolId(
+    protocolId: number,
+  ): Promise<DocumentValidationOrmEntity[]> {
+    // Subquery para obtener la última validación de cada documento
+    return this.validationRepo
+      .createQueryBuilder('v')
+      .innerJoin('recepcion.documentos', 'd', 'v.documento_id = d.id')
+      .where('d.protocolo_id = :protocolId', { protocolId })
+      .andWhere(
+        'v.id IN (SELECT MAX(id) FROM recepcion.validaciones_documento GROUP BY documento_id)',
+      )
+      .getMany();
+  }
+
   async countByYearAndType(
     year: number,
     studyTypeCode: string,

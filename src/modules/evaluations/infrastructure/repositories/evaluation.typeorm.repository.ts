@@ -9,6 +9,7 @@ import { ProtocolVersionOrmEntity } from '../database/protocol-version.entity.or
 import { EvaluationOrmEntity } from '../database/evaluation.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
+import { RoleCode } from '../../../auth/domain/enums/role.enum';
 
 @Injectable()
 export class EvaluationTypeOrmRepository implements IEvaluationRepository {
@@ -70,17 +71,32 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
   }
 
   async findEvaluatorsWithWorkload(profileId?: number): Promise<any[]> {
+    const firstDayOfMonth = new Date();
+    firstDayOfMonth.setDate(1);
+    firstDayOfMonth.setHours(0, 0, 0, 0);
+
     const qb = this.userRepo
       .createQueryBuilder('u')
-      .innerJoin('u.roles', 'r', 'r.name = :roleName', {
-        roleName: 'evaluador',
+      .innerJoin('u.roles', 'r', 'r.codigo = :roleCode', {
+        roleCode: RoleCode.EVALUADOR,
       })
-      .leftJoin(EvaluatorProfileUserOrmEntity, 'ep', 'ep.userId = u.id')
+      .leftJoin(
+        EvaluatorProfileUserOrmEntity,
+        'ep',
+        'ep.userId = u.id AND ep.isActive = true',
+      )
       .leftJoin(EvaluatorProfileOrmEntity, 'p', 'ep.profileId = p.id')
       .leftJoin(
         EvaluationAssignmentOrmEntity,
-        'a',
-        'a.evaluatorId = u.id AND a.actualSubmissionDate IS NULL',
+        'a_active',
+        'a_active.evaluatorId = u.id AND a_active.actualSubmissionDate IS NULL AND a_active.statusId = :assignedStatus',
+        { assignedStatus: AssignmentStatus.ASSIGNED },
+      )
+      .leftJoin(
+        EvaluationAssignmentOrmEntity,
+        'a_done',
+        'a_done.evaluatorId = u.id AND a_done.actualSubmissionDate >= :monthStart',
+        { monthStart: firstDayOfMonth },
       )
       .select([
         'u.id',
@@ -88,7 +104,8 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
         'u.institutionalEmail',
         'p.id',
         'p.name',
-        'a.id',
+        'a_active.id',
+        'a_done.id',
       ]);
 
     if (profileId) {
@@ -107,11 +124,13 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
           email: row.u_email_institucional,
           profiles: new Map<number, string>(),
           activeAssignments: new Set<number>(),
+          completedThisMonth: new Set<number>(),
         };
         evaluatorsMap.set(row.u_id, evaluator);
       }
       if (row.p_id) evaluator.profiles.set(row.p_id, row.p_nombre);
-      if (row.a_id) evaluator.activeAssignments.add(row.a_id);
+      if (row.a_active_id) evaluator.activeAssignments.add(row.a_active_id);
+      if (row.a_done_id) evaluator.completedThisMonth.add(row.a_done_id);
     });
 
     return Array.from(evaluatorsMap.values()).map((e) => ({
@@ -123,6 +142,7 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
         name,
       })),
       currentLoad: e.activeAssignments.size,
+      completedThisMonth: e.completedThisMonth.size,
     }));
   }
 

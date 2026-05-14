@@ -4,8 +4,11 @@ import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './infrastructure/controllers/auth.controller';
 import { AuthService } from './application/services/auth.service';
+import { UsersService } from './application/services/users.service';
 import { UserOrmEntity } from './infrastructure/database/user.entity.orm';
 import { RoleOrmEntity } from './infrastructure/database/role.entity.orm';
+import { PermissionOrmEntity } from './infrastructure/database/permission.entity.orm';
+import { ModuleOrmEntity } from './infrastructure/database/module.entity.orm';
 import { InvestigatorProfileOrmEntity } from './infrastructure/database/investigator-profile.entity.orm';
 import { IUserRepository } from './domain/ports/user.repository.port';
 import { UserTypeOrmRepository } from './infrastructure/repositories/user.typeorm.repository';
@@ -19,6 +22,8 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
     TypeOrmModule.forFeature([
       UserOrmEntity,
       RoleOrmEntity,
+      PermissionOrmEntity,
+      ModuleOrmEntity,
       InvestigatorProfileOrmEntity,
     ]),
     PassportModule,
@@ -30,6 +35,7 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
   controllers: [AuthController],
   providers: [
     AuthService,
+    UsersService,
     LocalStrategy,
     JwtStrategy,
     {
@@ -41,6 +47,6 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
       useClass: InvestigatorProfileTypeOrmRepository,
     },
   ],
-  exports: [AuthService, IUserRepository],
+  exports: [AuthService, UsersService, IUserRepository],
 })
 export class AuthModule {}

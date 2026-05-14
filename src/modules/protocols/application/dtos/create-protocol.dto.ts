@@ -121,6 +121,11 @@ export class CreateProtocolDto {
   @IsBoolean()
   hasExternalInstitutions?: boolean;
 
+  @ApiProperty({ example: false, required: false })
+  @IsOptional()
+  @IsBoolean()
+  isIndigenousPopulation?: boolean;
+
   // E2: Declaración Jurada
   @ApiProperty({
     example: true,

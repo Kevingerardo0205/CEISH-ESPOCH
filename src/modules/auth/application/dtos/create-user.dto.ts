@@ -21,10 +21,17 @@ export class CreateUserDto {
   @IsEmail()
   email!: string;
 
-  @ApiProperty({ example: 'Password123!', minLength: 8 })
+  @ApiProperty({
+    example: 'Password123!',
+    minLength: 8,
+    required: false,
+    description:
+      'Si se omite, se generará un OTP y se enviará una invitación al usuario.',
+  })
+  @IsOptional()
   @IsString()
   @MinLength(8)
-  password!: string;
+  password?: string;
 
   @ApiProperty({ example: ['admin_ti'], isArray: true })
   @IsArray()

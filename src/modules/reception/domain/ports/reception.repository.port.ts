@@ -28,6 +28,10 @@ export abstract class IReceptionRepository {
     documentId: number,
   ): Promise<DocumentValidationOrmEntity[]>;
 
+  abstract findLatestValidationsByProtocolId(
+    protocolId: number,
+  ): Promise<DocumentValidationOrmEntity[]>;
+
   abstract countByYearAndType(
     year: number,
     studyTypeCode: string,

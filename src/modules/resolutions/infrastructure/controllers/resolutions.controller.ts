@@ -13,16 +13,25 @@ import { RolesGuard } from '../../../../shared/guards/roles.guard';
 import { Roles } from '../../../../shared/decorators/roles.decorator';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 
+import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
+import { Permissions } from '../../../../shared/decorators/permissions.decorator';
+import { Permission } from '../../../../shared/enums/permission.enum';
+
 @Controller('resolutions')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 export class ResolutionsController {
   constructor(private readonly resolutionsService: ResolutionsService) {}
 
   @Post()
-  @Roles('presidente')
+  @Permissions(Permission.RESOLUTION_CREATE)
   @Audit('RESOLUTION_CREATED')
   async create(@Body() dto: any, @Request() req) {
-    return this.resolutionsService.createResolution(dto, req.user.id);
+    // pdfBuffer se extraería si la secretaria sube el archivo en esta misma petición
+    return this.resolutionsService.createResolution(
+      dto,
+      req.user.id,
+      dto.pdfBuffer,
+    );
   }
 
   @Get('protocol/:protocolId')

@@ -12,10 +12,12 @@ import {
   ParseIntPipe,
 } from '@nestjs/common';
 import { AuthService } from '../../application/services/auth.service';
+import { UsersService } from '../../application/services/users.service';
 import { LocalAuthGuard } from '../guards/local-auth.guard';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
 import { Roles } from '../../../../shared/decorators/roles.decorator';
+import { Audit } from '../../../../shared/decorators/audit.decorator';
 import {
   ForgotPasswordDto,
   ResetPasswordDto,
@@ -26,12 +28,33 @@ import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { RegisterInvestigatorDto } from '../../application/dtos/register-investigator.dto';
 import { CreateUserDto } from '../../application/dtos/create-user.dto';
 import { UpdateUserDto } from '../../application/dtos/update-user.dto';
+import { SetupAccountDto } from '../../application/dtos/setup-account.dto';
+
+import { RoleCode } from '../../domain/enums/role.enum';
+
+import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
+import { Permissions } from '../../../../shared/decorators/permissions.decorator';
+import { Permission } from '../../../../shared/enums/permission.enum';
 
 @Controller('auth')
 export class AuthController {
-  constructor(private readonly authService: AuthService) {}
+  constructor(
+    private readonly authService: AuthService,
+    private readonly usersService: UsersService,
+  ) {}
+
+  @Post('setup-account')
+  @HttpCode(HttpStatus.OK)
+  async setupAccount(@Body() setupAccountDto: SetupAccountDto) {
+    await this.authService.setupAccount(setupAccountDto);
+    return {
+      message:
+        'Cuenta configurada exitosamente. Ya puede iniciar sesión con su nueva contraseña.',
+    };
+  }
 
   @UseGuards(LocalAuthGuard)
+// ... existing methods ...
   @Post('login')
   async login(@Request() req) {
     return this.authService.login(req.user);
@@ -42,28 +65,41 @@ export class AuthController {
     return this.authService.register(userData);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('presidente', 'admin_ti')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Permissions(Permission.USERS_CREATE)
+  @Audit('USER_CREATED')
   @Post('users')
   async createUser(@Body() userData: CreateUserDto) {
-    return this.authService.createUser(userData);
+    return this.usersService.createUser(userData);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('presidente', 'admin_ti')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Permissions(Permission.USERS_EDIT)
+  @Audit('USER_UPDATED')
   @Patch('users/:id')
   async updateUser(
     @Param('id', ParseIntPipe) id: number,
     @Body() userData: UpdateUserDto,
   ) {
-    return this.authService.updateUser(id, userData);
+    return this.usersService.updateUser(id, userData);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('presidente', 'admin_ti')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Permissions(Permission.USERS_VIEW)
   @Get('users')
   async findAllUsers() {
-    return this.authService.findAllUsers();
+    return this.usersService.findAllUsers();
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Permissions(Permission.USERS_STATUS_TOGGLE)
+  @Audit('USER_STATUS_UPDATED')
+  @Patch('users/:id/status')
+  async updateUserStatus(
+    @Param('id', ParseIntPipe) id: number,
+    @Body('isActive') isActive: boolean,
+  ) {
+    return this.usersService.updateUser(id, { isActive } as any);
   }
 
   @Post('refresh')
@@ -118,21 +154,22 @@ export class AuthController {
     };
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('presidente', 'admin_ti')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(RoleCode.ADMIN_TI, RoleCode.PRESIDENTE)
   @Get('roles')
   async getRoles() {
-    return this.authService.getRoles();
+    return this.usersService.getRoles();
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('presidente', 'admin_ti')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Permissions(Permission.ROLES_ASSIGN)
+  @Audit('USER_ROLES_ASSIGNED')
   @Patch('users/:id/roles')
   async updateUserRoles(
     @Param('id', ParseIntPipe) id: number,
     @Body('roles') roles: string[],
   ) {
-    return this.authService.updateUserRoles(id, roles);
+    return this.usersService.updateUserRoles(id, roles);
   }
 
   @UseGuards(JwtAuthGuard)
@@ -147,15 +184,15 @@ export class AuthController {
     return this.authService.getMe(req.user.id);
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('presidente', 'admin_ti')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(RoleCode.ADMIN_TI, RoleCode.PRESIDENTE)
   @Get('admin-only')
   getAdminData() {
     return { message: 'This is admin only data' };
   }
 
-  @UseGuards(JwtAuthGuard, RolesGuard)
-  @Roles('investigador')
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
+  @Roles(RoleCode.INVESTIGADOR)
   @Get('investigador-only')
   getInvestigadorData() {
     return { message: 'This is investigador only data' };

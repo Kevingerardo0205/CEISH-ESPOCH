@@ -12,6 +12,7 @@ import {
   Delete,
 } from '@nestjs/common';
 import { EvaluationsService } from '../../application/services/evaluations.service';
+import { EvaluationConsolidationService } from '../../application/services/evaluation-consolidation.service';
 import { AssignEvaluatorsDto } from '../../application/dtos/assign-evaluator.dto';
 import { SubmitEvaluationDto } from '../../application/dtos/submit-evaluation.dto';
 import {
@@ -22,6 +23,9 @@ import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
 import { Roles } from '../../../../shared/decorators/roles.decorator';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
+import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
+import { Permissions } from '../../../../shared/decorators/permissions.decorator';
+import { Permission } from '../../../../shared/enums/permission.enum';
 import {
   ApiTags,
   ApiOperation,
@@ -32,12 +36,24 @@ import {
 @ApiTags('evaluations')
 @ApiBearerAuth()
 @Controller('evaluations')
-@UseGuards(JwtAuthGuard, RolesGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 export class EvaluationsController {
-  constructor(private readonly evaluationsService: EvaluationsService) {}
+  constructor(
+    private readonly evaluationsService: EvaluationsService,
+    private readonly consolidationService: EvaluationConsolidationService,
+  ) {}
+
+  @Get('consolidate/:protocolId')
+  @Permissions(Permission.EVALUACION_INFORMES)
+  @ApiOperation({
+    summary: 'Consolidar informes de evaluación para un protocolo (Anexo 12)',
+  })
+  async consolidate(@Param('protocolId', ParseIntPipe) protocolId: number) {
+    return this.consolidationService.consolidate(protocolId);
+  }
 
   @Get('evaluators/dashboard')
-  @Roles('presidente', 'secretaria', 'admin_ti')
+  @Permissions(Permission.EVALUATORS_WORKLOAD_VIEW)
   @ApiOperation({
     summary: 'Obtener carga de trabajo de evaluadores (Dashboard Presidenta)',
   })
@@ -53,7 +69,7 @@ export class EvaluationsController {
   }
 
   @Post('suggest')
-  @Roles('presidente')
+  @Permissions(Permission.EVALUATORS_SUGGEST)
   @Audit('EVALUATORS_SUGGESTED')
   @ApiOperation({
     summary: 'Presidenta sugiere uno o más evaluadores a un protocolo',
@@ -63,7 +79,7 @@ export class EvaluationsController {
   }
 
   @Get('pending-suggestions')
-  @Roles('secretaria', 'admin_ti')
+  @Permissions(Permission.EVALUATORS_ASSIGN)
   @ApiOperation({
     summary:
       'Listar todas las sugerencias de evaluadores pendientes de confirmar',
@@ -73,7 +89,7 @@ export class EvaluationsController {
   }
 
   @Patch('confirm-assignment')
-  @Roles('secretaria', 'admin_ti')
+  @Permissions(Permission.EVALUATORS_ASSIGN)
   @Audit('EVALUATORS_ASSIGNED')
   @ApiOperation({
     summary: 'Secretaria confirma las sugerencias y asigna oficialmente',
@@ -83,7 +99,7 @@ export class EvaluationsController {
   }
 
   @Delete('reject-suggestion/:id')
-  @Roles('secretaria', 'admin_ti')
+  @Permissions(Permission.EVALUATORS_ASSIGN)
   @Audit('EVALUATION_SUGGESTION_REJECTED')
   @ApiOperation({
     summary: 'Secretaria rechaza (elimina) una sugerencia de la Presidenta',
@@ -93,7 +109,7 @@ export class EvaluationsController {
   }
 
   @Get('my-assignments')
-  @Roles('evaluador')
+  @Permissions(Permission.EVALUATION_VIEW_MINE)
   @ApiOperation({
     summary: 'Listar protocolos asignados oficialmente al evaluador logueado',
   })
@@ -102,7 +118,7 @@ export class EvaluationsController {
   }
 
   @Post('submit')
-  @Roles('evaluador')
+  @Permissions(Permission.EVALUATION_FILL)
   @Audit('EVALUATION_SUBMITTED')
   @ApiOperation({ summary: 'Evaluador envía dictamen final de evaluación' })
   async submit(@Body() dto: SubmitEvaluationDto, @Request() req) {
@@ -116,14 +132,14 @@ export class EvaluationsController {
   }
 
   @Post('profiles')
-  @Roles('presidente', 'admin_ti')
+  @Permissions(Permission.PERMISSIONS_MANAGE)
   @Audit('EVALUATOR_PROFILE_CREATED')
   async createProfile(@Body() dto: CreateEvaluatorProfileDto) {
     return this.evaluationsService.createProfile(dto);
   }
 
   @Patch('profiles/:id')
-  @Roles('presidente', 'admin_ti')
+  @Permissions(Permission.PERMISSIONS_MANAGE)
   @Audit('EVALUATOR_PROFILE_UPDATED')
   async updateProfile(
     @Param('id', ParseIntPipe) id: number,
@@ -133,7 +149,7 @@ export class EvaluationsController {
   }
 
   @Delete('profiles/:id')
-  @Roles('presidente', 'admin_ti')
+  @Permissions(Permission.PERMISSIONS_MANAGE)
   @Audit('EVALUATOR_PROFILE_DELETED')
   async deleteProfile(@Param('id', ParseIntPipe) id: number) {
     return this.evaluationsService.deleteProfile(id);

@@ -8,6 +8,7 @@ import {
 } from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
+import { TipoDocumentoOrmEntity } from '../../../protocols/infrastructure/database/tipo-documento.entity.orm';
 
 @Entity({ name: 'documentos', schema: 'recepcion' })
 export class ReceptionDocumentOrmEntity {
@@ -20,6 +21,13 @@ export class ReceptionDocumentOrmEntity {
   @ManyToOne(() => ProtocolOrmEntity)
   @JoinColumn({ name: 'protocolo_id' })
   protocol!: ProtocolOrmEntity;
+
+  @Column({ name: 'tipo_documento_id', nullable: true })
+  tipoDocumentoId?: number;
+
+  @ManyToOne(() => TipoDocumentoOrmEntity)
+  @JoinColumn({ name: 'tipo_documento_id' })
+  tipoDocumento?: TipoDocumentoOrmEntity;
 
   @Column({ name: 'nombre_archivo', length: 200 })
   fileName!: string;

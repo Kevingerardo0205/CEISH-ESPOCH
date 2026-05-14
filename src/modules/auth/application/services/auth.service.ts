@@ -5,19 +5,20 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource, In } from 'typeorm';
+import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
-import * as crypto from 'crypto';
 import { UserOrmEntity } from '../../infrastructure/database/user.entity.orm';
 import { InvestigatorProfileOrmEntity } from '../../infrastructure/database/investigator-profile.entity.orm';
 import { RoleOrmEntity } from '../../infrastructure/database/role.entity.orm';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { RegisterInvestigatorDto } from '../dtos/register-investigator.dto';
-import { CreateUserDto } from '../dtos/create-user.dto';
-import { UpdateUserDto } from '../dtos/update-user.dto';
 import { IUserRepository } from '../../domain/ports/user.repository.port';
 import { IInvestigatorProfileRepository } from '../../domain/ports/investigator-profile.repository.port';
+
+import { RoleCode } from '../../domain/enums/role.enum';
+
+import { SetupAccountDto } from '../dtos/setup-account.dto';
 
 @Injectable()
 export class AuthService {
@@ -32,11 +33,74 @@ export class AuthService {
     private readonly dataSource: DataSource,
   ) {}
 
+  async setupAccount(dto: SetupAccountDto): Promise<void> {
+    const { email, otp, password } = dto;
+
+    if (!email || !otp || !password) {
+      throw new BadRequestException('Email, código y contraseña son requeridos');
+    }
+
+    // 1. Buscar el usuario
+    const user = await this.userRepository.findByEmail(email);
+
+    if (!user) {
+      throw new BadRequestException('Usuario no encontrado');
+    }
+
+    if (user.isActive && user.isEmailVerified && !user.confirmationTokenHash) {
+      throw new BadRequestException('La cuenta ya ha sido configurada');
+    }
+
+    if (!user.confirmationTokenHash) {
+      throw new BadRequestException(
+        'No hay una configuración de cuenta pendiente para este usuario',
+      );
+    }
+
+    // 2. Validar el código OTP
+    const isMatch = await bcrypt.compare(otp, user.confirmationTokenHash);
+    if (!isMatch) {
+      throw new BadRequestException('Código de verificación inválido');
+    }
+
+    // 3. Activar Cuenta y Establecer Password
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      await queryRunner.manager.update(UserOrmEntity, user.id, {
+        passwordHash: hashedPassword,
+        isActive: true,
+        isEmailVerified: true,
+        confirmationTokenHash: null,
+      });
+
+      await queryRunner.commitTransaction();
+      console.log(`[AUTH] Cuenta ${email} configurada y activada exitosamente.`);
+    } catch (err) {
+      await queryRunner.rollbackTransaction();
+      console.error('[AUTH ERROR] Error al configurar la cuenta:', err);
+      throw err;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
   async validateUser(email: string, pass: string): Promise<any> {
     const user = await this.userRepository.findByEmail(email);
 
     if (!user || !user.passwordHash) {
       throw new UnauthorizedException('Invalid credentials');
+    }
+
+    if (!user.isActive) {
+      throw new UnauthorizedException(
+        'Su cuenta está desactivada. Contacte al administrador.',
+      );
     }
 
     if (!user.isEmailVerified) {
@@ -83,10 +147,27 @@ export class AuthService {
   }
 
   async login(user: any) {
+    const permissions = new Set<any>();
+    user.roles?.forEach((role: any) => {
+      role.permissions?.forEach((p: any) => {
+        permissions.add({
+          code: p.code,
+          module: p.module ? {
+            code: p.module.code,
+            name: p.module.name,
+            icon: p.module.icon,
+            order: p.module.order
+          } : null
+        });
+      });
+    });
+
+    const permissionArray = Array.from(permissions);
     const payload = {
       email: user.institutionalEmail,
       sub: user.id,
-      roles: user.roles.map((r) => r.name),
+      roles: user.roles.map((r: any) => r.code),
+      permissions: permissionArray.map(p => p.code),
     };
 
     const tokens = await this.generateTokens(payload);
@@ -100,6 +181,7 @@ export class AuthService {
         fullName: user.fullName,
         email: user.institutionalEmail,
         roles: payload.roles,
+        permissions: permissionArray,
         isEmailVerified: user.isEmailVerified,
       },
     };
@@ -109,6 +191,21 @@ export class AuthService {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('Usuario no encontrado');
 
+    const permissions = new Set<any>();
+    user.roles?.forEach((role: any) => {
+      role.permissions?.forEach((p: any) => {
+        permissions.add({
+          code: p.code,
+          module: p.module ? {
+            code: p.module.code,
+            name: p.module.name,
+            icon: p.module.icon,
+            order: p.module.order
+          } : null
+        });
+      });
+    });
+
     return {
       id: user.id,
       nationalId: user.nationalId,
@@ -116,7 +213,8 @@ export class AuthService {
       email: user.institutionalEmail,
       isEmailVerified: user.isEmailVerified,
       isActive: user.isActive,
-      roles: user.roles.map((r) => r.name),
+      roles: user.roles.map((r: any) => r.code),
+      permissions: Array.from(permissions),
       investigatorProfile: user.investigatorProfile
         ? {
             documentType: user.investigatorProfile.documentType,
@@ -130,7 +228,10 @@ export class AuthService {
   }
 
   async refreshTokens(userId: number, refreshToken: string) {
-    const user = await this.userRepository.findById(userId);
+    const user = await this.dataSource.getRepository(UserOrmEntity).findOne({
+      where: { id: userId },
+      relations: ['roles', 'roles.permissions', 'roles.permissions.module'],
+    });
 
     if (!user || !user.refreshTokenHash) {
       throw new UnauthorizedException('Access Denied');
@@ -139,10 +240,27 @@ export class AuthService {
     const isMatch = await bcrypt.compare(refreshToken, user.refreshTokenHash);
     if (!isMatch) throw new UnauthorizedException('Access Denied');
 
+    const permissions = new Set<any>();
+    user.roles?.forEach((role: any) => {
+      role.permissions?.forEach((p: any) => {
+        permissions.add({
+          code: p.code,
+          module: p.module ? {
+            code: p.module.code,
+            name: p.module.name,
+            icon: p.module.icon,
+            order: p.module.order
+          } : null
+        });
+      });
+    });
+
+    const permissionArray = Array.from(permissions);
     const payload = {
       email: user.institutionalEmail,
       sub: user.id,
-      roles: user.roles.map((r) => r.name),
+      roles: user.roles.map((r: any) => r.code),
+      permissions: permissionArray.map((p: any) => p.code),
     };
     const tokens = await this.generateTokens(payload);
     await this.updateRefreshToken(user.id, tokens.refresh_token);
@@ -186,17 +304,17 @@ export class AuthService {
           'Este correo electrónico ya está registrado',
         );
 
-      // 2. Buscar el Rol de Investigador (ID 6 según tu DB)
+      // 2. Buscar el Rol de Investigador por CÓDIGO (Dinámico)
       const investigatorRole = await queryRunner.manager.findOne(
         RoleOrmEntity,
         {
-          where: { name: 'investigador' },
+          where: { code: RoleCode.INVESTIGADOR },
         },
       );
 
       if (!investigatorRole) {
         throw new Error(
-          'Configuración del sistema incompleta: Rol "investigador" no encontrado.',
+          'Configuración del sistema incompleta: Rol "INVESTIGADOR" no encontrado.',
         );
       }
 
@@ -307,7 +425,7 @@ export class AuthService {
         const investigatorRole = await queryRunner.manager.findOne(
           RoleOrmEntity,
           {
-            where: { name: 'investigador' },
+            where: { code: RoleCode.INVESTIGADOR },
           },
         );
         if (investigatorRole) {
@@ -406,113 +524,5 @@ export class AuthService {
       resetPasswordTokenHash: null,
       resetPasswordExpires: null,
     });
-  }
-
-  async createUser(dto: CreateUserDto) {
-    const existing = await this.userRepository.findByEmail(dto.email);
-    if (existing)
-      throw new BadRequestException('El correo electrónico ya está registrado');
-
-    const roles = await this.dataSource.getRepository(RoleOrmEntity).find({
-      where: { name: In(dto.roles) },
-    });
-
-    if (roles.length === 0) {
-      throw new BadRequestException(
-        'Ninguno de los roles proporcionados es válido',
-      );
-    }
-
-    const salt = await bcrypt.genSalt(10);
-    const hashedPassword = await bcrypt.hash(dto.password, salt);
-
-    const user = this.dataSource.getRepository(UserOrmEntity).create({
-      nationalId: dto.nationalId,
-      fullName: dto.fullName,
-      institutionalEmail: dto.email,
-      passwordHash: hashedPassword,
-      isActive: dto.isActive ?? true,
-      isEmailVerified: dto.isEmailVerified ?? true,
-      roles: roles,
-    });
-
-    const savedUser = await this.dataSource
-      .getRepository(UserOrmEntity)
-      .save(user);
-    const { passwordHash, ...result } = savedUser;
-    return result;
-  }
-
-  async getRoles() {
-    return this.dataSource.getRepository(RoleOrmEntity).find();
-  }
-
-  async findAllUsers() {
-    const users = await this.userRepository.findAll();
-    return users.map((user) => {
-      const {
-        passwordHash,
-        refreshTokenHash,
-        confirmationTokenHash,
-        resetPasswordTokenHash,
-        ...result
-      } = user;
-      return {
-        ...result,
-        roles: user.roles.map((r) => r.name),
-      };
-    });
-  }
-
-  async updateUserRoles(userId: number, roleNames: string[]) {
-    const user = await this.userRepository.findById(userId);
-    if (!user) throw new NotFoundException('Usuario no encontrado');
-
-    const roles = await this.dataSource.getRepository(RoleOrmEntity).find({
-      where: { name: In(roleNames) },
-    });
-
-    if (roles.length === 0) {
-      throw new BadRequestException('Roles no válidos');
-    }
-
-    user.roles = roles;
-    await this.dataSource.getRepository(UserOrmEntity).save(user);
-
-    return {
-      message: 'Roles actualizados exitosamente',
-      roles: user.roles.map((r) => r.name),
-    };
-  }
-
-  async updateUser(id: number, dto: UpdateUserDto) {
-    const user = await this.userRepository.findById(id);
-    if (!user) throw new NotFoundException('Usuario no encontrado');
-
-    if (dto.email && dto.email !== user.institutionalEmail) {
-      const existing = await this.userRepository.findByEmail(dto.email);
-      if (existing)
-        throw new BadRequestException(
-          'El nuevo correo electrónico ya está registrado',
-        );
-      user.institutionalEmail = dto.email;
-    }
-
-    if (dto.password) {
-      const salt = await bcrypt.genSalt(10);
-      user.passwordHash = await bcrypt.hash(dto.password, salt);
-    }
-
-    if (dto.fullName) user.fullName = dto.fullName;
-    if (dto.nationalId) user.nationalId = dto.nationalId;
-    if (dto.isActive !== undefined) user.isActive = dto.isActive;
-    if (dto.isEmailVerified !== undefined)
-      user.isEmailVerified = dto.isEmailVerified;
-
-    const savedUser = await this.dataSource
-      .getRepository(UserOrmEntity)
-      .save(user);
-    const { passwordHash, ...result } = savedUser;
-    return result;
   }
 }

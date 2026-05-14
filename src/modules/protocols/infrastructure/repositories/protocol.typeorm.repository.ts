@@ -19,13 +19,20 @@ export class ProtocolTypeOrmRepository
     super(protocolsRepo);
   }
 
+  async findById(id: number, options?: any): Promise<ProtocolOrmEntity | null> {
+    return this.repo.findOne({
+      where: { id } as any,
+      ...options,
+    });
+  }
+
   async findAll(
     query: QueryProtocolDto,
   ): Promise<[ProtocolOrmEntity[], number]> {
     const { page, limit, skip } = getPaginationParams(query);
     const { studyType, receptionStatus, reviewType } = query;
 
-    const qb = this.protocolsRepo
+    const qb = this.repo
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.studyType', 'studyType')
       .leftJoinAndSelect('p.riskLevel', 'riskLevel')
@@ -48,7 +55,7 @@ export class ProtocolTypeOrmRepository
   async countByYear(year: number): Promise<number> {
     const startOfYear = new Date(year, 0, 1);
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
-    return this.protocolsRepo.count({
+    return this.repo.count({
       where: {
         receptionDate: Between(startOfYear, endOfYear),
       },

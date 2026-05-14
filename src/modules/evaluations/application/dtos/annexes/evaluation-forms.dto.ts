@@ -1,117 +1,92 @@
 import {
-  IsBoolean,
   IsString,
   IsOptional,
-  ValidateNested,
+  IsEnum,
+  IsDateString,
 } from 'class-validator';
-import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
-export class EthicalAspectsDto {
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  balanceBeneficioRiesgo!: boolean;
-
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  consentimientoInformadoValido!: boolean;
-
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  proteccionDatosSensibles!: boolean;
-
-  @ApiProperty({ example: 'Observaciones sobre ética...' })
-  @IsOptional()
-  @IsString()
-  observaciones?: string;
-}
-
-export class MethodologicalAspectsDto {
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  objetivosClaros!: boolean;
-
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  metodologiaAdecuada!: boolean;
-
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  tamanoMuestraJustificado!: boolean;
-
-  @ApiProperty({ example: 'Observaciones metodológicas...' })
-  @IsOptional()
-  @IsString()
-  observaciones?: string;
-}
-
-export class LegalAspectsDto {
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  cumpleNormativaNacional!: boolean;
-
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  declaracionConflictoInteres!: boolean;
-
-  @ApiProperty({ example: 'Observaciones legales...' })
-  @IsOptional()
-  @IsString()
-  observaciones?: string;
-}
-
 /**
- * Anexo 10: Formulario de Evaluación para Revisión por Pleno
+ * Resultados para áreas específicas (Anexo 9)
  */
-export class Annex10Dto {
-  @ApiProperty({ type: EthicalAspectsDto })
-  @ValidateNested()
-  @Type(() => EthicalAspectsDto)
-  etica!: EthicalAspectsDto;
-
-  @ApiProperty({ type: MethodologicalAspectsDto })
-  @ValidateNested()
-  @Type(() => MethodologicalAspectsDto)
-  metodologia!: MethodologicalAspectsDto;
-
-  @ApiProperty({ type: LegalAspectsDto })
-  @ValidateNested()
-  @Type(() => LegalAspectsDto)
-  legal!: LegalAspectsDto;
+export enum AspectResult {
+  APROBADO = 'APROBADO',
+  NO_APROBADO = 'NO_APROBADO',
+  CON_OBSERVACIONES = 'CON_OBSERVACIONES',
 }
 
 /**
- * Anexo 9: Formulario de Evaluación para Revisión Expedita (Simplificado)
+ * Resultados globales (Anexo 10 y 11)
+ */
+export enum GlobalResult {
+  APROBADO = 'APROBADO',
+  APROBADO_CONDICIONADO = 'APROBADO_CONDICIONADO',
+  NO_APROBADO = 'NO_APROBADO',
+}
+
+/**
+ * ANEXO 9: Guía para evaluación expedita
+ * Triple evaluación: Ética, Metodológica y Jurídica
  */
 export class Annex9Dto {
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  cumpleCriteriosExpedita!: boolean;
+  // Evaluación Ética
+  @ApiProperty({ enum: AspectResult })
+  @IsEnum(AspectResult)
+  eticaResult!: AspectResult;
 
-  @ApiProperty({ type: EthicalAspectsDto })
-  @ValidateNested()
-  @Type(() => EthicalAspectsDto)
-  etica!: EthicalAspectsDto;
-
-  @ApiProperty({ example: 'Justificación de revisión rápida...' })
+  @ApiProperty({ required: false, description: 'Plazo para absolver observaciones éticas' })
+  @IsOptional()
   @IsString()
-  justificacion!: string;
+  eticaPlazo?: string;
+
+  // Evaluación Metodológica
+  @ApiProperty({ enum: AspectResult })
+  @IsEnum(AspectResult)
+  metodologiaResult!: AspectResult;
+
+  @ApiProperty({ required: false, description: 'Plazo para absolver observaciones metodológicas' })
+  @IsOptional()
+  @IsString()
+  metodologiaPlazo?: string;
+
+  // Evaluación Jurídica
+  @ApiProperty({ enum: AspectResult })
+  @IsEnum(AspectResult)
+  juridicaResult!: AspectResult;
+
+  @ApiProperty({ required: false, description: 'Plazo para absolver observaciones jurídicas' })
+  @IsOptional()
+  @IsString()
+  juridicaPlazo?: string;
 }
 
 /**
- * Anexo 11: Formulario de Evaluación para Ensayos Clínicos
+ * ANEXO 10: Guía para evaluación en pleno
  */
-export class Annex11Dto extends Annex10Dto {
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  aprobacionArcsaVerificada!: boolean;
+export class Annex10Dto {
+  @ApiProperty({ enum: GlobalResult })
+  @IsEnum(GlobalResult)
+  resultado!: GlobalResult;
 
-  @ApiProperty({ example: true })
-  @IsBoolean()
-  polizaSeguroVigente!: boolean;
-
-  @ApiProperty({ example: 'Datos específicos del fármaco...' })
+  @ApiProperty({
+    description: 'Describir requisitos/aspectos a completar para aprobación',
+    required: false,
+  })
   @IsOptional()
   @IsString()
-  comentariosFarmaco?: string;
+  condicionesDescripcion?: string;
+}
+
+/**
+ * ANEXO 11: Guía para evaluación de ensayos clínicos
+ */
+export class Annex11Dto {
+  @ApiProperty({ enum: GlobalResult, description: 'Aprobado, Condicionado o No aprobado' })
+  @IsEnum(GlobalResult)
+  resultado!: GlobalResult;
+
+  @ApiProperty({ required: false, description: 'Fecha en la que se realizó la evaluación' })
+  @IsOptional()
+  @IsDateString()
+  fechaEvaluacion?: string;
 }

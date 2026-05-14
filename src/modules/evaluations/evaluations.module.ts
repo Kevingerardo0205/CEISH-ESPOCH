@@ -9,11 +9,16 @@ import { SessionOrmEntity } from './infrastructure/database/session.entity.orm';
 import { MinutesOrmEntity } from './infrastructure/database/minutes.entity.orm';
 import { UserOrmEntity } from '../auth/infrastructure/database/user.entity.orm';
 import { EvaluationsService } from './application/services/evaluations.service';
+import { ConflictOfInterestService } from './application/services/conflict-of-interest.service';
+import { EvaluationConsolidationService } from './application/services/evaluation-consolidation.service';
 import { EvaluationsController } from './infrastructure/controllers/evaluations.controller';
 import { IEvaluationRepository } from './domain/ports/evaluation.repository.port';
 import { EvaluationTypeOrmRepository } from './infrastructure/repositories/evaluation.typeorm.repository';
 import { ProtocolsModule } from '../protocols/protocols.module';
 import { forwardRef } from '@nestjs/common';
+import { InvestigatorOrmEntity } from '../protocols/infrastructure/database/investigator.entity.orm';
+import { InvestigatorProfileOrmEntity } from '../auth/infrastructure/database/investigator-profile.entity.orm';
+import { ProtocolOrmEntity } from '../protocols/infrastructure/database/protocol.entity.orm';
 
 @Module({
   imports: [
@@ -26,17 +31,27 @@ import { forwardRef } from '@nestjs/common';
       SessionOrmEntity,
       MinutesOrmEntity,
       UserOrmEntity,
+      InvestigatorOrmEntity,
+      InvestigatorProfileOrmEntity,
+      ProtocolOrmEntity,
     ]),
     forwardRef(() => ProtocolsModule),
   ],
   controllers: [EvaluationsController],
   providers: [
     EvaluationsService,
+    ConflictOfInterestService,
+    EvaluationConsolidationService,
     {
       provide: IEvaluationRepository,
       useClass: EvaluationTypeOrmRepository,
     },
   ],
-  exports: [EvaluationsService, IEvaluationRepository],
+  exports: [
+    EvaluationsService,
+    ConflictOfInterestService,
+    EvaluationConsolidationService,
+    IEvaluationRepository,
+  ],
 })
 export class EvaluationsModule {}

@@ -9,6 +9,8 @@ import { ResolutionOrmEntity } from '../../infrastructure/database/resolution.en
 import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
 import { IEvaluationRepository } from '../../../evaluations/domain/ports/evaluation.repository.port';
 
+import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
+
 @Injectable()
 export class ResolutionsService {
   constructor(
@@ -16,32 +18,24 @@ export class ResolutionsService {
     private readonly resolutionRepo: Repository<ResolutionOrmEntity>,
     private readonly protocolRepository: IProtocolRepository,
     private readonly evaluationRepository: IEvaluationRepository,
+    private readonly emailService: IEmailServicePort,
   ) {}
 
-  async createResolution(dto: any, userId: number) {
-    const protocol = await this.protocolRepository.findById(dto.protocolId);
+  async createResolution(dto: any, userId: number, pdfBuffer?: Buffer) {
+    const protocol = await this.protocolRepository.findById(dto.protocolId, {
+      relations: ['principalInvestigator', 'studyType'],
+    } as any);
     if (!protocol)
       throw new NotFoundException(`Protocol ${dto.protocolId} not found`);
 
     const version = await this.evaluationRepository.findVersionByProtocolId(
       dto.protocolId,
-      1,
+      protocol.currentVersion,
     );
     if (!version)
       throw new BadRequestException(
         'El protocolo no tiene una versión activa para resolución.',
       );
-
-    // Consolidar evaluaciones
-    const assignments =
-      await this.evaluationRepository.findAssignmentsByVersionId(version.id);
-    const completedEvaluations = assignments.filter((a) => a.statusId === 2); // EVALUADO
-
-    if (completedEvaluations.length === 0) {
-      throw new BadRequestException(
-        'No existen evaluaciones completadas para este protocolo.',
-      );
-    }
 
     const resolution = this.resolutionRepo.create({
       protocolId: dto.protocolId,
@@ -52,23 +46,33 @@ export class ResolutionsService {
       majorObservations: dto.majorObservations,
       minorObservations: dto.minorObservations,
       correctionProcedure: dto.correctionProcedure,
+      pdfLetterPath: dto.pdfLetterPath,
+      signedByPresident: true,
+      signedBySecretary: true,
       createdByUserId: userId,
-    });
+    } as any);
 
     const saved = await this.resolutionRepo.save(resolution);
 
     // Actualizar estado del protocolo y versión
     await this.protocolRepository.update(dto.protocolId, {
-      statusId: 3, // RESOLUCION_EMITIDA
-      approvalDate: dto.resolutionTypeId === 1 ? new Date() : undefined, // Ejemplo: 1 = APROBADO
+      statusId: 4, // FINALIZADO/EVALUADO
+      approvalDate: dto.resolutionTypeId === 1 ? new Date() : undefined,
     });
 
-    await this.evaluationRepository.saveVersion({
-      ...version,
-      statusId: 3, // FINALIZADO
-      resolutionDate: new Date(),
-      resolutionType: dto.resolutionType,
-    });
+    // Notificar Automáticamente (Sprint 5)
+    if (pdfBuffer && protocol.principalInvestigator) {
+      await this.emailService
+        .sendResolutionEmail(
+          protocol.principalInvestigator.institutionalEmail,
+          protocol.principalInvestigator.fullName,
+          protocol.title || 'Sin Título',
+          protocol.ceishCode || 'S/C',
+          dto.resolutionLabel || 'Dictamen Emitido',
+          pdfBuffer,
+        )
+        .catch((e) => console.error('Error enviando email de resolución:', e));
+    }
 
     return saved;
   }

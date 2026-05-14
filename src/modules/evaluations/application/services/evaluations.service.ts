@@ -18,14 +18,17 @@ import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
+import { ConflictOfInterestService } from './conflict-of-interest.service';
 
 @Injectable()
 export class EvaluationsService {
   constructor(
+    @Inject(IEvaluationRepository)
     private readonly evaluationRepository: IEvaluationRepository,
     private readonly protocolRepository: IProtocolRepository,
     private readonly deadlineService: ProtocolDeadlineService,
     private readonly emailService: IEmailServicePort,
+    private readonly conflictService: ConflictOfInterestService,
   ) {}
 
   /**
@@ -39,11 +42,42 @@ export class EvaluationsService {
 
   /**
    * HU-004: Sugerir evaluadores (Presidenta)
+   * Aplica la Fase 2: Motor de Asignación por Riesgo (2 vs 5)
    */
   async suggestEvaluators(dto: AssignEvaluatorsDto, suggestedBy: number) {
     const protocol = await this.protocolRepository.findById(dto.protocolId);
     if (!protocol)
       throw new NotFoundException(`Protocol ${dto.protocolId} not found`);
+
+    const reviewType = protocol.reviewType || ReviewType.PLENO;
+    const requiredCount = reviewType === ReviewType.EXPEDITA ? 2 : 5;
+
+    // 1. Validar cantidad exacta (Fase 2)
+    if (dto.evaluators.length !== requiredCount) {
+      throw new BadRequestException(
+        `Para una revisión de tipo ${reviewType} se requieren exactamente ${requiredCount} evaluadores.`,
+      );
+    }
+
+    // 2. Validar perfiles únicos para Revisión en Pleno (PET 5.1)
+    if (reviewType === ReviewType.PLENO) {
+      const profiles = dto.evaluators.map((e) => e.profileId);
+      const uniqueProfiles = new Set(profiles);
+      if (uniqueProfiles.size !== 5) {
+        throw new BadRequestException(
+          'Para una revisión en PLENO, debe asignar exactamente un evaluador por cada perfil obligatorio: Jurídico, Salud, Metodología, Bioética y Sociedad Civil.',
+        );
+      }
+    }
+
+    // 3. Validar unicidad de evaluadores
+    const evaluatorIds = dto.evaluators.map((e) => e.evaluatorId);
+    const uniqueIds = new Set(evaluatorIds);
+    if (uniqueIds.size !== evaluatorIds.length) {
+      throw new BadRequestException(
+        'No puede asignar al mismo evaluador más de una vez.',
+      );
+    }
 
     let version = await this.evaluationRepository.findVersionByProtocolId(
       dto.protocolId,
@@ -57,8 +91,35 @@ export class EvaluationsService {
       });
     }
 
+    // 3. Limpiar sugerencias previas para esta versión si existen (Re-sugerencia)
+    const existing = await this.evaluationRepository.findAssignmentsByVersionId(
+      version.id,
+    );
+    const pendingCount = existing.filter(
+      (a) => a.statusId === AssignmentStatus.SUGGESTED,
+    ).length;
+    if (pendingCount > 0) {
+      // Podríamos borrarlos o marcarlos como obsoletos. Por ahora los borramos para permitir limpia re-asignación.
+      for (const a of existing) {
+        if (a.statusId === AssignmentStatus.SUGGESTED) {
+          await this.evaluationRepository.deleteAssignment(a.id);
+        }
+      }
+    }
+
     const assignments: EvaluationAssignmentOrmEntity[] = [];
     for (const evalDto of dto.evaluators) {
+      // 4. Validar conflictos de interés (Fase 1)
+      const conflict = await this.conflictService.checkConflict(
+        dto.protocolId,
+        evalDto.evaluatorId,
+      );
+      if (conflict.hasConflict && conflict.critical) {
+        throw new ConflictException(
+          `Conflicto Ético con Evaluador ${evalDto.evaluatorId}: ${conflict.reason}`,
+        );
+      }
+
       const assignment = await this.evaluationRepository.saveAssignment({
         versionId: version.id,
         evaluatorId: evalDto.evaluatorId,
@@ -193,6 +254,7 @@ export class EvaluationsService {
 
   /**
    * HU-005: Registrar evaluación con DTO estructurado (Anexos 9, 10, 11)
+   * Aplica la Fase 5: Digitalización de Anexos
    */
   async submitEvaluation(dto: SubmitEvaluationDto, evaluatorId: number) {
     const assignment = await this.evaluationRepository.findAssignmentById(
@@ -205,25 +267,84 @@ export class EvaluationsService {
         'No tiene permisos para evaluar esta asignación.',
       );
     }
-
-    const annexData = dto.annex9 || dto.annex10 || dto.annex11;
-    if (!annexData) {
+    if (assignment.statusId === AssignmentStatus.COMPLETED) {
       throw new BadRequestException(
-        'Debe proporcionar los datos del Anexo de evaluación.',
+        'Esta evaluación ya ha sido enviada anteriormente.',
       );
     }
 
+    const reviewType =
+      assignment.version?.protocol?.reviewType || ReviewType.PLENO;
+    let ethicalAspects: any = {};
+    let methodologicalAspects: any = {};
+    let legalAspects: any = {};
+
+    // 1. Validar y extraer datos según el tipo de revisión (Digitalización Refactorizada)
+    switch (reviewType) {
+      case ReviewType.EXPEDITA:
+        if (!dto.annex9)
+          throw new BadRequestException(
+            'Debe completar el Anexo 9 para revisiones expeditas.',
+          );
+        ethicalAspects = {
+          resultado: dto.annex9.eticaResult,
+          plazo: dto.annex9.eticaPlazo,
+        };
+        methodologicalAspects = {
+          resultado: dto.annex9.metodologiaResult,
+          plazo: dto.annex9.metodologiaPlazo,
+        };
+        legalAspects = {
+          resultado: dto.annex9.juridicaResult,
+          plazo: dto.annex9.juridicaPlazo,
+        };
+        break;
+
+      case ReviewType.PLENO:
+        if (!dto.annex10)
+          throw new BadRequestException(
+            'Debe completar el Anexo 10 para revisiones en pleno.',
+          );
+        ethicalAspects = {
+          resultado: dto.annex10.resultado,
+          condiciones: dto.annex10.condicionesDescripcion,
+        };
+        break;
+
+      case ReviewType.ENSAYO_CLINICO:
+        if (!dto.annex11)
+          throw new BadRequestException(
+            'Debe completar el Anexo 11 para ensayos clínicos.',
+          );
+        ethicalAspects = {
+          resultado: dto.annex11.resultado,
+          fechaEvaluacion: dto.annex11.fechaEvaluacion,
+        };
+        break;
+    }
+
+    // 2. Validación de Informe Consolidado (Obligatorio si no es APROBADO)
+    const isApproved = dto.result === 'APROBADO';
+    if (!isApproved && !dto.reportPath) {
+      throw new BadRequestException(
+        'Debe subir el Documento Consolidado (PDF) para sustentar el dictamen condicionado o no aprobado.',
+      );
+    }
+
+    // 3. Guardar evaluación en BD (JSONB fields)
     const evaluation = await this.evaluationRepository.saveEvaluation({
       assignmentId: dto.assignmentId,
-      ethicalAspects: (annexData as any).etica || annexData,
-      methodologicalAspects: (annexData as any).metodologia,
-      legalAspects: (annexData as any).legal,
+      ethicalAspects,
+      methodologicalAspects,
+      legalAspects,
       result: dto.result,
       observations: dto.observations,
       reportPath: dto.reportPath,
       evaluatedByUserId: evaluatorId,
+      evaluationDate: new Date(),
     });
 
+    // 4. Actualizar estado de la asignación
     await this.evaluationRepository.saveAssignment({
       ...assignment,
       actualSubmissionDate: new Date(),
@@ -232,15 +353,15 @@ export class EvaluationsService {
       statusId: AssignmentStatus.COMPLETED,
     });
 
-    // HU-005: Notificar a secretaria enviando email
-    // Usamos el email sugerido en los logs previos admin@espoch.edu.ec o similar si se tiene parametrizado
+    // 5. Notificar a secretaría
     const protocol = await this.protocolRepository.findById(
       assignment.version.protocolId,
     );
     if (protocol && assignment.evaluator) {
+      // Nota: Aquí se debería obtener la lista de secretarias de la BD
       await this.emailService
         .sendEvaluationSubmitted(
-          'admin@ceish.com', // En producción esto vendría de un Config o de los usuarios con rol secretaria
+          'secretaria.ceish@espoch.edu.ec',
           assignment.evaluator.fullName,
           protocol.ceishCode || 'S/C',
         )
@@ -249,6 +370,7 @@ export class EvaluationsService {
         );
     }
 
+    // 6. Verificar si todas las evaluaciones de la versión han finalizado
     const allAssignments =
       await this.evaluationRepository.findAssignmentsByVersionId(
         assignment.versionId,
@@ -258,6 +380,8 @@ export class EvaluationsService {
     );
 
     if (pending.length === 0) {
+      // Todas las evaluaciones están listas (2/2 o 5/5)
+      // El protocolo pasa a 'EVALUADO' (Podría ser ID 3 o 4 según tu catálogo de estados)
       await this.protocolRepository.update(assignment.version.protocolId, {
         statusId: 3,
       });

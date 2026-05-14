@@ -87,6 +87,68 @@ export class ResendEmailAdapter implements IEmailServicePort {
     }
   }
 
+  async sendAccountInvitation(
+    email: string,
+    otp: string,
+    name: string,
+  ): Promise<void> {
+    try {
+      console.log('-----------------------------------------');
+      console.log(`[INVITATION] Código de invitación para ${email}: ${otp}`);
+      console.log('-----------------------------------------');
+
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: 'Invitación a CEISH-ESPOCH - Configuración de Cuenta',
+        html: getEmailConfirmationTemplate(name, otp),
+      });
+      console.log('Invitación enviada:', data);
+    } catch (error) {
+      console.error('Error enviando invitación:', error);
+      throw error;
+    }
+  }
+
+  async sendReceptionIncomplete(
+    email: string,
+    name: string,
+    protocolTitle: string,
+    missingItems: string,
+    deadline: Date,
+  ): Promise<void> {
+    // Stub
+  }
+
+  async sendReceptionComplete(
+    email: string,
+    name: string,
+    protocolTitle: string,
+    ceishCode: string,
+    pdfBuffer: Buffer,
+  ): Promise<void> {
+    // Stub
+  }
+
+  async sendResolutionEmail(
+    email: string,
+    name: string,
+    protocolTitle: string,
+    ceishCode: string,
+    decision: string,
+    pdfBuffer: Buffer,
+  ): Promise<void> {
+    // Stub
+  }
+
+  async notifyPresidentNewProtocol(
+    presidentEmail: string,
+    protocolTitle: string,
+    ceishCode: string,
+  ): Promise<void> {
+    // Stub
+  }
+
   async sendEvaluationAssignment(
     email: string,
     name: string,

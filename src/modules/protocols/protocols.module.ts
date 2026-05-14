@@ -18,6 +18,9 @@ import { ProtocolTypeOrmRepository } from './infrastructure/repositories/protoco
 import { ReceptionModule } from '../reception/reception.module';
 import { forwardRef } from '@nestjs/common';
 
+import { TipoDocumentoOrmEntity } from './infrastructure/database/tipo-documento.entity.orm';
+import { TipoDocumentoEstudioOrmEntity } from './infrastructure/database/tipo-documento-estudio.entity.orm';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -28,6 +31,8 @@ import { forwardRef } from '@nestjs/common';
       InvestigatorOrmEntity,
       ParticipatingInstitutionOrmEntity,
       ProtocolRequirementOrmEntity,
+      TipoDocumentoOrmEntity,
+      TipoDocumentoEstudioOrmEntity,
     ]),
     forwardRef(() => ReceptionModule),
   ],
@@ -46,7 +51,6 @@ import { forwardRef } from '@nestjs/common';
   exports: [
     ProtocolsService,
     RequirementsService,
-
 
     IProtocolRepository,
     ProtocolCodeGenerator,

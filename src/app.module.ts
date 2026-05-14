@@ -1,8 +1,11 @@
 import { Module, OnModuleInit } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
+import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import databaseConfig from './config/database.config';
 import { ProtocolsModule } from './modules/protocols/protocols.module';
+import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
 import { DocumentsModule } from './modules/documents/documents.module';
 import { ReceptionModule } from './modules/reception/reception.module';
@@ -36,6 +39,7 @@ import { setEncryptionService } from './shared/encryption/encryption.transformer
       },
     ]),
     AuthModule,
+    AuditModule,
     ProtocolsModule,
     DocumentsModule,
     ReceptionModule,
@@ -44,7 +48,13 @@ import { setEncryptionService } from './shared/encryption/encryption.transformer
     NotificationsModule,
   ],
   controllers: [],
-  providers: [EncryptionService],
+  providers: [
+    EncryptionService,
+    {
+      provide: APP_INTERCEPTOR,
+      useClass: AuditInterceptor,
+    },
+  ],
 })
 export class AppModule implements OnModuleInit {
   constructor(private readonly encryptionService: EncryptionService) {}

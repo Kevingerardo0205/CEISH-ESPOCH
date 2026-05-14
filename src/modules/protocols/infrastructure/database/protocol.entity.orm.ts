@@ -194,6 +194,9 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'tiene_instituciones_externas', default: false })
   hasExternalInstitutions!: boolean;
 
+  @Column({ name: 'poblacion_indigena', default: false })
+  isIndigenousPopulation!: boolean;
+
   // E2: Declaración Jurada
   @Column({ name: 'declaracion_no_iniciado', default: false })
   isAffidavitAccepted!: boolean;
