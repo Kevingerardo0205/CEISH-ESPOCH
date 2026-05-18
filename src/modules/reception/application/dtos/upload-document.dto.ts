@@ -12,11 +12,22 @@ export class SingleDocumentDto {
   @IsString()
   fileName!: string;
 
+  @IsOptional()
   @IsString()
-  path!: string;
+  path?: string;
 
   @IsOptional()
   @IsNumber()
+  @Type(() => Number)
+  requirementId?: number;
+
+  @IsOptional()
+  @IsString()
+  requirementCode?: string;
+
+  @IsOptional()
+  @IsNumber()
+  @Type(() => Number)
   pageCount?: number;
 
   @IsOptional()
@@ -30,11 +41,13 @@ export class SingleDocumentDto {
 
 export class UploadDocumentDto extends SingleDocumentDto {
   @IsNumber()
+  @Type(() => Number)
   protocolId!: number;
 }
 
 export class UploadMultipleDocumentsDto {
   @IsNumber()
+  @Type(() => Number)
   protocolId!: number;
 
   @IsArray()

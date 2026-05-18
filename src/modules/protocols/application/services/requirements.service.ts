@@ -1,7 +1,12 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
 import { StudyTypeCode } from '../../domain/enums/study-type.enum';
+import { TipoDocumentoEstudioOrmEntity } from '../../infrastructure/database/tipo-documento-estudio.entity.orm';
+import { StudyTypeOrmEntity } from '../../infrastructure/database/study-type.entity.orm';
 
 export interface RequirementInfo {
+  id: number;
   code: string;
   name: string;
   isRequired: boolean;
@@ -10,9 +15,18 @@ export interface RequirementInfo {
 
 @Injectable()
 export class RequirementsService {
+  private readonly logger = new Logger(RequirementsService.name);
+
+  constructor(
+    @InjectRepository(TipoDocumentoEstudioOrmEntity)
+    private readonly tipoDocumentoEstudioRepository: Repository<TipoDocumentoEstudioOrmEntity>,
+    @InjectRepository(StudyTypeOrmEntity)
+    private readonly studyTypeRepository: Repository<StudyTypeOrmEntity>,
+  ) {}
+
   /**
    * Calcula los requisitos exigidos según el PET CEISH-ESPOCH V2
-   * E6: Lógica condicional de requisitos
+   * Refactorizado para ser ultra-robusto y dinámico.
    */
   async calcularRequeridos(
     typeCode: StudyTypeCode,
@@ -25,243 +39,79 @@ export class RequirementsService {
       poblacionIndigena?: boolean;
     },
   ): Promise<RequirementInfo[]> {
+    this.logger.debug(
+      `Calculando requisitos para tipo: ${typeCode} con flags: ${JSON.stringify(flags)}`,
+    );
+
+    // 1. Obtener el ID real del tipo de estudio desde el catálogo
+    const studyType = await this.studyTypeRepository.findOne({
+      where: { code: typeCode },
+    });
+
+    if (!studyType) {
+      this.logger.error(`Tipo de estudio no encontrado en DB: ${typeCode}`);
+      return [];
+    }
+
+    // 2. Consultar relaciones por ID de estudio
+    const studyTypeRequirements = await this.tipoDocumentoEstudioRepository.find({
+      where: { tipoEstudioId: studyType.id },
+      relations: ['tipoDocumento'],
+      order: { tipoDocumentoId: 'ASC' },
+    });
+
+    this.logger.debug(
+      `Encontrados ${studyTypeRequirements.length} requisitos base para estudio ID ${studyType.id}`,
+    );
+
     const requirements: RequirementInfo[] = [];
 
-    // 1. Requisitos Base (Observacional / Intervención)
-    if (typeCode === StudyTypeCode.IO || typeCode === StudyTypeCode.EI) {
-      requirements.push(
-        {
-          code: 'ANEXO_1',
-          name: 'Anexo 1: Solicitud de Evaluación',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'ANEXO_2',
-          name: 'Anexo 2: Formulario de Protocolo',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'CONSENTIMIENTO',
-          name: 'Consentimiento/Asentimiento Informado (Anexo 3)',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'INSTRUMENTOS_INV',
-          name: 'Instrumentos de Investigación (Fichas, encuestas, manuales)',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'CV_INVESTIGADORES',
-          name: 'Currículos Vitae de Investigadores',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'DECLARACION_RESP',
-          name: 'Declaración de Responsabilidad (Anexo 4)',
-          isRequired: true,
-          isConditional: false,
-        },
-      );
+    for (const rel of studyTypeRequirements) {
+      const doc = rel.tipoDocumento;
+      if (!doc) continue;
 
-      // Condicional por población indígena (PET 4.1.2.c y d)
-      if (flags.poblacionIndigena) {
-        requirements.push(
-          {
-            code: 'TRADUCCION_ANCESTRAL',
-            name: 'Traducción a idiomas ancestrales',
-            isRequired: true,
-            isConditional: true,
-          },
-          {
-            code: 'CONSENTIMIENTO_COMUNITARIO',
-            name: 'Consentimiento Colectivo o Comunitario (Líder/Asamblea)',
-            isRequired: true,
-            isConditional: true,
-          },
+      // Usamos el campo con el nombre exacto de la entidad: codigoAnexo
+      let reqCode = doc.codigoAnexo;
+
+      if (!reqCode || reqCode.trim() === '') {
+        // FALLBACK: Si no hay código, generamos uno basado en el nombre para no romper el frontend
+        reqCode = `REQ_${doc.id}`;
+        this.logger.warn(
+          `Documento ID ${doc.id} (${doc.nombre}) no tiene código de anexo definido. Usando fallback: ${reqCode}. ¡POR FAVOR ACTUALIZAR BASE DE DATOS!`,
         );
       }
 
-      // Condicionales por muestras o población vulnerable (PET 4.1.2.f y g)
-      if (flags.muestras || flags.vulnerable) {
-        requirements.push(
-          {
-            code: 'DECLARATORIA_CONF',
-            name: 'Declaratoria de Compromiso de Confidencialidad',
-            isRequired: true,
-            isConditional: true,
-          },
-          {
-            code: 'DECLARACION_CI',
-            name: 'Declaración de Conflicto de Interés',
-            isRequired: true,
-            isConditional: true,
-          },
-        );
+      // 3. Evaluar lógica condicional desde el JSON
+      const condicionJson = doc.condicionJson as any;
+      
+      // Si el JSON no tiene la clave para este tipo de estudio, 
+      // significa que no hay reglas condicionales específicas, 
+      // por lo tanto, se incluye si la tabla relacional lo dijo.
+      const condiciones = condicionJson?.condiciones_por_tipo?.[typeCode];
+
+      let shouldInclude = false;
+      const isConditional = Array.isArray(condiciones) && condiciones.length > 0;
+
+      if (!condiciones || (Array.isArray(condiciones) && condiciones.length === 0)) {
+        // Obligatorio por defecto para este tipo de estudio si no hay condiciones en el JSON
+        shouldInclude = true;
+      } else {
+        // Se incluye si AL MENOS UN flag requerido es verdadero (OR)
+        shouldInclude = condiciones.some((flag) => flags[flag] === true);
       }
 
-      // Condicional por instituciones públicas/privadas (Anexo 5)
-      if (flags.institucionesPublicas) {
+      if (shouldInclude) {
         requirements.push({
-          code: 'CARTA_INTERES',
-          name: 'Carta de Interés Institucional (Anexo 5)',
-          isRequired: true,
-          isConditional: true,
-        });
-      }
-
-      // Específicos para Intervención (PET 4.1.2.c-intervención)
-      if (typeCode === StudyTypeCode.EI) {
-        requirements.push({
-          code: 'FICHA_INTERVENCION',
-          name: 'Ficha Descriptiva de la Intervención y Riesgos',
-          isRequired: true,
-          isConditional: false,
-        });
-
-        if (flags.riesgoMayor) {
-          requirements.push(
-            {
-              code: 'POLIZA_SEGURO',
-              name: 'Copia de Póliza de Seguro de Responsabilidad Civil',
-              isRequired: true,
-              isConditional: true,
-            },
-            {
-              code: 'IDONEIDAD_INST',
-              name: 'Documentos de Idoneidad de Instalaciones',
-              isRequired: true,
-              isConditional: true,
-            },
-          );
-        }
-      }
-    }
-
-    // 2. Requisitos para Ensayo Clínico (EC) (PET 4.1.2 a-r)
-    if (typeCode === StudyTypeCode.EC) {
-      requirements.push(
-        {
-          code: 'ANEXO_6',
-          name: 'Anexo 6: Carta de Solicitud de Evaluación',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'DECLARACION_RESP',
-          name: 'Declaración de Responsabilidad (Anexo 4)',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'CARTA_INTERES',
-          name: 'Carta de Interés Institucional (Anexo 5)',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'CV_IP',
-          name: 'Hoja de Vida del IP e Investigadores',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'PROTOCOLO_COMPLETO',
-          name: 'Protocolo de Investigación (Original y Castellano)',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'FICHA_DESCRIPTIVA',
-          name: 'Ficha Descriptiva de Ensayos Clínicos',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'CONSENTIMIENTO',
-          name: 'Formulario de Consentimiento Informado',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'MANUAL_INV',
-          name: 'Manual del Investigador (Buenas Prácticas Clínicas)',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'INSTRUMENTOS_REC',
-          name: 'Procedimientos e Instrumentos de Reclutamiento y Recolección',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'POLIZA_SEGURO',
-          name: 'Copia de Póliza de Seguro (Vigente en Ecuador)',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'CERT_CAPACITACION',
-          name: 'Certificados de Capacitación y Experiencia (Bioética)',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'REGISTRO_SENESCYT',
-          name: 'Registro SENESCYT del Investigador Principal',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'INFO_SEG_FARMACO',
-          name: 'Información sobre Seguridad del Fármaco Experimental',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'CONTRATO_PROMOTOR',
-          name: 'Copia del Contrato entre Promotor e Investigadores',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'PLAN_MONITOREO',
-          name: 'Plan de Monitoreo del Ensayo Clínico',
-          isRequired: true,
-          isConditional: false,
-        },
-        {
-          code: 'PLAN_SEGURIDAD',
-          name: 'Plan de Seguridad del Participante',
-          isRequired: true,
-          isConditional: false,
-        },
-      );
-
-      if (flags.multicentrico) {
-        requirements.push({
-          code: 'APROBACION_PAIS_ORIGEN',
-          name: 'Carta de Aprobación del Comité de Ética del País de Origen',
-          isRequired: true,
-          isConditional: true,
-        });
-      }
-
-      if (flags.poblacionIndigena) {
-        requirements.push({
-          code: 'TRADUCCION_ANCESTRAL',
-          name: 'Traducción de Consentimiento a Idiomas Ancestrales',
-          isRequired: true,
-          isConditional: true,
+          id: doc.id,
+          code: reqCode,
+          name: doc.nombre,
+          isRequired: rel.esObligatorio,
+          isConditional: isConditional,
         });
       }
     }
 
+    this.logger.debug(`Total requisitos finales: ${requirements.length}`);
     return requirements;
   }
 }

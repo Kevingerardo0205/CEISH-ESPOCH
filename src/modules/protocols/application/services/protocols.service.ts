@@ -24,6 +24,7 @@ import { paginate } from '../../../../shared/db/pagination.helper';
 import { ReceptionService } from '../../../reception/application/services/reception.service';
 import { RequirementsService } from './requirements.service';
 import { StudyTypeCode } from '../../domain/enums/study-type.enum';
+import { UploadDocumentDto } from '../../../reception/application/dtos/upload-document.dto';
 
 @Injectable()
 export class ProtocolsService {
@@ -79,6 +80,13 @@ export class ProtocolsService {
       where: { isActive: true },
       order: { id: 'ASC' },
     });
+  }
+
+  /**
+   * Delegar subida de documentos al servicio de recepción
+   */
+  async uploadDocument(dto: UploadDocumentDto, userId: number) {
+    return this.receptionService.uploadDocument(dto, userId);
   }
 
   /**
@@ -189,27 +197,7 @@ export class ProtocolsService {
         await this.institutionRepository.save(instToSave as any);
       }
 
-      // 6. Checklist Dinámico
-      const reqs = await this.requirementsService.calcularRequeridos(
-        studyType.code as StudyTypeCode,
-        {
-          muestras: savedProtocol.usesBiologicalSamples,
-          vulnerable: savedProtocol.isVulnerablePopulation,
-          multicentrico: savedProtocol.isMulticentric,
-          institucionesPublicas: cleanData.hasExternalInstitutions,
-          poblacionIndigena: savedProtocol.isIndigenousPopulation,
-        },
-      );
-
-      const checklist = reqs.map((r) => ({
-        protocolId: savedProtocol.id,
-        requirementCode: r.code,
-        requirementName: r.name,
-        status: 'NO_PRESENTADO',
-      }));
-      await this.requirementRepository.save(checklist as any);
-
-      // 7. Iniciar Recepción
+      // 6. Iniciar Recepción (Maneja el Checklist Dinámico internamente)
       await this.receptionService.iniciarRecepcion(savedProtocol.id, userId);
 
       return await this.findOne(savedProtocol.id);

@@ -19,6 +19,7 @@ import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/eva
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { ConflictOfInterestService } from './conflict-of-interest.service';
+import { ReceptionStatus } from '../../../protocols/domain/enums/reception-status.enum';
 
 @Injectable()
 export class EvaluationsService {
@@ -32,12 +33,36 @@ export class EvaluationsService {
   ) {}
 
   /**
-   * HU-004: Dashboard de carga por evaluador
+   * HU-004: Dashboard de carga por evaluador y protocolos pendientes
    */
   async getEvaluatorsDashboard(profileId?: number) {
-    const evaluators =
-      await this.evaluationRepository.findEvaluatorsWithWorkload(profileId);
-    return evaluators.sort((a, b) => a.currentLoad - b.currentLoad);
+    const [evaluators, [protocols]] = await Promise.all([
+      this.evaluationRepository.findEvaluatorsWithWorkload(profileId),
+      this.protocolRepository.findAll({
+        receptionStatus: ReceptionStatus.COMPLETO,
+      }),
+    ]);
+
+    // Filtrar los que no tienen asignaciones vigentes (opcional según lógica de negocio, por ahora enviamos todos los COMPLETOS)
+    const mappedProtocols = protocols.map((p) => {
+      let typeCode = 'EI'; // Default PLENO
+      if (p.reviewType === ReviewType.EXPEDITA) typeCode = 'IO';
+      if (p.reviewType === ReviewType.ENSAYO_CLINICO) typeCode = 'EC';
+
+      return {
+        id: p.id,
+        ceishCode: p.ceishCode,
+        title: p.title,
+        receptionDate: p.receptionDate,
+        type: typeCode, // Mapeo solicitado por el Frontend
+        reviewType: p.reviewType,
+      };
+    });
+
+    return {
+      evaluators: evaluators.sort((a, b) => a.currentLoad - b.currentLoad),
+      pendingProtocols: mappedProtocols,
+    };
   }
 
   /**

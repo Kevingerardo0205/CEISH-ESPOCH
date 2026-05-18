@@ -9,6 +9,7 @@ import {
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { TipoDocumentoOrmEntity } from '../../../protocols/infrastructure/database/tipo-documento.entity.orm';
+import { ProtocolRequirementOrmEntity } from '../../../protocols/infrastructure/database/protocol-requirement.entity.orm';
 
 @Entity({ name: 'documentos', schema: 'recepcion' })
 export class ReceptionDocumentOrmEntity {
@@ -21,6 +22,13 @@ export class ReceptionDocumentOrmEntity {
   @ManyToOne(() => ProtocolOrmEntity)
   @JoinColumn({ name: 'protocolo_id' })
   protocol!: ProtocolOrmEntity;
+
+  @Column({ name: 'requisito_id', nullable: true })
+  requirementId?: number;
+
+  @ManyToOne(() => ProtocolRequirementOrmEntity)
+  @JoinColumn({ name: 'requisito_id' })
+  requirement?: ProtocolRequirementOrmEntity;
 
   @Column({ name: 'tipo_documento_id', nullable: true })
   tipoDocumentoId?: number;

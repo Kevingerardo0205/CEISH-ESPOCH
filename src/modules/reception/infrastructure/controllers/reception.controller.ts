@@ -21,6 +21,7 @@ import { Permissions } from '../../../../shared/decorators/permissions.decorator
 import { Permission } from '../../../../shared/enums/permission.enum';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { RequirementStatus } from '../../../protocols/domain/enums/requirement-status.enum';
+import { DocumentMapper } from '../../application/mappers/document.mapper';
 
 @Controller('reception')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
@@ -68,7 +69,8 @@ export class ReceptionController {
   @Post('protocol/:protocolId/document')
   @Audit('DOCUMENT_UPLOADED')
   async uploadDocument(@Request() req, @Body() dto: UploadDocumentDto) {
-    return this.receptionService.uploadDocument(dto, req.user.id);
+    const document = await this.receptionService.uploadDocument(dto, req.user.id);
+    return DocumentMapper.toResponse(document);
   }
 
   @Permissions(Permission.RECEPTION_UPLOAD)
@@ -78,7 +80,8 @@ export class ReceptionController {
     @Request() req,
     @Body() dto: UploadMultipleDocumentsDto,
   ) {
-    return this.receptionService.uploadMultipleDocuments(dto, req.user.id);
+    const documents = await this.receptionService.uploadMultipleDocuments(dto, req.user.id);
+    return DocumentMapper.toResponseList(documents);
   }
 
   @Permissions(Permission.DOCUMENTS_VALIDATE)
@@ -114,7 +117,8 @@ export class ReceptionController {
   @Permissions(Permission.RECEPTION_VIEW)
   @Get('protocol/:protocolId/documents')
   async getDocuments(@Param('protocolId') protocolId: string) {
-    return this.receptionService.getDocuments(+protocolId);
+    const documents = await this.receptionService.getDocuments(+protocolId);
+    return DocumentMapper.toResponseList(documents);
   }
 
   @Permissions(Permission.DOCUMENTS_VALIDATE)

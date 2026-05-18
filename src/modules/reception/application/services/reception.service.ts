@@ -58,7 +58,6 @@ export class ReceptionService {
 
     const investigator = protocol.principalInvestigator;
 
-    // ... lógica de validación (idéntica a la anterior)
     const studyTypeCode =
       (protocol.studyType?.code as StudyTypeCode) || StudyTypeCode.IO;
     const requiredDocs = await this.requirementsService.calcularRequeridos(
@@ -83,11 +82,14 @@ export class ReceptionService {
 
     for (const req of requiredDocs) {
       if (!req.isRequired) continue;
+      
+      // Filtramos documentos vinculados a este requisito
       const docsForReq = uploadedDocs.filter(
         (d) =>
-          d.tipoDocumento?.codigoAnexo === req.code ||
-          d.fileName.includes(req.name),
+          d.requirementId !== null ? d.requirementId === req.id : // Si tenemos ID, usamos ID
+          (d.tipoDocumento?.codigoAnexo === req.code || d.fileName.includes(req.name)), // Fallback por código/nombre
       );
+
       if (docsForReq.length === 0) {
         missingRequirements.push(`- Falta documento obligatorio: ${req.name}`);
         continue;
@@ -110,23 +112,17 @@ export class ReceptionService {
     const now = new Date();
 
     if (missingRequirements.length === 0) {
-      // RESULTADO A: COMPLETO
       reception.statusId = 2;
-
       await this.protocolRepository.update(protocolId, {
         receptionStatus: ReceptionStatus.COMPLETO,
         receptionDate: now,
       });
-
       await this.receptionRepository.save(reception);
 
-      // --- FASE 4: ACCIONES AUTOMÁTICAS (COMPLETO) ---
-      // 1. Recargar protocolo para obtener el CÓDIGO CEISH (generado por trigger SQL)
       const updatedProtocol =
         await this.protocolRepository.findById(protocolId);
       const ceishCode = updatedProtocol?.ceishCode || 'PENDIENTE-ASIGNACION';
 
-      // 2. Generar PDF de Constancia (Anexo 7)
       const pdfBuffer = await this.pdfGenerator.generateReceptionCertificate({
         ceishCode: ceishCode,
         investigatorName: investigator?.fullName || 'Investigador',
@@ -135,7 +131,6 @@ export class ReceptionService {
         studyType: protocol.studyType?.name || 'Observacional',
       });
 
-      // 3. Enviar Email con el PDF adjunto
       await this.emailService
         .sendReceptionComplete(
           investigator?.institutionalEmail || '',
@@ -146,10 +141,9 @@ export class ReceptionService {
         )
         .catch((e) => console.error('Error enviando email completo:', e));
 
-      // 4. Notificar al Presidente
       await this.emailService
         .notifyPresidentNewProtocol(
-          'presidente.ceish@espoch.edu.ec', // Configurable
+          'presidente.ceish@espoch.edu.ec',
           protocol.title || 'Sin Título',
           ceishCode,
         )
@@ -162,7 +156,6 @@ export class ReceptionService {
           'Protocolo completado. Se ha enviado la constancia por correo al investigador.',
       };
     } else {
-      // RESULTADO B: INCOMPLETO
       reception.statusId = 3;
       reception.completionDeadlineDate =
         this.deadlineService.calculateSubmissionDeadline(now);
@@ -176,7 +169,6 @@ export class ReceptionService {
 
       await this.receptionRepository.save(reception);
 
-      // --- FASE 4: ACCIONES AUTOMÁTICAS (INCOMPLETO) ---
       await this.emailService
         .sendReceptionIncomplete(
           investigator?.institutionalEmail || '',
@@ -197,13 +189,10 @@ export class ReceptionService {
     }
   }
 
-  /**
-   * PET 4.1.1: Iniciar Recepción
-   * Prepara el registro de recepción e inicializa el checklist dinámico.
-   * El código CEISH será generado por Trigger en BD al pasar a estado COMPLETO.
-   */
   async iniciarRecepcion(protocolId: number, createdByUserId: number) {
-    const protocol = await this.protocolRepository.findById(protocolId);
+    const protocol = await this.protocolRepository.findById(protocolId, {
+      relations: ['studyType'],
+    });
     if (!protocol)
       throw new NotFoundException(`Protocol ${protocolId} not found`);
 
@@ -214,7 +203,6 @@ export class ReceptionService {
         `Reception already exists for protocol ${protocolId}`,
       );
 
-    // 1. Inicializar Checklist Dinámico (Fase 3 - E6)
     const studyTypeCode =
       (protocol.studyType?.code as StudyTypeCode) || StudyTypeCode.IO;
     const calculatedRequirements =
@@ -235,12 +223,11 @@ export class ReceptionService {
     }));
     await this.requirementRepository.save(checklist);
 
-    // 2. Crear Registro de Recepción
     const reception = await this.receptionRepository.save({
       protocolId,
       createdByUserId,
       receptionDate: new Date(),
-      statusId: 1, // PENDIENTE
+      statusId: 1,
     });
 
     return ReceptionMapper.toResponse(reception);
@@ -256,10 +243,6 @@ export class ReceptionService {
     return ReceptionMapper.toResponse(reception);
   }
 
-  /**
-   * Carga de documento individual unificada en recepcion.documentos
-   * Bloquea la subida si el protocolo ya está en revisión por la secretaria.
-   */
   async uploadDocument(dto: UploadDocumentDto, uploadedBy: number) {
     const protocol = await this.protocolRepository.findById(dto.protocolId);
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
@@ -275,6 +258,7 @@ export class ReceptionService {
 
     const document = await this.receptionRepository.saveDocument({
       protocolId: dto.protocolId,
+      requirementId: dto.requirementId, // 3FN: Vínculo directo
       fileName: dto.fileName,
       path: dto.path,
       pageCount: dto.pageCount,
@@ -283,6 +267,29 @@ export class ReceptionService {
       uploadedByUserId: uploadedBy,
       isValidatedBySecretary: false,
     });
+
+    // Actualizar estado en checklist
+    if (dto.requirementId) {
+      await this.requirementRepository.update(dto.requirementId, {
+        status: RequirementStatus.PRESENTADO,
+        pageCount: dto.pageCount || 0,
+      });
+    } else if (dto.requirementCode) {
+      // Fallback por código para compatibilidad
+      const req = await this.requirementRepository.findOne({
+        where: {
+          protocolId: dto.protocolId,
+          requirementCode: dto.requirementCode,
+        },
+      });
+      if (req) {
+        await this.requirementRepository.update(req.id, {
+          status: RequirementStatus.PRESENTADO,
+          pageCount: dto.pageCount || 0,
+        });
+      }
+    }
+
     return document;
   }
 
@@ -305,40 +312,18 @@ export class ReceptionService {
     if (dto.documents.length > 50) {
       throw new BadRequestException('Máximo 50 archivos permitidos por carga.');
     }
-    // ... resto del código anterior
-
-    const totalSize = dto.documents.reduce(
-      (acc, doc) => acc + parseInt(doc.sizeBytes || '0'),
-      0,
-    );
-    const MAX_SIZE = 100 * 1024 * 1024; // 100MB
-    if (totalSize > MAX_SIZE) {
-      throw new BadRequestException(
-        'El tamaño total de los archivos supera el límite de 100MB.',
-      );
-    }
 
     const savedDocuments: ReceptionDocumentOrmEntity[] = [];
     for (const docDto of dto.documents) {
-      const doc = await this.receptionRepository.saveDocument({
+      const doc = await this.uploadDocument({
+        ...docDto,
         protocolId: dto.protocolId,
-        fileName: docDto.fileName,
-        path: docDto.path,
-        pageCount: docDto.pageCount,
-        sizeBytes: docDto.sizeBytes,
-        isConfidential: docDto.isConfidential ?? true,
-        uploadedByUserId: uploadedBy,
-        isValidatedBySecretary: false,
-      });
+      }, uploadedBy);
       savedDocuments.push(doc);
     }
     return savedDocuments;
   }
 
-  /**
-   * PET 4.1.3: Verificar Requisitos.
-   * Al pasar a COMPLETO, el trigger de BD generará el código CEISH.
-   */
   async verificarRequisitos(
     protocolId: number,
     isComplete: boolean,
@@ -354,31 +339,29 @@ export class ReceptionService {
     const now = new Date();
 
     if (isComplete) {
-      // Validar checklist
       const requirements = await this.requirementRepository.find({
         where: { protocolId },
       });
       const missing = requirements.filter(
-        (r) => r.status === RequirementStatus.NO_PRESENTADO,
+        (r) => r.status === RequirementStatus.NO_PRESENTADO || r.status === RequirementStatus.RECHAZADO,
       );
 
       if (missing.length > 0) {
         throw new BadRequestException(
-          `Faltan requisitos obligatorios: ${missing.map((m) => m.requirementName).join(', ')}`,
+          `Faltan requisitos obligatorios o corregidos: ${missing.map((m) => m.requirementName).join(', ')}`,
         );
       }
 
       reception.hasMissingItems = false;
-      reception.statusId = 2; // COMPLETADO POR INVESTIGADOR
+      reception.statusId = 2;
 
-      // Actualizar estado del protocolo disparará el trigger del Código CEISH
       await this.protocolRepository.update(protocolId, {
         receptionStatus: ReceptionStatus.COMPLETO,
       });
     } else {
       reception.hasMissingItems = true;
       reception.missingItemsList = missingItems;
-      reception.statusId = 3; // INCOMPLETO
+      reception.statusId = 3;
       reception.completionDeadlineDate =
         this.deadlineService.calculateSubmissionDeadline(now);
       reception.missingItemsNotificationDate = now;
@@ -408,69 +391,6 @@ export class ReceptionService {
     return this.requirementRepository.save(requirement);
   }
 
-  async archivarPorVencimiento(protocolId: number) {
-    const reception =
-      await this.receptionRepository.findByProtocolId(protocolId);
-    if (!reception)
-      throw new NotFoundException(
-        `Reception for protocol ${protocolId} not found`,
-      );
-
-    const protocol = await this.protocolRepository.findById(protocolId);
-    if (protocol?.receptionStatus !== ReceptionStatus.INCOMPLETO) {
-      throw new BadRequestException(
-        'Solo se pueden archivar protocolos con estado INCOMPLETO.',
-      );
-    }
-
-    const now = new Date();
-    if (
-      !reception.completionDeadlineDate ||
-      reception.completionDeadlineDate > now
-    ) {
-      throw new BadRequestException(
-        'El plazo de subsanación aún no ha vencido.',
-      );
-    }
-
-    await this.protocolRepository.update(protocolId, {
-      statusId: 99, // ARCHIVADO
-      missingRequirements:
-        'Archivado automáticamente por vencimiento de plazo de subsanación.',
-    });
-
-    return { message: 'Protocolo archivado exitosamente por vencimiento.' };
-  }
-
-  async emitirConstancia(protocolId: number) {
-    const reception =
-      await this.receptionRepository.findByProtocolId(protocolId);
-    if (!reception)
-      throw new NotFoundException(
-        `Reception for protocol ${protocolId} not found`,
-      );
-
-    const protocol = await this.protocolRepository.findById(protocolId);
-    if (protocol?.receptionStatus !== ReceptionStatus.COMPLETO) {
-      throw new BadRequestException(
-        'Debe completar la recepción antes de emitir la constancia.',
-      );
-    }
-
-    reception.isCertificateIssued = true;
-    reception.certificateDate = new Date();
-    await this.receptionRepository.save(reception);
-
-    await this.protocolRepository.update(protocolId, {
-      isReceptionCertificateIssued: true,
-      receptionCertificateDate: reception.certificateDate,
-      isPresidentNotified: true,
-      presidentNotificationDate: new Date(),
-    });
-
-    return ReceptionMapper.toResponse(reception);
-  }
-
   async validateDocument(
     documentId: number,
     userId: number,
@@ -482,7 +402,7 @@ export class ReceptionService {
     if (!document)
       throw new NotFoundException(`Document ${documentId} not found`);
 
-    // 1. Registrar validación individual
+    // 1. Registrar validación individual (Historial habilitado)
     const validation = await this.receptionRepository.saveValidation({
       documentId,
       statusId,
@@ -491,13 +411,29 @@ export class ReceptionService {
       validationDate: new Date(),
     });
 
-    // 2. Marcar documento como procesado por secretaria
+    // 2. Marcar documento como procesado
     await this.receptionRepository.saveDocument({
       ...document,
       isValidatedBySecretary: true,
     });
 
-    // 3. Si es la primera validación, cambiar estado del protocolo a EN_REVISION_SECRETARIA
+    // 3. Sincronización Automática con el Checklist (Punto Clave Fase 3)
+    if (document.requirementId) {
+      let newStatus: RequirementStatus;
+      
+      if (statusId === DocumentValidationStatus.APROBADO) {
+        newStatus = RequirementStatus.APROBADO;
+      } else {
+        newStatus = RequirementStatus.RECHAZADO;
+      }
+
+      await this.requirementRepository.update(document.requirementId, {
+        status: newStatus,
+        observations: observations || '',
+      });
+    }
+
+    // 4. Actualizar estado del protocolo si es necesario
     const protocol = await this.protocolRepository.findById(
       document.protocolId,
     );
@@ -516,5 +452,55 @@ export class ReceptionService {
 
   async getDocuments(protocolId: number) {
     return this.receptionRepository.findDocumentsByProtocolId(protocolId);
+  }
+
+  async archivarPorVencimiento(protocolId: number) {
+    const reception = await this.receptionRepository.findByProtocolId(protocolId);
+    if (!reception) throw new NotFoundException('Recepción no encontrada');
+
+    reception.statusId = 4; // ARCHIVADO POR VENCIMIENTO
+    await this.receptionRepository.save(reception);
+
+    await this.protocolRepository.update(protocolId, {
+      receptionStatus: 'ARCHIVADO' as any,
+    });
+
+    return { message: 'Protocolo archivado por vencimiento de plazo.' };
+  }
+
+  async emitirConstancia(protocolId: number) {
+    const protocol = await this.protocolRepository.findById(protocolId, {
+      relations: ['principalInvestigator', 'studyType'],
+    } as any);
+    if (!protocol) throw new NotFoundException('Protocolo no encontrado');
+
+    const investigator = protocol.principalInvestigator;
+    const ceishCode = protocol.ceishCode || 'PENDIENTE-ASIGNACION';
+    const now = new Date();
+
+    const pdfBuffer = await this.pdfGenerator.generateReceptionCertificate({
+      ceishCode: ceishCode,
+      investigatorName: investigator?.fullName || 'Investigador',
+      protocolTitle: protocol.title || 'Sin Título',
+      date: now,
+      studyType: protocol.studyType?.name || 'Observacional',
+    });
+
+    await this.emailService.sendReceptionComplete(
+      investigator?.institutionalEmail || '',
+      investigator?.fullName || 'Investigador',
+      protocol.title || 'Sin Título',
+      ceishCode,
+      pdfBuffer,
+    );
+
+    const reception = await this.receptionRepository.findByProtocolId(protocolId);
+    if (reception) {
+      reception.isCertificateIssued = true;
+      reception.certificateDate = now;
+      await this.receptionRepository.save(reception);
+    }
+
+    return { message: 'Constancia emitida y enviada exitosamente.' };
   }
 }

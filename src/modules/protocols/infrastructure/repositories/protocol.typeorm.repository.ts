@@ -21,7 +21,7 @@ export class ProtocolTypeOrmRepository
 
   async findById(id: number, options?: any): Promise<ProtocolOrmEntity | null> {
     return this.repo.findOne({
-      where: { id } as any,
+      where: { id } as any, relations: ['checklist'],
       ...options,
     });
   }
@@ -45,6 +45,13 @@ export class ProtocolTypeOrmRepository
     if (receptionStatus)
       qb.andWhere('p.receptionStatus = :receptionStatus', { receptionStatus });
     if (reviewType) qb.andWhere('p.reviewType = :reviewType', { reviewType });
+
+    if (query.investigatorId) {
+      qb.andWhere(
+        '(p.principalInvestigatorId = :invId OR investigators.userId = :invId)',
+        { invId: query.investigatorId },
+      );
+    }
 
     qb.skip(skip).take(limit);
     qb.orderBy('p.receptionDate', 'DESC');

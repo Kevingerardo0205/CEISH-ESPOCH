@@ -24,6 +24,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { StudyTypeCode } from '../../domain/enums/study-type.enum';
+import { UploadDocumentDto } from '../../../reception/application/dtos/upload-document.dto';
 
 @ApiTags('protocols')
 @ApiBearerAuth()
@@ -52,6 +53,62 @@ export class ProtocolController {
   @ApiOperation({ summary: 'Obtener catálogo de niveles de riesgo activos' })
   async getRiskLevels() {
     return this.protocolsService.findAllRiskLevels();
+  }
+
+  @Get('mis-protocolos')
+  @ApiOperation({ summary: 'Listar los protocolos del investigador logueado' })
+  async findMyProtocols(@Query() query: QueryProtocolDto, @Request() req) {
+    query.investigatorId = req.user.id;
+    return this.protocolsService.findAll(query);
+  }
+
+  @Get('checklist/:id')
+  @ApiOperation({ summary: 'Obtener el checklist de requisitos de un protocolo' })
+  async getChecklist(@Param('id') id: string, @Request() req) {
+    const protocolId = parseInt(id, 10);
+    const protocol = await this.protocolsService.findOne(protocolId);
+
+    // Validar propiedad
+    const isOwner = protocol.principalInvestigatorId === req.user.id;
+    const isCoInvestigator = protocol.investigators?.some(
+      (inv) => inv.userId === req.user.id,
+    );
+
+    if (!isOwner && !isCoInvestigator) {
+      throw new BadRequestException(
+        'No tienes permiso para ver el checklist de este protocolo',
+      );
+    }
+
+    return protocol.checklist || [];
+  }
+
+  @Post(':id/upload-document')
+  @ApiOperation({ summary: 'Subir un documento asociado a un requisito (Investigador)' })
+  @Audit('DOCUMENT_UPLOADED')
+  async uploadDocument(
+    @Param('id') id: string,
+    @Body() dto: UploadDocumentDto,
+    @Request() req,
+  ) {
+    const protocolId = parseInt(id, 10);
+    dto.protocolId = protocolId;
+
+    const protocol = await this.protocolsService.findOne(protocolId);
+    
+    // Validar propiedad
+    const isOwner = protocol.principalInvestigatorId === req.user.id;
+    const isCoInvestigator = protocol.investigators?.some(
+      (inv) => inv.userId === req.user.id,
+    );
+
+    if (!isOwner && !isCoInvestigator) {
+      throw new BadRequestException(
+        'No tienes permiso para subir documentos a este protocolo',
+      );
+    }
+
+    return this.protocolsService.uploadDocument(dto, req.user.id);
   }
 
   @Get('requirements')
