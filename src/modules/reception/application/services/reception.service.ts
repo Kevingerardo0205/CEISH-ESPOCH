@@ -23,6 +23,7 @@ import {
 } from '../dtos/upload-document.dto';
 import { ReceptionDocumentOrmEntity } from '../../infrastructure/database/recepcion-document.entity.orm';
 import { ProtocolRequirementOrmEntity } from '../../../protocols/infrastructure/database/protocol-requirement.entity.orm';
+import { RequirementMapper } from '../../../protocols/application/mappers/requirement.mapper';
 
 import { DocumentValidationStatus } from '../../domain/enums/document-validation-status.enum';
 
@@ -44,8 +45,99 @@ export class ReceptionService {
   ) {}
 
   /**
+   * Obtiene el detalle completo para la pantalla de validación (Checklist)
+   */
+  async getValidationDetail(protocolId: number) {
+    const protocol = await this.protocolRepository.findById(protocolId, {
+      relations: ['studyType', 'principalInvestigatorRecord', 'checklist'],
+    });
+    if (!protocol) throw new NotFoundException('Protocolo no encontrado');
+
+    const reception = await this.receptionRepository.findByProtocolId(protocolId);
+    let documents = await this.receptionRepository.findDocumentsByProtocolId(protocolId);
+
+    // Mapeo robusto de requerimientos con sus documentos adjuntos
+    let unmappedDocs = [...documents];
+    
+    const checklistWithDocs = protocol.checklist?.map((req) => {
+      // 1. Intentar match por ID directo (3FN)
+      let docIndex = unmappedDocs.findIndex((d) => d.requirementId === req.id);
+      
+      // 2. Si falla, intentar match por código o nombre
+      if (docIndex === -1) {
+        docIndex = unmappedDocs.findIndex((d) => 
+          (d.fileName && d.fileName.toLowerCase().includes(req.requirementName.toLowerCase())) ||
+          (d.fileName && d.fileName.toLowerCase().includes(req.requirementCode.toLowerCase()))
+        );
+      }
+      
+      // 3. Fallback final (Secuencial): Tomar el primer documento disponible si el requerimiento está marcado como PRESENTADO
+      // Esto es útil para los datos antiguos o uploads de prueba masivos
+      if (docIndex === -1 && (req.status === RequirementStatus.PRESENTADO || req.status === RequirementStatus.APROBADO) && unmappedDocs.length > 0) {
+         docIndex = 0;
+      }
+
+      let doc: ReceptionDocumentOrmEntity | null = null;
+      if (docIndex !== -1) {
+        doc = unmappedDocs[docIndex];
+        // Remover el documento asignado para no asignarlo a otro requerimiento
+        unmappedDocs.splice(docIndex, 1); 
+      }
+      
+      return {
+        ...RequirementMapper.toResponse(req),
+        attachedDocument: doc ? {
+          id: doc.id,
+          fileName: doc.fileName,
+          path: doc.path,
+          isValidated: doc.isValidatedBySecretary,
+          uploadedAt: doc.createdAt,
+        } : null,
+      };
+    }) || [];
+
+    return {
+      header: {
+        id: protocol.id,
+        ceishCode: protocol.ceishCode || 'TRÁMITE EN PROCESO',
+        title: protocol.title,
+        submissionDate: protocol.receptionDate || protocol.createdAt,
+        investigator: protocol.principalInvestigatorRecord?.fullName || 'No asignado',
+        studyType: protocol.studyType?.name || 'No especificado',
+      },
+      checklist: checklistWithDocs,
+      globalStatus: {
+        isComplete: protocol.receptionStatus === ReceptionStatus.COMPLETO,
+        status: protocol.receptionStatus,
+        hasMissingItems: reception?.hasMissingItems || false,
+        missingItemsList: reception?.missingItemsList || protocol.missingRequirements,
+        submissionDeadline: protocol.submissionDeadline,
+      }
+    };
+  }
+
+  /**
+   * Obtiene la lista completa de protocolos en bandeja de secretaría (optimizada y sin paginación)
+   */
+  async getProtocolsForReception() {
+    const data = await this.protocolRepository.findProtocolsForReception();
+    
+    return data.map(p => ({
+      id: p.id,
+      ceishCode: p.ceishCode,
+      title: p.title,
+      receptionStatus: p.receptionStatus,
+      receptionDate: p.receptionDate,
+      submissionDeadline: p.submissionDeadline,
+      studyType: p.studyType ? p.studyType.name : null,
+      principalInvestigator: p.principalInvestigator ? p.principalInvestigator.fullName : null,
+    }));
+  }
+
+  /**
    * Fase 3 y 4: Motor de Decisión y Notificaciones Automáticas
    */
+
   async finalizarRevision(protocolId: number) {
     const reception =
       await this.receptionRepository.findByProtocolId(protocolId);
@@ -452,6 +544,10 @@ export class ReceptionService {
 
   async getDocuments(protocolId: number) {
     return this.receptionRepository.findDocumentsByProtocolId(protocolId);
+  }
+
+  async findDocumentById(documentId: number) {
+    return this.receptionRepository.findDocumentById(documentId);
   }
 
   async archivarPorVencimiento(protocolId: number) {

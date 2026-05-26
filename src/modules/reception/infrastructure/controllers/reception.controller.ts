@@ -7,7 +7,13 @@ import {
   Patch,
   UseGuards,
   Request,
+  Query,
+  Res,
+  NotFoundException,
 } from '@nestjs/common';
+import type { Response } from 'express';
+import { createReadStream, existsSync } from 'fs';
+import { join } from 'path';
 import { ReceptionService } from '../../application/services/reception.service';
 import { ValidateDocumentDto } from '../../application/dtos/validate-document.dto';
 import { VerifyReceptionDto } from '../../application/dtos/verify-reception.dto';
@@ -27,6 +33,18 @@ import { DocumentMapper } from '../../application/mappers/document.mapper';
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ReceptionController {
   constructor(private readonly receptionService: ReceptionService) {}
+
+  @Permissions(Permission.RECEPTION_VIEW)
+  @Get('protocol/:protocolId/validation-detail')
+  async getValidationDetail(@Param('protocolId') protocolId: string) {
+    return this.receptionService.getValidationDetail(+protocolId);
+  }
+
+  @Permissions(Permission.RECEPTION_VIEW)
+  @Get('protocols')
+  async getProtocolsForReception() {
+    return this.receptionService.getProtocolsForReception();
+  }
 
   @Permissions(Permission.RECEPTION_START)
   @Post('protocol/:protocolId/start')
@@ -119,6 +137,31 @@ export class ReceptionController {
   async getDocuments(@Param('protocolId') protocolId: string) {
     const documents = await this.receptionService.getDocuments(+protocolId);
     return DocumentMapper.toResponseList(documents);
+  }
+
+  @Get('document/:documentId/view')
+  @Audit('DOCUMENT_VIEWED')
+  async viewDocument(
+    @Param('documentId') documentId: string,
+    @Res() res: Response,
+  ) {
+    const document = await this.receptionService.findDocumentById(+documentId);
+    if (!document) throw new NotFoundException('Documento no encontrado');
+
+    const filePath = join(process.cwd(), 'uploads', document.path);
+
+    if (!existsSync(filePath)) {
+      throw new NotFoundException('El archivo físico no existe en el servidor');
+    }
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader(
+      'Content-Disposition',
+      `inline; filename="${document.fileName}"`,
+    );
+
+    const file = createReadStream(filePath);
+    file.pipe(res);
   }
 
   @Permissions(Permission.DOCUMENTS_VALIDATE)

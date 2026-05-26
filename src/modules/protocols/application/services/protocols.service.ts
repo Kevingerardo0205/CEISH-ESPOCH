@@ -25,6 +25,7 @@ import { ReceptionService } from '../../../reception/application/services/recept
 import { RequirementsService } from './requirements.service';
 import { StudyTypeCode } from '../../domain/enums/study-type.enum';
 import { UploadDocumentDto } from '../../../reception/application/dtos/upload-document.dto';
+import { ReceptionStatus } from '../../domain/enums/reception-status.enum';
 
 @Injectable()
 export class ProtocolsService {
@@ -87,6 +88,23 @@ export class ProtocolsService {
    */
   async uploadDocument(dto: UploadDocumentDto, userId: number) {
     return this.receptionService.uploadDocument(dto, userId);
+  }
+
+  /**
+   * Finalizar la subida y enviar el protocolo para revisión técnica de secretaría
+   */
+  async submit(id: number) {
+    const protocol = await this.findOne(id);
+
+    // Cambiar estado a revisión por secretaría
+    await this.protocolsRepository.update(id, {
+      receptionStatus: ReceptionStatus.EN_REVISION_SECRETARIA,
+    });
+
+    return {
+      message: 'Protocolo enviado exitosamente para revisión técnica.',
+      status: ReceptionStatus.EN_REVISION_SECRETARIA,
+    };
   }
 
   /**

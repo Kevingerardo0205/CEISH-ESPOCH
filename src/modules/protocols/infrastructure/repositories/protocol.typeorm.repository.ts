@@ -26,6 +26,16 @@ export class ProtocolTypeOrmRepository
     });
   }
 
+  async findProtocolsForReception(): Promise<ProtocolOrmEntity[]> {
+    return this.repo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.studyType', 'studyType')
+      .leftJoinAndSelect('p.principalInvestigator', 'pi')
+      .where('p.receptionStatus IS NOT NULL')
+      .orderBy('p.receptionDate', 'DESC')
+      .getMany();
+  }
+
   async findAll(
     query: QueryProtocolDto,
   ): Promise<[ProtocolOrmEntity[], number]> {

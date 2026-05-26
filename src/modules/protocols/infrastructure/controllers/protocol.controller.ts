@@ -9,7 +9,12 @@ import {
   Request,
   ParseBoolPipe,
   BadRequestException,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
+import { diskStorage } from 'multer';
+import { extname } from 'path';
 import { ProtocolsService } from '../../application/services/protocols.service';
 import { RequirementsService } from '../../application/services/requirements.service';
 import { CreateProtocolDto } from '../../application/dtos/create-protocol.dto';
@@ -22,6 +27,7 @@ import {
   ApiOperation,
   ApiBearerAuth,
   ApiQuery,
+  ApiConsumes,
 } from '@nestjs/swagger';
 import { StudyTypeCode } from '../../domain/enums/study-type.enum';
 import { UploadDocumentDto } from '../../../reception/application/dtos/upload-document.dto';
@@ -85,14 +91,42 @@ export class ProtocolController {
 
   @Post(':id/upload-document')
   @ApiOperation({ summary: 'Subir un documento asociado a un requisito (Investigador)' })
+  @ApiConsumes('multipart/form-data')
+  @UseInterceptors(
+    FileInterceptor('file', {
+      storage: diskStorage({
+        destination: './uploads',
+        filename: (req, file, cb) => {
+          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
+        },
+      }),
+      fileFilter: (req, file, cb) => {
+        if (!file.originalname.match(/\.(pdf)$/)) {
+          return cb(new BadRequestException('Solo se permiten archivos PDF'), false);
+        }
+        cb(null, true);
+      },
+    }),
+  )
   @Audit('DOCUMENT_UPLOADED')
   async uploadDocument(
     @Param('id') id: string,
     @Body() dto: UploadDocumentDto,
+    @UploadedFile() file: Express.Multer.File,
     @Request() req,
   ) {
+    if (!file) {
+      throw new BadRequestException('El archivo PDF es obligatorio');
+    }
+
     const protocolId = parseInt(id, 10);
     dto.protocolId = protocolId;
+    
+    // El 'path' en la DB guardará el nombre del archivo en disco
+    dto.path = file.filename;
+    dto.fileName = file.originalname;
+    dto.sizeBytes = file.size.toString();
 
     const protocol = await this.protocolsService.findOne(protocolId);
     
@@ -155,6 +189,24 @@ export class ProtocolController {
 
     const protocol = await this.protocolsService.findOne(numericId);
     return ProtocolMapper.toResponse(protocol);
+  }
+
+  @Post(':id/submit')
+  @ApiOperation({ summary: 'Enviar el protocolo para revisión técnica (Investigador)' })
+  @Audit('PROTOCOL_SUBMITTED')
+  async submit(@Param('id') id: string, @Request() req) {
+    const protocolId = parseInt(id, 10);
+    const protocol = await this.protocolsService.findOne(protocolId);
+
+    // Validar propiedad
+    const isOwner = protocol.principalInvestigatorId === req.user.id;
+    if (!isOwner) {
+      throw new BadRequestException(
+        'Solo el investigador principal puede enviar el protocolo para revisión',
+      );
+    }
+
+    return this.protocolsService.submit(protocolId);
   }
 
   @Post()
