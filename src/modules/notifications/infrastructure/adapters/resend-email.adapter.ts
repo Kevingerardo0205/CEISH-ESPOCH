@@ -2,13 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 import { IEmailServicePort } from '../../domain/ports/email.service.port';
-import {
-  getEmailConfirmationTemplate,
-  getPasswordResetTemplate,
-  getWelcomeTemplate,
-  getEvaluationAssignmentTemplate,
-  getEvaluationSubmittedTemplate,
-} from '../templates/email-templates';
+import * as templates from '../templates/email-templates';
 
 @Injectable()
 export class ResendEmailAdapter implements IEmailServicePort {
@@ -39,7 +33,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
         from: this.fromEmail,
         to: email,
         subject: 'Código de recuperación - CEISH-ESPOCH',
-        html: getPasswordResetTemplate(name, code),
+        html: templates.getPasswordResetTemplate(name, code),
       });
       console.log('Código de recuperación enviado:', data);
     } catch (error) {
@@ -54,7 +48,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
         from: this.fromEmail,
         to: email,
         subject: 'Bienvenido a CEISH-ESPOCH',
-        html: getWelcomeTemplate(name),
+        html: templates.getWelcomeTemplate(name),
       });
       console.log('Email de bienvenida enviado:', data);
     } catch (error) {
@@ -78,7 +72,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
         from: this.fromEmail,
         to: email,
         subject: 'Código de confirmación - CEISH-ESPOCH',
-        html: getEmailConfirmationTemplate(name, code),
+        html: templates.getEmailConfirmationTemplate(name, code),
       });
       console.log('Código de confirmación enviado:', data);
     } catch (error) {
@@ -97,11 +91,12 @@ export class ResendEmailAdapter implements IEmailServicePort {
       console.log(`[INVITATION] Código de invitación para ${email}: ${otp}`);
       console.log('-----------------------------------------');
 
+      const setupUrl = `${this.baseUrl}/auth/setup-account?email=${email}`;
       const data = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
         subject: 'Invitación a CEISH-ESPOCH - Configuración de Cuenta',
-        html: getEmailConfirmationTemplate(name, otp),
+        html: templates.getAccountInvitationTemplate(name, otp, setupUrl),
       });
       console.log('Invitación enviada:', data);
     } catch (error) {
@@ -117,7 +112,23 @@ export class ResendEmailAdapter implements IEmailServicePort {
     missingItems: string,
     deadline: Date,
   ): Promise<void> {
-    // Stub
+    try {
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: 'Notificación de Documentación Incompleta - CEISH',
+        html: templates.getReceptionIncompleteTemplate(
+          name,
+          protocolTitle,
+          missingItems,
+          deadline.toLocaleDateString(),
+        ),
+      });
+      console.log('Notificación de documentación incompleta enviada:', data);
+    } catch (error) {
+      console.error('Error enviando notificación incompleta:', error);
+      throw error;
+    }
   }
 
   async sendReceptionComplete(
@@ -127,7 +138,28 @@ export class ResendEmailAdapter implements IEmailServicePort {
     ceishCode: string,
     pdfBuffer: Buffer,
   ): Promise<void> {
-    // Stub
+    try {
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: `Constancia de Recepción - ${ceishCode}`,
+        html: templates.getReceptionCompleteTemplate(
+          name,
+          protocolTitle,
+          ceishCode,
+        ),
+        attachments: [
+          {
+            filename: `Constancia_Recepcion_${ceishCode}.pdf`,
+            content: pdfBuffer,
+          },
+        ],
+      });
+      console.log('Constancia de recepción completa enviada:', data);
+    } catch (error) {
+      console.error('Error enviando constancia completa:', error);
+      throw error;
+    }
   }
 
   async sendResolutionEmail(
@@ -138,7 +170,29 @@ export class ResendEmailAdapter implements IEmailServicePort {
     decision: string,
     pdfBuffer: Buffer,
   ): Promise<void> {
-    // Stub
+    try {
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: `Resolución de Comité: ${ceishCode} - ${decision}`,
+        html: templates.getResolutionEmailTemplate(
+          name,
+          protocolTitle,
+          ceishCode,
+          decision,
+        ),
+        attachments: [
+          {
+            filename: `Resolucion_${ceishCode}.pdf`,
+            content: pdfBuffer,
+          },
+        ],
+      });
+      console.log('Email de resolución enviado:', data);
+    } catch (error) {
+      console.error('Error enviando email de resolución:', error);
+      throw error;
+    }
   }
 
   async notifyPresidentNewProtocol(
@@ -146,7 +200,21 @@ export class ResendEmailAdapter implements IEmailServicePort {
     protocolTitle: string,
     ceishCode: string,
   ): Promise<void> {
-    // Stub
+    try {
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: presidentEmail,
+        subject: 'Nuevo Protocolo para Asignación - CEISH',
+        html: templates.getPresidentNotificationTemplate(
+          protocolTitle,
+          ceishCode,
+        ),
+      });
+      console.log('Notificación al presidente enviada:', data);
+    } catch (error) {
+      console.error('Error enviando notificación al presidente:', error);
+      throw error;
+    }
   }
 
   async sendEvaluationAssignment(
@@ -166,7 +234,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
         from: this.fromEmail,
         to: email,
         subject: `Nueva Asignación CEISH: ${protocolCode}`,
-        html: getEvaluationAssignmentTemplate(
+        html: templates.getEvaluationAssignmentTemplate(
           name,
           protocolCode,
           formattedDate,
@@ -189,7 +257,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
         from: this.fromEmail,
         to: email,
         subject: `Evaluación Recibida: ${protocolCode}`,
-        html: getEvaluationSubmittedTemplate(evaluatorName, protocolCode),
+        html: templates.getEvaluationSubmittedTemplate(evaluatorName, protocolCode),
       });
       console.log('Email de evaluación finalizada enviado:', data);
     } catch (error) {

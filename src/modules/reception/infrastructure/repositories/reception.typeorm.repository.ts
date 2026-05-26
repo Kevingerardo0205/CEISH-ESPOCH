@@ -44,7 +44,10 @@ export class ReceptionTypeOrmRepository
   async findDocumentsByProtocolId(
     protocolId: number,
   ): Promise<ReceptionDocumentOrmEntity[]> {
-    return this.documentRepo.find({ where: { protocolId } });
+    return this.documentRepo.find({
+      where: { protocolId },
+      relations: ['requirement', 'tipoDocumento'],
+    });
   }
 
   async saveValidation(
@@ -65,7 +68,7 @@ export class ReceptionTypeOrmRepository
     // Subquery para obtener la última validación de cada documento
     return this.validationRepo
       .createQueryBuilder('v')
-      .innerJoin('recepcion.documentos', 'd', 'v.documento_id = d.id')
+      .innerJoin(ReceptionDocumentOrmEntity, 'd', 'v.documento_id = d.id')
       .where('d.protocolo_id = :protocolId', { protocolId })
       .andWhere(
         'v.id IN (SELECT MAX(id) FROM recepcion.validaciones_documento GROUP BY documento_id)',

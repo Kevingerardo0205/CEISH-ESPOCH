@@ -144,7 +144,7 @@ export class ReceptionService {
     if (!reception) throw new NotFoundException('Recepción no encontrada');
 
     const protocol = await this.protocolRepository.findById(protocolId, {
-      relations: ['principalInvestigator', 'studyType'],
+      relations: ['principalInvestigator', 'studyType', 'checklist'],
     } as any);
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
@@ -163,42 +163,40 @@ export class ReceptionService {
       },
     );
 
-    const latestValidations =
-      await this.receptionRepository.findLatestValidationsByProtocolId(
-        protocolId,
-      );
-    const uploadedDocs =
-      await this.receptionRepository.findDocumentsByProtocolId(protocolId);
-
     const missingRequirements: string[] = [];
 
     for (const req of requiredDocs) {
       if (!req.isRequired) continue;
       
-      // Filtramos documentos vinculados a este requisito
-      const docsForReq = uploadedDocs.filter(
-        (d) =>
-          d.requirementId !== null ? d.requirementId === req.id : // Si tenemos ID, usamos ID
-          (d.tipoDocumento?.codigoAnexo === req.code || d.fileName.includes(req.name)), // Fallback por código/nombre
+      // 1. Intentar buscar el estado del requisito en la lista de verificación (checklist) real de la DB
+      const checklistItem = protocol.checklist?.find(
+        (c) => c.requirementCode === req.code,
       );
 
-      if (docsForReq.length === 0) {
+      if (checklistItem) {
+        if (
+          checklistItem.status === RequirementStatus.APROBADO ||
+          checklistItem.status === RequirementStatus.NO_APLICA
+        ) {
+          // Si ya está aprobado o validado por la Secretaría, no falta ni requiere subsanación
+          continue;
+        }
+
+        if (checklistItem.status === RequirementStatus.RECHAZADO) {
+          const obs = checklistItem.observations
+            ? `: ${checklistItem.observations}`
+            : ' (Sin observaciones específicas)';
+          missingRequirements.push(`- ${req.name} requiere corrección${obs}`);
+          continue;
+        }
+
+        // Si está PENDIENTE o NO_PRESENTADO, se considera faltante
         missingRequirements.push(`- Falta documento obligatorio: ${req.name}`);
         continue;
       }
-      const hasApproved = docsForReq.some((doc) => {
-        const val = latestValidations.find((v) => v.documentId === doc.id);
-        return val?.statusId === DocumentValidationStatus.APROBADO;
-      });
-      if (!hasApproved) {
-        const lastVal = latestValidations.find((v) =>
-          docsForReq.some((d) => d.id === v.documentId),
-        );
-        const obs = lastVal?.observations
-          ? `: ${lastVal.observations}`
-          : ' (Sin observaciones específicas)';
-        missingRequirements.push(`- ${req.name} requiere corrección${obs}`);
-      }
+
+      // Si el requisito no tiene checklist, es faltante (sin fallback por nombre)
+      missingRequirements.push(`- Falta documento obligatorio: ${req.name}`);
     }
 
     const now = new Date();
@@ -431,16 +429,47 @@ export class ReceptionService {
     const now = new Date();
 
     if (isComplete) {
-      const requirements = await this.requirementRepository.find({
-        where: { protocolId },
-      });
-      const missing = requirements.filter(
-        (r) => r.status === RequirementStatus.NO_PRESENTADO || r.status === RequirementStatus.RECHAZADO,
+      const protocol = await this.protocolRepository.findById(protocolId, {
+        relations: ['studyType', 'checklist'],
+      } as any);
+      if (!protocol) throw new NotFoundException('Protocolo no encontrado');
+
+      const studyTypeCode =
+        (protocol.studyType?.code as StudyTypeCode) || StudyTypeCode.IO;
+      const requiredDocs = await this.requirementsService.calcularRequeridos(
+        studyTypeCode,
+        {
+          muestras: protocol.usesBiologicalSamples,
+          vulnerable: protocol.isVulnerablePopulation,
+          multicentrico: protocol.isMulticentric,
+          institucionesPublicas: protocol.hasExternalInstitutions,
+          poblacionIndigena: protocol.isIndigenousPopulation,
+        },
       );
+
+      const missing: string[] = [];
+
+      for (const req of requiredDocs) {
+        if (!req.isRequired) continue;
+
+        const checklistItem = protocol.checklist?.find(
+          (c) => c.requirementCode === req.code,
+        );
+
+        if (
+          checklistItem &&
+          (checklistItem.status === RequirementStatus.APROBADO ||
+            checklistItem.status === RequirementStatus.NO_APLICA)
+        ) {
+          continue;
+        }
+
+        missing.push(req.name);
+      }
 
       if (missing.length > 0) {
         throw new BadRequestException(
-          `Faltan requisitos obligatorios o corregidos: ${missing.map((m) => m.requirementName).join(', ')}`,
+          `Faltan requisitos obligatorios o corregidos: ${missing.join(', ')}`,
         );
       }
 

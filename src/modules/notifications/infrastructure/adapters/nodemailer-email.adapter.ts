@@ -2,6 +2,7 @@ import { Injectable } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import * as nodemailer from 'nodemailer';
 import { IEmailServicePort } from '../../domain/ports/email.service.port';
+import * as templates from '../templates/email-templates';
 
 @Injectable()
 export class NodemailerEmailAdapter implements IEmailServicePort {
@@ -32,7 +33,7 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     await this.sendMailWithRetry({
       to: email,
       subject: 'Recuperación de Contraseña - CEISH-ESPOCH',
-      html: `<h3>Hola ${name}</h3><p>Tu código de recuperación es: <b>${code}</b></p>`,
+      html: templates.getPasswordResetTemplate(name, code),
     });
   }
 
@@ -40,7 +41,7 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     await this.sendMailWithRetry({
       to: email,
       subject: 'Bienvenido a CEISH-ESPOCH',
-      html: `<h3>Bienvenido ${name}</h3><p>Tu cuenta ha sido creada exitosamente.</p>`,
+      html: templates.getWelcomeTemplate(name),
     });
   }
 
@@ -52,7 +53,7 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     await this.sendMailWithRetry({
       to: email,
       subject: 'Confirmación de Correo - CEISH-ESPOCH',
-      html: `<h3>Hola ${name}</h3><p>Tu código de confirmación es: <b>${code}</b></p>`,
+      html: templates.getEmailConfirmationTemplate(name, code),
     });
   }
 
@@ -65,17 +66,7 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     await this.sendMailWithRetry({
       to: email,
       subject: 'Invitación al Sistema - CEISH-ESPOCH',
-      html: `
-        <h3>Bienvenido(a) ${name}</h3>
-        <p>Se ha creado una cuenta institucional para usted en el sistema CEISH-ESPOCH.</p>
-        <p>Para configurar su contraseña y activar su acceso, utilice el siguiente código de seguridad:</p>
-        <h2 style="letter-spacing: 5px; color: #1a73e8;">${otp}</h2>
-        <p>Puede completar la configuración haciendo clic en el siguiente enlace:</p>
-        <p><a href="${setupUrl}" target="_blank" style="background-color: #1a73e8; color: white; padding: 10px 20px; text-decoration: none; border-radius: 5px;">Configurar mi Cuenta</a></p>
-        <p>Si el botón no funciona, copie y pegue la siguiente dirección en su navegador:</p>
-        <p>${setupUrl}</p>
-        <p>Saludos cordiales,<br>Administración CEISH-ESPOCH</p>
-      `,
+      html: templates.getAccountInvitationTemplate(name, otp, setupUrl),
     });
   }
 
@@ -86,17 +77,15 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     missingItems: string,
     deadline: Date,
   ): Promise<void> {
-    const formattedDate = deadline.toLocaleDateString();
     await this.sendMailWithRetry({
       to: email,
       subject: 'Notificación de Documentación Incompleta - CEISH',
-      html: `
-        <h3>Estimado(a) ${name}</h3>
-        <p>Se ha revisado su protocolo: <b>${protocolTitle}</b></p>
-        <p>Se han encontrado las siguientes observaciones o documentos faltantes:</p>
-        <pre>${missingItems}</pre>
-        <p>Tiene un plazo de <b>15 días laborables</b> (hasta el ${formattedDate}) para subsanar estas observaciones en la plataforma.</p>
-      `,
+      html: templates.getReceptionIncompleteTemplate(
+        name,
+        protocolTitle,
+        missingItems,
+        deadline.toLocaleDateString(),
+      ),
     });
   }
 
@@ -110,12 +99,11 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     await this.sendMailWithRetry({
       to: email,
       subject: `Constancia de Recepción - ${ceishCode}`,
-      html: `
-        <h3>Estimado(a) ${name}</h3>
-        <p>Nos complace informarle que la recepción documental de su protocolo <b>${protocolTitle}</b> ha sido completada exitosamente.</p>
-        <p>Su código de trámite oficial es: <b>${ceishCode}</b></p>
-        <p>Adjunto encontrará la constancia de recepción oficial.</p>
-      `,
+      html: templates.getReceptionCompleteTemplate(
+        name,
+        protocolTitle,
+        ceishCode,
+      ),
       attachments: [
         {
           filename: `Constancia_Recepcion_${ceishCode}.pdf`,
@@ -136,17 +124,12 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     await this.sendMailWithRetry({
       to: email,
       subject: `Resolución de Comité: ${ceishCode} - ${decision}`,
-      html: `
-        <h3>Estimado(a) ${name}</h3>
-        <p>El Comité de Ética de Investigación en Seres Humanos (CEISH-ESPOCH) ha emitido el dictamen final para su protocolo:</p>
-        <ul>
-          <li><b>Título:</b> ${protocolTitle}</li>
-          <li><b>Código:</b> ${ceishCode}</li>
-          <li><b>Resultado:</b> <b style="color: #2e7d32;">${decision}</b></li>
-        </ul>
-        <p>Adjunto a este correo encontrará la carta de resolución oficial en formato PDF.</p>
-        <p>Saludos cordiales,<br>Secretaría CEISH-ESPOCH</p>
-      `,
+      html: templates.getResolutionEmailTemplate(
+        name,
+        protocolTitle,
+        ceishCode,
+        decision,
+      ),
       attachments: [
         {
           filename: `Resolucion_${ceishCode}.pdf`,
@@ -164,15 +147,10 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     await this.sendMailWithRetry({
       to: presidentEmail,
       subject: 'Nuevo Protocolo para Asignación - CEISH',
-      html: `
-        <h3>Notificación para Presidencia</h3>
-        <p>Un nuevo protocolo ha completado la fase de recepción:</p>
-        <ul>
-          <li><b>Título:</b> ${protocolTitle}</li>
-          <li><b>Código:</b> ${ceishCode}</li>
-        </ul>
-        <p>Por favor, proceda con la asignación de evaluadores.</p>
-      `,
+      html: templates.getPresidentNotificationTemplate(
+        protocolTitle,
+        ceishCode,
+      ),
     });
   }
 
@@ -185,7 +163,11 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     await this.sendMailWithRetry({
       to: email,
       subject: `Nueva Asignación de Evaluación: ${protocolCode}`,
-      html: `<h3>Hola ${name}</h3><p>Se le ha asignado el protocolo ${protocolCode} para su evaluación.</p><p>Fecha límite: ${deadline.toLocaleDateString()}</p>`,
+      html: templates.getEvaluationAssignmentTemplate(
+        name,
+        protocolCode,
+        deadline.toLocaleDateString(),
+      ),
     });
   }
 
@@ -197,7 +179,10 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     await this.sendMailWithRetry({
       to: email,
       subject: `Evaluación Recibida: ${protocolCode}`,
-      html: `<p>El evaluador ${evaluatorName} ha enviado su informe para el protocolo ${protocolCode}.</p>`,
+      html: templates.getEvaluationSubmittedTemplate(
+        evaluatorName,
+        protocolCode,
+      ),
     });
   }
 

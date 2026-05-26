@@ -83,3 +83,86 @@ export const getEvaluationSubmittedTemplate = (
   <p><strong>Evaluador:</strong> ${evaluatorName}</p>
   <p>El informe y los aspectos evaluados ya están disponibles en el sistema para su revisión y trámite correspondiente.</p>
 `);
+
+export const getReceptionIncompleteTemplate = (
+  name: string,
+  protocolTitle: string,
+  missingItems: string,
+  deadline: string,
+) =>
+  getBaseTemplate(`
+  <h2>Documentación Incompleta / Observada</h2>
+  <p>Estimado(a) <strong>${name}</strong>,</p>
+  <p>Se ha revisado su protocolo: <strong>${protocolTitle}</strong></p>
+  <p>Se han encontrado las siguientes observaciones o documentos faltantes:</p>
+  <div style="background-color: #fff4f4; border-left: 4px solid #CC0000; padding: 15px; margin: 20px 0; font-family: monospace; white-space: pre-wrap;">${missingItems}</div>
+  <p>Tiene un plazo de <strong>15 días laborables</strong> (hasta el <strong>${deadline}</strong>) para subsanar estas observaciones en la plataforma.</p>
+  <a href="https://ceish-espoch.edu.ec/dashboard" class="button">Subsanar en el Sistema</a>
+`);
+
+export const getReceptionCompleteTemplate = (
+  name: string,
+  protocolTitle: string,
+  ceishCode: string,
+) =>
+  getBaseTemplate(`
+  <h2>Constancia de Recepción Exitosa</h2>
+  <p>Estimado(a) <strong>${name}</strong>,</p>
+  <p>La recepción documental de su protocolo ha sido completada exitosamente.</p>
+  <div style="text-align: center; margin: 20px 0;">
+    <p><strong>Título:</strong> ${protocolTitle}</p>
+    <p><strong>Código de Trámite:</strong> <span style="font-size: 20px; color: #003366; font-weight: bold;">${ceishCode}</span></p>
+  </div>
+  <p>Adjunto a este correo encontrará la constancia oficial en formato PDF.</p>
+`);
+
+export const getPresidentNotificationTemplate = (
+  protocolTitle: string,
+  ceishCode: string,
+) =>
+  getBaseTemplate(`
+  <h2>Nuevo Protocolo para Asignación - CEISH</h2>
+  <p><strong>Notificación para Presidencia</strong></p>
+  <p>Un nuevo protocolo ha completado la fase de recepción documental:</p>
+  <ul>
+    <li><strong>Título:</strong> ${protocolTitle}</li>
+    <li><strong>Código:</strong> ${ceishCode}</li>
+  </ul>
+  <p>Por favor, proceda con la asignación de evaluadores en el sistema.</p>
+  <a href="https://ceish-espoch.edu.ec/dashboard" class="button">Ir al Sistema</a>
+`);
+
+export const getAccountInvitationTemplate = (
+  name: string,
+  otp: string,
+  setupUrl: string,
+) =>
+  getBaseTemplate(`
+  <h2>Invitación al Sistema - CEISH-ESPOCH</h2>
+  <p>Bienvenido(a) <strong>${name}</strong>,</p>
+  <p>Se ha creado una cuenta institucional para usted en el sistema CEISH-ESPOCH.</p>
+  <p>Para configurar su contraseña y activar su acceso, utilice el siguiente código de seguridad:</p>
+  <div class="otp-code">${otp}</div>
+  <p>Puede completar la configuración haciendo clic en el siguiente enlace:</p>
+  <a href="${setupUrl}" class="button">Configurar mi Cuenta</a>
+  <p style="margin-top: 20px; font-size: 12px; color: #777;">Si el botón no funciona, copie y pegue la siguiente dirección en su navegador:</p>
+  <p style="font-size: 12px; color: #777; word-break: break-all;">${setupUrl}</p>
+`);
+
+export const getResolutionEmailTemplate = (
+  name: string,
+  protocolTitle: string,
+  ceishCode: string,
+  decision: string,
+) =>
+  getBaseTemplate(`
+  <h2>Resolución de Comité: ${ceishCode}</h2>
+  <p>Estimado(a) <strong>${name}</strong>,</p>
+  <p>El Comité de Ética de Investigación en Seres Humanos (CEISH-ESPOCH) ha emitido el dictamen final para su protocolo:</p>
+  <ul>
+    <li><strong>Título:</strong> ${protocolTitle}</li>
+    <li><strong>Código:</strong> ${ceishCode}</li>
+    <li><strong>Resultado:</strong> <b style="color: #2e7d32;">${decision}</b></li>
+  </ul>
+  <p>Adjunto a este correo encontrará la carta de resolución oficial en formato PDF.</p>
+`);
