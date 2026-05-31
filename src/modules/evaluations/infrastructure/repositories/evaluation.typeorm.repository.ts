@@ -164,11 +164,11 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     id: number,
     entity: Partial<EvaluatorProfileOrmEntity>,
   ): Promise<void> {
-    await this.profileRepo.update(id, entity as any);
+    await this.profileRepo.update(id, entity);
   }
 
   async deleteProfile(id: number): Promise<void> {
-    await this.profileRepo.update(id, { isActive: false } as any); // Soft delete
+    await this.profileRepo.update(id, { isActive: false }); // Soft delete
   }
 
   async saveVersion(

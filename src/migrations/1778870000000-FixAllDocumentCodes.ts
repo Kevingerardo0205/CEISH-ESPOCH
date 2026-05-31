@@ -66,6 +66,8 @@ export class FixAllDocumentCodes1778870000000 implements MigrationInterface {
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Revertir a NULL si es necesario
-    await queryRunner.query(`UPDATE "catalogos"."tipos_documento" SET "codigo_anexo" = NULL WHERE id <= 45`);
+    await queryRunner.query(
+      `UPDATE "catalogos"."tipos_documento" SET "codigo_anexo" = NULL WHERE id <= 45`,
+    );
   }
 }

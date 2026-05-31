@@ -21,7 +21,8 @@ export class ProtocolTypeOrmRepository
 
   async findById(id: number, options?: any): Promise<ProtocolOrmEntity | null> {
     return this.repo.findOne({
-      where: { id } as any, relations: ['checklist'],
+      where: { id },
+      relations: ['checklist'],
       ...options,
     });
   }

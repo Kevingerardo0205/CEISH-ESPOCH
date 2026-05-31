@@ -20,7 +20,12 @@ export class UserTypeOrmRepository
   async findById(id: number): Promise<UserOrmEntity | null> {
     return this.userRepo.findOne({
       where: { id },
-      relations: ['roles', 'investigatorProfile', 'roles.permissions', 'roles.permissions.module'],
+      relations: [
+        'roles',
+        'investigatorProfile',
+        'roles.permissions',
+        'roles.permissions.module',
+      ],
     });
   }
 
@@ -51,7 +56,12 @@ export class UserTypeOrmRepository
   async findByEmail(email: string): Promise<UserOrmEntity | null> {
     return this.userRepo.findOne({
       where: { institutionalEmail: email },
-      relations: ['roles', 'investigatorProfile', 'roles.permissions', 'roles.permissions.module'],
+      relations: [
+        'roles',
+        'investigatorProfile',
+        'roles.permissions',
+        'roles.permissions.module',
+      ],
       select: {
         id: true,
         nationalId: true,

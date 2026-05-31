@@ -5,7 +5,7 @@ import {
   JoinColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm';
-import { ReceptionDocumentOrmEntity } from './recepcion-document.entity.orm';
+import { DocumentOrmEntity } from '../../../documents/infrastructure/database/document.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 
 @Entity({ name: 'validaciones_documento', schema: 'recepcion' })
@@ -16,9 +16,9 @@ export class DocumentValidationOrmEntity {
   @Column({ name: 'documento_id' })
   documentId!: number;
 
-  @ManyToOne(() => ReceptionDocumentOrmEntity)
+  @ManyToOne(() => DocumentOrmEntity)
   @JoinColumn({ name: 'documento_id' })
-  document!: ReceptionDocumentOrmEntity;
+  document!: DocumentOrmEntity;
 
   @Column({ name: 'estado_id', nullable: true })
   statusId?: number;

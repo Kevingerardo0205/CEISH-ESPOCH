@@ -7,7 +7,7 @@ export class AddIndigenousPopulationFlag1778538000000 implements MigrationInterf
       ADD COLUMN IF NOT EXISTS poblacion_indigena BOOLEAN DEFAULT FALSE;
     `);
 
-    // También actualizamos el catálogo de permisos por si acaso (aunque ya lo hicimos en la migración anterior, 
+    // También actualizamos el catálogo de permisos por si acaso (aunque ya lo hicimos en la migración anterior,
     // es bueno asegurar que el código de permiso exista para el checklist)
     const checkPermiso = await queryRunner.query(`
       SELECT id FROM catalogos.permisos WHERE codigo = 'TRADUCCION_ANCESTRAL'
@@ -22,6 +22,8 @@ export class AddIndigenousPopulationFlag1778538000000 implements MigrationInterf
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE public.protocolos DROP COLUMN IF EXISTS poblacion_indigena`);
+    await queryRunner.query(
+      `ALTER TABLE public.protocolos DROP COLUMN IF EXISTS poblacion_indigena`,
+    );
   }
 }

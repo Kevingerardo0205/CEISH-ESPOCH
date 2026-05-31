@@ -26,14 +26,14 @@ export class FinalMenuStructureAlignment1778537000000 implements MigrationInterf
         ['Resumen ejecutivo', 'DASHBOARD_RESUMEN'],
         ['Notificaciones pendientes', 'DASHBOARD_NOTIF'],
         ['Próximos vencimientos', 'DASHBOARD_VENCIMIENTOS'],
-        ['Indicadores SLA', 'DASHBOARD_SLA']
+        ['Indicadores SLA', 'DASHBOARD_SLA'],
       ],
       MOD_RECEPCION: [
         ['Nuevo protocolo', 'RECEPCION_NUEVO'],
         ['Lista de ingresos', 'RECEPCION_LISTA'],
         ['Validación documental', 'RECEPCION_VALIDAR'],
         ['Búsqueda avanzada', 'RECEPCION_BUSCAR'],
-        ['Constancias de recepción', 'RECEPCION_CONSTANCIAS']
+        ['Constancias de recepción', 'RECEPCION_CONSTANCIAS'],
       ],
       MOD_EVALUACION: [
         ['Estratificación de riesgo', 'EVALUACION_RIESGO'],
@@ -41,14 +41,14 @@ export class FinalMenuStructureAlignment1778537000000 implements MigrationInterf
         ['Evaluación expedita', 'EVALUACION_EXPEDITA'],
         ['Evaluación en pleno', 'EVALUACION_PLENO'],
         ['Subsanaciones', 'EVALUACION_SUBSANACIONES'],
-        ['Consolidación de informes', 'EVALUACION_INFORMES']
+        ['Consolidación de informes', 'EVALUACION_INFORMES'],
       ],
       MOD_RESOLUCION: [
         ['Generar dictamen', 'RESOLUCION_CREAR'],
         ['Firma electrónica', 'RESOLUCION_FIRMAR'],
         ['Notificaciones a investigadores', 'RESOLUCION_NOTIF'],
         ['Historial de resoluciones', 'RESOLUCION_HISTORIAL'],
-        ['Urgencias sanitarias', 'RESOLUCION_URGENCIAS']
+        ['Urgencias sanitarias', 'RESOLUCION_URGENCIAS'],
       ],
       MOD_SEGUIMIENTO: [
         ['Informes de avance', 'SEGUIMIENTO_AVANCE'],
@@ -56,29 +56,29 @@ export class FinalMenuStructureAlignment1778537000000 implements MigrationInterf
         ['Enmiendas', 'SEGUIMIENTO_ENMIENDAS'],
         ['Renovaciones', 'SEGUIMIENTO_RENOVACIONES'],
         ['Eventos adversos', 'SEGUIMIENTO_EVENTOS'],
-        ['Suspensión/Revocatoria', 'SEGUIMIENTO_SUSPENSION']
+        ['Suspensión/Revocatoria', 'SEGUIMIENTO_SUSPENSION'],
       ],
       MOD_USUARIOS: [
         ['Usuarios y roles', 'USUARIOS_VER'],
         ['Permisos y accesos', 'PERMISOS_GESTIONAR'],
         ['Conflictos de interés', 'USUARIOS_CONFLICTOS'],
         ['Perfiles de evaluadores', 'EVALUADORES_PERFILES'],
-        ['Auditoría de accesos', 'AUDITORIA_ACCESOS']
+        ['Auditoría de accesos', 'AUDITORIA_ACCESOS'],
       ],
       MOD_REPORTES: [
         ['KPIs de gestión', 'REPORTES_KPIS'],
         ['Tiempos de respuesta', 'REPORTES_TIEMPOS'],
         ['Carga por evaluador', 'REPORTES_CARGA'],
         ['Exportar Excel/PDF', 'REPORTES_EXPORTAR'],
-        ['Auditoría integral', 'REPORTES_AUDITORIA']
+        ['Auditoría integral', 'REPORTES_AUDITORIA'],
       ],
       MOD_CONFIG: [
         ['Catálogos', 'CONFIG_CATALOGOS'],
         ['Plantillas de anexos', 'CONFIG_PLANTILLAS'],
         ['Reglas de notificación', 'CONFIG_NOTIF'],
         ['Integraciones', 'CONFIG_INTEGRACIONES'],
-        ['Parámetros del sistema', 'CONFIG_PARAMETROS']
-      ]
+        ['Parámetros del sistema', 'CONFIG_PARAMETROS'],
+      ],
     };
 
     for (const [modCode, perms] of Object.entries(modules)) {
@@ -91,9 +91,11 @@ export class FinalMenuStructureAlignment1778537000000 implements MigrationInterf
     }
 
     // 4. Implementar Matriz de Visibilidad por Rol (IDs según tu tabla: 6:INV, 7:SEC, 8:PRE, 9:EVA, 10:ADM)
-    
+
     // ADMIN (10): Todo
-    await queryRunner.query(`INSERT INTO catalogos.rol_permisos (rol_id, permiso_id) SELECT 10, id FROM catalogos.permisos`);
+    await queryRunner.query(
+      `INSERT INTO catalogos.rol_permisos (rol_id, permiso_id) SELECT 10, id FROM catalogos.permisos`,
+    );
 
     // PRESIDENTE (8): Casi todo menos Configuración
     await queryRunner.query(`

@@ -47,6 +47,11 @@ export class Protocol {
     public readonly isMulticentric: boolean = false,
     public readonly currentVersion: number = 1,
 
+    // Timeline acceptance
+    public readonly isTimelineTermsAccepted: boolean = false,
+    public readonly timelineTermsAcceptedAt?: Date,
+    public readonly timelineTermsAcceptedIp?: string,
+
     // Relations (Optional)
     public readonly principalInvestigator?: User,
     public readonly studyType?: StudyType,

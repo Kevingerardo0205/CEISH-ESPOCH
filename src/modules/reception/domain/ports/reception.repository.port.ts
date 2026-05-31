@@ -1,5 +1,5 @@
 import { ReceptionOrmEntity } from '../../infrastructure/database/reception.entity.orm';
-import { ReceptionDocumentOrmEntity } from '../../infrastructure/database/recepcion-document.entity.orm';
+import { DocumentOrmEntity } from '../../../documents/infrastructure/database/document.entity.orm';
 import { DocumentValidationOrmEntity } from '../../infrastructure/database/document-validation.entity.orm';
 
 export abstract class IReceptionRepository {
@@ -12,14 +12,12 @@ export abstract class IReceptionRepository {
   ): Promise<ReceptionOrmEntity>;
 
   abstract saveDocument(
-    entity: Partial<ReceptionDocumentOrmEntity>,
-  ): Promise<ReceptionDocumentOrmEntity>;
-  abstract findDocumentById(
-    id: number,
-  ): Promise<ReceptionDocumentOrmEntity | null>;
+    entity: Partial<DocumentOrmEntity>,
+  ): Promise<DocumentOrmEntity>;
+  abstract findDocumentById(id: number): Promise<DocumentOrmEntity | null>;
   abstract findDocumentsByProtocolId(
     protocolId: number,
-  ): Promise<ReceptionDocumentOrmEntity[]>;
+  ): Promise<DocumentOrmEntity[]>;
 
   abstract saveValidation(
     entity: Partial<DocumentValidationOrmEntity>,

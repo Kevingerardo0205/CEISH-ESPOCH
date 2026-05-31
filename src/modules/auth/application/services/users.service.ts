@@ -7,6 +7,7 @@ import { DataSource, In } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { UserOrmEntity } from '../../infrastructure/database/user.entity.orm';
 import { RoleOrmEntity } from '../../infrastructure/database/role.entity.orm';
+import { InvestigatorProfileOrmEntity } from '../../infrastructure/database/investigator-profile.entity.orm';
 import { CreateUserDto } from '../dtos/create-user.dto';
 import { UpdateUserDto } from '../dtos/update-user.dto';
 import { IUserRepository } from '../../domain/ports/user.repository.port';
@@ -139,6 +140,23 @@ export class UsersService {
     if (dto.isActive !== undefined) user.isActive = dto.isActive;
     if (dto.isEmailVerified !== undefined)
       user.isEmailVerified = dto.isEmailVerified;
+
+    if (user.investigatorProfile) {
+      if (dto.phone !== undefined) user.investigatorProfile.phone = dto.phone;
+      if (dto.nationality !== undefined)
+        user.investigatorProfile.nationality = dto.nationality;
+      if (dto.position !== undefined)
+        user.investigatorProfile.position = dto.position;
+      if (dto.institution !== undefined)
+        user.investigatorProfile.institution = dto.institution;
+      if (dto.senescytRegistration !== undefined)
+        user.investigatorProfile.senescytRegistration =
+          dto.senescytRegistration;
+
+      await this.dataSource
+        .getRepository(InvestigatorProfileOrmEntity)
+        .save(user.investigatorProfile);
+    }
 
     const savedUser = await this.dataSource
       .getRepository(UserOrmEntity)

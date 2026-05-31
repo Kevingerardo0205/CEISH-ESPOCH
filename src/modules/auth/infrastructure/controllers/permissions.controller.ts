@@ -1,4 +1,14 @@
-import { Controller, Get, Post, Body, Patch, Param, Delete, ParseIntPipe, UseGuards } from '@nestjs/common';
+import {
+  Controller,
+  Get,
+  Post,
+  Body,
+  Patch,
+  Param,
+  Delete,
+  ParseIntPipe,
+  UseGuards,
+} from '@nestjs/common';
 import { PermissionsService } from '../../application/services/permissions.service';
 import { CreatePermissionDto } from '../../application/dtos/create-permission.dto';
 import { UpdatePermissionDto } from '../../application/dtos/update-permission.dto';
@@ -45,7 +55,10 @@ export class PermissionsController {
   @Permissions(Permission.PERMISOS_GESTIONAR)
   @Audit('MODULE_UPDATED')
   @Patch('auth/modules/:id')
-  updateModule(@Param('id', ParseIntPipe) id: number, @Body() updateModuleDto: UpdateModuleDto) {
+  updateModule(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updateModuleDto: UpdateModuleDto,
+  ) {
     return this.permissionsService.updateModule(id, updateModuleDto);
   }
 
@@ -79,7 +92,10 @@ export class PermissionsController {
   @Permissions(Permission.PERMISOS_GESTIONAR)
   @Audit('PERMISSION_UPDATED')
   @Patch('auth/permissions/:id')
-  updatePermission(@Param('id', ParseIntPipe) id: number, @Body() updatePermissionDto: UpdatePermissionDto) {
+  updatePermission(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() updatePermissionDto: UpdatePermissionDto,
+  ) {
     return this.permissionsService.updatePermission(id, updatePermissionDto);
   }
 

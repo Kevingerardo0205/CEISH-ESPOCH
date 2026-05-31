@@ -1,4 +1,8 @@
-import { Injectable, NotFoundException, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  BadRequestException,
+} from '@nestjs/common';
 import { IPermissionsRepository } from '../../domain/ports/permissions.repository.port';
 import { IModulesRepository } from '../../domain/ports/modules.repository.port';
 import { CreatePermissionDto } from '../dtos/create-permission.dto';
@@ -27,7 +31,9 @@ export class PermissionsService {
   async createModule(dto: CreateModuleDto) {
     const existing = await this.modulesRepository.findByCode(dto.code);
     if (existing) {
-      throw new BadRequestException(`El código de módulo '${dto.code}' ya existe`);
+      throw new BadRequestException(
+        `El código de módulo '${dto.code}' ya existe`,
+      );
     }
     return this.modulesRepository.save(dto);
   }
@@ -35,7 +41,7 @@ export class PermissionsService {
   async updateModule(id: number, dto: UpdateModuleDto) {
     const module = await this.modulesRepository.findById(id);
     if (!module) throw new NotFoundException('Módulo no encontrado');
-    
+
     await this.modulesRepository.update(id, dto);
     return this.modulesRepository.findById(id);
   }
@@ -66,7 +72,9 @@ export class PermissionsService {
   async createPermission(dto: CreatePermissionDto) {
     const existing = await this.permissionsRepository.findByCode(dto.code);
     if (existing) {
-      throw new BadRequestException(`El código de permiso '${dto.code}' ya existe`);
+      throw new BadRequestException(
+        `El código de permiso '${dto.code}' ya existe`,
+      );
     }
 
     if (dto.moduleId) {

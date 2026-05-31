@@ -3,7 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { IReceptionRepository } from '../../domain/ports/reception.repository.port';
 import { ReceptionOrmEntity } from '../database/reception.entity.orm';
-import { ReceptionDocumentOrmEntity } from '../database/recepcion-document.entity.orm';
+import { DocumentOrmEntity } from '../../../documents/infrastructure/database/document.entity.orm';
 import { DocumentValidationOrmEntity } from '../database/document-validation.entity.orm';
 import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
 
@@ -15,8 +15,8 @@ export class ReceptionTypeOrmRepository
   constructor(
     @InjectRepository(ReceptionOrmEntity)
     private readonly receptionRepo: Repository<ReceptionOrmEntity>,
-    @InjectRepository(ReceptionDocumentOrmEntity)
-    private readonly documentRepo: Repository<ReceptionDocumentOrmEntity>,
+    @InjectRepository(DocumentOrmEntity)
+    private readonly documentRepo: Repository<DocumentOrmEntity>,
     @InjectRepository(DocumentValidationOrmEntity)
     private readonly validationRepo: Repository<DocumentValidationOrmEntity>,
   ) {
@@ -30,20 +30,18 @@ export class ReceptionTypeOrmRepository
   }
 
   async saveDocument(
-    entity: Partial<ReceptionDocumentOrmEntity>,
-  ): Promise<ReceptionDocumentOrmEntity> {
-    return this.documentRepo.save(entity as ReceptionDocumentOrmEntity);
+    entity: Partial<DocumentOrmEntity>,
+  ): Promise<DocumentOrmEntity> {
+    return this.documentRepo.save(entity as DocumentOrmEntity);
   }
 
-  async findDocumentById(
-    id: number,
-  ): Promise<ReceptionDocumentOrmEntity | null> {
+  async findDocumentById(id: number): Promise<DocumentOrmEntity | null> {
     return this.documentRepo.findOne({ where: { id } });
   }
 
   async findDocumentsByProtocolId(
     protocolId: number,
-  ): Promise<ReceptionDocumentOrmEntity[]> {
+  ): Promise<DocumentOrmEntity[]> {
     return this.documentRepo.find({
       where: { protocolId },
       relations: ['requirement', 'tipoDocumento'],
@@ -68,7 +66,7 @@ export class ReceptionTypeOrmRepository
     // Subquery para obtener la última validación de cada documento
     return this.validationRepo
       .createQueryBuilder('v')
-      .innerJoin(ReceptionDocumentOrmEntity, 'd', 'v.documento_id = d.id')
+      .innerJoin(DocumentOrmEntity, 'd', 'v.documento_id = d.id')
       .where('d.protocolo_id = :protocolId', { protocolId })
       .andWhere(
         'v.id IN (SELECT MAX(id) FROM recepcion.validaciones_documento GROUP BY documento_id)',

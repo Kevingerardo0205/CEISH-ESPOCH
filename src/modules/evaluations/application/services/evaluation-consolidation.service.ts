@@ -16,23 +16,33 @@ export class EvaluationConsolidationService {
    * Útil para la Sesión de Pleno (Anexo 12).
    */
   async consolidate(protocolId: number, versionNumber: number = 1) {
-    const version = await this.evaluationRepository.findVersionByProtocolId(protocolId, versionNumber);
-    if (!version) throw new NotFoundException('Versión de protocolo no encontrada');
+    const version = await this.evaluationRepository.findVersionByProtocolId(
+      protocolId,
+      versionNumber,
+    );
+    if (!version)
+      throw new NotFoundException('Versión de protocolo no encontrada');
 
-    const assignments = await this.evaluationRepository.findAssignmentsByVersionId(version.id);
-    const completedAssignments = assignments.filter(a => a.statusId === AssignmentStatus.COMPLETED);
+    const assignments =
+      await this.evaluationRepository.findAssignmentsByVersionId(version.id);
+    const completedAssignments = assignments.filter(
+      (a) => a.statusId === AssignmentStatus.COMPLETED,
+    );
 
     if (completedAssignments.length === 0) {
       return {
         message: 'Aún no existen evaluaciones completadas para consolidar.',
-        isReadyForPlenary: false
+        isReadyForPlenary: false,
       };
     }
 
     // 1. Obtener todas las evaluaciones detalladas
     const evaluations: EvaluationOrmEntity[] = [];
     for (const assignment of completedAssignments) {
-      const detail = await this.evaluationRepository.findEvaluationByAssignmentId(assignment.id);
+      const detail =
+        await this.evaluationRepository.findEvaluationByAssignmentId(
+          assignment.id,
+        );
       if (detail) evaluations.push(detail);
     }
 
@@ -42,15 +52,17 @@ export class EvaluationConsolidationService {
       versionNumber,
       totalEvaluators: assignments.length,
       completedEvaluations: evaluations.length,
-      recommendations: evaluations.map(e => ({
+      recommendations: evaluations.map((e) => ({
         evaluator: e.evaluatedBy?.fullName || 'Anónimo',
         result: e.result,
-        observations: e.observations
+        observations: e.observations,
       })),
       summary: {
-        ethical: evaluations.map(e => e.ethicalAspects).filter(Boolean),
-        methodological: evaluations.map(e => e.methodologicalAspects).filter(Boolean),
-        legal: evaluations.map(e => e.legalAspects).filter(Boolean),
+        ethical: evaluations.map((e) => e.ethicalAspects).filter(Boolean),
+        methodological: evaluations
+          .map((e) => e.methodologicalAspects)
+          .filter(Boolean),
+        legal: evaluations.map((e) => e.legalAspects).filter(Boolean),
       },
       // Lógica de decisión sugerida (Unanimidad o Mayoría)
       suggestedGlobalResult: this.calculateGlobalResult(
@@ -62,15 +74,20 @@ export class EvaluationConsolidationService {
   }
 
   private calculateGlobalResult(results: string[]): string {
-    const counts = results.reduce((acc, curr) => {
-      acc[curr] = (acc[curr] || 0) + 1;
-      return acc;
-    }, {} as Record<string, number>);
+    const counts = results.reduce(
+      (acc, curr) => {
+        acc[curr] = (acc[curr] || 0) + 1;
+        return acc;
+      },
+      {} as Record<string, number>,
+    );
 
     // Si hay al menos un "RECHAZADO" o "REQUIERE_CAMBIOS_MAYORES", sugerir precaución
     if (counts['RECHAZADO'] > 0) return 'DISCUTIR_EN_PLENO (Existen Rechazos)';
-    
+
     // Devolver el resultado más frecuente
-    return Object.keys(counts).reduce((a, b) => counts[a] > counts[b] ? a : b);
+    return Object.keys(counts).reduce((a, b) =>
+      counts[a] > counts[b] ? a : b,
+    );
   }
 }

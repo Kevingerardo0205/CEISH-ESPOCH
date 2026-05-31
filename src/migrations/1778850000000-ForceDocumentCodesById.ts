@@ -3,7 +3,9 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class ForceDocumentCodesById1778850000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // ASEGURAR TAMAÑO COLUMNA
-    await queryRunner.query('ALTER TABLE catalogos.tipos_documento ALTER COLUMN codigo_anexo TYPE VARCHAR(100)');
+    await queryRunner.query(
+      'ALTER TABLE catalogos.tipos_documento ALTER COLUMN codigo_anexo TYPE VARCHAR(100)',
+    );
 
     // Usamos los IDs detectados en los logs del usuario para asegurar el tiro
     const updates = [
@@ -37,7 +39,7 @@ export class ForceDocumentCodesById1778850000000 implements MigrationInterface {
     for (const item of updates) {
       await queryRunner.query(
         'UPDATE catalogos.tipos_documento SET codigo_anexo = $1 WHERE id = $2',
-        [item.code, item.id]
+        [item.code, item.id],
       );
     }
   }

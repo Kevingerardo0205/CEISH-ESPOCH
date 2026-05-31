@@ -5,6 +5,8 @@ import {
   ConflictException,
   Inject,
 } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository, IsNull } from 'typeorm';
 import { IEvaluationRepository } from '../../domain/ports/evaluation.repository.port';
 import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
@@ -20,6 +22,12 @@ import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { ConflictOfInterestService } from './conflict-of-interest.service';
 import { ReceptionStatus } from '../../../protocols/domain/enums/reception-status.enum';
+import { PeerRiskAssignmentOrmEntity } from '../../infrastructure/database/peer-assignment.entity.orm';
+import { RiskLevelOrmEntity } from '../../../protocols/infrastructure/database/risk-level.entity.orm';
+import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
+import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
+import { AssignPeerEvaluatorsDto } from '../dtos/assign-peer-evaluators.dto';
+import { SubmitPeerRiskDto } from '../dtos/submit-peer-risk.dto';
 
 @Injectable()
 export class EvaluationsService {
@@ -30,18 +38,32 @@ export class EvaluationsService {
     private readonly deadlineService: ProtocolDeadlineService,
     private readonly emailService: IEmailServicePort,
     private readonly conflictService: ConflictOfInterestService,
+    @InjectRepository(PeerRiskAssignmentOrmEntity)
+    private readonly peerRiskRepository: Repository<PeerRiskAssignmentOrmEntity>,
+    @InjectRepository(RiskLevelOrmEntity)
+    private readonly riskLevelRepository: Repository<RiskLevelOrmEntity>,
+    @InjectRepository(ProtocolOrmEntity)
+    private readonly protocolOrmRepository: Repository<ProtocolOrmEntity>,
+    @InjectRepository(UserOrmEntity)
+    private readonly userRepository: Repository<UserOrmEntity>,
   ) {}
 
   /**
    * HU-004: Dashboard de carga por evaluador y protocolos pendientes
    */
   async getEvaluatorsDashboard(profileId?: number) {
-    const [evaluators, [protocols]] = await Promise.all([
-      this.evaluationRepository.findEvaluatorsWithWorkload(profileId),
-      this.protocolRepository.findAll({
+    const evaluators =
+      await this.evaluationRepository.findEvaluatorsWithWorkload(profileId);
+
+    // Solo se listan en el dashboard de la Presidenta si la recepción está COMPLETA y el nivel de riesgo ha sido consolidado
+    const protocols = await this.protocolOrmRepository.find({
+      where: {
         receptionStatus: ReceptionStatus.COMPLETO,
-      }),
-    ]);
+        isRiskLevelDesignated: true,
+      },
+      relations: ['studyType'],
+      order: { receptionDate: 'DESC' },
+    });
 
     // Filtrar los que no tienen asignaciones vigentes (opcional según lógica de negocio, por ahora enviamos todos los COMPLETOS)
     const mappedProtocols = protocols.map((p) => {
@@ -446,5 +468,230 @@ export class EvaluationsService {
     return {
       message: 'Perfil de evaluador eliminado exitosamente (soft-delete)',
     };
+  }
+
+  /**
+   * Obtener protocolos completados que requieren asignación de pares evaluadores (Secretaría)
+   */
+  async getProtocolsPendingPeerAssignment() {
+    return this.protocolOrmRepository.find({
+      where: {
+        receptionStatus: ReceptionStatus.COMPLETO,
+        isRiskLevelDesignated: false,
+        isTimelineTermsAccepted: true,
+      },
+      relations: ['studyType', 'principalInvestigatorRecord'],
+      order: { createdAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Asignar exactamente 2 evaluadores pares a un protocolo (Secretaría)
+   */
+  async assignPeerEvaluators(protocolId: number, dto: AssignPeerEvaluatorsDto) {
+    const protocol = await this.protocolOrmRepository.findOne({
+      where: { id: protocolId },
+    });
+    if (!protocol)
+      throw new NotFoundException(`Protocolo ${protocolId} no encontrado`);
+    if (protocol.receptionStatus !== ReceptionStatus.COMPLETO) {
+      throw new BadRequestException(
+        'El protocolo debe estar en estado COMPLETO de recepción.',
+      );
+    }
+    if (!protocol.isTimelineTermsAccepted) {
+      throw new BadRequestException(
+        'El investigador principal debe aceptar el sometimiento a los tiempos y reglamentos del comité antes de asignar evaluadores.',
+      );
+    }
+    if (protocol.isRiskLevelDesignated) {
+      throw new BadRequestException(
+        'El nivel de riesgo de este protocolo ya fue designado y confirmado.',
+      );
+    }
+
+    const { evaluatorIds } = dto;
+    if (evaluatorIds.length !== 2) {
+      throw new BadRequestException(
+        'Debe asignar exactamente 2 evaluadores pares.',
+      );
+    }
+    if (evaluatorIds[0] === evaluatorIds[1]) {
+      throw new BadRequestException(
+        'Los dos evaluadores pares deben ser distintos.',
+      );
+    }
+
+    // Validar conflicto de interés para ambos evaluadores (Fase 1)
+    for (const evaluatorId of evaluatorIds) {
+      const conflict = await this.conflictService.checkConflict(
+        protocolId,
+        evaluatorId,
+      );
+      if (conflict.hasConflict && conflict.critical) {
+        throw new ConflictException(
+          `Conflicto Ético Crítico con el Evaluador ${evaluatorId}: ${conflict.reason}`,
+        );
+      }
+    }
+
+    // Eliminar asignaciones previas si existen (por si es una re-asignación)
+    await this.peerRiskRepository.delete({ protocolId });
+
+    // Guardar las nuevas asignaciones
+    const assignments = evaluatorIds.map((evaluatorId) => {
+      const assignment = new PeerRiskAssignmentOrmEntity();
+      assignment.protocolId = protocolId;
+      assignment.evaluatorId = evaluatorId;
+      return assignment;
+    });
+
+    await this.peerRiskRepository.save(assignments);
+
+    return { message: 'Pares evaluadores asignados exitosamente.' };
+  }
+
+  /**
+   * Obtener asignaciones de riesgo pendientes para el evaluador logueado
+   */
+  async getMyPendingPeerAssignments(evaluatorId: number) {
+    return this.peerRiskRepository.find({
+      where: {
+        evaluatorId,
+        submittedAt: IsNull(),
+      },
+      relations: [
+        'protocol',
+        'protocol.studyType',
+        'protocol.principalInvestigatorRecord',
+      ],
+      order: { assignedAt: 'DESC' },
+    });
+  }
+
+  /**
+   * Enviar propuesta de nivel de riesgo por parte de un par evaluador
+   */
+  async submitPeerRiskLevel(
+    assignmentId: number,
+    evaluatorId: number,
+    dto: SubmitPeerRiskDto,
+  ) {
+    const assignment = await this.peerRiskRepository.findOne({
+      where: { id: assignmentId },
+      relations: ['protocol'],
+    });
+
+    if (!assignment)
+      throw new NotFoundException('Asignación de par no encontrada.');
+    if (assignment.evaluatorId !== evaluatorId) {
+      throw new BadRequestException(
+        'No tiene permisos para responder esta asignación.',
+      );
+    }
+    if (assignment.submittedAt) {
+      throw new BadRequestException(
+        'Esta asignación ya ha sido evaluada y enviada.',
+      );
+    }
+
+    const riskLevel = await this.riskLevelRepository.findOne({
+      where: { id: dto.riskLevelId, isActive: true },
+    });
+    if (!riskLevel)
+      throw new NotFoundException(
+        `Nivel de riesgo con ID ${dto.riskLevelId} no encontrado o inactivo.`,
+      );
+
+    // Registrar la propuesta del evaluador
+    assignment.proposedRiskLevelId = dto.riskLevelId;
+    assignment.observations = dto.observations;
+    assignment.submittedAt = new Date();
+    await this.peerRiskRepository.save(assignment);
+
+    // Verificar si el otro par ya respondió
+    const peerAssignments = await this.peerRiskRepository.find({
+      where: { protocolId: assignment.protocolId },
+      relations: ['proposedRiskLevel'],
+    });
+
+    const allSubmitted = peerAssignments.every((a) => a.submittedAt !== null);
+
+    if (allSubmitted && peerAssignments.length === 2) {
+      // Ambos han respondido, realizamos la consolidación
+      const [p1, p2] = peerAssignments;
+
+      let finalRiskLevelId: number;
+
+      if (p1.proposedRiskLevelId === p2.proposedRiskLevelId) {
+        // Coinciden en el riesgo
+        finalRiskLevelId = p1.proposedRiskLevelId!;
+      } else {
+        // Discrepancia: Seleccionar el de mayor nivel de riesgo
+        // Ordenamos por nivel de gravedad (usando ranking de IDs basados en los códigos conocidos)
+        // 8 (ENSAYO_CLINICO) > 7 (RIESGO_MAYOR) > 6 (RIESGO_MODERADO) > 5 (RIESGO_MINIMO) > 4 (SIN_RIESGO)
+        const rank = (id: number) => {
+          if (id === 8) return 5;
+          if (id === 7) return 4;
+          if (id === 6) return 3;
+          if (id === 5) return 2;
+          if (id === 4) return 1;
+          return 0;
+        };
+
+        const r1 = rank(p1.proposedRiskLevelId!);
+        const r2 = rank(p2.proposedRiskLevelId!);
+
+        finalRiskLevelId =
+          r1 >= r2 ? p1.proposedRiskLevelId! : p2.proposedRiskLevelId!;
+      }
+
+      // Obtener los detalles del nivel de riesgo final seleccionado
+      const finalRiskLevel = await this.riskLevelRepository.findOne({
+        where: { id: finalRiskLevelId },
+      });
+
+      if (finalRiskLevel) {
+        // Actualizar el protocolo con el riesgo oficial y marcarlo como designado
+        const protocol = assignment.protocol;
+        protocol.riskLevelId = finalRiskLevelId;
+
+        // Mapear reviewType según el tipo_revision del nivel de riesgo
+        // (tipo_revision es 'EXPEDITA' o 'PLENO' o 'ENSAYO_CLINICO')
+        let reviewType: ReviewType = ReviewType.PLENO;
+        if (finalRiskLevel.reviewType === 'EXPEDITA') {
+          reviewType = ReviewType.EXPEDITA;
+        } else if (finalRiskLevel.code === 'ENSAYO_CLINICO') {
+          reviewType = ReviewType.ENSAYO_CLINICO;
+        }
+
+        protocol.reviewType = reviewType;
+        protocol.isRiskLevelDesignated = true; // nivel_riesgo_confirmado = true
+
+        await this.protocolOrmRepository.save(protocol);
+      }
+    }
+
+    return { message: 'Propuesta de nivel de riesgo enviada exitosamente.' };
+  }
+
+  /**
+   * Obtener lista ligera de evaluadores activos para el modal de asignación de pares (Secretaría y Presidenta)
+   * Busca los usuarios activos registrados con el rol de 'EVALUADOR' en la base de datos
+   */
+  async getActiveEvaluators() {
+    return this.userRepository.find({
+      where: {
+        isActive: true,
+        roles: {
+          code: 'EVALUADOR',
+        },
+      },
+      select: {
+        id: true,
+        fullName: true,
+        institutionalEmail: true,
+      },
+    });
   }
 }

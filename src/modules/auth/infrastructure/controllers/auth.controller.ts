@@ -54,7 +54,7 @@ export class AuthController {
   }
 
   @UseGuards(LocalAuthGuard)
-// ... existing methods ...
+  // ... existing methods ...
   @Post('login')
   async login(@Request() req) {
     return this.authService.login(req.user);
@@ -99,7 +99,7 @@ export class AuthController {
     @Param('id', ParseIntPipe) id: number,
     @Body('isActive') isActive: boolean,
   ) {
-    return this.usersService.updateUser(id, { isActive } as any);
+    return this.usersService.updateUser(id, { isActive });
   }
 
   @Post('refresh')

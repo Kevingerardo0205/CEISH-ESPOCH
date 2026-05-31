@@ -1,9 +1,10 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ReceptionOrmEntity } from './infrastructure/database/reception.entity.orm';
-import { ReceptionDocumentOrmEntity } from './infrastructure/database/recepcion-document.entity.orm';
+import { DocumentOrmEntity } from '../documents/infrastructure/database/document.entity.orm';
 import { DocumentValidationOrmEntity } from './infrastructure/database/document-validation.entity.orm';
 import { ProtocolRequirementOrmEntity } from '../protocols/infrastructure/database/protocol-requirement.entity.orm';
+import { ProtocolVersionOrmEntity } from '../evaluations/infrastructure/database/protocol-version.entity.orm';
 import { ReceptionService } from './application/services/reception.service';
 import { ReceptionController } from './infrastructure/controllers/reception.controller';
 import { IReceptionRepository } from './domain/ports/reception.repository.port';
@@ -15,12 +16,14 @@ import { forwardRef } from '@nestjs/common';
   imports: [
     TypeOrmModule.forFeature([
       ReceptionOrmEntity,
-      ReceptionDocumentOrmEntity,
+      DocumentOrmEntity,
       DocumentValidationOrmEntity,
       ProtocolRequirementOrmEntity,
+      ProtocolVersionOrmEntity,
     ]),
     forwardRef(() => ProtocolsModule),
   ],
+
   controllers: [ReceptionController],
   providers: [
     ReceptionService,

@@ -87,8 +87,12 @@ export class HierarchicalPermissionsRefactor1778536000000 implements MigrationIn
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE catalogos.permisos DROP CONSTRAINT IF EXISTS FK_permisos_modulos`);
-    await queryRunner.query(`ALTER TABLE catalogos.permisos DROP COLUMN IF EXISTS modulo_id`);
+    await queryRunner.query(
+      `ALTER TABLE catalogos.permisos DROP CONSTRAINT IF EXISTS FK_permisos_modulos`,
+    );
+    await queryRunner.query(
+      `ALTER TABLE catalogos.permisos DROP COLUMN IF EXISTS modulo_id`,
+    );
     await queryRunner.query(`DROP TABLE IF EXISTS catalogos.modulos`);
   }
 }

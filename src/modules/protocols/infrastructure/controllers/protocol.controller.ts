@@ -69,7 +69,9 @@ export class ProtocolController {
   }
 
   @Get('checklist/:id')
-  @ApiOperation({ summary: 'Obtener el checklist de requisitos de un protocolo' })
+  @ApiOperation({
+    summary: 'Obtener el checklist de requisitos de un protocolo',
+  })
   async getChecklist(@Param('id') id: string, @Request() req) {
     const protocolId = parseInt(id, 10);
     const protocol = await this.protocolsService.findOne(protocolId);
@@ -90,20 +92,26 @@ export class ProtocolController {
   }
 
   @Post(':id/upload-document')
-  @ApiOperation({ summary: 'Subir un documento asociado a un requisito (Investigador)' })
+  @ApiOperation({
+    summary: 'Subir un documento asociado a un requisito (Investigador)',
+  })
   @ApiConsumes('multipart/form-data')
   @UseInterceptors(
     FileInterceptor('file', {
       storage: diskStorage({
         destination: './uploads',
         filename: (req, file, cb) => {
-          const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
+          const uniqueSuffix =
+            Date.now() + '-' + Math.round(Math.random() * 1e9);
           cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
         },
       }),
       fileFilter: (req, file, cb) => {
         if (!file.originalname.match(/\.(pdf)$/)) {
-          return cb(new BadRequestException('Solo se permiten archivos PDF'), false);
+          return cb(
+            new BadRequestException('Solo se permiten archivos PDF'),
+            false,
+          );
         }
         cb(null, true);
       },
@@ -122,14 +130,14 @@ export class ProtocolController {
 
     const protocolId = parseInt(id, 10);
     dto.protocolId = protocolId;
-    
+
     // El 'path' en la DB guardará el nombre del archivo en disco
     dto.path = file.filename;
     dto.fileName = file.originalname;
     dto.sizeBytes = file.size.toString();
 
     const protocol = await this.protocolsService.findOne(protocolId);
-    
+
     // Validar propiedad
     const isOwner = protocol.principalInvestigatorId === req.user.id;
     const isCoInvestigator = protocol.investigators?.some(
@@ -192,7 +200,9 @@ export class ProtocolController {
   }
 
   @Post(':id/submit')
-  @ApiOperation({ summary: 'Enviar el protocolo para revisión técnica (Investigador)' })
+  @ApiOperation({
+    summary: 'Enviar el protocolo para revisión técnica (Investigador)',
+  })
   @Audit('PROTOCOL_SUBMITTED')
   async submit(@Param('id') id: string, @Request() req) {
     const protocolId = parseInt(id, 10);
@@ -207,6 +217,22 @@ export class ProtocolController {
     }
 
     return this.protocolsService.submit(protocolId);
+  }
+
+  @Post(':id/accept-timeline')
+  @ApiOperation({
+    summary:
+      'Aceptar el sometimiento a los tiempos y reglamentos del comité (Investigador)',
+  })
+  @Audit('PROTOCOL_TIMELINE_ACCEPTED')
+  async acceptTimeline(@Param('id') id: string, @Request() req) {
+    const protocolId = parseInt(id, 10);
+    const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
+    return this.protocolsService.acceptTimeline(
+      protocolId,
+      req.user.id,
+      ipAddress,
+    );
   }
 
   @Post()

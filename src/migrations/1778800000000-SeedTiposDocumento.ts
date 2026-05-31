@@ -3,10 +3,14 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class SeedTiposDocumento1778800000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 0. Aumentar tamaño de columna codigo_anexo
-    await queryRunner.query(`ALTER TABLE catalogos.tipos_documento ALTER COLUMN codigo_anexo TYPE VARCHAR(50)`);
+    await queryRunner.query(
+      `ALTER TABLE catalogos.tipos_documento ALTER COLUMN codigo_anexo TYPE VARCHAR(50)`,
+    );
 
     // 1. Limpieza de Tipos de Estudio (Desactivar EX para no romper integridad referencial)
-    await queryRunner.query(`UPDATE catalogos.tipos_estudio SET activo = false WHERE codigo = 'EX'`);
+    await queryRunner.query(
+      `UPDATE catalogos.tipos_estudio SET activo = false WHERE codigo = 'EX'`,
+    );
 
     // 2. Insertar Tipos de Documento
     const docs = [
@@ -50,31 +54,58 @@ export class SeedTiposDocumento1778800000000 implements MigrationInterface {
         nombre: 'Traducción a idiomas ancestrales',
         codigo_anexo: 'TRADUCCION_ANCESTRAL',
         aplica: ['IO', 'EI', 'EC'],
-        condicion: { condiciones_por_tipo: { IO: ['poblacionIndigena'], EI: ['poblacionIndigena'], EC: ['poblacionIndigena'] } },
+        condicion: {
+          condiciones_por_tipo: {
+            IO: ['poblacionIndigena'],
+            EI: ['poblacionIndigena'],
+            EC: ['poblacionIndigena'],
+          },
+        },
       },
       {
         nombre: 'Consentimiento Colectivo o Comunitario (Líder/Asamblea)',
         codigo_anexo: 'CONSENTIMIENTO_COMUNITARIO',
         aplica: ['IO', 'EI'],
-        condicion: { condiciones_por_tipo: { IO: ['poblacionIndigena'], EI: ['poblacionIndigena'] } },
+        condicion: {
+          condiciones_por_tipo: {
+            IO: ['poblacionIndigena'],
+            EI: ['poblacionIndigena'],
+          },
+        },
       },
       {
         nombre: 'Declaratoria de Compromiso de Confidencialidad',
         codigo_anexo: 'DECLARATORIA_CONF',
         aplica: ['IO', 'EI'],
-        condicion: { condiciones_por_tipo: { IO: ['muestras', 'vulnerable'], EI: ['muestras', 'vulnerable'] } },
+        condicion: {
+          condiciones_por_tipo: {
+            IO: ['muestras', 'vulnerable'],
+            EI: ['muestras', 'vulnerable'],
+          },
+        },
       },
       {
         nombre: 'Declaración de Conflicto de Interés',
         codigo_anexo: 'DECLARACION_CI',
         aplica: ['IO', 'EI'],
-        condicion: { condiciones_por_tipo: { IO: ['muestras', 'vulnerable'], EI: ['muestras', 'vulnerable'] } },
+        condicion: {
+          condiciones_por_tipo: {
+            IO: ['muestras', 'vulnerable'],
+            EI: ['muestras', 'vulnerable'],
+          },
+        },
       },
       {
         nombre: 'Carta de Interés Institucional (Anexo 5)',
         codigo_anexo: 'CARTA_INTERES',
         aplica: ['IO', 'EI', 'EC'],
-        condicion: { condiciones_por_tipo: { IO: ['institucionesPublicas'], EI: ['institucionesPublicas'], EC: [] } },
+        condicion: {
+          condiciones_por_tipo: {
+            IO: ['institucionesPublicas'],
+            EI: ['institucionesPublicas'],
+            EC: [],
+          },
+        },
       },
       {
         nombre: 'Ficha Descriptiva de la Intervención y Riesgos',
@@ -177,7 +208,7 @@ export class SeedTiposDocumento1778800000000 implements MigrationInterface {
     for (const doc of docs) {
       const exists = await queryRunner.query(
         `SELECT id FROM catalogos.tipos_documento WHERE nombre = $1`,
-        [doc.nombre]
+        [doc.nombre],
       );
 
       if (exists.length > 0) {
@@ -188,13 +219,25 @@ export class SeedTiposDocumento1778800000000 implements MigrationInterface {
             condicion_json = $3,
             es_obligatorio = $4
            WHERE nombre = $5`,
-          [doc.codigo_anexo, JSON.stringify(doc.aplica), JSON.stringify(doc.condicion), true, doc.nombre]
+          [
+            doc.codigo_anexo,
+            JSON.stringify(doc.aplica),
+            JSON.stringify(doc.condicion),
+            true,
+            doc.nombre,
+          ],
         );
       } else {
         await queryRunner.query(
           `INSERT INTO catalogos.tipos_documento (nombre, codigo_anexo, tipo_estudio_aplica, condicion_json, es_obligatorio) 
            VALUES ($1, $2, $3, $4, $5)`,
-          [doc.nombre, doc.codigo_anexo, JSON.stringify(doc.aplica), JSON.stringify(doc.condicion), true]
+          [
+            doc.nombre,
+            doc.codigo_anexo,
+            JSON.stringify(doc.aplica),
+            JSON.stringify(doc.condicion),
+            true,
+          ],
         );
       }
     }

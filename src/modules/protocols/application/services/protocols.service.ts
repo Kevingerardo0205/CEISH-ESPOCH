@@ -161,7 +161,7 @@ export class ProtocolsService {
       affidavitDate: new Date(),
       affidavitIp: ipAddress,
       currentVersion: 1,
-    } as any);
+    });
 
     try {
       // 3. Persistencia Core
@@ -225,5 +225,45 @@ export class ProtocolsService {
         throw new ConflictException('Conflicto: Código o registro duplicado.');
       throw error;
     }
+  }
+
+  /**
+   * Investigador acepta los tiempos y reglamentos del comité
+   */
+  async acceptTimeline(id: number, userId: number, ipAddress: string) {
+    const protocol = await this.findOne(id);
+
+    // Validar propiedad
+    if (protocol.principalInvestigatorId !== userId) {
+      throw new BadRequestException(
+        'Solo el investigador principal puede aceptar el sometimiento a tiempos de este protocolo',
+      );
+    }
+
+    if (protocol.receptionStatus !== ReceptionStatus.COMPLETO) {
+      throw new BadRequestException(
+        'La documentación del protocolo debe estar en estado COMPLETO para poder aceptar el sometimiento a tiempos',
+      );
+    }
+
+    if (protocol.isTimelineTermsAccepted) {
+      throw new BadRequestException(
+        'El sometimiento a los tiempos y reglamentos ya fue aceptado anteriormente',
+      );
+    }
+
+    // Actualizar campos
+    await this.protocolsRepository.update(id, {
+      isTimelineTermsAccepted: true,
+      timelineTermsAcceptedAt: new Date(),
+      timelineTermsAcceptedIp: ipAddress,
+    });
+
+    return {
+      message:
+        'Sometimiento a tiempos y reglamentos del comité aceptado con éxito.',
+      isTimelineTermsAccepted: true,
+      timelineTermsAcceptedAt: new Date(),
+    };
   }
 }

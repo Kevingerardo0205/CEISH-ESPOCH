@@ -7,4 +7,8 @@ export class ValidateDocumentDto {
   @IsOptional()
   @IsString()
   observations?: string;
+
+  @IsOptional()
+  @IsNumber()
+  pageCount?: number;
 }

@@ -1,9 +1,4 @@
-import {
-  IsString,
-  IsOptional,
-  IsEnum,
-  IsDateString,
-} from 'class-validator';
+import { IsString, IsOptional, IsEnum, IsDateString } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 
 /**
@@ -34,7 +29,10 @@ export class Annex9Dto {
   @IsEnum(AspectResult)
   eticaResult!: AspectResult;
 
-  @ApiProperty({ required: false, description: 'Plazo para absolver observaciones éticas' })
+  @ApiProperty({
+    required: false,
+    description: 'Plazo para absolver observaciones éticas',
+  })
   @IsOptional()
   @IsString()
   eticaPlazo?: string;
@@ -44,7 +42,10 @@ export class Annex9Dto {
   @IsEnum(AspectResult)
   metodologiaResult!: AspectResult;
 
-  @ApiProperty({ required: false, description: 'Plazo para absolver observaciones metodológicas' })
+  @ApiProperty({
+    required: false,
+    description: 'Plazo para absolver observaciones metodológicas',
+  })
   @IsOptional()
   @IsString()
   metodologiaPlazo?: string;
@@ -54,7 +55,10 @@ export class Annex9Dto {
   @IsEnum(AspectResult)
   juridicaResult!: AspectResult;
 
-  @ApiProperty({ required: false, description: 'Plazo para absolver observaciones jurídicas' })
+  @ApiProperty({
+    required: false,
+    description: 'Plazo para absolver observaciones jurídicas',
+  })
   @IsOptional()
   @IsString()
   juridicaPlazo?: string;
@@ -81,11 +85,17 @@ export class Annex10Dto {
  * ANEXO 11: Guía para evaluación de ensayos clínicos
  */
 export class Annex11Dto {
-  @ApiProperty({ enum: GlobalResult, description: 'Aprobado, Condicionado o No aprobado' })
+  @ApiProperty({
+    enum: GlobalResult,
+    description: 'Aprobado, Condicionado o No aprobado',
+  })
   @IsEnum(GlobalResult)
   resultado!: GlobalResult;
 
-  @ApiProperty({ required: false, description: 'Fecha en la que se realizó la evaluación' })
+  @ApiProperty({
+    required: false,
+    description: 'Fecha en la que se realizó la evaluación',
+  })
   @IsOptional()
   @IsDateString()
   fechaEvaluacion?: string;

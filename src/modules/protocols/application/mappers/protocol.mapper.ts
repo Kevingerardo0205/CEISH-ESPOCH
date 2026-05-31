@@ -35,6 +35,9 @@ export class ProtocolMapper {
       usesBiologicalSamples: orm.usesBiologicalSamples,
       isMulticentric: orm.isMulticentric,
       currentVersion: orm.currentVersion,
+      isTimelineTermsAccepted: orm.isTimelineTermsAccepted,
+      timelineTermsAcceptedAt: orm.timelineTermsAcceptedAt,
+      timelineTermsAcceptedIp: orm.timelineTermsAcceptedIp,
 
       // Control
       missingRequirements: orm.missingRequirements,

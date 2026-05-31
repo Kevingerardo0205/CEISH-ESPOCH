@@ -37,7 +37,9 @@ export class AuthService {
     const { email, otp, password } = dto;
 
     if (!email || !otp || !password) {
-      throw new BadRequestException('Email, código y contraseña son requeridos');
+      throw new BadRequestException(
+        'Email, código y contraseña son requeridos',
+      );
     }
 
     // 1. Buscar el usuario
@@ -80,7 +82,9 @@ export class AuthService {
       });
 
       await queryRunner.commitTransaction();
-      console.log(`[AUTH] Cuenta ${email} configurada y activada exitosamente.`);
+      console.log(
+        `[AUTH] Cuenta ${email} configurada y activada exitosamente.`,
+      );
     } catch (err) {
       await queryRunner.rollbackTransaction();
       console.error('[AUTH ERROR] Error al configurar la cuenta:', err);
@@ -152,12 +156,14 @@ export class AuthService {
       role.permissions?.forEach((p: any) => {
         permissions.add({
           code: p.code,
-          module: p.module ? {
-            code: p.module.code,
-            name: p.module.name,
-            icon: p.module.icon,
-            order: p.module.order
-          } : null
+          module: p.module
+            ? {
+                code: p.module.code,
+                name: p.module.name,
+                icon: p.module.icon,
+                order: p.module.order,
+              }
+            : null,
         });
       });
     });
@@ -167,7 +173,7 @@ export class AuthService {
       email: user.institutionalEmail,
       sub: user.id,
       roles: user.roles.map((r: any) => r.code),
-      permissions: permissionArray.map(p => p.code),
+      permissions: permissionArray.map((p) => p.code),
     };
 
     const tokens = await this.generateTokens(payload);
@@ -183,6 +189,19 @@ export class AuthService {
         roles: payload.roles,
         permissions: permissionArray,
         isEmailVerified: user.isEmailVerified,
+        investigatorProfile: user.investigatorProfile
+          ? {
+              documentType: user.investigatorProfile.documentType,
+              firstName: user.investigatorProfile.firstName,
+              lastName: user.investigatorProfile.firstLastName,
+              phone: user.investigatorProfile.phone,
+              nationality: user.investigatorProfile.nationality,
+              position: user.investigatorProfile.position,
+              institution: user.investigatorProfile.institution,
+              senescytRegistration:
+                user.investigatorProfile.senescytRegistration,
+            }
+          : null,
       },
     };
   }
@@ -196,12 +215,14 @@ export class AuthService {
       role.permissions?.forEach((p: any) => {
         permissions.add({
           code: p.code,
-          module: p.module ? {
-            code: p.module.code,
-            name: p.module.name,
-            icon: p.module.icon,
-            order: p.module.order
-          } : null
+          module: p.module
+            ? {
+                code: p.module.code,
+                name: p.module.name,
+                icon: p.module.icon,
+                order: p.module.order,
+              }
+            : null,
         });
       });
     });
@@ -222,6 +243,9 @@ export class AuthService {
             lastName: user.investigatorProfile.firstLastName,
             phone: user.investigatorProfile.phone,
             nationality: user.investigatorProfile.nationality,
+            position: user.investigatorProfile.position,
+            institution: user.investigatorProfile.institution,
+            senescytRegistration: user.investigatorProfile.senescytRegistration,
           }
         : null,
     };
@@ -245,12 +269,14 @@ export class AuthService {
       role.permissions?.forEach((p: any) => {
         permissions.add({
           code: p.code,
-          module: p.module ? {
-            code: p.module.code,
-            name: p.module.name,
-            icon: p.module.icon,
-            order: p.module.order
-          } : null
+          module: p.module
+            ? {
+                code: p.module.code,
+                name: p.module.name,
+                icon: p.module.icon,
+                order: p.module.order,
+              }
+            : null,
         });
       });
     });

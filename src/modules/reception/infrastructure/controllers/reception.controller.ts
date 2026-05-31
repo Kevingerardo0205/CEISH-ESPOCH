@@ -87,7 +87,10 @@ export class ReceptionController {
   @Post('protocol/:protocolId/document')
   @Audit('DOCUMENT_UPLOADED')
   async uploadDocument(@Request() req, @Body() dto: UploadDocumentDto) {
-    const document = await this.receptionService.uploadDocument(dto, req.user.id);
+    const document = await this.receptionService.uploadDocument(
+      dto,
+      req.user.id,
+    );
     return DocumentMapper.toResponse(document);
   }
 
@@ -98,7 +101,10 @@ export class ReceptionController {
     @Request() req,
     @Body() dto: UploadMultipleDocumentsDto,
   ) {
-    const documents = await this.receptionService.uploadMultipleDocuments(dto, req.user.id);
+    const documents = await this.receptionService.uploadMultipleDocuments(
+      dto,
+      req.user.id,
+    );
     return DocumentMapper.toResponseList(documents);
   }
 
@@ -129,6 +135,7 @@ export class ReceptionController {
       req.user.id,
       dto.statusId,
       dto.observations,
+      dto.pageCount,
     );
   }
 

@@ -1,9 +1,18 @@
-import { IsString, IsNotEmpty, IsOptional, IsNumber, IsBoolean, Matches } from 'class-validator';
+import {
+  IsString,
+  IsNotEmpty,
+  IsOptional,
+  IsNumber,
+  IsBoolean,
+  Matches,
+} from 'class-validator';
 
 export class CreateModuleDto {
   @IsString()
   @IsNotEmpty()
-  @Matches(/^[A-Z_]+$/, { message: 'El código solo puede contener letras mayúsculas y guiones bajos' })
+  @Matches(/^[A-Z_]+$/, {
+    message: 'El código solo puede contener letras mayúsculas y guiones bajos',
+  })
   code: string;
 
   @IsString()

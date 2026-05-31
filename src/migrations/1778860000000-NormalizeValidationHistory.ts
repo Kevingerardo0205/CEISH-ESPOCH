@@ -16,7 +16,7 @@ export class NormalizeValidationHistory1778860000000 implements MigrationInterfa
         ALTER TABLE recepcion.validaciones_documento 
         DROP CONSTRAINT IF EXISTS validaciones_documento_documento_id_key
     `);
-    
+
     await queryRunner.query(`
         ALTER TABLE recepcion.validaciones_documento 
         DROP CONSTRAINT IF EXISTS "UQ_documento_id"
@@ -38,7 +38,7 @@ export class NormalizeValidationHistory1778860000000 implements MigrationInterfa
         )
         AND d.requisito_id IS NULL
     `);
-    
+
     // 4. Asegurar que los estados del checklist son correctos (Extensiones de dominio)
     // Esto asegura que la columna pueda recibir los nuevos estados APROBADO/RECHAZADO
     // si es que existiera una restricción de tipo CHECK o ENUM a nivel de DB.
@@ -46,7 +46,9 @@ export class NormalizeValidationHistory1778860000000 implements MigrationInterfa
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     // Revertir cambios estructurales
-    await queryRunner.query(`ALTER TABLE recepcion.documentos DROP COLUMN IF EXISTS requisito_id`);
+    await queryRunner.query(
+      `ALTER TABLE recepcion.documentos DROP COLUMN IF EXISTS requisito_id`,
+    );
     // Nota: El UNIQUE no se restaura automáticamente para no romper historial si ya se cargó.
   }
 }

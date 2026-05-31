@@ -257,7 +257,10 @@ export class ResendEmailAdapter implements IEmailServicePort {
         from: this.fromEmail,
         to: email,
         subject: `Evaluación Recibida: ${protocolCode}`,
-        html: templates.getEvaluationSubmittedTemplate(evaluatorName, protocolCode),
+        html: templates.getEvaluationSubmittedTemplate(
+          evaluatorName,
+          protocolCode,
+        ),
       });
       console.log('Email de evaluación finalizada enviado:', data);
     } catch (error) {

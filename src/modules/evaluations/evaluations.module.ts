@@ -19,6 +19,8 @@ import { forwardRef } from '@nestjs/common';
 import { InvestigatorOrmEntity } from '../protocols/infrastructure/database/investigator.entity.orm';
 import { InvestigatorProfileOrmEntity } from '../auth/infrastructure/database/investigator-profile.entity.orm';
 import { ProtocolOrmEntity } from '../protocols/infrastructure/database/protocol.entity.orm';
+import { PeerRiskAssignmentOrmEntity } from './infrastructure/database/peer-assignment.entity.orm';
+import { RiskLevelOrmEntity } from '../protocols/infrastructure/database/risk-level.entity.orm';
 
 @Module({
   imports: [
@@ -34,7 +36,10 @@ import { ProtocolOrmEntity } from '../protocols/infrastructure/database/protocol
       InvestigatorOrmEntity,
       InvestigatorProfileOrmEntity,
       ProtocolOrmEntity,
+      PeerRiskAssignmentOrmEntity,
+      RiskLevelOrmEntity,
     ]),
+
     forwardRef(() => ProtocolsModule),
   ],
   controllers: [EvaluationsController],

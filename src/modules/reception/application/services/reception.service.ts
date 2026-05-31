@@ -21,8 +21,9 @@ import {
   UploadDocumentDto,
   UploadMultipleDocumentsDto,
 } from '../dtos/upload-document.dto';
-import { ReceptionDocumentOrmEntity } from '../../infrastructure/database/recepcion-document.entity.orm';
+import { DocumentOrmEntity } from '../../../documents/infrastructure/database/document.entity.orm';
 import { ProtocolRequirementOrmEntity } from '../../../protocols/infrastructure/database/protocol-requirement.entity.orm';
+import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 import { RequirementMapper } from '../../../protocols/application/mappers/requirement.mapper';
 
 import { DocumentValidationStatus } from '../../domain/enums/document-validation-status.enum';
@@ -42,6 +43,9 @@ export class ReceptionService {
 
     @InjectRepository(ProtocolRequirementOrmEntity)
     private readonly requirementRepository: Repository<ProtocolRequirementOrmEntity>,
+
+    @InjectRepository(ProtocolVersionOrmEntity)
+    private readonly versionRepository: Repository<ProtocolVersionOrmEntity>,
   ) {}
 
   /**
@@ -53,48 +57,68 @@ export class ReceptionService {
     });
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
-    const reception = await this.receptionRepository.findByProtocolId(protocolId);
-    let documents = await this.receptionRepository.findDocumentsByProtocolId(protocolId);
+    const reception =
+      await this.receptionRepository.findByProtocolId(protocolId);
+    const documents =
+      await this.receptionRepository.findDocumentsByProtocolId(protocolId);
 
     // Mapeo robusto de requerimientos con sus documentos adjuntos
-    let unmappedDocs = [...documents];
-    
-    const checklistWithDocs = protocol.checklist?.map((req) => {
-      // 1. Intentar match por ID directo (3FN)
-      let docIndex = unmappedDocs.findIndex((d) => d.requirementId === req.id);
-      
-      // 2. Si falla, intentar match por código o nombre
-      if (docIndex === -1) {
-        docIndex = unmappedDocs.findIndex((d) => 
-          (d.fileName && d.fileName.toLowerCase().includes(req.requirementName.toLowerCase())) ||
-          (d.fileName && d.fileName.toLowerCase().includes(req.requirementCode.toLowerCase()))
-        );
-      }
-      
-      // 3. Fallback final (Secuencial): Tomar el primer documento disponible si el requerimiento está marcado como PRESENTADO
-      // Esto es útil para los datos antiguos o uploads de prueba masivos
-      if (docIndex === -1 && (req.status === RequirementStatus.PRESENTADO || req.status === RequirementStatus.APROBADO) && unmappedDocs.length > 0) {
-         docIndex = 0;
-      }
+    const unmappedDocs = [...documents];
 
-      let doc: ReceptionDocumentOrmEntity | null = null;
-      if (docIndex !== -1) {
-        doc = unmappedDocs[docIndex];
-        // Remover el documento asignado para no asignarlo a otro requerimiento
-        unmappedDocs.splice(docIndex, 1); 
-      }
-      
-      return {
-        ...RequirementMapper.toResponse(req),
-        attachedDocument: doc ? {
-          id: doc.id,
-          fileName: doc.fileName,
-          path: doc.path,
-          isValidated: doc.isValidatedBySecretary,
-          uploadedAt: doc.createdAt,
-        } : null,
-      };
-    }) || [];
+    const checklistWithDocs =
+      protocol.checklist?.map((req) => {
+        // 1. Intentar match por ID directo (3FN)
+        let docIndex = unmappedDocs.findIndex(
+          (d) => d.requirementId === req.id,
+        );
+
+        // 2. Si falla, intentar match por código o nombre
+        if (docIndex === -1) {
+          docIndex = unmappedDocs.findIndex(
+            (d) =>
+              (d.fileName &&
+                d.fileName
+                  .toLowerCase()
+                  .includes(req.requirementName.toLowerCase())) ||
+              (d.fileName &&
+                d.fileName
+                  .toLowerCase()
+                  .includes(req.requirementCode.toLowerCase())),
+          );
+        }
+
+        // 3. Fallback final (Secuencial): Tomar el primer documento disponible si el requerimiento está marcado como PRESENTADO
+        // Esto es útil para los datos antiguos o uploads de prueba masivos
+        if (
+          docIndex === -1 &&
+          (req.status === RequirementStatus.PRESENTADO ||
+            req.status === RequirementStatus.APROBADO) &&
+          unmappedDocs.length > 0
+        ) {
+          docIndex = 0;
+        }
+
+        let doc: DocumentOrmEntity | null = null;
+        if (docIndex !== -1) {
+          doc = unmappedDocs[docIndex];
+          // Remover el documento asignado para no asignarlo a otro requerimiento
+          unmappedDocs.splice(docIndex, 1);
+        }
+
+        return {
+          ...RequirementMapper.toResponse(req),
+          attachedDocument: doc
+            ? {
+                id: doc.id,
+                fileName: doc.fileName,
+                path: doc.path,
+                isValidated: doc.isValidatedBySecretary,
+                uploadedAt: doc.createdAt,
+                pageCount: doc.pageCount,
+              }
+            : null,
+        };
+      }) || [];
 
     return {
       header: {
@@ -102,7 +126,8 @@ export class ReceptionService {
         ceishCode: protocol.ceishCode || 'TRÁMITE EN PROCESO',
         title: protocol.title,
         submissionDate: protocol.receptionDate || protocol.createdAt,
-        investigator: protocol.principalInvestigatorRecord?.fullName || 'No asignado',
+        investigator:
+          protocol.principalInvestigatorRecord?.fullName || 'No asignado',
         studyType: protocol.studyType?.name || 'No especificado',
       },
       checklist: checklistWithDocs,
@@ -110,9 +135,10 @@ export class ReceptionService {
         isComplete: protocol.receptionStatus === ReceptionStatus.COMPLETO,
         status: protocol.receptionStatus,
         hasMissingItems: reception?.hasMissingItems || false,
-        missingItemsList: reception?.missingItemsList || protocol.missingRequirements,
+        missingItemsList:
+          reception?.missingItemsList || protocol.missingRequirements,
         submissionDeadline: protocol.submissionDeadline,
-      }
+      },
     };
   }
 
@@ -121,8 +147,8 @@ export class ReceptionService {
    */
   async getProtocolsForReception() {
     const data = await this.protocolRepository.findProtocolsForReception();
-    
-    return data.map(p => ({
+
+    return data.map((p) => ({
       id: p.id,
       ceishCode: p.ceishCode,
       title: p.title,
@@ -130,7 +156,9 @@ export class ReceptionService {
       receptionDate: p.receptionDate,
       submissionDeadline: p.submissionDeadline,
       studyType: p.studyType ? p.studyType.name : null,
-      principalInvestigator: p.principalInvestigator ? p.principalInvestigator.fullName : null,
+      principalInvestigator: p.principalInvestigator
+        ? p.principalInvestigator.fullName
+        : null,
     }));
   }
 
@@ -150,6 +178,18 @@ export class ReceptionService {
 
     const investigator = protocol.principalInvestigator;
 
+    // ── NUEVO: Validar que no queden documentos sin calificar por secretaría ──
+    const uploadedDocs =
+      await this.receptionRepository.findDocumentsByProtocolId(protocolId);
+    const unvalidatedDocs = uploadedDocs.filter(
+      (d) => !d.isValidatedBySecretary,
+    );
+    if (unvalidatedDocs.length > 0) {
+      throw new BadRequestException(
+        `No se puede finalizar la revisión: existen ${unvalidatedDocs.length} documentos subidos pendientes de validación por parte de la Secretaría.`,
+      );
+    }
+
     const studyTypeCode =
       (protocol.studyType?.code as StudyTypeCode) || StudyTypeCode.IO;
     const requiredDocs = await this.requirementsService.calcularRequeridos(
@@ -167,7 +207,7 @@ export class ReceptionService {
 
     for (const req of requiredDocs) {
       if (!req.isRequired) continue;
-      
+
       // 1. Intentar buscar el estado del requisito en la lista de verificación (checklist) real de la DB
       const checklistItem = protocol.checklist?.find(
         (c) => c.requirementCode === req.code,
@@ -209,8 +249,22 @@ export class ReceptionService {
       });
       await this.receptionRepository.save(reception);
 
+      // CRÍTICO 4: Crear automáticamente la Versión 1 en versiones_protocolo
+      const existingVersion = await this.versionRepository.findOne({
+        where: { protocolId, versionNumber: 1 },
+      });
+      if (!existingVersion) {
+        await this.versionRepository.save({
+          protocolId,
+          versionNumber: 1,
+          submissionDate: now,
+          statusId: 1, // Estado inicial
+        });
+      }
+
       const updatedProtocol =
         await this.protocolRepository.findById(protocolId);
+
       const ceishCode = updatedProtocol?.ceishCode || 'PENDIENTE-ASIGNACION';
 
       const pdfBuffer = await this.pdfGenerator.generateReceptionCertificate({
@@ -219,6 +273,13 @@ export class ReceptionService {
         protocolTitle: protocol.title || 'Sin Título',
         date: now,
         studyType: protocol.studyType?.name || 'Observacional',
+        version: 1,
+        checklist:
+          protocol.checklist?.map((c) => ({
+            requirementName: c.requirementName,
+            status: c.status,
+            pageCount: c.pageCount || 0,
+          })) || [],
       });
 
       await this.emailService
@@ -304,14 +365,21 @@ export class ReceptionService {
         poblacionIndigena: protocol.isIndigenousPopulation,
       });
 
-    const checklist = calculatedRequirements.map((req) => ({
-      protocolId,
-      requirementCode: req.code,
-      requirementName: req.name,
-      status: RequirementStatus.NO_PRESENTADO,
-      pageCount: 0,
-    }));
-    await this.requirementRepository.save(checklist);
+    // CRÍTICO 2: Evitar duplicar el checklist de requisitos si ya existen registros
+    const existingRequirements = await this.requirementRepository.find({
+      where: { protocolId },
+    });
+
+    if (existingRequirements.length === 0) {
+      const checklist = calculatedRequirements.map((req) => ({
+        protocolId,
+        requirementCode: req.code,
+        requirementName: req.name,
+        status: RequirementStatus.NO_PRESENTADO,
+        pageCount: 0,
+      }));
+      await this.requirementRepository.save(checklist);
+    }
 
     const reception = await this.receptionRepository.save({
       protocolId,
@@ -403,12 +471,15 @@ export class ReceptionService {
       throw new BadRequestException('Máximo 50 archivos permitidos por carga.');
     }
 
-    const savedDocuments: ReceptionDocumentOrmEntity[] = [];
+    const savedDocuments: DocumentOrmEntity[] = [];
     for (const docDto of dto.documents) {
-      const doc = await this.uploadDocument({
-        ...docDto,
-        protocolId: dto.protocolId,
-      }, uploadedBy);
+      const doc = await this.uploadDocument(
+        {
+          ...docDto,
+          protocolId: dto.protocolId,
+        },
+        uploadedBy,
+      );
       savedDocuments.push(doc);
     }
     return savedDocuments;
@@ -479,6 +550,19 @@ export class ReceptionService {
       await this.protocolRepository.update(protocolId, {
         receptionStatus: ReceptionStatus.COMPLETO,
       });
+
+      // CRÍTICO 4: Crear automáticamente la Versión 1 en versiones_protocolo
+      const existingVersion = await this.versionRepository.findOne({
+        where: { protocolId, versionNumber: 1 },
+      });
+      if (!existingVersion) {
+        await this.versionRepository.save({
+          protocolId,
+          versionNumber: 1,
+          submissionDate: now,
+          statusId: 1, // Estado inicial
+        });
+      }
     } else {
       reception.hasMissingItems = true;
       reception.missingItemsList = missingItems;
@@ -517,6 +601,7 @@ export class ReceptionService {
     userId: number,
     statusId: number,
     observations?: string,
+    pageCount?: number,
   ) {
     const document =
       await this.receptionRepository.findDocumentById(documentId);
@@ -536,12 +621,13 @@ export class ReceptionService {
     await this.receptionRepository.saveDocument({
       ...document,
       isValidatedBySecretary: true,
+      pageCount: pageCount !== undefined ? pageCount : document.pageCount,
     });
 
     // 3. Sincronización Automática con el Checklist (Punto Clave Fase 3)
     if (document.requirementId) {
       let newStatus: RequirementStatus;
-      
+
       if (statusId === DocumentValidationStatus.APROBADO) {
         newStatus = RequirementStatus.APROBADO;
       } else {
@@ -551,6 +637,7 @@ export class ReceptionService {
       await this.requirementRepository.update(document.requirementId, {
         status: newStatus,
         observations: observations || '',
+        pageCount: pageCount !== undefined ? pageCount : document.pageCount,
       });
     }
 
@@ -580,7 +667,8 @@ export class ReceptionService {
   }
 
   async archivarPorVencimiento(protocolId: number) {
-    const reception = await this.receptionRepository.findByProtocolId(protocolId);
+    const reception =
+      await this.receptionRepository.findByProtocolId(protocolId);
     if (!reception) throw new NotFoundException('Recepción no encontrada');
 
     reception.statusId = 4; // ARCHIVADO POR VENCIMIENTO
@@ -595,7 +683,7 @@ export class ReceptionService {
 
   async emitirConstancia(protocolId: number) {
     const protocol = await this.protocolRepository.findById(protocolId, {
-      relations: ['principalInvestigator', 'studyType'],
+      relations: ['principalInvestigator', 'studyType', 'checklist'],
     } as any);
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
@@ -603,12 +691,25 @@ export class ReceptionService {
     const ceishCode = protocol.ceishCode || 'PENDIENTE-ASIGNACION';
     const now = new Date();
 
+    const latestVersion = await this.versionRepository.findOne({
+      where: { protocolId },
+      order: { versionNumber: 'DESC' },
+    });
+    const versionNum = latestVersion ? latestVersion.versionNumber : 1;
+
     const pdfBuffer = await this.pdfGenerator.generateReceptionCertificate({
       ceishCode: ceishCode,
       investigatorName: investigator?.fullName || 'Investigador',
       protocolTitle: protocol.title || 'Sin Título',
       date: now,
       studyType: protocol.studyType?.name || 'Observacional',
+      version: versionNum,
+      checklist:
+        protocol.checklist?.map((c) => ({
+          requirementName: c.requirementName,
+          status: c.status,
+          pageCount: c.pageCount || 0,
+        })) || [],
     });
 
     await this.emailService.sendReceptionComplete(
@@ -619,7 +720,8 @@ export class ReceptionService {
       pdfBuffer,
     );
 
-    const reception = await this.receptionRepository.findByProtocolId(protocolId);
+    const reception =
+      await this.receptionRepository.findByProtocolId(protocolId);
     if (reception) {
       reception.isCertificateIssued = true;
       reception.certificateDate = now;

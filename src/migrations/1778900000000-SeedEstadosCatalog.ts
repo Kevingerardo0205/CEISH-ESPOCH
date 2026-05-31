@@ -29,10 +29,14 @@ export class SeedEstadosCatalog1778900000000 implements MigrationInterface {
     `);
 
     // 3. Ajustar el valor de la secuencia para evitar colisiones de IDs en el futuro
-    await queryRunner.query(`SELECT pg_catalog.setval('catalogos.estados_id_seq', 14, true)`);
+    await queryRunner.query(
+      `SELECT pg_catalog.setval('catalogos.estados_id_seq', 14, true)`,
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DELETE FROM catalogos.estados WHERE id BETWEEN 1 AND 14`);
+    await queryRunner.query(
+      `DELETE FROM catalogos.estados WHERE id BETWEEN 1 AND 14`,
+    );
   }
 }

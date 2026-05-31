@@ -211,8 +211,25 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'ip_declaracion_no_iniciado', length: 45, nullable: true })
   affidavitIp?: string;
 
+  // E2: Aceptación de sometimiento a tiempos y reglamentos del comité
+  @Column({ name: 'sometimiento_tiempos_aceptado', default: false })
+  isTimelineTermsAccepted!: boolean;
+
+  @Column({
+    name: 'fecha_sometimiento_tiempos',
+    type: 'timestamp',
+    nullable: true,
+  })
+  timelineTermsAcceptedAt?: Date;
+
+  @Column({ name: 'ip_sometimiento_tiempos', length: 45, nullable: true })
+  timelineTermsAcceptedIp?: string;
+
   @Column({ name: 'version_actual', default: 1 })
   currentVersion!: number;
+
+  @Column({ name: 'nivel_riesgo_confirmado', default: false })
+  isRiskLevelDesignated!: boolean;
 
   @OneToMany(
     () => InvestigatorOrmEntity,

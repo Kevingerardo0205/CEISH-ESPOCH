@@ -38,4 +38,29 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isEmailVerified?: boolean;
+
+  @ApiProperty({ example: '0998887776', required: false })
+  @IsOptional()
+  @IsString()
+  phone?: string;
+
+  @ApiProperty({ example: 'Ecuatoriana', required: false })
+  @IsOptional()
+  @IsString()
+  nationality?: string;
+
+  @ApiProperty({ example: 'Docente Investigador', required: false })
+  @IsOptional()
+  @IsString()
+  position?: string;
+
+  @ApiProperty({ example: 'ESPOCH', required: false })
+  @IsOptional()
+  @IsString()
+  institution?: string;
+
+  @ApiProperty({ example: '1005-2021-224536', required: false })
+  @IsOptional()
+  @IsString()
+  senescytRegistration?: string;
 }

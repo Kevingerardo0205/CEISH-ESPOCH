@@ -54,11 +54,12 @@ export class RequirementsService {
     }
 
     // 2. Consultar relaciones por ID de estudio
-    const studyTypeRequirements = await this.tipoDocumentoEstudioRepository.find({
-      where: { tipoEstudioId: studyType.id },
-      relations: ['tipoDocumento'],
-      order: { tipoDocumentoId: 'ASC' },
-    });
+    const studyTypeRequirements =
+      await this.tipoDocumentoEstudioRepository.find({
+        where: { tipoEstudioId: studyType.id },
+        relations: ['tipoDocumento'],
+        order: { tipoDocumentoId: 'ASC' },
+      });
 
     this.logger.debug(
       `Encontrados ${studyTypeRequirements.length} requisitos base para estudio ID ${studyType.id}`,
@@ -82,17 +83,21 @@ export class RequirementsService {
       }
 
       // 3. Evaluar lógica condicional desde el JSON
-      const condicionJson = doc.condicionJson as any;
-      
-      // Si el JSON no tiene la clave para este tipo de estudio, 
-      // significa que no hay reglas condicionales específicas, 
+      const condicionJson = doc.condicionJson;
+
+      // Si el JSON no tiene la clave para este tipo de estudio,
+      // significa que no hay reglas condicionales específicas,
       // por lo tanto, se incluye si la tabla relacional lo dijo.
       const condiciones = condicionJson?.condiciones_por_tipo?.[typeCode];
 
       let shouldInclude = false;
-      const isConditional = Array.isArray(condiciones) && condiciones.length > 0;
+      const isConditional =
+        Array.isArray(condiciones) && condiciones.length > 0;
 
-      if (!condiciones || (Array.isArray(condiciones) && condiciones.length === 0)) {
+      if (
+        !condiciones ||
+        (Array.isArray(condiciones) && condiciones.length === 0)
+      ) {
         // Obligatorio por defecto para este tipo de estudio si no hay condiciones en el JSON
         shouldInclude = true;
       } else {

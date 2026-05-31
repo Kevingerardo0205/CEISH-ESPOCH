@@ -3,7 +3,9 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 export class FinalSanityCheckDocuments1778830000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // 0. Aumentar tamaño de columna a 100 por si acaso hay códigos largos
-    await queryRunner.query(`ALTER TABLE catalogos.tipos_documento ALTER COLUMN codigo_anexo TYPE VARCHAR(100)`);
+    await queryRunner.query(
+      `ALTER TABLE catalogos.tipos_documento ALTER COLUMN codigo_anexo TYPE VARCHAR(100)`,
+    );
 
     // 1. Asegurar que no hay códigos vacíos o nulos donde debería haberlos
     await queryRunner.query(`
@@ -20,10 +22,12 @@ export class FinalSanityCheckDocuments1778830000000 implements MigrationInterfac
     `);
 
     // 3. Garantizar que la tabla relacional esté completa
-    const types = await queryRunner.query("SELECT id, codigo FROM catalogos.tipos_estudio WHERE activo = true");
-    
+    const types = await queryRunner.query(
+      'SELECT id, codigo FROM catalogos.tipos_estudio WHERE activo = true',
+    );
+
     for (const t of types) {
-        await queryRunner.query(`
+      await queryRunner.query(`
             INSERT INTO catalogos.tipo_documento_estudio (tipo_documento_id, tipo_estudio_id, obligatorio)
             SELECT id, ${t.id}, true 
             FROM catalogos.tipos_documento 
