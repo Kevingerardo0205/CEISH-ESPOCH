@@ -1,5 +1,5 @@
-import { Module, OnModuleInit } from '@nestjs/common';
-import { APP_INTERCEPTOR } from '@nestjs/core';
+import { Module, OnModuleInit, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -15,6 +15,8 @@ import { NotificationsModule } from './modules/notifications/notifications.modul
 import { ThrottlerModule } from '@nestjs/throttler';
 import { EncryptionService } from './shared/encryption/encryption.service';
 import { setEncryptionService } from './shared/encryption/encryption.transformer';
+import { DosDefenseMiddleware } from './shared/middleware/dos-defense.middleware';
+import { ThrottleExceptionFilter } from './shared/filters/throttle-exception.filter';
 
 @Module({
   imports: [
@@ -32,10 +34,19 @@ import { setEncryptionService } from './shared/encryption/encryption.transformer
         return config;
       },
     }),
+    // Doble capa de protección ThrottlerModule — ISO 8.14 (Redundancia)
+    // Capa short : protección burst   — máx 5 req/segundo
+    // Capa medium: protección media   — máx 100 req/minuto
     ThrottlerModule.forRoot([
       {
-        ttl: 60000,
-        limit: 10,
+        name: 'short',
+        ttl: 1_000,
+        limit: 5,
+      },
+      {
+        name: 'medium',
+        ttl: 60_000,
+        limit: 100,
       },
     ]),
     AuthModule,
@@ -54,12 +65,29 @@ import { setEncryptionService } from './shared/encryption/encryption.transformer
       provide: APP_INTERCEPTOR,
       useClass: AuditInterceptor,
     },
+    // Filtro global: añade headers RFC 6585 a respuestas 429 del ThrottlerGuard
+    {
+      provide: APP_FILTER,
+      useClass: ThrottleExceptionFilter,
+    },
   ],
 })
-export class AppModule implements OnModuleInit {
+export class AppModule implements OnModuleInit, NestModule {
   constructor(private readonly encryptionService: EncryptionService) {}
 
   onModuleInit() {
     setEncryptionService(this.encryptionService);
+  }
+
+  /**
+   * Registra DosDefenseMiddleware globalmente para TODAS las rutas.
+   * Se ejecuta ANTES que cualquier guard o controlador (orden NestJS:
+   * Middleware → Guards → Interceptors → Controllers).
+   * Cumple NIST SC-5 (DoS Protection).
+   */
+  configure(consumer: MiddlewareConsumer) {
+    consumer
+      .apply(DosDefenseMiddleware)
+      .forRoutes('*');
   }
 }

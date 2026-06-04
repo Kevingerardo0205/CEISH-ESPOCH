@@ -1,4 +1,5 @@
 import { NestFactory } from '@nestjs/core';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import { SwaggerModule, DocumentBuilder } from '@nestjs/swagger';
 import { AppModule } from './app.module';
 import { HttpExceptionFilter } from './shared/filters/http-exception.filter';
@@ -6,7 +7,10 @@ import { ResponseInterceptor } from './shared/interceptors/response.interceptor'
 import { GlobalValidationPipe } from './shared/pipes/validation.pipe';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  // Confiar en el primer proxy para obtener IP real del cliente (Docker/nginx)
+  // Necesario para que DosDefenseMiddleware extraiga correctamente req.ip
+  app.set('trust proxy', 1);
   app.setGlobalPrefix('api');
 
   // Configuración de Swagger
@@ -29,6 +33,7 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useGlobalPipes(new GlobalValidationPipe());
+
 
   await app.listen(process.env.PORT ?? 3002);
   console.log(
