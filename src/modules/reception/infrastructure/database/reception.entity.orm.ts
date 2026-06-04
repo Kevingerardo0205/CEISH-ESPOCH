@@ -4,6 +4,7 @@ import {
   ManyToOne,
   JoinColumn,
   PrimaryGeneratedColumn,
+  OneToOne,
 } from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
@@ -16,7 +17,7 @@ export class ReceptionOrmEntity {
   @Column({ name: 'protocolo_id', unique: true })
   protocolId!: number;
 
-  @ManyToOne(() => ProtocolOrmEntity)
+  @OneToOne(() => ProtocolOrmEntity, (protocol) => protocol.reception)
   @JoinColumn({ name: 'protocolo_id' })
   protocol!: ProtocolOrmEntity;
 
@@ -58,8 +59,9 @@ export class ReceptionOrmEntity {
   @Column({ name: 'plazo_respuesta_dias', nullable: true })
   responseDeadlineDays?: number;
 
-  @Column({ name: 'codigo_ceish_generado', length: 50, nullable: true })
-  generatedCeishCode?: string;
+  get generatedCeishCode(): string | undefined {
+    return this.protocol?.ceishCode;
+  }
 
   @Column({ name: 'observaciones', type: 'text', nullable: true })
   observations?: string;

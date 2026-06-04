@@ -24,6 +24,7 @@ export class ConflictOfInterestService {
   async checkConflict(
     protocolId: number,
     evaluatorUserId: number,
+    preloadedIpProfile?: InvestigatorProfileOrmEntity,
   ): Promise<{ hasConflict: boolean; reason?: string; critical: boolean }> {
     // 1. Conflicto Crítico: ¿Es parte del equipo de investigación?
     const isTeamMember = await this.investigatorRepo.findOne({
@@ -40,15 +41,22 @@ export class ConflictOfInterestService {
     }
 
     // 2. Conflicto de Vínculo: ¿Pertenece a la misma Institución/Facultad que el IP?
-    const protocol = await this.protocolRepo.findOne({
-      where: { id: protocolId },
-      relations: ['principalInvestigator'],
-    });
+    let ipProfile: InvestigatorProfileOrmEntity | null | undefined =
+      preloadedIpProfile;
 
-    if (protocol && protocol.principalInvestigatorId) {
-      const ipProfile = await this.profileRepo.findOne({
-        where: { userId: protocol.principalInvestigatorId },
+    if (!ipProfile) {
+      const protocol = await this.protocolRepo.findOne({
+        where: { id: protocolId },
+        relations: ['principalInvestigator'],
       });
+
+      if (protocol && protocol.principalInvestigatorId) {
+        ipProfile = await this.profileRepo.findOne({
+          where: { userId: protocol.principalInvestigatorId },
+        });
+      }
+    }
+    if (ipProfile) {
       const evaluatorProfile = await this.profileRepo.findOne({
         where: { userId: evaluatorUserId },
       });

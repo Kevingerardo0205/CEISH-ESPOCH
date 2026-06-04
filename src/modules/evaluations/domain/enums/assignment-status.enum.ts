@@ -1,6 +1,6 @@
 export enum AssignmentStatus {
-  SUGGESTED = 1, // Sugerido por Presidenta
-  ASSIGNED = 2, // Confirmado por Secretaria (Inicia el plazo)
-  COMPLETED = 3, // Evaluación finalizada por Evaluador
-  ARCHIVED = 4, // Asignación descartada o vencida
+  SUGGESTED = 5, // Sugerido por Presidenta
+  ASSIGNED = 6, // Confirmado por Secretaria (Inicia el plazo)
+  COMPLETED = 7, // Evaluación finalizada por Evaluador
+  ARCHIVED = 8, // Asignación descartada o vencida
 }

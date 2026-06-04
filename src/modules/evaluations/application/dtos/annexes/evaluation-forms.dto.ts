@@ -37,6 +37,14 @@ export class Annex9Dto {
   @IsString()
   eticaPlazo?: string;
 
+  @ApiProperty({
+    required: false,
+    description: 'Observaciones detalladas de la evaluación ética',
+  })
+  @IsOptional()
+  @IsString()
+  eticaObservaciones?: string;
+
   // Evaluación Metodológica
   @ApiProperty({ enum: AspectResult })
   @IsEnum(AspectResult)
@@ -50,6 +58,14 @@ export class Annex9Dto {
   @IsString()
   metodologiaPlazo?: string;
 
+  @ApiProperty({
+    required: false,
+    description: 'Observaciones detalladas de la evaluación metodológica',
+  })
+  @IsOptional()
+  @IsString()
+  metodologiaObservaciones?: string;
+
   // Evaluación Jurídica
   @ApiProperty({ enum: AspectResult })
   @IsEnum(AspectResult)
@@ -62,6 +78,14 @@ export class Annex9Dto {
   @IsOptional()
   @IsString()
   juridicaPlazo?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Observaciones detalladas de la evaluación jurídica',
+  })
+  @IsOptional()
+  @IsString()
+  juridicaObservaciones?: string;
 }
 
 /**

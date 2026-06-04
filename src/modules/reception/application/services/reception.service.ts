@@ -53,7 +53,7 @@ export class ReceptionService {
    */
   async getValidationDetail(protocolId: number) {
     const protocol = await this.protocolRepository.findById(protocolId, {
-      relations: ['studyType', 'principalInvestigatorRecord', 'checklist'],
+      relations: ['studyType', 'principalInvestigator', 'checklist'],
     });
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
@@ -126,8 +126,7 @@ export class ReceptionService {
         ceishCode: protocol.ceishCode || 'TRÁMITE EN PROCESO',
         title: protocol.title,
         submissionDate: protocol.receptionDate || protocol.createdAt,
-        investigator:
-          protocol.principalInvestigatorRecord?.fullName || 'No asignado',
+        investigator: protocol.principalInvestigator?.fullName || 'No asignado',
         studyType: protocol.studyType?.name || 'No especificado',
       },
       checklist: checklistWithDocs,
@@ -243,10 +242,14 @@ export class ReceptionService {
 
     if (missingRequirements.length === 0) {
       reception.statusId = 2;
-      await this.protocolRepository.update(protocolId, {
-        receptionStatus: ReceptionStatus.COMPLETO,
-        receptionDate: now,
-      });
+      reception.receptionDate = now;
+      if (!protocol.ceishCode) {
+        protocol.ceishCode = await this.receptionRepository.generateCeishCode(
+          protocol.studyTypeId || protocol.studyType?.id || 1,
+          now.getFullYear(),
+        );
+        await this.protocolRepository.save(protocol);
+      }
       await this.receptionRepository.save(reception);
 
       // CRÍTICO 4: Crear automáticamente la Versión 1 en versiones_protocolo
@@ -262,10 +265,7 @@ export class ReceptionService {
         });
       }
 
-      const updatedProtocol =
-        await this.protocolRepository.findById(protocolId);
-
-      const ceishCode = updatedProtocol?.ceishCode || 'PENDIENTE-ASIGNACION';
+      const ceishCode = protocol.ceishCode || 'PENDIENTE-ASIGNACION';
 
       const pdfBuffer = await this.pdfGenerator.generateReceptionCertificate({
         ceishCode: ceishCode,
@@ -311,12 +311,8 @@ export class ReceptionService {
       reception.completionDeadlineDate =
         this.deadlineService.calculateSubmissionDeadline(now);
       const missingList = missingRequirements.join('\n');
-
-      await this.protocolRepository.update(protocolId, {
-        receptionStatus: ReceptionStatus.INCOMPLETO,
-        missingRequirements: missingList,
-        submissionDeadline: reception.completionDeadlineDate,
-      });
+      reception.missingItemsList = missingList;
+      reception.hasMissingItems = true;
 
       await this.receptionRepository.save(reception);
 
@@ -546,10 +542,17 @@ export class ReceptionService {
 
       reception.hasMissingItems = false;
       reception.statusId = 2;
-
-      await this.protocolRepository.update(protocolId, {
-        receptionStatus: ReceptionStatus.COMPLETO,
-      });
+      reception.receptionDate = now;
+      const protocolForCode =
+        await this.protocolRepository.findById(protocolId);
+      if (protocolForCode && !protocolForCode.ceishCode) {
+        protocolForCode.ceishCode =
+          await this.receptionRepository.generateCeishCode(
+            protocolForCode.studyTypeId || 1,
+            now.getFullYear(),
+          );
+        await this.protocolRepository.save(protocolForCode);
+      }
 
       // CRÍTICO 4: Crear automáticamente la Versión 1 en versiones_protocolo
       const existingVersion = await this.versionRepository.findOne({
@@ -570,12 +573,6 @@ export class ReceptionService {
       reception.completionDeadlineDate =
         this.deadlineService.calculateSubmissionDeadline(now);
       reception.missingItemsNotificationDate = now;
-
-      await this.protocolRepository.update(protocolId, {
-        receptionStatus: ReceptionStatus.INCOMPLETO,
-        missingRequirements: missingItems,
-        submissionDeadline: reception.completionDeadlineDate,
-      });
     }
 
     const saved = await this.receptionRepository.save(reception);
@@ -641,18 +638,17 @@ export class ReceptionService {
       });
     }
 
-    // 4. Actualizar estado del protocolo si es necesario
-    const protocol = await this.protocolRepository.findById(
+    // 4. Actualizar estado de la recepción si es necesario
+    const receptionForVal = await this.receptionRepository.findByProtocolId(
       document.protocolId,
     );
     if (
-      protocol &&
-      protocol.receptionStatus !== ReceptionStatus.EN_REVISION_SECRETARIA &&
-      protocol.receptionStatus !== ReceptionStatus.COMPLETO
+      receptionForVal &&
+      receptionForVal.statusId !== 5 && // EN_REVISION_SECRETARIA
+      receptionForVal.statusId !== 2 // COMPLETO
     ) {
-      await this.protocolRepository.update(protocol.id, {
-        receptionStatus: ReceptionStatus.EN_REVISION_SECRETARIA,
-      });
+      receptionForVal.statusId = 5;
+      await this.receptionRepository.save(receptionForVal);
     }
 
     return DocumentValidationMapper.toResponse(validation);
@@ -673,10 +669,6 @@ export class ReceptionService {
 
     reception.statusId = 4; // ARCHIVADO POR VENCIMIENTO
     await this.receptionRepository.save(reception);
-
-    await this.protocolRepository.update(protocolId, {
-      receptionStatus: 'ARCHIVADO' as any,
-    });
 
     return { message: 'Protocolo archivado por vencimiento de plazo.' };
   }
@@ -729,5 +721,17 @@ export class ReceptionService {
     }
 
     return { message: 'Constancia emitida y enviada exitosamente.' };
+  }
+
+  async updateReceptionStatus(protocolId: number, statusId: number) {
+    const reception =
+      await this.receptionRepository.findByProtocolId(protocolId);
+    if (!reception) {
+      throw new NotFoundException(
+        `No se encontró la recepción para el protocolo ${protocolId}`,
+      );
+    }
+    reception.statusId = statusId;
+    return this.receptionRepository.save(reception);
   }
 }

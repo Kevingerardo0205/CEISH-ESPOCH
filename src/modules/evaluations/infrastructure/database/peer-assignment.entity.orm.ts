@@ -39,6 +39,9 @@ export class PeerRiskAssignmentOrmEntity {
   @Column({ name: 'observaciones', type: 'text', nullable: true })
   observations?: string;
 
+  @Column({ name: 'ruta_informe_pdf', length: 500, nullable: true })
+  reportPath?: string;
+
   @CreateDateColumn({ name: 'fecha_asignacion', type: 'timestamp' })
   assignedAt!: Date;
 

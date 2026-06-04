@@ -1,4 +1,11 @@
-import { Entity, Column, ManyToOne, JoinColumn, OneToMany } from 'typeorm';
+import {
+  Entity,
+  Column,
+  ManyToOne,
+  JoinColumn,
+  OneToMany,
+  OneToOne,
+} from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { StudyTypeOrmEntity } from './study-type.entity.orm';
 import { RiskLevelOrmEntity } from './risk-level.entity.orm';
@@ -9,17 +16,23 @@ import { InvestigatorOrmEntity } from './investigator.entity.orm';
 import { ParticipatingInstitutionOrmEntity } from './participating-institution.entity.orm';
 import { ProtocolRequirementOrmEntity } from './protocol-requirement.entity.orm';
 import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
+import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
+import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 
 @Entity({ name: 'protocolos', schema: 'public' })
 export class ProtocolOrmEntity extends BaseOrmEntity {
-  @Column({ name: 'codigo_ceish', unique: true, length: 100, nullable: true })
+  @OneToOne(() => ReceptionOrmEntity, (reception) => reception.protocol)
+  reception?: ReceptionOrmEntity;
+
+  @Column({ name: 'codigo_ceish', length: 50, nullable: true, unique: true })
   ceishCode?: string;
 
   @Column({ name: 'titulo', length: 1000, nullable: true })
   title?: string;
 
-  @Column({ name: 'version', length: 20, default: '1.0' })
-  version!: string;
+  get version(): string {
+    return `${this.currentVersion || 1}.0`;
+  }
 
   @ManyToOne(() => StudyTypeOrmEntity)
   @JoinColumn({ name: 'tipo_estudio_id' })
@@ -48,19 +61,12 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'investigador_principal_id' })
   principalInvestigatorId!: number;
 
-  // E3: Nueva fuente de verdad para el IP
-  @ManyToOne(() => InvestigatorOrmEntity)
-  @JoinColumn({ name: 'investigador_principal_inv_id' })
-  principalInvestigatorRecord?: InvestigatorOrmEntity;
-
-  @Column({ name: 'investigador_principal_inv_id', nullable: true })
-  principalInvestigatorRecordId?: number;
-
   @Column({ name: 'estado_id', nullable: true })
   statusId?: number;
 
-  @Column({ name: 'fecha_recepcion', type: 'timestamp', nullable: true })
-  receptionDate?: Date;
+  get receptionDate(): Date | undefined {
+    return this.reception?.receptionDate;
+  }
 
   @Column({
     name: 'monto_financiamiento',
@@ -131,56 +137,61 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'duracion_estudio_meses', nullable: true })
   studyDurationMonths?: number;
 
-  @Column({
-    name: 'estado_recepcion',
-    type: 'enum',
-    enum: ReceptionStatus,
-    default: ReceptionStatus.PENDIENTE_SUBSANACION,
-  })
-  receptionStatus!: ReceptionStatus;
+  get receptionStatus(): ReceptionStatus {
+    const sId = this.reception?.statusId;
+    if (sId === 2) return ReceptionStatus.COMPLETO;
+    if (sId === 3) return ReceptionStatus.INCOMPLETO;
+    if (sId === 5) return ReceptionStatus.EN_REVISION_SECRETARIA;
+    if (sId === 4) return 'ARCHIVADO' as any;
+    return ReceptionStatus.PENDIENTE_SUBSANACION;
+  }
 
-  @Column({ name: 'requisitos_faltantes', type: 'text', nullable: true })
-  missingRequirements?: string;
+  get missingRequirements(): string | undefined {
+    return this.reception?.missingItemsList;
+  }
 
-  @Column({
-    name: 'fecha_limite_subsanacion',
-    type: 'timestamp',
-    nullable: true,
-  })
-  submissionDeadline?: Date;
+  get submissionDeadline(): Date | undefined {
+    return this.reception?.completionDeadlineDate;
+  }
 
-  @Column({ name: 'fecha_limite_respuesta', type: 'timestamp', nullable: true })
-  responseDeadline?: Date;
+  get responseDeadline(): Date | undefined {
+    if (!this.reception?.receptionDate || !this.reviewType) return undefined;
+    const days = this.reviewType === ReviewType.EXPEDITA ? 45 : 60;
+    const result = new Date(this.reception.receptionDate);
+    let count = 0;
+    while (count < days) {
+      result.setDate(result.getDate() + 1);
+      const dayOfWeek = result.getDay();
+      if (dayOfWeek !== 0 && dayOfWeek !== 6) {
+        count++;
+      }
+    }
+    return result;
+  }
 
-  @Column({ name: 'notificado_presidente', default: false })
-  isPresidentNotified!: boolean;
+  get isPresidentNotified(): boolean {
+    return false;
+  }
 
-  @Column({
-    name: 'fecha_notificacion_presidente',
-    type: 'timestamp',
-    nullable: true,
-  })
-  presidentNotificationDate?: Date;
+  get presidentNotificationDate(): Date | undefined {
+    return undefined;
+  }
 
-  @Column({ name: 'notificado_investigador', default: false })
-  isInvestigatorNotified!: boolean;
+  get isInvestigatorNotified(): boolean {
+    return false;
+  }
 
-  @Column({
-    name: 'fecha_notificacion_investigador',
-    type: 'timestamp',
-    nullable: true,
-  })
-  investigatorNotificationDate?: Date;
+  get investigatorNotificationDate(): Date | undefined {
+    return undefined;
+  }
 
-  @Column({ name: 'certificado_recepcion_emitido', default: false })
-  isReceptionCertificateIssued!: boolean;
+  get isReceptionCertificateIssued(): boolean {
+    return this.reception?.isCertificateIssued || false;
+  }
 
-  @Column({
-    name: 'fecha_emision_certificado',
-    type: 'timestamp',
-    nullable: true,
-  })
-  receptionCertificateDate?: Date;
+  get receptionCertificateDate(): Date | undefined {
+    return this.reception?.certificateDate;
+  }
 
   @Column({ name: 'poblacion_vulnerable', default: false })
   isVulnerablePopulation!: boolean;
@@ -225,8 +236,17 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'ip_sometimiento_tiempos', length: 45, nullable: true })
   timelineTermsAcceptedIp?: string;
 
-  @Column({ name: 'version_actual', default: 1 })
-  currentVersion!: number;
+  @OneToMany(() => ProtocolVersionOrmEntity, (version) => version.protocol, {
+    cascade: true,
+  })
+  versions!: ProtocolVersionOrmEntity[];
+
+  get currentVersion(): number {
+    if (this.versions && this.versions.length > 0) {
+      return Math.max(...this.versions.map((v) => v.versionNumber || 1));
+    }
+    return 1;
+  }
 
   @Column({ name: 'nivel_riesgo_confirmado', default: false })
   isRiskLevelDesignated!: boolean;

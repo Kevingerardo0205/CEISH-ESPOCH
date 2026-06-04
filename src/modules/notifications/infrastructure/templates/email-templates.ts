@@ -106,14 +106,22 @@ export const getReceptionCompleteTemplate = (
   ceishCode: string,
 ) =>
   getBaseTemplate(`
-  <h2>Constancia de Recepción Exitosa</h2>
-  <p>Estimado(a) <strong>${name}</strong>,</p>
-  <p>La recepción documental de su protocolo ha sido completada exitosamente.</p>
-  <div style="text-align: center; margin: 20px 0;">
-    <p><strong>Título:</strong> ${protocolTitle}</p>
-    <p><strong>Código de Trámite:</strong> <span style="font-size: 20px; color: #003366; font-weight: bold;">${ceishCode}</span></p>
+  <h2>Constancia de Recepción de Protocolo</h2>
+  <p>Estimado(a) investigador(a) <strong>${name}</strong>:</p>
+  <p>Reciba un cordial saludo de parte del Comité de Ética de Investigación en Seres Humanos (CEISH) de la ESPOCH.</p>
+  <p>Por medio de la presente, me permito remitir la recepción del protocolo: <strong>“${protocolTitle}”</strong>.</p>
+  <div style="text-align: center; margin: 20px 0; background-color: #f7f9fc; padding: 15px; border-radius: 5px; border: 1px solid #e2e8f0;">
+    <p style="margin: 5px 0;"><strong>Código de Trámite CEISH:</strong> <span style="font-size: 20px; color: #003366; font-weight: bold;">${ceishCode}</span></p>
   </div>
-  <p>Adjunto a este correo encontrará la constancia oficial en formato PDF.</p>
+  <p>Adjunto a este correo encontrará la constancia oficial de recepción en formato PDF.</p>
+  <div style="margin: 25px 0; padding: 15px; background-color: #fffbeb; border-left: 4px solid #d97706; border-radius: 4px;">
+    <h3 style="color: #b45309; margin-top: 0; font-size: 16px;">⚠️ NOTA IMPORTANTE PARA EL INICIO DE LA EVALUACIÓN:</h3>
+    <p style="margin: 5px 0; color: #78350f; font-size: 14px; font-weight: bold;">Se le recuerda que NO se iniciará la evaluación del protocolo si usted como investigador no acepta los tiempos de evaluación.</p>
+    <p style="margin: 10px 0 5px 0; color: #78350f; font-size: 14px;">Para agilizar su trámite, <b>ya no es necesario que responda manualmente a este correo</b>. Ahora puede realizar esta aceptación de forma inmediata y digital ingresando a la plataforma con el siguiente botón:</p>
+  </div>
+  <div style="text-align: center; margin-top: 25px;">
+    <a href="https://ceish-espoch.edu.ec/login" class="button" style="background-color: #003366; color: white;">Aceptar Tiempos de Evaluación en el Sistema</a>
+  </div>
 `);
 
 export const getPresidentNotificationTemplate = (

@@ -172,13 +172,15 @@ export class EvaluationsController {
   @Permissions(Permission.EVALUATORS_ASSIGN)
   @Audit('PEER_EVALUATORS_ASSIGNED')
   @ApiOperation({
-    summary: 'Secretaría asigna exactamente 2 evaluadores pares a un protocolo',
+    summary:
+      'Secretaría asigna evaluadores al protocolo (mínimo 4). 2 aleatorios para riesgo + todos para evaluación ética.',
   })
   async assignPeerEvaluators(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AssignPeerEvaluatorsDto,
+    @Request() req,
   ) {
-    return this.evaluationsService.assignPeerEvaluators(id, dto);
+    return this.evaluationsService.assignPeerEvaluators(id, dto, req.user.id);
   }
 
   @Get('peer-assignments/my-pending')
@@ -214,5 +216,19 @@ export class EvaluationsController {
   })
   async getActiveEvaluators() {
     return this.evaluationsService.getActiveEvaluators();
+  }
+
+  @Get('submit/protocol/:protocolId')
+  @ApiOperation({
+    summary: 'Obtener información de evaluación/conformidad para un protocolo',
+  })
+  async getSubmitProtocolInfo(
+    @Param('protocolId', ParseIntPipe) protocolId: number,
+    @Request() req,
+  ) {
+    return this.evaluationsService.getSubmitProtocolInfo(
+      protocolId,
+      req.user.id,
+    );
   }
 }

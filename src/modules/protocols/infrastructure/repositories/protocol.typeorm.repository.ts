@@ -6,6 +6,7 @@ import { ProtocolOrmEntity } from '../database/protocol.entity.orm';
 import { QueryProtocolDto } from '../../application/dtos/query-protocol.dto';
 import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
 import { getPaginationParams } from '../../../../shared/db/pagination.helper';
+import { ReceptionStatus } from '../../domain/enums/reception-status.enum';
 
 @Injectable()
 export class ProtocolTypeOrmRepository
@@ -22,7 +23,7 @@ export class ProtocolTypeOrmRepository
   async findById(id: number, options?: any): Promise<ProtocolOrmEntity | null> {
     return this.repo.findOne({
       where: { id },
-      relations: ['checklist'],
+      relations: ['checklist', 'reception', 'versions'],
       ...options,
     });
   }
@@ -32,8 +33,9 @@ export class ProtocolTypeOrmRepository
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.studyType', 'studyType')
       .leftJoinAndSelect('p.principalInvestigator', 'pi')
-      .where('p.receptionStatus IS NOT NULL')
-      .orderBy('p.receptionDate', 'DESC')
+      .leftJoinAndSelect('p.reception', 'reception')
+      .where('reception.statusId IS NOT NULL')
+      .orderBy('reception.receptionDate', 'DESC')
       .getMany();
   }
 
@@ -50,11 +52,20 @@ export class ProtocolTypeOrmRepository
       .leftJoinAndSelect('p.principalInvestigator', 'pi')
       .leftJoinAndSelect('p.investigators', 'investigators')
       .leftJoinAndSelect('p.institutions', 'institutions')
-      .leftJoinAndSelect('p.checklist', 'checklist');
+      .leftJoinAndSelect('p.checklist', 'checklist')
+      .leftJoinAndSelect('p.reception', 'reception')
+      .leftJoinAndSelect('p.versions', 'versions');
 
     if (studyType) qb.andWhere('studyType.code = :studyType', { studyType });
-    if (receptionStatus)
-      qb.andWhere('p.receptionStatus = :receptionStatus', { receptionStatus });
+    if (receptionStatus) {
+      let statusId = 1;
+      if (receptionStatus === ReceptionStatus.COMPLETO) statusId = 2;
+      else if (receptionStatus === ReceptionStatus.INCOMPLETO) statusId = 3;
+      else if (receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA)
+        statusId = 5;
+      else if (receptionStatus === ('ARCHIVADO' as any)) statusId = 4;
+      qb.andWhere('reception.statusId = :statusId', { statusId });
+    }
     if (reviewType) qb.andWhere('p.reviewType = :reviewType', { reviewType });
 
     if (query.investigatorId) {
@@ -65,7 +76,7 @@ export class ProtocolTypeOrmRepository
     }
 
     qb.skip(skip).take(limit);
-    qb.orderBy('p.receptionDate', 'DESC');
+    qb.orderBy('reception.receptionDate', 'DESC');
 
     return qb.getManyAndCount();
   }
@@ -75,8 +86,11 @@ export class ProtocolTypeOrmRepository
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
     return this.repo.count({
       where: {
-        receptionDate: Between(startOfYear, endOfYear),
+        reception: {
+          receptionDate: Between(startOfYear, endOfYear),
+        },
       },
+      relations: ['reception'],
     });
   }
 }

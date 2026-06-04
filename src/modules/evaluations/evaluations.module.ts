@@ -21,6 +21,8 @@ import { InvestigatorProfileOrmEntity } from '../auth/infrastructure/database/in
 import { ProtocolOrmEntity } from '../protocols/infrastructure/database/protocol.entity.orm';
 import { PeerRiskAssignmentOrmEntity } from './infrastructure/database/peer-assignment.entity.orm';
 import { RiskLevelOrmEntity } from '../protocols/infrastructure/database/risk-level.entity.orm';
+import { RevisionModalityOrmEntity } from './infrastructure/database/revision-modality.entity.orm';
+import { ResolutionTypeOrmEntity } from '../resolutions/infrastructure/database/resolution-type.entity.orm';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { RiskLevelOrmEntity } from '../protocols/infrastructure/database/risk-le
       ProtocolOrmEntity,
       PeerRiskAssignmentOrmEntity,
       RiskLevelOrmEntity,
+      RevisionModalityOrmEntity,
+      ResolutionTypeOrmEntity,
     ]),
 
     forwardRef(() => ProtocolsModule),

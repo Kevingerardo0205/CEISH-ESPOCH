@@ -96,10 +96,8 @@ export class ProtocolsService {
   async submit(id: number) {
     const protocol = await this.findOne(id);
 
-    // Cambiar estado a revisión por secretaría
-    await this.protocolsRepository.update(id, {
-      receptionStatus: ReceptionStatus.EN_REVISION_SECRETARIA,
-    });
+    // Cambiar estado a revisión por secretaría en la recepción
+    await this.receptionService.updateReceptionStatus(id, 5); // 5 = EN_REVISION_SECRETARIA
 
     return {
       message: 'Protocolo enviado exitosamente para revisión técnica.',
@@ -140,7 +138,6 @@ export class ProtocolsService {
       studyTypeId: cleanData.studyTypeId,
       principalInvestigatorId: cleanData.principalInvestigatorId,
       riskLevelId: cleanData.riskLevelId,
-      version: cleanData.version || '1.0',
       financingAmount: cleanData.financingAmount,
       financingSources: cleanData.financingSources,
       sponsorRuc: cleanData.sponsorRuc,
@@ -160,7 +157,6 @@ export class ProtocolsService {
       isAffidavitAccepted: true,
       affidavitDate: new Date(),
       affidavitIp: ipAddress,
-      currentVersion: 1,
     });
 
     try {
@@ -188,11 +184,6 @@ export class ProtocolsService {
         education: 'Información en perfil',
         role: InvestigatorRole.PRINCIPAL,
       } as any);
-
-      // Actualizar referencia en protocolo
-      await this.protocolsRepository.update(savedProtocol.id, {
-        principalInvestigatorRecordId: piRecord.id,
-      });
 
       // 5. Co-investigadores e Instituciones
       if (investigators?.length > 0) {

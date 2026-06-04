@@ -34,4 +34,8 @@ export abstract class IReceptionRepository {
     year: number,
     studyTypeCode: string,
   ): Promise<number>;
+  abstract generateCeishCode(
+    studyTypeId: number,
+    year: number,
+  ): Promise<string>;
 }

@@ -18,4 +18,14 @@ export class SubmitPeerRiskDto {
   @IsOptional()
   @IsString()
   observations?: string;
+
+  @ApiProperty({
+    description:
+      'Ruta al PDF firmado de la documentacion de evaluacion del par',
+    example: '/storage/evaluations/peer-report-123.pdf',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  reportPath?: string;
 }

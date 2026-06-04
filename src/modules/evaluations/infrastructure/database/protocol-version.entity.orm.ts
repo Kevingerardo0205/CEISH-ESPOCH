@@ -7,6 +7,7 @@ import {
 } from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
+import { ResolutionTypeOrmEntity } from '../../../resolutions/infrastructure/database/resolution-type.entity.orm';
 
 @Entity({ name: 'versiones_protocolo', schema: 'public' })
 export class ProtocolVersionOrmEntity {
@@ -16,7 +17,7 @@ export class ProtocolVersionOrmEntity {
   @Column({ name: 'protocolo_id' })
   protocolId!: number;
 
-  @ManyToOne(() => ProtocolOrmEntity)
+  @ManyToOne(() => ProtocolOrmEntity, (protocol) => protocol.versions)
   @JoinColumn({ name: 'protocolo_id' })
   protocol!: ProtocolOrmEntity;
 
@@ -32,8 +33,12 @@ export class ProtocolVersionOrmEntity {
   @Column({ name: 'fecha_resolucion', type: 'timestamp', nullable: true })
   resolutionDate?: Date;
 
-  @Column({ name: 'tipo_resolucion', length: 50, nullable: true })
-  resolutionType?: string;
+  @Column({ name: 'tipo_resolucion_id', nullable: true })
+  resolutionTypeId?: number;
+
+  @ManyToOne(() => ResolutionTypeOrmEntity)
+  @JoinColumn({ name: 'tipo_resolucion_id' })
+  resolutionType?: ResolutionTypeOrmEntity;
 
   @Column({ name: 'observaciones', type: 'text', nullable: true })
   observations?: string;

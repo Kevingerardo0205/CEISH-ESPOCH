@@ -87,4 +87,12 @@ export class ReceptionTypeOrmRepository
 
     return qb.getCount();
   }
+
+  async generateCeishCode(studyTypeId: number, year: number): Promise<string> {
+    const result = await this.repo.query(
+      'SELECT catalogos.generate_codigo_ceish($1, $2) as code',
+      [studyTypeId, year],
+    );
+    return result[0]?.code;
+  }
 }

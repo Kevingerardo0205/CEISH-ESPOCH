@@ -10,6 +10,7 @@ import { ProtocolVersionOrmEntity } from './protocol-version.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { EvaluatorProfileOrmEntity } from './evaluator-profile.entity.orm';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
+import { RevisionModalityOrmEntity } from './revision-modality.entity.orm';
 
 @Entity({ name: 'asignaciones_evaluacion', schema: 'evaluacion' })
 export class EvaluationAssignmentOrmEntity {
@@ -39,6 +40,10 @@ export class EvaluationAssignmentOrmEntity {
 
   @Column({ name: 'modalidad_id', nullable: true })
   modalityId?: number;
+
+  @ManyToOne(() => RevisionModalityOrmEntity)
+  @JoinColumn({ name: 'modalidad_id' })
+  modality?: RevisionModalityOrmEntity;
 
   @Column({
     name: 'estado_id',
@@ -72,6 +77,9 @@ export class EvaluationAssignmentOrmEntity {
   @Column({ name: 'recomendacion', length: 50, nullable: true })
   recommendation?: string;
 
+  @Column({ name: 'ruta_informe_pdf', length: 500, nullable: true })
+  reportPath?: string;
+
   @Column({ name: 'sugerido_por', nullable: true })
   suggestedByUserId?: number;
 
@@ -90,6 +98,14 @@ export class EvaluationAssignmentOrmEntity {
   @Column({ name: 'asignado_por', nullable: true })
   assignedByUserId?: number;
 
+  @ManyToOne(() => UserOrmEntity)
+  @JoinColumn({ name: 'asignado_por' })
+  assignedBy?: UserOrmEntity;
+
   @Column({ name: 'aprobado_asignacion_por', nullable: true })
   assignmentApprovedByUserId?: number;
+
+  @ManyToOne(() => UserOrmEntity)
+  @JoinColumn({ name: 'aprobado_asignacion_por' })
+  assignmentApprovedBy?: UserOrmEntity;
 }
