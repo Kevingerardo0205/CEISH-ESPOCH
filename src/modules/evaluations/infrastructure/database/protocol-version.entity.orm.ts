@@ -4,10 +4,12 @@ import {
   ManyToOne,
   JoinColumn,
   PrimaryGeneratedColumn,
+  OneToOne,
 } from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { ResolutionTypeOrmEntity } from '../../../resolutions/infrastructure/database/resolution-type.entity.orm';
+import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
 
 @Entity({ name: 'versiones_protocolo', schema: 'public' })
 export class ProtocolVersionOrmEntity {
@@ -55,4 +57,7 @@ export class ProtocolVersionOrmEntity {
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'validado_por' })
   validatedBy?: UserOrmEntity;
+
+  @OneToOne(() => ReceptionOrmEntity, (reception) => reception.version)
+  reception?: ReceptionOrmEntity;
 }

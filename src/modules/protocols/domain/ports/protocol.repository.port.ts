@@ -5,7 +5,9 @@ export abstract class IProtocolRepository {
   abstract findAll(
     query: QueryProtocolDto,
   ): Promise<[ProtocolOrmEntity[], number]>;
-  abstract findProtocolsForReception(): Promise<ProtocolOrmEntity[]>;
+  abstract findProtocolsForReception(
+    status?: string,
+  ): Promise<ProtocolOrmEntity[]>;
   abstract findById(
     id: number,
     options?: any,

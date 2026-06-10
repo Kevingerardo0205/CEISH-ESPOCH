@@ -256,11 +256,7 @@ export class DosDefenseMiddleware implements NestMiddleware {
    * Añade una IP a la blacklist temporal con metadata de auditoría.
    * Responde al control NIST SC-7 (Boundary Protection).
    */
-  private addToBlacklist(
-    ip: string,
-    violations: number,
-    path: string,
-  ): void {
+  private addToBlacklist(ip: string, violations: number, path: string): void {
     const blockedUntil = Date.now() + DOS_DEFENSE_CONFIG.DURACION_BLOQUEO_MS;
     const entry: BlacklistEntry = {
       blockedUntil,

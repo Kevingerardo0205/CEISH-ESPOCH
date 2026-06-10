@@ -21,8 +21,16 @@ import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/da
 
 @Entity({ name: 'protocolos', schema: 'public' })
 export class ProtocolOrmEntity extends BaseOrmEntity {
-  @OneToOne(() => ReceptionOrmEntity, (reception) => reception.protocol)
-  reception?: ReceptionOrmEntity;
+  @Column({ name: 'version_actual_id', nullable: true })
+  versionActualId?: number;
+
+  @ManyToOne(() => ProtocolVersionOrmEntity)
+  @JoinColumn({ name: 'version_actual_id' })
+  activeVersion?: ProtocolVersionOrmEntity;
+
+  get reception(): ReceptionOrmEntity | undefined {
+    return this.activeVersion?.reception;
+  }
 
   @Column({ name: 'codigo_ceish', length: 50, nullable: true, unique: true })
   ceishCode?: string;
@@ -139,10 +147,10 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
 
   get receptionStatus(): ReceptionStatus {
     const sId = this.reception?.statusId;
-    if (sId === 2) return ReceptionStatus.COMPLETO;
-    if (sId === 3) return ReceptionStatus.INCOMPLETO;
-    if (sId === 5) return ReceptionStatus.EN_REVISION_SECRETARIA;
-    if (sId === 4) return 'ARCHIVADO' as any;
+    if (sId === 10) return ReceptionStatus.COMPLETO;
+    if (sId === 11) return ReceptionStatus.INCOMPLETO;
+    if (sId === 15) return ReceptionStatus.EN_REVISION_SECRETARIA;
+    if (sId === 12) return 'ARCHIVADO' as any;
     return ReceptionStatus.PENDIENTE_SUBSANACION;
   }
 

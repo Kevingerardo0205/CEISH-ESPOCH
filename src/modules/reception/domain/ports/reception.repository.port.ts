@@ -7,6 +7,9 @@ export abstract class IReceptionRepository {
   abstract findByProtocolId(
     protocolId: number,
   ): Promise<ReceptionOrmEntity | null>;
+  abstract findByVersionId(
+    versionId: number,
+  ): Promise<ReceptionOrmEntity | null>;
   abstract save(
     entity: Partial<ReceptionOrmEntity>,
   ): Promise<ReceptionOrmEntity>;

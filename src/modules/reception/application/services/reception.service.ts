@@ -5,9 +5,11 @@ import {
   ConflictException,
   Inject,
   forwardRef,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { Permission } from '../../../../shared/enums/permission.enum';
 import { IReceptionRepository } from '../../domain/ports/reception.repository.port';
 import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
@@ -51,11 +53,22 @@ export class ReceptionService {
   /**
    * Obtiene el detalle completo para la pantalla de validación (Checklist)
    */
-  async getValidationDetail(protocolId: number) {
+  async getValidationDetail(protocolId: number, userId: number, userPermissions: string[]) {
     const protocol = await this.protocolRepository.findById(protocolId, {
-      relations: ['studyType', 'principalInvestigator', 'checklist'],
+      relations: ['studyType', 'principalInvestigator', 'checklist', 'investigators'],
     });
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
+
+    const hasOfficialPermission = userPermissions?.some((p) =>
+      [Permission.RECEPTION_VIEW, Permission.EVALUACION_RIESGO, Permission.EVALUATION_VIEW_MINE].includes(p as Permission)
+    );
+
+    const isOwner = protocol.principalInvestigatorId === userId;
+    const isCoInvestigator = protocol.investigators?.some((inv) => inv.userId === userId);
+
+    if (!hasOfficialPermission && !isOwner && !isCoInvestigator) {
+      throw new ForbiddenException('No tienes permisos para acceder al detalle de validación de este protocolo');
+    }
 
     const reception =
       await this.receptionRepository.findByProtocolId(protocolId);
@@ -144,8 +157,9 @@ export class ReceptionService {
   /**
    * Obtiene la lista completa de protocolos en bandeja de secretaría (optimizada y sin paginación)
    */
-  async getProtocolsForReception() {
-    const data = await this.protocolRepository.findProtocolsForReception();
+  async getProtocolsForReception(status?: string) {
+    const data =
+      await this.protocolRepository.findProtocolsForReception(status);
 
     return data.map((p) => ({
       id: p.id,
@@ -241,7 +255,7 @@ export class ReceptionService {
     const now = new Date();
 
     if (missingRequirements.length === 0) {
-      reception.statusId = 2;
+      reception.statusId = 10;
       reception.receptionDate = now;
       if (!protocol.ceishCode) {
         protocol.ceishCode = await this.receptionRepository.generateCeishCode(
@@ -307,7 +321,7 @@ export class ReceptionService {
           'Protocolo completado. Se ha enviado la constancia por correo al investigador.',
       };
     } else {
-      reception.statusId = 3;
+      reception.statusId = 11;
       reception.completionDeadlineDate =
         this.deadlineService.calculateSubmissionDeadline(now);
       const missingList = missingRequirements.join('\n');
@@ -343,12 +357,32 @@ export class ReceptionService {
     if (!protocol)
       throw new NotFoundException(`Protocol ${protocolId} not found`);
 
-    const existingReception =
-      await this.receptionRepository.findByProtocolId(protocolId);
-    if (existingReception)
+    // 1. Buscar o crear preventivamente la Versión 1 en versiones_protocolo
+    let version = await this.versionRepository.findOne({
+      where: { protocolId, versionNumber: 1 },
+    });
+    if (!version) {
+      version = await this.versionRepository.save({
+        protocolId,
+        versionNumber: 1,
+        submissionDate: new Date(),
+        statusId: 1, // Estado Inicial
+      });
+    }
+
+    // Actualizar la versión actual del protocolo
+    protocol.versionActualId = version.id;
+    await this.protocolRepository.save(protocol);
+
+    // 2. Comprobar si ya existe recepción para esta versión específica
+    const existingReception = await this.receptionRepository.findByVersionId(
+      version.id,
+    );
+    if (existingReception) {
       throw new ConflictException(
-        `Reception already exists for protocol ${protocolId}`,
+        `La recepción ya ha sido iniciada para la versión 1 del protocolo ${protocolId}`,
       );
+    }
 
     const studyTypeCode =
       (protocol.studyType?.code as StudyTypeCode) || StudyTypeCode.IO;
@@ -378,13 +412,14 @@ export class ReceptionService {
     }
 
     const reception = await this.receptionRepository.save({
-      protocolId,
+      versionId: version.id, // Vinculación limpia con la versión actual
       createdByUserId,
       receptionDate: new Date(),
-      statusId: 1,
+      statusId: 9,
     });
 
-    return ReceptionMapper.toResponse(reception);
+    const fullReception = await this.receptionRepository.findById(reception.id);
+    return ReceptionMapper.toResponse(fullReception!);
   }
 
   async findOneByProtocolId(protocolId: number) {
@@ -398,6 +433,9 @@ export class ReceptionService {
   }
 
   async uploadDocument(dto: UploadDocumentDto, uploadedBy: number) {
+    if (!dto.protocolId) {
+      throw new BadRequestException('El ID del protocolo es obligatorio');
+    }
     const protocol = await this.protocolRepository.findById(dto.protocolId);
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
@@ -412,6 +450,7 @@ export class ReceptionService {
 
     const document = await this.receptionRepository.saveDocument({
       protocolId: dto.protocolId,
+      versionId: protocol.versionActualId, // Asociamos el documento a la versión actual activa
       requirementId: dto.requirementId, // 3FN: Vínculo directo
       fileName: dto.fileName,
       path: dto.path,
@@ -541,7 +580,7 @@ export class ReceptionService {
       }
 
       reception.hasMissingItems = false;
-      reception.statusId = 2;
+      reception.statusId = 10;
       reception.receptionDate = now;
       const protocolForCode =
         await this.protocolRepository.findById(protocolId);
@@ -569,7 +608,7 @@ export class ReceptionService {
     } else {
       reception.hasMissingItems = true;
       reception.missingItemsList = missingItems;
-      reception.statusId = 3;
+      reception.statusId = 11;
       reception.completionDeadlineDate =
         this.deadlineService.calculateSubmissionDeadline(now);
       reception.missingItemsNotificationDate = now;
@@ -616,7 +655,7 @@ export class ReceptionService {
 
     // 2. Marcar documento como procesado
     await this.receptionRepository.saveDocument({
-      ...document,
+      id: document.id,
       isValidatedBySecretary: true,
       pageCount: pageCount !== undefined ? pageCount : document.pageCount,
     });
@@ -644,10 +683,10 @@ export class ReceptionService {
     );
     if (
       receptionForVal &&
-      receptionForVal.statusId !== 5 && // EN_REVISION_SECRETARIA
-      receptionForVal.statusId !== 2 // COMPLETO
+      receptionForVal.statusId !== 15 && // EN_REVISION_SECRETARIA
+      receptionForVal.statusId !== 10 // COMPLETO
     ) {
-      receptionForVal.statusId = 5;
+      receptionForVal.statusId = 15;
       await this.receptionRepository.save(receptionForVal);
     }
 
@@ -667,7 +706,7 @@ export class ReceptionService {
       await this.receptionRepository.findByProtocolId(protocolId);
     if (!reception) throw new NotFoundException('Recepción no encontrada');
 
-    reception.statusId = 4; // ARCHIVADO POR VENCIMIENTO
+    reception.statusId = 12; // ARCHIVADO POR VENCIMIENTO
     await this.receptionRepository.save(reception);
 
     return { message: 'Protocolo archivado por vencimiento de plazo.' };

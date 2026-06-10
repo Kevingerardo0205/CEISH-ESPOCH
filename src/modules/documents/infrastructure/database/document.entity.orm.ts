@@ -10,6 +10,7 @@ import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/pr
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { TipoDocumentoOrmEntity } from '../../../protocols/infrastructure/database/tipo-documento.entity.orm';
 import { ProtocolRequirementOrmEntity } from '../../../protocols/infrastructure/database/protocol-requirement.entity.orm';
+import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 
 @Entity({ name: 'documentos', schema: 'recepcion' })
 export class DocumentOrmEntity {
@@ -22,6 +23,13 @@ export class DocumentOrmEntity {
   @ManyToOne(() => ProtocolOrmEntity)
   @JoinColumn({ name: 'protocolo_id' })
   protocol!: ProtocolOrmEntity;
+
+  @Column({ name: 'version_id', nullable: true })
+  versionId?: number;
+
+  @ManyToOne(() => ProtocolVersionOrmEntity)
+  @JoinColumn({ name: 'version_id' })
+  version?: ProtocolVersionOrmEntity;
 
   @Column({ name: 'requisito_id', nullable: true })
   requirementId?: number;

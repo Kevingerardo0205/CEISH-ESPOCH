@@ -23,20 +23,40 @@ export class ProtocolTypeOrmRepository
   async findById(id: number, options?: any): Promise<ProtocolOrmEntity | null> {
     return this.repo.findOne({
       where: { id },
-      relations: ['checklist', 'reception', 'versions'],
+      relations: [
+        'checklist',
+        'activeVersion',
+        'activeVersion.reception',
+        'versions',
+      ],
       ...options,
     });
   }
 
-  async findProtocolsForReception(): Promise<ProtocolOrmEntity[]> {
-    return this.repo
+  async findProtocolsForReception(
+    status?: string,
+  ): Promise<ProtocolOrmEntity[]> {
+    const qb = this.repo
       .createQueryBuilder('p')
       .leftJoinAndSelect('p.studyType', 'studyType')
       .leftJoinAndSelect('p.principalInvestigator', 'pi')
-      .leftJoinAndSelect('p.reception', 'reception')
-      .where('reception.statusId IS NOT NULL')
-      .orderBy('reception.receptionDate', 'DESC')
-      .getMany();
+      .leftJoinAndSelect('p.activeVersion', 'activeVersion')
+      .leftJoinAndSelect('activeVersion.reception', 'reception')
+      .where('reception.statusId IS NOT NULL');
+
+    if (status) {
+      if (status === 'pendientes') {
+        qb.andWhere('reception.statusId IN (9, 15)');
+      } else if (status === 'incompletos') {
+        qb.andWhere('reception.statusId = 11');
+      } else if (status === 'validados') {
+        qb.andWhere('reception.statusId = 10');
+      } else if (status === 'archivados') {
+        qb.andWhere('reception.statusId = 12');
+      }
+    }
+
+    return qb.orderBy('reception.receptionDate', 'DESC').getMany();
   }
 
   async findAll(
@@ -53,18 +73,29 @@ export class ProtocolTypeOrmRepository
       .leftJoinAndSelect('p.investigators', 'investigators')
       .leftJoinAndSelect('p.institutions', 'institutions')
       .leftJoinAndSelect('p.checklist', 'checklist')
-      .leftJoinAndSelect('p.reception', 'reception')
+      .leftJoinAndSelect('p.activeVersion', 'activeVersion')
+      .leftJoinAndSelect('activeVersion.reception', 'reception')
       .leftJoinAndSelect('p.versions', 'versions');
 
     if (studyType) qb.andWhere('studyType.code = :studyType', { studyType });
-    if (receptionStatus) {
-      let statusId = 1;
-      if (receptionStatus === ReceptionStatus.COMPLETO) statusId = 2;
-      else if (receptionStatus === ReceptionStatus.INCOMPLETO) statusId = 3;
-      else if (receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA)
-        statusId = 5;
-      else if (receptionStatus === ('ARCHIVADO' as any)) statusId = 4;
-      qb.andWhere('reception.statusId = :statusId', { statusId });
+    if (query.subsanar === 'true' || (query.subsanar as any) === true) {
+      qb.andWhere(
+        '(reception.statusId = 9 OR reception.statusId IS NULL OR reception.id IS NULL OR reception.statusId = 11)',
+      );
+    } else if (receptionStatus) {
+      if (receptionStatus === ReceptionStatus.PENDIENTE_SUBSANACION) {
+        qb.andWhere(
+          '(reception.statusId = 9 OR reception.statusId IS NULL OR reception.id IS NULL)',
+        );
+      } else {
+        let statusId = 9;
+        if (receptionStatus === ReceptionStatus.COMPLETO) statusId = 10;
+        else if (receptionStatus === ReceptionStatus.INCOMPLETO) statusId = 11;
+        else if (receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA)
+          statusId = 15;
+        else if (receptionStatus === ('ARCHIVADO' as any)) statusId = 12;
+        qb.andWhere('reception.statusId = :statusId', { statusId });
+      }
     }
     if (reviewType) qb.andWhere('p.reviewType = :reviewType', { reviewType });
 
@@ -76,7 +107,7 @@ export class ProtocolTypeOrmRepository
     }
 
     qb.skip(skip).take(limit);
-    qb.orderBy('reception.receptionDate', 'DESC');
+    qb.orderBy('p.updatedAt', 'DESC');
 
     return qb.getManyAndCount();
   }
@@ -86,11 +117,13 @@ export class ProtocolTypeOrmRepository
     const endOfYear = new Date(year, 11, 31, 23, 59, 59);
     return this.repo.count({
       where: {
-        reception: {
-          receptionDate: Between(startOfYear, endOfYear),
+        activeVersion: {
+          reception: {
+            receptionDate: Between(startOfYear, endOfYear),
+          },
         },
       },
-      relations: ['reception'],
+      relations: ['activeVersion', 'activeVersion.reception'],
     });
   }
 }

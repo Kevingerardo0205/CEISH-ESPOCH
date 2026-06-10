@@ -1,4 +1,9 @@
-import { Module, OnModuleInit, MiddlewareConsumer, NestModule } from '@nestjs/common';
+import {
+  Module,
+  OnModuleInit,
+  MiddlewareConsumer,
+  NestModule,
+} from '@nestjs/common';
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
@@ -17,6 +22,7 @@ import { EncryptionService } from './shared/encryption/encryption.service';
 import { setEncryptionService } from './shared/encryption/encryption.transformer';
 import { DosDefenseMiddleware } from './shared/middleware/dos-defense.middleware';
 import { ThrottleExceptionFilter } from './shared/filters/throttle-exception.filter';
+import { StorageModule } from './shared/storage/storage.module';
 
 @Module({
   imports: [
@@ -57,6 +63,7 @@ import { ThrottleExceptionFilter } from './shared/filters/throttle-exception.fil
     EvaluationsModule,
     ResolutionsModule,
     NotificationsModule,
+    StorageModule,
   ],
   controllers: [],
   providers: [
@@ -86,8 +93,6 @@ export class AppModule implements OnModuleInit, NestModule {
    * Cumple NIST SC-5 (DoS Protection).
    */
   configure(consumer: MiddlewareConsumer) {
-    consumer
-      .apply(DosDefenseMiddleware)
-      .forRoutes('*');
+    consumer.apply(DosDefenseMiddleware).forRoutes('*');
   }
 }

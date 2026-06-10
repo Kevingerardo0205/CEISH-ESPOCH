@@ -1,0 +1,733 @@
+Disponibilidad y Defensa contra Ataques (Stress
+Testing)
+Fernando P. Caiza-Vega1, Danilo G. Camacho-León1, Kevin A.
+Cepeda-Romero1, Elvis J. Lapo-Suarez1, Liliana B. Paguay-Carrillo1, Kevin G.
+Quilligana-Vivas1, Patricio I. Quishpe-Morales1, and Erick J. Quishpe-Paguay1
+Escuela Superior Politécnica de Chimborazo (ESPOCH), Riobamba, Ecuador
+{paul.caiza, danilo.camacho, kevin.cepeda, elvis.lapo, liliana.paguay,
+kevin.quilligana, patricio.quishpe, joel.quishpe}@espoch.edu.ec
+Resumen La disponibilidad es el pilar de la seguridad informática que
+más se nota cuando falla, hoy es el que más golpean los atacantes. Los
+ataques de Denegación de Servicio (DoS) dejaron de limitarse a saturar el
+ancho de banda. Ahora explotan la lógica de la Capa 7 con peticiones que
+parecen legítimas y tumban servicios con un volumen mínimo de tráfico.
+Este informe documenta el diseño y la validación de un mecanismo de de
+fensa contra ataques DoS sobre una aplicación web construida en Node.js
+con Express, alineado con los controles SC-5, SI-4 y CA-8 del NIST SP
+800-53 Rev. 5 y con los controles 8.6, 8.16 y 8.29 de ISO/IEC 27002:2022.
+Del lado defensivo se implementó un middleware con el algoritmo Sliding
+Window y un sistema de bloqueo temporal por dirección IP basado en
+reincidencia. Para validarlo se usó Apache JMeter, comparando dos es
+cenarios. El sistema sin defensas y el sistema con el middleware activo,
+midiendo tiempo de respuesta, distribución de códigos HTTP y consumo
+de recursos. Los resultados son claros. Sin protección, el servidor degra
+daba su rendimiento bajo carga y no se recuperaba. Con el middleware
+activo, las peticiones excedentes se contuvieron con respuestas 429 y 403
+sin afectar el tráfico legítimo. El trabajo muestra algo concreto. Los con
+troles normativos pueden bajarse a código real con un esfuerzo razonable
+en proyectos académicos y empresariales, y combinar limitación de tasa,
+bloqueo automático y pruebas de carga continuas constituye una defensa
+práctica frente a los DoS modernos de Capa 7.
+Keywords: Disponibilidad · Rate Limiting · ISO/IEC 27002 · NIST SP
+800-53 · Pruebas de Estrés.
+1. Introducción
+1.1. Contexto de la seguridad en la Capa 7 (Aplicación)
+La seguridad de red durante muchos años se enfocó en las capas bajas del
+modelo OSI. Filtrar paquetes, contener inundaciones UDP, detectar escaneos,
+cerrar conexiones raras en el perímetro. Esa parte hoy está bastante resuelta
+con firewalls perimetrales, balanceadores y servicios anti-DDoS de proveedores
+2
+F. P. Caiza-Vega et al.
+grandes. Lo que pasó es que los atacantes dejaron de insistir ahí. Se movieron
+hacia arriba, a la Capa 7, donde corren las aplicaciones web, las APIs REST y
+toda la lógica que el usuario realmente usa.
+Y ahí la cosa cambia bastante. Un ataque volumétrico se nota porque pega
+fuerte. Uno de Capa 7 no. Se mete entre el tráfico normal. Con mandar peticiones
+HTTP perfectamente válidas a un endpoint que cueste recursos ya alcanza para
+que el servidor empiece a fallar, y las alarmas tradicionales basadas en cantidad
+de paquetes ni se enteran [20]. Cloudflare reportó que en el último trimestre de
+2024 más de la mitad de los ataques DDoS que mitigaron iban contra aplicaciones
+HTTP, y casi tres de cada cuatro venían de botnets que se hacen pasar por
+navegadores reales [4]. Por eso ya no se habla tanto de ancho de banda cuando
+se discute disponibilidad. Se habla de hilos, de conexiones abiertas a la vez, de
+cuánto aguanta cada endpoint.
+Esto cambia quién tiene que ocuparse del problema. Antes uno podía confiar
+en que la infraestructura aguantaba. Ahora no. La propia aplicación tiene que
+saber cuándo algo huele mal y reaccionar antes de caer.
+1.2. La disponibilidad como pilar crítico de la seguridad informática
+La CIAosea Confidencialidad, Integridad y Disponibilidad es el marco con el
+que casi todos aprendemos seguridad. De los tres, la disponibilidad es la que más
+se nota cuando falla. Una filtración de datos puede pasar desapercibida durante
+semanas. Una caída no. El usuario la siente, el negocio la siente y muchas veces
+los medios también.
+Y eso cuesta caro. ITIC hace una encuesta anual sobre el costo por hora
+de las caídas de TI y los números son fuertes. Más del 90% de las empresas
+medianas y grandes calcula que perder una hora les sale arriba de USD 300.000,
+y un 40% lo ubica entre uno y cinco millones por hora [7]. En sectores como
+banca o salud la cifra es todavía peor. Hay variación según la industria, pero la
+conclusión es la misma. Caerse no es un dolor de cabeza operativo. Es plata que
+se pierde de forma medible.
+Aloanterior se suma una dimensión normativa. La norma ISO/IEC 27001:2022
+establece la disponibilidad como un objetivo verificable dentro del Sistema de
+Gestión de Seguridad de la Información, mientras que el estándar NIST SP 800
+53 Rev. 5 dedica una familia completa de controles, la SC, a la protección frente
+a interrupciones del servicio. De esta manera, mantener la continuidad operati
+va dejó de ser una buena práctica recomendada para convertirse en un requisito
+auditable.
+1.3. Objetivos del informe
+Este informe va a mostrar el proceso de diseño, implementación y validación
+de un mecanismo de defensa contra ataques de Denegación de Servicio aplicado
+a una aplicación web académica, tener en cuenta que se esta usando como re
+ferencia los marcos normativos ISO/IEC 27002:2022 y NIST SP 800-53 Rev. 5.
+Los objetivos son los siguientes.
+Controles de Disponibilidad y Defensa Activa en Arquitecturas Web
+3
+Revisar el estado actual de los ataques DoS de Capa 7 y los mecanismos
+utilizados para mitigarlos, mostrando importancia en los algoritmos de limi
+tación de tasa y el monitoreo continuo.
+Diseñar e implementar un middleware que pueda manejar las solicitudes por
+dirección IP y bloquee de forma automática a quienes reincidan, en alineación
+con los controles 8.6 y 8.16 de ISO/IEC 27002 y los controles SC-5 y SI-4 de
+NIST.
+Validar el funcionamiento del mecanismo mediante pruebas de carga con
+Apache JMeter, comparando el comportamiento del sistema con y sin defen
+sas activas, en correspondencia con el control CA-8 de NIST.
+2. Marco Teórico
+2.1. Marcos Normativos: ISO/IEC 27000 y NIST SP 800-53
+Las normas de la familia ISO/IEC 27000 definen lo que se necesita para
+crear y operar un Sistema de Gestión de Seguridad de la Información (SGSI).
+No entran en detalles de configuraciones técnicas, sino que ofrecen un esquema
+de gobernanza. Alamri y su equipo [1] aclaran que este marco ayuda a gestionar
+riesgos identificando de forma sistemática las amenazas y debilidades, y usando
+la norma ISO/IEC 27002 para elegir los controles operativos adecuados. Tal
+como menciona Karie y su equipo [11], la meta principal es que los procesos se
+vuelvan estándar, así las empresas podrán conseguir certificaciones oficiales que
+demuestren su seguridad ante el mundo.
+La publicación especial NIST SP 800-53, por su parte, proporciona un ca
+tálogo completo de controles técnicos y de privacidad. El NIST no pretende la
+certificación organizacional como lo hace la ISO, sino que su objetivo es proteger
+de manera táctica y directa los sistemas de información. Su modelo se estruc
+tura en cinco funciones operativas: Identificar, Proteger, Detectar, Responder
+y Recuperar. Cassottana con su equipo [3] indican que la profundidad técnica
+de estos controles posibilita su aplicación en redes tradicionales, así como en
+sistemas ciberfísicos (CPS) e infraestructuras críticas.
+En la construcción de sistemas seguros, las dos normativas suelen ser utili
+zadas juntas en vez de competir. La estructura organizacional y las políticas de
+gobernanza son aportadas por la norma ISO, pero el marco del NIST ofrece las
+directrices operativas requeridas para llevar a cabo esas políticas en términos
+prácticos. Varios estudios empíricos [1,11,3] están de acuerdo en que esta inte
+gración es fundamental en la ingeniería de software. Esto se debe a que posibilita
+la conversión de los requisitos estratégicos consignados en un SGSI en acciones
+técnicas y cuantificables para el ciclo de vida de la aplicación.
+2.2. Evolución de los ataques de Denegación de Servicio (DoS)
+Los primeros ataques DoS grandes aparecieron a finales de los noventa y se
+daban en las capas bajas de la red. La idea era simple, mandar mucho tráfico
+4
+F. P. Caiza-Vega et al.
+de golpe para saturar la conexión y dejar al servidor sin poder responder a los
+usuarios reales. Métodos como las inundaciones SYN, el abuso del ICMP tipo
+Smurf y la saturación con paquetes UDP eran los más comunes, y la defensa se
+armó al mismo nivel con filtros en el firewall y listas de IPs bloqueadas.
+A medida que los ISPs y los proveedores grandes aprendieron a contener ese
+tráfico volumétrico, los atacantes hicieron lo lógico. Buscaron por dónde la defen
+sa era más débil. Tripathi y Hubballi muestran cómo desde la segunda década
+de los 2000 el problema se movió hacia la Capa de Aplicación, aprovechando
+que cada petición HTTP cuesta caro del lado del servidor. Hilos, conexiones de
+base de datos, ciclos de CPU para renderizar plantillas, memoria para sostener
+sesiones. Todo eso se consume con cada request [20]. El cambio operativo es im
+portante. Ya no hace falta una botnet enorme. Con unos cientos de conexiones
+bien orquestadas alcanza para tumbar un servidor.
+Dentro de esta familia hay dos sub-categorías que marcaron un quiebre. La
+primera son los ataques de flooding de Capa 7, como HTTP GET y POST
+flood, que disparan muchas peticiones aparentemente válidas hacia endpoints
+costosos del backend. La segunda y más insidiosa son los ataques de baja tasa o
+slow attacks, con Slowloris como el más conocido. En lugar de saturar con volu
+men, Slowloris abre muchas conexiones HTTP y las mantiene vivas mandando
+cabeceras incompletas a un ritmo deliberadamente lento. Así agota el pool de
+conexiones del servidor sin generar tráfico que parezca anómalo [9]. Variantes
+como R.U.D.Y. y los ataques sobre HTTP/2 Rapid Reset llevaron la misma
+lógica a protocolos más nuevos.
+El estado actual del problema es fuerte. El reporte de Cloudflare del cuarto
+trimestre de 2024 habla de más de 6,9 millones de ataques DDoS mitigados solo
+en ese período, con un crecimiento interanual del 53% y una distribución casi
+pareja entre ataques de Capa 3/4 y de Capa 7. Y un dato que vale subrayar. El
+73%delos ataques HTTP venían de botnets reconocidas que imitan navegadores
+legítimos para esquivar los filtros tradicionales [4]. Esto obliga a repensar la
+defensa. Ya no alcanza con bloquear tráfico raro en el perímetro. La aplicación
+misma tiene que tener mecanismos capaces de leer patrones sutiles de abuso.
+2.3. Mecanismos modernos de mitigación a nivel de aplicación
+Frente a ese panorama, la defensa contra DoS en Capa 7 dejó de descansar
+en una sola línea. Hoy se arma como un sistema de capas que se complementan,
+cada una atendiendo un tipo de amenaza distinto. En la práctica industrial le
+llaman defensa en profundidad.
+La primera capa son los Web Application Firewalls (WAF), que se co
+locan entre el cliente y el servidor. Su tarea es revisar cada petición que llega y
+cortar las que tengan patrones maliciosos conocidos, como inyecciones o abusos
+típicos de herramientas de ataque. Los WAF actuales también usan reglas que
+se actualizan solas y tienen en cuenta la reputación de las IPs, y en entornos
+cloud se ofrecen directamente como servicio.
+La segunda capa, que es el corazón de este informe, es el rate limiting
+o limitación de tasa. La idea es simple. Restringir cuántas peticiones puede
+Controles de Disponibilidad y Defensa Activa en Arquitecturas Web
+5
+mandar una misma fuente, ya sea IP, token de API o usuario autenticado, en
+un intervalo definido. A diferencia del WAF, que decide caso por caso si una
+petición es legítima, el rate limiting trabaja sobre el volumen agregado. Esa
+diferencia lo hace especialmente eficaz contra flooding y fuerza bruta. Tripathi
+y Hubballi argumentan que estos algoritmos, cuando se implementan dentro de
+la aplicación y no solo en el balanceador, dan un control mucho más fino sobre
+los endpoints sensibles [20].
+Una tercera línea son los sistemas de detección basados en aprendi
+zaje automático. Analizan series temporales de tráfico, como frecuencia de
+conexiones, distribución de cabeceras y tiempos entre peticiones, y aprenden a
+separar patrones normales de patrones anómalos. Trabajos recientes muestran
+que algoritmos como Random Forest, SVM y redes neuronales convolucionales
+detectan ataques Slowloris en tiempo real con tasas de acierto por encima del
+95%, cubriendo justo el flanco que los enfoques de umbral fijo dejan abierto
+frente a los ataques de baja tasa [9].
+Por último, en el extremo más cercano al cliente, los servicios de mitigación
+distribuida tipo CDN como Cloudflare, Akamai y Fastly absorben el tráfico
+antes de que llegue al servidor de origen, usando su escala global para diluir
+cualquier intento volumétrico. El reporte trimestral de Cloudflare muestra que
+el 73% de los ataques HTTP que mitigaron en 2024Q4 se neutralizaron de for
+ma autónoma con sus heurísticas internas. Eso confirma algo simple. Combinar
+inteligencia centralizada con defensa local en la aplicación funciona [4].
+Ninguna de estas capas por sí sola alcanza. Un WAF mal configurado deja
+pasar tráfico raro de bajo volumen. Un rate limiter sin lógica de bloqueo persis
+tente se evade esperando el reinicio de la ventana. Un modelo de ML sin reglas
+duras complementarias entrega falsos positivos que cuestan caros. La estrategia
+razonable, y la que se aplica en este trabajo, es combinar limitación de tasa,
+bloqueo automático por reincidencia y monitoreo continuo dentro del propio
+backend.
+2.4. Rate Limiting (Limitación de tasa): Algoritmos
+Controlar la falta de recursos y prevenir los ataques de Denegación de Servicio
+es precisamente lo que realiza el control del tráfico en la Capa 7. La Tabla 1 que
+se muestra más adelante se indican las ventajas y como funcionan de manera
+simple cuatro algoritmos revisados en la documentación técnica.
+Hay una discusión a nivel técnico acerca del algoritmo Sliding Window: Bart
+kov y Borovikov [2] sostienen que guardar marcas de tiempo requiere una gran
+cantidad de memoria y procesamiento. No obstante, Guan [5] muestra que si se
+aplica este algoritmo con estructuras de datos eficaces, la latencia se reduce a
+operaciones logarítmicas y se alcanza la exactitud sin saturar la infraestructura.
+En la práctica empírica, Manoharan [15] constató que el Rate Limiting, cuan
+do se combina con machine learning, disminuye los intentos exitosos de DDoS
+en un 94% en contextos SaaS. En particular, el modelo Sliding Window obtuvo
+solo un 2.3% de falsos positivos en situaciones de carga extrema.
+6
+F. P. Caiza-Vega et al.
+Cuadro 1. Comparativa de algoritmos de Rate Limiting.
+Algoritmo
+Funcionamiento
+Ventaja
+Token Bucket
+(Cubo de To
+kens)
+Acumula tokens a una velo
+cidad constante; cada solici
+tud usa uno.
+Desventaja
+Permite picos de trá
+fico de manera efi
+ciente.
+Requiere una confi
+guración y ajuste de
+parámetros complica
+dos.
+Leaky Bucket
+(Cubo
+con
+fugas)
+Encola y procesa las solici
+tudes a una velocidad de sa
+lida fija.
+Utiliza la memoria
+de forma predecible y
+suaviza los picos de
+carga.
+Existe el riesgo de un
+bloqueo temporal si
+la cola se llena.
+Fixed Window
+(Ventana Fija)
+Cuenta las solicitudes den
+tro de un periodo de tiempo
+fijo y luego se reinicia.
+Es súper simple y usa
+poca memoria.
+Puede tener proble
+mas con picos de trá
+fico justo en los bor
+des de la ventana
+Sliding
+Win
+dow (Ventana
+Deslizante)
+Calcula el tráfico proporcio
+nalmente o usando marcas
+de tiempo.
+Es muy preciso ya
+que evita problemas
+en los bordes.
+3. Desarrollo y Análisis
+Consume más memo
+ria por usuario.
+3.1. Justificación normativa en el ciclo de vida del desarrollo
+Si la seguridad se pospone hasta el momento del despliegue, el software queda
+expuesto a ser atacado a nivel de capa de aplicación. Hussain et al. [6] y Khan
+et al. [12] indican que el 80% de las brechas se producen debido a fallos en la
+implementación, por ejemplo, una autenticación rota o una validación inadecua
+da. Las organizaciones evitan esto implementando políticas de seguridad desde
+la etapa de diseño, en el marco del Ciclo de Vida para el Desarrollo Seguro de
+Software (S-SDLC), lo cual reduce los gastos asociados con el retrabajo y la
+intervención reactiva.
+Los desarrolladores se confunden al tener que cumplir con numerosos están
+dares. Con la norma ISO/IEC 27001:2022 como línea base, Innomesanghan et al.
+[8] abordan este problema de manera que cruzan las exigencias del SOC 2 y del
+NIST SP 800-53. Lee y su equipo [14] sugieren, de forma más táctica, el Softwa
+re Security Mapping Framework, un modelo que convierte requisitos normativos
+abstractos en más de 400 pasos técnicos aplicables para el SDLC, enlazando la
+política de alto nivel con la redacción directa del código. Esta transición hacia
+la validación continua se muestra en la Figura 1.
+3.2. Aplicación de los Controles ISO/IEC 8.6, 8.14 y NIST SC-5
+para la protección contra DoS
+Las normativas ISO/IEC 8.6 y NIST SC-5 exigen que la capacidad del sistema
+esté bien gestionada para asegurar su disponibilidad. Por su parte, el control
+ISO/IEC 8.14 va un paso más allá y pide que las instalaciones de procesamiento
+cuenten con redundancia. Kostiuk y su equipo [13] señalan que es fundamental
+Controles de Disponibilidad y Defensa Activa en Arquitecturas Web
+7
+Figura1. Flujo de transición desde los requisitos normativos abstractos hacia la vali
+dación técnica en el ciclo de vida de desarrollo.
+que las áreas de búfer a nivel de código puedan resistir ataques de denegación de
+servicio (DoS) y desbordamientos (buffer overflow), sin que esto ralentice otras
+funciones clave.
+Los sistemas actuales implementan tres acciones esenciales para garantizar
+la resiliencia (redundancia) y la capacidad:
+1. Búfer de tamaño dinámico (ISO 8.6): Ajustan la memoria temporal
+según cómo esté la red para que no se saturen los paquetes.
+2. Control de prioridades (User Priority): Ordenan el tráfico de usuarios
+normales con algoritmos en tiempo real, bloqueando o poniendo en espera
+el tráfico raro que intenta colapsar la red.
+3. Despliegue redundante (ISO 8.14): Al distribuir la carga entre varios
+nodos o balanceadores, se aseguran de que si un ataque llena los búferes de
+un equipo, todo el sistema siga funcionando.
+La figura 2 enseña cómo es esta arquitectura de contención. Básicamente lo
+que hace el filtro de prioridad es separar el tráfico que llega a la red del perímetro.
+Su trabajo es bloquear las peticiones raras antes de que se llene el búfer dinámico
+y se encarga de distribuir la carga para que no falle nada.
+Figura2. Arquitectura de contención perimetral mediante filtrado de prioridades y
+optimización de búfer dinámico.
+8
+F. P. Caiza-Vega et al.
+3.3. Aplicación del Control ISO/IEC 8.16 y NIST SI-4 para el
+monitoreo y respuesta automática
+Para que las plataformas puedan reaccionar ante incidentes, tanto el NIST
+SI-4 como el control ISO/IEC 8.16 exigen un análisis constante de los eventos.
+Los sistemas de gestión de eventos e información de seguridad (SIEM), como
+Wazuh, hacen un escaneo en tiempo real de los registros para identificar ataques
+DoS antes de que deterioren el servicio [17]. Además, se incorporan verificaciones
+automatizadas para asegurar la continuidad en el cumplimiento de las normas.
+El SIEM lleva a cabo un mecanismo de respuesta activa (Active Response)
+cuando identifica una tendencia anómala, como el mal uso de conexiones HTTP
+incompletas que se asocia con un ataque Slowloris. Esto activa un script que
+cierra la dirección IP dañina directamente en el firewall. Las métricas de eficiencia
+de esta automatización se describen en la tabla 2.
+Cuadro 2. Impacto de la Respuesta Activa ante ataques DoS multiobjetivo [17].
+Métrica de Rendimiento
+Resultado Observado
+Tiempo de inactividad (Downtime) sin respuesta activa 40 segundos
+Tiempo de inactividad (Downtime) con respuesta activa 0 segundos
+Tasa de éxito de mitigación
+100%
+Tiempo promedio de detección de anomalías
+10.36 segundos
+Tiempo promedio de ejecución del bloqueo (Firewall)
+50.36 segundos
+3.4. Aplicación del Control ISO/IEC 8.29 y NIST CA-8 para la
+validación y pruebas de seguridad
+En un S-SDLC serio, implementar pruebas de seguridad desde el diseño es
+obligatorio. ISO/IEC 27002 establece que los controles de seguridad deben ser
+verificados en la etapa de construcción, no posteriormente. Esto significa que se
+lleva a cabo un análisis de código estático, pruebas dinámicas de aplicaciones
+(DAST) y pruebas de penetración, para el código escrito manualmente y el
+creado por herramientas de inteligencia artificial [18].
+Es esencial aplicar controles de seguridad adecuados y procedimientos de
+gestión de riesgos, siguiendo el marco de ciberseguridad del NIST, en particular
+los requisitos para evaluaciones de seguridad que sean equivalentes al control
+CA-8. Incorporar pruebas automatizadas a lo largo del ciclo de desarrollo es
+crucial para adherirse a las regulaciones y detectar errores tempranamente, sin
+interrumpir el proceso de creación del software. La seguridad del sistema se con
+firma cuando utilizamos herramientas de pruebas automáticas, como SonarQube
+o Burp Suite, en combinación con un monitoreo constante de la seguridad. Esto
+nos proporciona información crucial para detectar y solucionar al instante las
+vulnerabilidades de las aplicaciones. [18]
+Controles de Disponibilidad y Defensa Activa en Arquitecturas Web
+9
+Para comprobar la resiliencia en situaciones reales, es necesario realizar prue
+bas de estrés que simulen picos de tráfico similares a los de un ataque DoS:
+varios usuarios simultáneos produciendo transacciones en intervalos breves. En
+la práctica, esto se logra mediante la combinación de herramientas de carga, co
+mo Apache JMeter, con pilas de monitoreo profundo, como Elastic Stack, y con
+agentes de recolección implementados directamente en los servidores. La causa
+de esa combinación es específica: posibilita correlacionar la carga simulada con el
+consumo real de CPU, memoria y ancho de banda, lo que permite identificar los
+cuellos de botella antes que un incidente en producción. Con eso se comprueba
+que las aplicaciones satisfacen los SLA en circunstancias extremas [19].
+4. Caso Práctico: Implementación de Controles de
+Defensa
+En esta sección se presenta el caso de implementación de los mecanismos
+de defensa. Para esto en el sistema SICACI se implementa la limitación de da
+tos basado en el control de solicitudes por dirección IP, complementado con el
+mecanismo de bloqueo temporal automático ante comportamientos anómalos.
+4.1. Arquitectura Definida
+Para el desarrollo de esta práctica de implementación de mecanismos de de
+fensa contra ataques de Denegación de Servicio (DoS) a nivel de aplicación se
+adopta una arquitectura basada en capas con un middleware central sobre un
+servidor web Node.js con el framework Express. La arquitectura que se imple
+menta está compuesta por algunos componentes principales que se describen a
+continuación.
+El servidor de aplicaciones, donde el backend del sistema SICACI actúa como
+el servidor HTTP encargado de exponer una API RESTful, donde toda solicitud
+pasa de forma obligatoria el mecanismo de protección antes de poder solicitar
+el servicio. El Middleware de Defensa DoS, que es el núcleo de defensa, es el
+componente software ubicado en la capa de entrada del servidor que intercepta
+todas las solicitudes, es donde se implementa los algoritmos de rate limiting y
+la gestión de las IP para que sean usados por los controladores de las rutas.
+Por último está el almacenamiento en memoria que se usa para almacenar el
+historial de las peticiones realizadas según la IP y el registro de IP’s bloqueadas.
+Este flujo y componentes funcionales se evidencia en la Fig. 3 que representa los
+componentes principales que se usan en el diseño de esta arquitectura.
+Esta solución propuesta responde a los estándares que se mencionan en la
+sección del marco teórico como son el mecanismo de control SC-5 (Denial-of
+Service Protection) del estándar NIST SP 800-53 Rev. 5 que solicita que los
+sistemas protejan sus servicios contra ataques de denegación de servicios, y del
+estándar ISO/IEC 27002:2022 que establece el control 8.6 (Gestión de la Capa
+cidad) donde se solicita que el uso de recursos sea monitoreado, principio que se
+aplica mediante el seguimiento de las peticiones por dirección IP.
+10
+F. P. Caiza-Vega et al.
+Figura3. Diagrama de Arquitectura del mecanismo de defensa.
+4.2. Diseño e Implementación de Rate Limiting
+Para el desarrollo del mecanismo de control de la tasa de solicitudes se re
+visó diferentes algoritmos que corresponde a este mecanismo, en la sección del
+marco teórico se menciona las características y vulnerabilidades de cada uno.
+En esta práctica se implementa el algoritmo Sliding Window por los argumentos
+presentados anteriormente en el marco teórico de este documento. De mane
+ra complementaria este algoritmo no presenta los problemas de ráfagas en los
+bordes de ventana donde el atacante puede enviar el doble de peticiones apro
+vechando el reinicio del contador en el servidor, además cada petición realizada
+deja un registro temporal en el historial de registro de las IP lo que permite la
+auditabilidad del sistema.
+Parámetros de Configuración. Para la implementación del rate limiting se
+configura los parámetros generales que permiten el funcionamiento del middle
+ware de defensa, estos parámetros del sistema se centralizan en la sección de
+configuración del sistema CONFIG dentro del módulo de defensa. Los parámetros
+de configuración implementados se detallan en la Tabla 3 a continuación.
+Cuadro 3. Parámetros de configuración para mecanismos de defensa.
+Parámetro
+Valor configurado Descripción
+VENTANA_MS
+MAX_PETICIONES
+MAX_INFRACCIONES
+60,000 ms (1 min) Tamaño de la ventana temporal de evaluación
+50 req/ventana
+Límite máximo de solicitudes permitidas
+3 veces
+Umbral para activar el bloqueo por IP
+DURACION_BLOQUEO_MS 300,000 ms (5 min) Duración del bloqueo automático
+INTERVALO_LIMPIEZA_MS 120,000 ms (2 min) Frecuencia del proceso de limpieza de memoria
+Controles de Disponibilidad y Defensa Activa en Arquitecturas Web
+11
+Headers HTTP Response. Basándose en los headers de respuesta HTTP
+definidos en el estándar RFC 6585 [16] se configura la respuesta para comunicar
+el estado del rate limiting al cliente, en el siguiente código se muestra como es
+una respuesta HTTP al cliente.
+HTTP/1.1 429 Too Many Requests
+Retry-After: 35
+X-RateLimit-Limit: 50
+X-RateLimit-Remaining: 0
+X-RateLimit-Reset: 2025-05-24T12:35:00.000Z
+Content-Type: application/json
+{
+"error": "Demasiadas Solicitudes",
+"codigo": "RATE_LIMIT_EXCEDIDO",
+"mensaje": "Has excedido el limite de solicitudes permitidas.",
+"limite": 50,
+"ventana": "60 segundos",
+"reintentar": "En 35 segundos",
+"advertencia": "Infraccion 1/3. Mas infracciones resultaran en bloqueo."
+}
+Listing 1.1. Respuesta HTTP 429 con headers de rate limiting.
+4.3. Bloqueo Automático de Direcciones IP
+El mecanismo de defensa rate limiting no resulta eficiente si se implementa
+de manera individual esto ante ataques persistentes, ya que un atacante puede
+esperar a que se reinicie la ventana de tiempo y continuar con su ataque. Para
+responder ante esta táctica se implementa al sistema un tipo registro de blacklist
+temporal que aumenta la respuesta de defensa en función de un comportamiento
+reincidente de una dirección IP.
+Esta escalada en la defensa del sistema responde al principio de defensa en
+profundidad definido por el NIST SP 800-53 Rev. 5 en el control SC-7 (Boundary
+Protection) [10], así como al concepto de respuesta condicional mencionado en
+los controles del estándar ISO/IEC 27002:2022 relacionado con la gestión de
+incidentes.
+Estructura de la Blacklist. En el servidor backend en Node.js de este sistema
+se implementa la lista negra de IP’s como un Map de JavaScript con la siguiente
+estructura de datos definida.
+blacklist["192.168.1.100"] = {
+bloqueadoHasta: 1716555600000, // Timestamp Unix de expiracion
+razon: "Excedio el limite...", // Motivo del bloqueo
+bloqueadoEn: "2025-05-24T..." // Timestamp ISO de inicio del bloqueo
+}
+Listing 1.2. Estructura de datos de la blacklist de IP’s.
+El uso de la estructura de datos Map de JS se usa con el objetivo de garanti
+zar operaciones de lectura y escritura de complejidad temporal constante O(1),
+evitando de esta manera introducir latencia en los procesos de peticiones del
+cliente.
+12
+F. P. Caiza-Vega et al.
+4.4. Flujo de Funcionamiento de los Mecanismos de Defensa
+Los mecanismos de defensa tanto el rate limiting como el bloqueo automático
+de IP’s que se implementan en el sistema se pueden observar cómo funcionan en
+conjunto dentro del flujo de solicitudes que realiza el cliente al servidor. Como
+se evidencia en la Fig. 4 todo solicitud se genera por un cliente HTTP y esta es
+dirigida al servidor Node.js del backend. Antes de procesar la solicitud esta pasa
+por el middleware de defensa que se encarga de aplicar las políticas de protección
+configuradas anteriormente.
+Figura4. Flujo de funcionamiento de los mecanismos de Defensa Implementados.
+Primero se verifica que la dirección IP del cliente no está en la blacklist
+temporal, si esta bloqueada responde con un código HTTP 403 Forbidden de
+acceso denegado, en caso de haber pasado el tiempo de bloqueo la IP es eliminada
+de la lista y puede realizar peticiones nuevamente.
+Luego el Middleware de defensa aplica el algoritmo de control Sliding Window
+que valida el número de peticiones realizadas por cada IP dentro de una ventana
+de tiempo, si supera el límite responde con un código HTTP 429 y registra una
+infracción. Si una IP excede el número de infracciones es registrada en la blacklist
+y se la bloquea durante un periodo de tiempo de 5 minutos, durante este tiempo
+se rechazan todas las peticiones realizadas desde esta IP.
+Por último si la solicitud cumple todos los parámetros definidos el sistema
+registra el acceso y dirige la petición al controlador principal devolviendo una
+respuesta HTTP 200.
+5. Diseño del plan de pruebas de carga con Apache
+JMeter
+Para este apartado del plan de pruebas lo que se va a utilizar es la herramien
+ta Jmeter que nos permitirá simular trafico en el servidor local, se van a plantear
+dos escenarios uno en el cual nuestro sistema tenga los archivos de defensa co
+mentados (desactivados) y otro escenario en donde estos estarán activados para
+conocer como se manejó el tráfico de peticiones en el servidor.
+Controles de Disponibilidad y Defensa Activa en Arquitecturas Web
+Figura5. Parametros del Thread Group.
+13
+La configuración en Jmeter será mediante un Thread Group el cual tendrá
+en su configuración, el número de usuarios simulados que usaran el servidor al
+mismo tiempo será de 100 personas, cada segundo se iran creando 10 usuarios
+hasta llegar a los 100 usuarios, y la cantidad de peticiones por usuario será de
+10.
+Figura6. Configuración de la petición HTTP.
+Adicional a esto se configurará la petición que harán, la cual será de protocolo
+http en localhost usando el puerto 3000, esta siendo de tipo GET y teniendo como
+ruta:
+http://localhost:3000/caci/servicioperiodoacademico/ListadoPeriodosTodos
+Para obtener los resultados de las pruebas usaremos los siguientes listeners:
+View Results Tree el cual sirve para ver cada petición individualmente, el Res
+ponse Time Graph que nos mostrara un grafico del tiempo de respuesta del
+servidor y Aggregate Report que brinda un resumen de estadísticas generales.
+14
+F. P. Caiza-Vega et al.
+5.1. Escenario 1
+En este escenario se ejecutaron las pruebas de carga en donde el backend no
+tiene los archivos de seguridad (Rate Limiting y Lista negra).
+Figura7. Listener View Results Tree- Escenario 1.
+Figura8. Listener Response Time Graph- Escenario 1.
+Controles de Disponibilidad y Defensa Activa en Arquitecturas Web
+Figura9. Listener Aggregate Report- Escenario.
+5.2. Escenario 2
+15
+En este escenario se ejecutaron las pruebas de carga en donde el backend
+tiene los archivos de seguridad (Rate Limiting y Lista negra).
+Figura10. Listener View Results Tree- Escenario 2.
+Figura11. Listener Response Time Graph- Escenario 2.
+16
+F. P. Caiza-Vega et al.
+Figura12. Listener Aggregate Report- Escenario 2.
+5.3. Analisis de resultados
+View Results Tree
+La principal diferencia que vemos aquí es que en el escenario 1 vemos como
+si bien todas las peticiones fueron procesadas cuando se llego a tener los 100
+usuarios realizando 10 peticiones cada uno las peticiones llegaron a tener una
+latencia de 3314 ms, mientras que en escenario 2 de plano la mayoría de peticiones
+fueron bloqueadas luego de conseguir entrar a la lista negra, devolviendo un
+response code 403 (el servidor recibió la petición pero bloqueo el acceso) y todas
+estas peticiones bloqueadas con una latencia de 1 o 2 ms.
+Responde Time Graph View Results Tree
+Aqui vemos a qué velocidad respondió el servidor en promedio, en el escenario
+1 vemos que el tiempo de respuesta siempre fue muy elevado desde el inicio a
+final de peticiones, mientras que en el escenario 2 se puede observar como si bien
+hay un pico elevado este se va regulando a través del tiempo debido al bloqueo
+de la ip, y luego de estas estar bloqueadas, si las mismas en el lapso de tiempo
+en que están en la lista negra vuelven a hacer peticiones el servidor no responde
+a ninguna de ellas.
+Aggregate Report View Results Tree
+Aquí tenemos un resumen de las estadísticas que nos dio cada escenario.
+En la tabla podemos visualizar diferentes respuestas entre escenarios y aun
+que ambos escenarios utilizaron los mismos parámetros de pruebas, las métricas
+del Aggregate Report muestran un comportamiento muy diferente del sistema
+bajo sus respectivas condiciones de carga. En el escenario 1 se obtuvo un por
+centaje de errores del 0%, un throughput alto de 26.7 solicitudes por segundo y
+una estabilidad general (aunque alta 2667ms promedio) en las respuestas, en re
+sumen, el servidor respodio a todas las peticiones, pero con un mal rendimiento.
+Por otro lado, en el escenario 2, el tiempo promedio de respuesta disminuyó a
+1343 ms y la mediana igual fue mucho menor, el porcentaje de errores aumentó
+hasta el 47.5% esto no necesariamente malo debido a que esta herramienta
+cuenta los códigos http 403 como errores (servidor bloquea la petición por lista
+negra) y el throughput bajó a 3.8 solicitudes por segundo.
+Controles de Disponibilidad y Defensa Activa en Arquitecturas Web
+Cuadro 4. Resumen de métricas obtenidas en JMeter.
+Métrica Escenario 1 Escenario 2
+Samples
+1000
+2000
+Average
+2667 ms
+1343 ms
+Median
+2916 ms
+475 ms
+90% Line
+3339 ms
+3192 ms
+95% Line
+3503 ms
+3339 ms
+99% Line
+3884 ms
+3666 ms
+Min
+280 ms
+0 ms
+Maximum
+4115 ms
+4115 ms
+Error%
+0.00%
+47.50%
+Throughput 26.7/sec
+3.8/sec
+17
+En conjunto, las métricas demuestran que el rendimiento de un sistema no
+debe evaluarse únicamente por los tiempos de respuesta, sino también por indi
+cadores como el porcentaje de errores, el throughput (respuestas por segundo)
+y la estabilidad general (diversos tipos de tiempos de respuesta) bajo carga con
+currente.
+6. Conclusión
+Para defender la disponibilidad frente a ataques de Capa 7, es necesario
+incorporar desde el principio del desarrollo (S-SDLC) normas como la ISO/IEC
+27002 y NIST SP 800-53. Esto significa complementar las políticas de la empresa
+con controles técnicos específicos. Esto se pudo observar en la práctica con el
+middleware del sistema SICACI (Node.js/Express), donde se probó que juntar la
+limitación de peticiones por segundo (usando Ventana Deslizante) con el bloqueo
+temporal de IPs funciona muy bien para evitar la saturación. Además, se hace
+de forma modular y sin necesitar equipo complicado. Las pruebas de estrés que
+se realizaron con Apache JMeter simulando 1000 usuarios confirmaron que esta
+arquitectura sí funciona. El servidor sin protección llegó a tener tiempos de
+respuesta muy malos, pero cuando activaron las defensas, el tráfico raro fue
+bloqueado con respuestas HTTP 429 y 403. Esto redujo la carga del servidor y
+aseguró que el servicio siguiera funcionando.
+7. Recomendaciones
+1. Conviene no depender de una sola capa de defensa. Lo recomendable es
+combinar rate limiting dentro de la aplicación con bloqueo automático por
+reincidencia, sumar un WAF en el perímetro y dejar el monitoreo corriendo
+todo el tiempo. También vale la pena meter pruebas de carga periódicas
+con herramientas tipo JMeter, no solo cuando se despliega por primera vez,
+para detectar cuellos de botella antes de que aparezcan en producción. Y
+18
+F. P. Caiza-Vega et al.
+mantener la trazabilidad entre cada control implementado y el artículo de la
+norma que lo respalda, así la defensa técnica queda alineada con lo auditable.
+2. A los equipos de desarrollo se les recomienda que no dejen la seguridad para
+el final, para cuando ya se vaya a desplegar. Si se ponen defensas activas y se
+piensa en la capacidad del sistema desde que se empieza a diseñar, se evitan
+caídas de servidores y se ahorra mucho dinero en tener que arreglar cosas
+después.
+3. Para que la solución sea más robusta en producción, sugerimos mover el al
+macenamiento en memoria a Redis. Esto asegurará que el estado se mantenga
+incluso si el servidor se reinicia y permitirá el uso de arquitecturas distribui
+das. Además, para evitar que se salten las restricciones de uso al cambiar de
+IP, recomendamos implementar un límite de peticiones por usuario autenti
+cado.
+4. Realizar pruebas usando diferentes parámetros (comportamiento de usua
+rios), y distintas rutas http de nuestro sistema para incluso evaluar de paso
+el rendimiento de las mismas en escenarios de una cantidad moderada o
+extrema de usuarios
+Referencias
+1. Alamri, B., Crowley, K., Richardson, I.: Cybersecurity risk management frame
+work for blockchain identity management systems in health iot. Sensors (Basel,
+Switzerland) 23 (2022). https://doi.org/10.3390/s23010218
+2. Bartkov, M., Borovikov, D.: Selection of a suitable algorithm for the implemen
+tation of rate-limiter based on bucket4j. Int. J. Online Biomed. Eng. 18, 52–63
+(2022). https://doi.org/10.3991/ijoe.v18i04.25641
+3. Cassottana, B., Roomi, M., Mashima, D., Sansavini, G.: Resilience analysis of
+cyber-physical systems: A review of models and methods. Risk Analysis 43, 2359
+2379 (2023). https://doi.org/10.1111/risa.14089
+4. Cloudflare: DDoS Threat Report for 2024 Q4. Cloudflare Radar (January 2025),
+https://radar.cloudflare.com/reports/ddos-2024-q4, accedido: mayo 2026
+5. Guan, B.: Designing scalable rate limiting systems: Algorithms, architecture, and
+distributed solutions (2026)
+6. Hussain, S., Anwar, H., Sultan, K., Mahmud, U., Farooqui, S., Karamat, T.,
+Toure, I.: Mitigating software vulnerabilities through secure software develop
+ment with a policy-driven waterfall model. Journal of Engineering (2024).
+https://doi.org/10.1155/2024/9962691
+7. Information Technology Intelligence Consulting (ITIC): ITIC 2024 Hourly Cost
+of Downtime Report. Annual Reliability Survey (2024), https://itic-corp.com/
+itic-2024-hourly-cost-of-downtime-report/, accedido: mayo 2026
+8. Innomesanghan, D., Kiwamu, E., Butakov, S., AbdAllah, E.: Streamlining secu
+rity: Mapping nist sp 800-53, soc 2, and us cjis policy to iso/iec 27001:2022 for
+service provider smes. In: World Congress on Electrical Engineering and Compu
+ter Systems and Science (2025). https://doi.org/10.11159/cist25.112
+9. Jha, C., Dash, C.S.: Real-time slowloris attack detection and mitigation with ma
+chine learning techniques. International Journal of Engineering Research & Tech
+nology (IJERT) 13(9) (September 2024), https://www.ijert.org/real-time
+slowloris-attack-detection-and-mitigation-with-machine-learning
+techniques
+Controles de Disponibilidad y Defensa Activa en Arquitecturas Web
+19
+10. Joint Task Force: Security and privacy controls for information systems and
+organizations. Special Publication 800-53 Rev. 5, National Institute of Stan
+dards and Technology (2020). https://doi.org/10.6028/NIST.SP.800-53r5, https:
+//nvlpubs.nist.gov/nistpubs/SpecialPublications/NIST.SP.800-53r5.pdf
+11. Karie, N., Sahri, N., Yang, W., Valli, C., Kebande, V.: A review of security stan
+dards and frameworks for iot-based smart environments. IEEE Access 9, 121975
+121995 (2021). https://doi.org/10.1109/access.2021.3109886
+12. Khan, R., Khan, S., Khan, H., Ilyas, M.: Systematic literature review on security
+risks and its practices in secure software development. IEEE Access 10, 5456–5481
+(2022). https://doi.org/10.1109/access.2022.3140181
+13. Kostiuk, Y., Bebeshko, B., Skladannyi, P., Rzaeva, S., Khorolska, K.: Optimization
+of buffer and priorities for ensuring security in bluetooth networks. Information
+systems and technologies security (2024). https://doi.org/10.17721/ists.2024.8.5
+16
+14. Lee, S., Dong, L., Xing, Z., Ahmed, M., Avgoustakis, S.: Software security mapping
+framework: Operationalization of security requirements. ArXiv abs/2506.11051
+(2025). https://doi.org/10.48550/arxiv.2506.11051
+15. Manoharan, M.: Api rate limiting mechanisms in saas applications: A systema
+tic analysis of ddos protection strategies. International Journal of Scientific Re
+search in Computer Science, Engineering and Information Technology (2024).
+https://doi.org/10.32628/cseit241061223
+16. Nottingham, M., Fielding, R.: Additional HTTP status codes. RFC 6585, Internet
+Engineering Task Force (2012). https://doi.org/10.17487/RFC6585, https://www.
+rfc-editor.org/info/rfc6585
+17. Paramaputra, A., Suranegara, G., Setyowati, E.: Mitigation of multi tar
+get denial of service (dos) attacks using wazuh active response. Journal of
+Computer Networks, Architecture and High Performance Computing (2025).
+https://doi.org/10.47709/cnahpc.v7i2.5755
+18. Sanguino, T.: Enhancing security in industrial application development: Case
+study on self-generating artificial intelligence tools. Applied Sciences 14(9) (2024).
+https://doi.org/10.3390/app14093780
+19. Suryaningrat, A., Ramayanti, D., Sakti, A.: Bottleneck identification in web appli
+cations using apache jmeter and elastic stack. Jurnal Inovatif : Inovasi Teknologi
+Informasi dan Informatika 7(1) (2024). https://doi.org/10.32832/inovatif.v7i1.862
+20. Tripathi, N., Hubballi, N.: Application layer denial-of-service attacks and de
+fense mechanisms: A survey. ACM Computing Surveys 54(4), 1–33 (2022).
+https://doi.org/10.1145/3448291, https://dl.acm.org/doi/10.1145/3448291
+Enlace de la presentación y Código fuente
+Repositorio del Proyecto: https://liveespochedu-my.sharepoint.com/:
+f:/g/personal/joel_quishpe_espoch_edu_ec/IgDyGt9fxP8YT5NszkZygt3PAZm9zBIOt8WIQkNlhqDiRGM?
+e=5cqvUF

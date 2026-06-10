@@ -8,18 +8,23 @@ import {
 } from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
+import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 
 @Entity({ name: 'recepciones', schema: 'recepcion' })
 export class ReceptionOrmEntity {
   @PrimaryGeneratedColumn()
   id!: number;
 
-  @Column({ name: 'protocolo_id', unique: true })
-  protocolId!: number;
+  @Column({ name: 'version_id', unique: true })
+  versionId!: number;
 
-  @OneToOne(() => ProtocolOrmEntity, (protocol) => protocol.reception)
-  @JoinColumn({ name: 'protocolo_id' })
-  protocol!: ProtocolOrmEntity;
+  @OneToOne(() => ProtocolVersionOrmEntity, (version) => version.reception)
+  @JoinColumn({ name: 'version_id' })
+  version!: ProtocolVersionOrmEntity;
+
+  get protocolId(): number {
+    return this.version?.protocolId;
+  }
 
   @Column({
     name: 'fecha_recepcion',
@@ -60,7 +65,7 @@ export class ReceptionOrmEntity {
   responseDeadlineDays?: number;
 
   get generatedCeishCode(): string | undefined {
-    return this.protocol?.ceishCode;
+    return this.version?.protocol?.ceishCode;
   }
 
   @Column({ name: 'observaciones', type: 'text', nullable: true })

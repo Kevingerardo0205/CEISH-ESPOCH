@@ -13,7 +13,6 @@ import {
 } from '@nestjs/common';
 import { EvaluationsService } from '../../application/services/evaluations.service';
 import { EvaluationConsolidationService } from '../../application/services/evaluation-consolidation.service';
-import { AssignEvaluatorsDto } from '../../application/dtos/assign-evaluator.dto';
 import { SubmitEvaluationDto } from '../../application/dtos/submit-evaluation.dto';
 import {
   CreateEvaluatorProfileDto,
@@ -69,46 +68,6 @@ export class EvaluationsController {
     return this.evaluationsService.getEvaluatorsDashboard(
       profileId ? +profileId : undefined,
     );
-  }
-
-  @Post('suggest')
-  @Permissions(Permission.EVALUATORS_SUGGEST)
-  @Audit('EVALUATORS_SUGGESTED')
-  @ApiOperation({
-    summary: 'Presidenta sugiere uno o más evaluadores a un protocolo',
-  })
-  async suggest(@Body() dto: AssignEvaluatorsDto, @Request() req) {
-    return this.evaluationsService.suggestEvaluators(dto, req.user.id);
-  }
-
-  @Get('pending-suggestions')
-  @Permissions(Permission.EVALUATORS_ASSIGN)
-  @ApiOperation({
-    summary:
-      'Listar todas las sugerencias de evaluadores pendientes de confirmar',
-  })
-  async getPendingSuggestions() {
-    return this.evaluationsService.getPendingSuggestions();
-  }
-
-  @Patch('confirm-assignment')
-  @Permissions(Permission.EVALUATORS_ASSIGN)
-  @Audit('EVALUATORS_ASSIGNED')
-  @ApiOperation({
-    summary: 'Secretaria confirma las sugerencias y asigna oficialmente',
-  })
-  async confirm(@Body('assignmentIds') ids: number[], @Request() req) {
-    return this.evaluationsService.confirmAssignments(ids, req.user.id);
-  }
-
-  @Delete('reject-suggestion/:id')
-  @Permissions(Permission.EVALUATORS_ASSIGN)
-  @Audit('EVALUATION_SUGGESTION_REJECTED')
-  @ApiOperation({
-    summary: 'Secretaria rechaza (elimina) una sugerencia de la Presidenta',
-  })
-  async reject(@Param('id', ParseIntPipe) id: number) {
-    return this.evaluationsService.rejectSuggestion(id);
   }
 
   @Get('my-assignments')

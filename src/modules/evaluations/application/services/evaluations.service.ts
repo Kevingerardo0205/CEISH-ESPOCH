@@ -10,7 +10,6 @@ import { Repository, IsNull } from 'typeorm';
 import { IEvaluationRepository } from '../../domain/ports/evaluation.repository.port';
 import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
-import { AssignEvaluatorsDto } from '../dtos/assign-evaluator.dto';
 import {
   SubmitEvaluationDto,
   EvaluationResult,
@@ -68,15 +67,19 @@ export class EvaluationsService {
     // Solo se listan en el dashboard de la Presidenta si la recepción está COMPLETA y el nivel de riesgo ha sido consolidado
     const protocols = await this.protocolOrmRepository.find({
       where: {
-        reception: {
-          statusId: 2, // 2 is COMPLETO
+        activeVersion: {
+          reception: {
+            statusId: 10, // 10 is COMPLETO
+          },
         },
         isRiskLevelDesignated: true,
       },
-      relations: ['studyType', 'reception'],
+      relations: ['studyType', 'activeVersion', 'activeVersion.reception'],
       order: {
-        reception: {
-          receptionDate: 'DESC',
+        activeVersion: {
+          reception: {
+            receptionDate: 'DESC',
+          },
         },
       },
     });
@@ -104,180 +107,6 @@ export class EvaluationsService {
   }
 
   /**
-   * HU-004: Sugerir evaluadores (Presidenta)
-   * Aplica la Fase 2: Motor de Asignación por Riesgo (2 vs 5)
-   */
-  async suggestEvaluators(dto: AssignEvaluatorsDto, suggestedBy: number) {
-    const protocol = await this.protocolRepository.findById(dto.protocolId);
-    if (!protocol)
-      throw new NotFoundException(`Protocol ${dto.protocolId} not found`);
-
-    const reviewType = protocol.reviewType || ReviewType.PLENO;
-    const requiredCount = reviewType === ReviewType.EXPEDITA ? 2 : 5;
-
-    // 1. Validar cantidad exacta (Fase 2)
-    if (dto.evaluators.length !== requiredCount) {
-      throw new BadRequestException(
-        `Para una revisión de tipo ${reviewType} se requieren exactamente ${requiredCount} evaluadores.`,
-      );
-    }
-
-    // 2. Validar perfiles únicos para Revisión en Pleno (PET 5.1)
-    if (reviewType === ReviewType.PLENO) {
-      const profiles = dto.evaluators.map((e) => e.profileId);
-      const uniqueProfiles = new Set(profiles);
-      if (uniqueProfiles.size !== 5) {
-        throw new BadRequestException(
-          'Para una revisión en PLENO, debe asignar exactamente un evaluador por cada perfil obligatorio: Jurídico, Salud, Metodología, Bioética y Sociedad Civil.',
-        );
-      }
-    }
-
-    // 3. Validar unicidad de evaluadores
-    const evaluatorIds = dto.evaluators.map((e) => e.evaluatorId);
-    const uniqueIds = new Set(evaluatorIds);
-    if (uniqueIds.size !== evaluatorIds.length) {
-      throw new BadRequestException(
-        'No puede asignar al mismo evaluador más de una vez.',
-      );
-    }
-
-    let version = await this.evaluationRepository.findVersionByProtocolId(
-      dto.protocolId,
-      1,
-    );
-    if (!version) {
-      version = await this.evaluationRepository.saveVersion({
-        protocolId: dto.protocolId,
-        versionNumber: 1,
-        submissionDate: protocol.receptionDate || new Date(),
-      });
-    }
-
-    // 3. Limpiar sugerencias previas para esta versión si existen (Re-sugerencia)
-    const existing = await this.evaluationRepository.findAssignmentsByVersionId(
-      version.id,
-    );
-    const pendingCount = existing.filter(
-      (a) => a.statusId === AssignmentStatus.SUGGESTED,
-    ).length;
-    if (pendingCount > 0) {
-      // Podríamos borrarlos o marcarlos como obsoletos. Por ahora los borramos para permitir limpia re-asignación.
-      for (const a of existing) {
-        if (a.statusId === AssignmentStatus.SUGGESTED) {
-          await this.evaluationRepository.deleteAssignment(a.id);
-        }
-      }
-    }
-
-    const assignments: EvaluationAssignmentOrmEntity[] = [];
-    for (const evalDto of dto.evaluators) {
-      // 4. Validar conflictos de interés (Fase 1)
-      const conflict = await this.conflictService.checkConflict(
-        dto.protocolId,
-        evalDto.evaluatorId,
-      );
-      if (conflict.hasConflict && conflict.critical) {
-        throw new ConflictException(
-          `Conflicto Ético con Evaluador ${evalDto.evaluatorId}: ${conflict.reason}`,
-        );
-      }
-
-      const assignment = await this.evaluationRepository.saveAssignment({
-        versionId: version.id,
-        evaluatorId: evalDto.evaluatorId,
-        profileId: evalDto.profileId,
-        modalityId: evalDto.modalityId,
-        suggestedByUserId: suggestedBy,
-        suggestedAt: new Date(),
-        statusId: AssignmentStatus.SUGGESTED,
-      });
-      assignments.push(assignment);
-    }
-
-    return assignments;
-  }
-
-  /**
-   * HU-004: Confirmar asignaciones (Secretaria)
-   */
-  async confirmAssignments(assignmentIds: number[], confirmedBy: number) {
-    const results: EvaluationAssignmentOrmEntity[] = [];
-    for (const id of assignmentIds) {
-      const assignment = await this.evaluationRepository.findAssignmentById(id);
-      if (!assignment) continue;
-
-      if (assignment.statusId !== AssignmentStatus.SUGGESTED) {
-        throw new BadRequestException(
-          `La asignación ${id} ya no está en estado SUGERIDO.`,
-        );
-      }
-
-      const protocol = await this.protocolRepository.findById(
-        assignment.version.protocolId,
-      );
-      const reviewType = protocol?.reviewType || ReviewType.PLENO;
-
-      const deadline =
-        this.deadlineService.calculateEvaluatorDeadline(reviewType);
-
-      assignment.statusId = AssignmentStatus.ASSIGNED;
-      assignment.confirmedByUserId = confirmedBy;
-      assignment.confirmedAt = new Date();
-      assignment.deadline = deadline;
-
-      const saved = await this.evaluationRepository.saveAssignment(assignment);
-      results.push(saved);
-
-      // HU-004: Disparar notificación por email al evaluador
-      if (saved.evaluator && protocol) {
-        await this.emailService
-          .sendEvaluationAssignment(
-            saved.evaluator.institutionalEmail,
-            saved.evaluator.fullName,
-            protocol.ceishCode || 'S/C',
-            deadline,
-          )
-          .catch((err) =>
-            console.error('Error enviando email de asignación:', err),
-          );
-      }
-
-      // Al confirmar la primera asignación, el protocolo pasa a 'EN EVALUACIÓN' (ID: 13)
-      if (protocol && protocol.statusId !== 13) {
-        await this.protocolRepository.update(protocol.id, { statusId: 13 });
-      }
-    }
-    return results;
-  }
-
-  /**
-   * Obtener todas las sugerencias pendientes de confirmación (Secretaria)
-   */
-  async getPendingSuggestions() {
-    return this.evaluationRepository.findPendingSuggestions();
-  }
-
-  /**
-   * Rechazar una sugerencia (Secretaria)
-   */
-  async rejectSuggestion(assignmentId: number) {
-    const assignment =
-      await this.evaluationRepository.findAssignmentById(assignmentId);
-    if (!assignment)
-      throw new NotFoundException(`Asignación ${assignmentId} no encontrada`);
-
-    if (assignment.statusId !== AssignmentStatus.SUGGESTED) {
-      throw new BadRequestException(
-        'Solo se pueden rechazar asignaciones en estado SUGERIDO.',
-      );
-    }
-
-    await this.evaluationRepository.deleteAssignment(assignmentId);
-    return { message: `Sugerencia ${assignmentId} rechazada exitosamente.` };
-  }
-
-  /**
    * HU-005: Obtener asignaciones con alertas de plazo y sugerencia de Anexo
    */
   async getMyAssignments(evaluatorId: number) {
@@ -298,13 +127,17 @@ export class EvaluationsService {
           isUrgent = diffDays !== null && diffDays <= 2 && diffDays >= 0;
         }
 
-        let annexSuggestion = 'Anexo 10 (Revisión Plena)';
+        const isRiskDesignated = a.version?.protocol?.isRiskLevelDesignated;
         const reviewType = a.version?.protocol?.reviewType;
+        let annexSuggestion: string | null = null;
 
-        if (reviewType === ReviewType.EXPEDITA)
-          annexSuggestion = 'Anexo 9 (Revisión Expedita)';
-        if (reviewType === ReviewType.ENSAYO_CLINICO)
-          annexSuggestion = 'Anexo 11 (Ensayos Clínicos)';
+        if (isRiskDesignated && reviewType) {
+          if (reviewType === ReviewType.EXPEDITA)
+            annexSuggestion = 'Anexo 9 (Revisión Expedita)';
+          else if (reviewType === ReviewType.ENSAYO_CLINICO)
+            annexSuggestion = 'Anexo 11 (Ensayos Clínicos)';
+          else annexSuggestion = 'Anexo 10 (Revisión Plena)';
+        }
 
         return {
           ...a,
@@ -480,10 +313,10 @@ export class EvaluationsService {
       assignment.version.protocolId,
     );
     if (protocol && assignment.evaluator) {
-      // Nota: Aquí se debería obtener la lista de secretarias de la BD
+      // Nota: Aquí se debería obtener la lista de secretarias de la BD o usar el correo institucional del comité
       await this.emailService
         .sendEvaluationSubmitted(
-          'secretaria.ceish@espoch.edu.ec',
+          process.env.COMMITTEE_EMAIL || 'secretaria.ceish@espoch.edu.ec',
           assignment.evaluator.fullName,
           protocol.ceishCode || 'S/C',
         )
@@ -551,14 +384,21 @@ export class EvaluationsService {
   async getProtocolsPendingPeerAssignment() {
     return this.protocolOrmRepository.find({
       where: {
-        reception: {
-          statusId: 2, // 2 is COMPLETO
+        activeVersion: {
+          reception: {
+            statusId: 10, // 10 is COMPLETO
+          },
         },
         isRiskLevelDesignated: false,
         isTimelineTermsAccepted: true,
         statusId: IsNull(),
       },
-      relations: ['studyType', 'principalInvestigator', 'reception'],
+      relations: [
+        'studyType',
+        'principalInvestigator',
+        'activeVersion',
+        'activeVersion.reception',
+      ],
       order: { createdAt: 'DESC' },
     });
   }
@@ -577,7 +417,7 @@ export class EvaluationsService {
   ) {
     const protocol = await this.protocolOrmRepository.findOne({
       where: { id: protocolId },
-      relations: ['reception'],
+      relations: ['activeVersion', 'activeVersion.reception'],
     });
     if (!protocol)
       throw new NotFoundException(`Protocolo ${protocolId} no encontrado`);
@@ -815,57 +655,80 @@ export class EvaluationsService {
     const allSubmitted = peerAssignments.every((a) => a.submittedAt !== null);
 
     if (allSubmitted && peerAssignments.length === 2) {
-      // Ambos evaluadores de riesgo (seleccionados aleatoriamente) han respondido, consolidamos
+      // Ambos evaluadores de riesgo (seleccionados aleatoriamente) han respondido
       const [p1, p2] = peerAssignments;
 
-      let finalRiskLevelId: number;
-
       if (p1.proposedRiskLevelId === p2.proposedRiskLevelId) {
-        // Coinciden en el riesgo
-        finalRiskLevelId = p1.proposedRiskLevelId!;
+        // Coinciden en el riesgo: consolidamos
+        const finalRiskLevelId = p1.proposedRiskLevelId!;
+
+        // Obtener los detalles del nivel de riesgo final seleccionado
+        const finalRiskLevel = await this.riskLevelRepository.findOne({
+          where: { id: finalRiskLevelId },
+        });
+
+        if (finalRiskLevel) {
+          // Actualizar el protocolo con el riesgo oficial y marcarlo como designado
+          const protocol = assignment.protocol;
+          protocol.riskLevelId = finalRiskLevelId;
+
+          // Mapear reviewType según el tipo_revision del nivel de riesgo
+          // (tipo_revision es 'EXPEDITA' o 'PLENO' o 'ENSAYO_CLINICO')
+          let reviewType: ReviewType = ReviewType.PLENO;
+          if (finalRiskLevel.reviewType === 'EXPEDITA') {
+            reviewType = ReviewType.EXPEDITA;
+          } else if (finalRiskLevel.code === 'ENSAYO_CLINICO') {
+            reviewType = ReviewType.ENSAYO_CLINICO;
+          }
+
+          protocol.reviewType = reviewType;
+          protocol.isRiskLevelDesignated = true; // nivel_riesgo_confirmado = true
+          protocol.statusId = 13; // Volver a estado 'EN EVALUACIÓN' al resolver discrepancias
+
+          await this.protocolOrmRepository.save(protocol);
+
+          // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion
+          const version = await this.evaluationRepository.findVersionByProtocolId(
+            protocol.id,
+            1,
+          );
+          if (version) {
+            const newDeadline =
+              this.deadlineService.calculateEvaluatorDeadline(reviewType);
+            const assignmentsToUpdate =
+              await this.evaluationRepository.findAssignmentsByVersionId(
+                version.id,
+              );
+            for (const a of assignmentsToUpdate) {
+              if (a.statusId === AssignmentStatus.ASSIGNED) {
+                a.deadline = newDeadline;
+                await this.evaluationRepository.saveAssignment(a);
+              }
+            }
+          }
+        }
       } else {
-        // Discrepancia: Seleccionar el de mayor nivel de riesgo
-        // Ordenamos por nivel de gravedad (usando ranking de IDs basados en los códigos conocidos)
-        // 8 (ENSAYO_CLINICO) > 7 (RIESGO_MAYOR) > 6 (RIESGO_MODERADO) > 5 (RIESGO_MINIMO) > 4 (SIN_RIESGO)
-        const rank = (id: number) => {
-          if (id === 8) return 5;
-          if (id === 7) return 4;
-          if (id === 6) return 3;
-          if (id === 5) return 2;
-          if (id === 4) return 1;
-          return 0;
-        };
-
-        const r1 = rank(p1.proposedRiskLevelId!);
-        const r2 = rank(p2.proposedRiskLevelId!);
-
-        finalRiskLevelId =
-          r1 >= r2 ? p1.proposedRiskLevelId! : p2.proposedRiskLevelId!;
-      }
-
-      // Obtener los detalles del nivel de riesgo final seleccionado
-      const finalRiskLevel = await this.riskLevelRepository.findOne({
-        where: { id: finalRiskLevelId },
-      });
-
-      if (finalRiskLevel) {
-        // Actualizar el protocolo con el riesgo oficial y marcarlo como designado
+        // Discrepancia: El sistema no debe consolidar automáticamente al mayor,
+        // sino pasar el protocolo a un estado de disputa/discrepancia (statusId: 16)
+        // y volver a definir el nivel de riesgo por los pares evaluadores designados.
         const protocol = assignment.protocol;
-        protocol.riskLevelId = finalRiskLevelId;
+        protocol.statusId = 16; // 16 = DISCREPANCIA_RIESGO
+        protocol.isRiskLevelDesignated = false;
+        await this.protocolOrmRepository.save(protocol);
 
-        // Mapear reviewType según el tipo_revision del nivel de riesgo
-        // (tipo_revision es 'EXPEDITA' o 'PLENO' o 'ENSAYO_CLINICO')
-        let reviewType: ReviewType = ReviewType.PLENO;
-        if (finalRiskLevel.reviewType === 'EXPEDITA') {
-          reviewType = ReviewType.EXPEDITA;
-        } else if (finalRiskLevel.code === 'ENSAYO_CLINICO') {
-          reviewType = ReviewType.ENSAYO_CLINICO;
+        // Reiniciar las asignaciones de riesgo de los dos pares para permitir volver a definir
+        for (const pa of peerAssignments) {
+          pa.proposedRiskLevelId = undefined;
+          pa.observations = undefined;
+          pa.reportPath = undefined;
+          pa.submittedAt = undefined;
+          await this.peerRiskRepository.save(pa);
         }
 
-        protocol.reviewType = reviewType;
-        protocol.isRiskLevelDesignated = true; // nivel_riesgo_confirmado = true
-
-        await this.protocolOrmRepository.save(protocol);
+        return {
+          message:
+            'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El protocolo ha pasado a estado de discrepancia de riesgo y las asignaciones han sido reiniciadas para volver a ser definidas tras llegar a un acuerdo en pleno.',
+        };
       }
     }
 
@@ -898,50 +761,45 @@ export class EvaluationsService {
   async getSubmitProtocolInfo(protocolId: number, userId: number) {
     const protocol = await this.protocolOrmRepository.findOne({
       where: { id: protocolId },
-      relations: ['investigators', 'studyType', 'reception', 'versions'],
+      relations: [
+        'studyType',
+        'activeVersion',
+        'activeVersion.reception',
+        'versions',
+      ],
     });
 
     if (!protocol) {
       throw new NotFoundException(`Protocolo ${protocolId} no encontrado`);
     }
 
-    // Buscar si el usuario actual tiene una asignación de evaluación
+    // Buscar si el usuario actual tiene asignaciones de evaluación
     const version =
       await this.evaluationRepository.findVersionByProtocolId(protocolId);
-    let userAssignment: EvaluationAssignmentOrmEntity | null = null;
-    let completedEvaluationsCount = 0;
-
-    if (version) {
-      const assignments =
-        await this.evaluationRepository.findAssignmentsByVersionId(version.id);
-      userAssignment =
-        assignments.find((a) => a.evaluatorId === userId) || null;
-      completedEvaluationsCount = assignments.filter(
-        (a) => a.statusId === AssignmentStatus.COMPLETED,
-      ).length;
+    if (!version) {
+      return [];
     }
 
-    return {
-      protocolId: protocol.id,
-      ceishCode: protocol.ceishCode,
-      title: protocol.title,
-      isTimelineTermsAccepted: protocol.isTimelineTermsAccepted,
-      timelineTermsAcceptedAt: protocol.timelineTermsAcceptedAt,
-      timelineTermsAcceptedIp: protocol.timelineTermsAcceptedIp,
-      isAffidavitAccepted: protocol.isAffidavitAccepted,
-      affidavitDate: protocol.affidavitDate,
-      affidavitIp: protocol.affidavitIp,
-      receptionStatus: protocol.receptionStatus,
-      reviewType: protocol.reviewType,
-      assignment: userAssignment
-        ? {
-            id: userAssignment.id,
-            statusId: userAssignment.statusId,
-            deadline: userAssignment.deadline,
-            submittedAt: userAssignment.actualSubmissionDate,
-          }
-        : null,
-      completedEvaluationsCount,
-    };
+    const assignments =
+      await this.evaluationRepository.findAssignmentsByVersionId(version.id);
+
+    // Buscar asignaciones de pares de riesgo para identificar quién es evaluador de riesgo
+    const peerRiskAssignments = await this.peerRiskRepository.find({
+      where: { protocolId },
+    });
+    const riskEvaluatorIds = peerRiskAssignments.map((a) => a.evaluatorId);
+
+    return assignments.map((a) => ({
+      id: a.id.toString(),
+      protocolId: protocolId.toString(),
+      evaluatorId: a.evaluatorId.toString(),
+      investigator: a.evaluator?.fullName || 'Evaluador Asignado',
+      status:
+        a.statusId === AssignmentStatus.COMPLETED ? 'COMPLETED' : 'PENDING',
+      reviewType: protocol.reviewType || 'PLENO',
+      isRiskEvaluator: riskEvaluatorIds.includes(a.evaluatorId),
+      deadline: a.deadline,
+      evaluationDate: a.actualSubmissionDate || null,
+    }));
   }
 }

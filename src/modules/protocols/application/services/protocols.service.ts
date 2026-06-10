@@ -97,7 +97,7 @@ export class ProtocolsService {
     const protocol = await this.findOne(id);
 
     // Cambiar estado a revisión por secretaría en la recepción
-    await this.receptionService.updateReceptionStatus(id, 5); // 5 = EN_REVISION_SECRETARIA
+    await this.receptionService.updateReceptionStatus(id, 15); // 15 = EN_REVISION_SECRETARIA
 
     return {
       message: 'Protocolo enviado exitosamente para revisión técnica.',

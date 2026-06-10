@@ -6,7 +6,7 @@ import {
   IsArray,
   ValidateNested,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Type, Transform } from 'class-transformer';
 
 export class SingleDocumentDto {
   @IsString()
@@ -35,14 +35,16 @@ export class SingleDocumentDto {
   isConfidential?: boolean;
 
   @IsOptional()
+  @Transform(({ value }) => value?.toString())
   @IsString()
   sizeBytes?: string;
 }
 
 export class UploadDocumentDto extends SingleDocumentDto {
+  @IsOptional()
   @IsNumber()
   @Type(() => Number)
-  protocolId!: number;
+  protocolId?: number;
 }
 
 export class UploadMultipleDocumentsDto {

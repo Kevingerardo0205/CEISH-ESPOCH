@@ -25,6 +25,7 @@ export class DocumentsService {
   async findByProtocol(protocolId: number) {
     return this.documentsRepository.find({
       where: { protocolId: protocolId },
+      relations: ['requirement', 'tipoDocumento'],
       order: { createdAt: 'DESC' },
     });
   }

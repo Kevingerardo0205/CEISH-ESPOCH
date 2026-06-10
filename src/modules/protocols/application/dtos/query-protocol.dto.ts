@@ -24,6 +24,9 @@ export class QueryProtocolDto {
   investigatorId?: number;
 
   @IsOptional()
+  subsanar?: string;
+
+  @IsOptional()
   @Type(() => Number)
   @IsInt()
   @Min(1)

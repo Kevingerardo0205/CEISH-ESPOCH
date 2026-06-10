@@ -34,7 +34,6 @@ async function bootstrap() {
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useGlobalPipes(new GlobalValidationPipe());
 
-
   await app.listen(process.env.PORT ?? 3002);
   console.log(
     `Application is running on: http://localhost:${process.env.PORT ?? 3002}/api`,

@@ -10,9 +10,10 @@ import {
   Query,
   Res,
   NotFoundException,
+  BadRequestException,
 } from '@nestjs/common';
 import type { Response } from 'express';
-import { createReadStream, existsSync } from 'fs';
+import { createReadStream, existsSync, readFileSync } from 'fs';
 import { join } from 'path';
 import { ReceptionService } from '../../application/services/reception.service';
 import { ValidateDocumentDto } from '../../application/dtos/validate-document.dto';
@@ -29,21 +30,29 @@ import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { RequirementStatus } from '../../../protocols/domain/enums/requirement-status.enum';
 import { DocumentMapper } from '../../application/mappers/document.mapper';
 
+import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
+import {
+  isValidPdfExtension,
+  sanitizeFilenameBackend,
+} from '../../../../shared/utils/validation';
+
 @Controller('reception')
 @UseGuards(JwtAuthGuard, PermissionsGuard)
 export class ReceptionController {
-  constructor(private readonly receptionService: ReceptionService) {}
+  constructor(
+    private readonly receptionService: ReceptionService,
+    private readonly storageService: IStorageService,
+  ) {}
 
-  @Permissions(Permission.RECEPTION_VIEW)
   @Get('protocol/:protocolId/validation-detail')
-  async getValidationDetail(@Param('protocolId') protocolId: string) {
-    return this.receptionService.getValidationDetail(+protocolId);
+  async getValidationDetail(@Param('protocolId') protocolId: string, @Request() req) {
+    return this.receptionService.getValidationDetail(+protocolId, req.user.id, req.user.permissions);
   }
 
   @Permissions(Permission.RECEPTION_VIEW)
   @Get('protocols')
-  async getProtocolsForReception() {
-    return this.receptionService.getProtocolsForReception();
+  async getProtocolsForReception(@Query('status') status?: string) {
+    return this.receptionService.getProtocolsForReception(status);
   }
 
   @Permissions(Permission.RECEPTION_START)
@@ -56,7 +65,11 @@ export class ReceptionController {
     return this.receptionService.iniciarRecepcion(+protocolId, req.user.id);
   }
 
-  @Permissions(Permission.RECEPTION_VIEW)
+  @Permissions(
+    Permission.RECEPTION_VIEW,
+    Permission.EVALUACION_RIESGO,
+    Permission.EVALUATION_VIEW_MINE,
+  )
   @Get('protocol/:protocolId')
   async findByProtocolId(@Param('protocolId') protocolId: string) {
     return this.receptionService.findOneByProtocolId(+protocolId);
@@ -87,6 +100,14 @@ export class ReceptionController {
   @Post('protocol/:protocolId/document')
   @Audit('DOCUMENT_UPLOADED')
   async uploadDocument(@Request() req, @Body() dto: UploadDocumentDto) {
+    if (!dto.fileName) {
+      throw new BadRequestException('El nombre del archivo es obligatorio');
+    }
+    if (!isValidPdfExtension(dto.fileName)) {
+      throw new BadRequestException('El archivo debe tener formato PDF');
+    }
+    dto.fileName = sanitizeFilenameBackend(dto.fileName);
+
     const document = await this.receptionService.uploadDocument(
       dto,
       req.user.id,
@@ -139,7 +160,11 @@ export class ReceptionController {
     );
   }
 
-  @Permissions(Permission.RECEPTION_VIEW)
+  @Permissions(
+    Permission.RECEPTION_VIEW,
+    Permission.EVALUACION_RIESGO,
+    Permission.EVALUATION_VIEW_MINE,
+  )
   @Get('protocol/:protocolId/documents')
   async getDocuments(@Param('protocolId') protocolId: string) {
     const documents = await this.receptionService.getDocuments(+protocolId);
@@ -155,20 +180,105 @@ export class ReceptionController {
     const document = await this.receptionService.findDocumentById(+documentId);
     if (!document) throw new NotFoundException('Documento no encontrado');
 
-    const filePath = join(process.cwd(), 'uploads', document.path);
-
-    if (!existsSync(filePath)) {
-      throw new NotFoundException('El archivo físico no existe en el servidor');
+    if (document.path && document.path.startsWith('http')) {
+      return res.redirect(document.path);
     }
 
-    res.setHeader('Content-Type', 'application/pdf');
-    res.setHeader(
-      'Content-Disposition',
-      `inline; filename="${document.fileName}"`,
-    );
+    const hasSlashes = document.path && document.path.includes('/');
 
-    const file = createReadStream(filePath);
-    file.pipe(res);
+    if (!hasSlashes) {
+      // Es un archivo heredado (legacy). Podría estar migrado a S3 o seguir solo en local.
+      try {
+        // Verificamos si existe en S3
+        await this.storageService.getMetadata(document.path);
+        const downloadUrl = await this.storageService.getDownloadUrl(
+          document.path,
+        );
+        return res.redirect(downloadUrl);
+      } catch (error) {
+        // Fallback a archivo local si no existe en storage o si la key no corresponde
+        const filePath = join(process.cwd(), 'uploads', document.path);
+
+        if (!existsSync(filePath)) {
+          throw new NotFoundException(
+            'El archivo físico no existe en el servidor ni en storage',
+          );
+        }
+
+        res.setHeader('Content-Type', 'application/pdf');
+        res.setHeader(
+          'Content-Disposition',
+          `inline; filename="${document.fileName}"`,
+        );
+
+        const file = createReadStream(filePath);
+        file.pipe(res);
+        return;
+      }
+    }
+
+    try {
+      const downloadUrl = await this.storageService.getDownloadUrl(
+        document.path,
+      );
+      return res.redirect(downloadUrl);
+    } catch (error) {
+      throw new NotFoundException(
+        'El archivo no pudo ser descargado desde el storage',
+      );
+    }
+  }
+
+  @Get('document/:documentId/download-url')
+  @Audit('DOCUMENT_DOWNLOAD_URL_GENERATED')
+  async getDocumentDownloadUrl(@Param('documentId') documentId: string) {
+    const document = await this.receptionService.findDocumentById(+documentId);
+    if (!document) throw new NotFoundException('Documento no encontrado');
+
+    if (document.path && document.path.startsWith('http')) {
+      return { downloadUrl: document.path };
+    }
+
+    const hasSlashes = document.path && document.path.includes('/');
+
+    if (!hasSlashes) {
+      // Es un archivo heredado (legacy). Verificamos si ya está en S3
+      try {
+        await this.storageService.getMetadata(document.path);
+      } catch (error) {
+        // No está en S3, intentamos migrarlo sobre la marcha si existe localmente
+        const filePath = join(process.cwd(), 'uploads', document.path);
+        if (existsSync(filePath)) {
+          try {
+            const buffer = readFileSync(filePath);
+            await this.storageService.uploadFile(
+              document.path,
+              buffer,
+              'application/pdf',
+            );
+          } catch (uploadErr) {
+            throw new NotFoundException(
+              'El archivo no existe en el storage y falló la migración automática',
+            );
+          }
+        } else {
+          throw new NotFoundException(
+            'El archivo físico no existe en el servidor ni en storage',
+          );
+        }
+      }
+    }
+
+    try {
+      const downloadUrl = await this.storageService.getDownloadUrl(
+        document.path,
+      );
+      return { downloadUrl };
+    } catch (error) {
+      throw new NotFoundException(
+        'El archivo no pudo ser localizado en el storage',
+      );
+    }
   }
 
   @Permissions(Permission.DOCUMENTS_VALIDATE)
