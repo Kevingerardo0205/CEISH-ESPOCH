@@ -688,10 +688,11 @@ export class EvaluationsService {
           await this.protocolOrmRepository.save(protocol);
 
           // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion
-          const version = await this.evaluationRepository.findVersionByProtocolId(
-            protocol.id,
-            1,
-          );
+          const version =
+            await this.evaluationRepository.findVersionByProtocolId(
+              protocol.id,
+              1,
+            );
           if (version) {
             const newDeadline =
               this.deadlineService.calculateEvaluatorDeadline(reviewType);

@@ -53,21 +53,38 @@ export class ReceptionService {
   /**
    * Obtiene el detalle completo para la pantalla de validación (Checklist)
    */
-  async getValidationDetail(protocolId: number, userId: number, userPermissions: string[]) {
+  async getValidationDetail(
+    protocolId: number,
+    userId: number,
+    userPermissions: string[],
+  ) {
     const protocol = await this.protocolRepository.findById(protocolId, {
-      relations: ['studyType', 'principalInvestigator', 'checklist', 'investigators'],
+      relations: [
+        'studyType',
+        'principalInvestigator',
+        'checklist',
+        'investigators',
+      ],
     });
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
     const hasOfficialPermission = userPermissions?.some((p) =>
-      [Permission.RECEPTION_VIEW, Permission.EVALUACION_RIESGO, Permission.EVALUATION_VIEW_MINE].includes(p as Permission)
+      [
+        Permission.RECEPTION_VIEW,
+        Permission.EVALUACION_RIESGO,
+        Permission.EVALUATION_VIEW_MINE,
+      ].includes(p as Permission),
     );
 
     const isOwner = protocol.principalInvestigatorId === userId;
-    const isCoInvestigator = protocol.investigators?.some((inv) => inv.userId === userId);
+    const isCoInvestigator = protocol.investigators?.some(
+      (inv) => inv.userId === userId,
+    );
 
     if (!hasOfficialPermission && !isOwner && !isCoInvestigator) {
-      throw new ForbiddenException('No tienes permisos para acceder al detalle de validación de este protocolo');
+      throw new ForbiddenException(
+        'No tienes permisos para acceder al detalle de validación de este protocolo',
+      );
     }
 
     const reception =

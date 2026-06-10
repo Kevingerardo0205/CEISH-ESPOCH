@@ -45,8 +45,15 @@ export class ReceptionController {
   ) {}
 
   @Get('protocol/:protocolId/validation-detail')
-  async getValidationDetail(@Param('protocolId') protocolId: string, @Request() req) {
-    return this.receptionService.getValidationDetail(+protocolId, req.user.id, req.user.permissions);
+  async getValidationDetail(
+    @Param('protocolId') protocolId: string,
+    @Request() req,
+  ) {
+    return this.receptionService.getValidationDetail(
+      +protocolId,
+      req.user.id,
+      req.user.permissions,
+    );
   }
 
   @Permissions(Permission.RECEPTION_VIEW)
