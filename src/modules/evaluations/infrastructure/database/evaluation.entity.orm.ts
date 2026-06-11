@@ -39,6 +39,12 @@ export class EvaluationOrmEntity {
   @Column({ name: 'ruta_informe_pdf', length: 500, nullable: true })
   reportPath?: string;
 
+  @Column({ name: 'ruta_docx', length: 500, nullable: true })
+  rutaDocx?: string;
+
+  @Column({ name: 'ruta_pdf', length: 500, nullable: true })
+  rutaPdf?: string;
+
   @CreateDateColumn({ name: 'fecha_evaluacion', type: 'timestamp' })
   evaluationDate!: Date;
 

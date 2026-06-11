@@ -14,7 +14,17 @@ import {
   SubmitEvaluationDto,
   EvaluationResult,
 } from '../dtos/submit-evaluation.dto';
-import { AspectResult } from '../dtos/annexes/evaluation-forms.dto';
+import {
+  AspectResult,
+  GlobalResult,
+  ChecklistItemState,
+  EvaluationItemResponseDto,
+  Annex9AspectDetailDto,
+} from '../dtos/annexes/evaluation-forms.dto';
+import {
+  EvaluationResponseDetailOrmEntity,
+  EvaluationCriterionType,
+} from '../../infrastructure/database/evaluation-response-detail.entity.orm';
 import {
   CreateEvaluatorProfileDto,
   UpdateEvaluatorProfileDto,
@@ -163,7 +173,7 @@ export class EvaluationsService {
         'No tiene permisos para evaluar esta asignación.',
       );
     }
-    if (assignment.statusId === AssignmentStatus.COMPLETED) {
+    if (assignment.statusId === +AssignmentStatus.COMPLETED) {
       throw new BadRequestException(
         'Esta evaluación ya ha sido enviada anteriormente.',
       );
@@ -171,28 +181,83 @@ export class EvaluationsService {
 
     const reviewType =
       assignment.version?.protocol?.reviewType || ReviewType.PLENO;
-    let ethicalAspects: any = {};
-    let methodologicalAspects: any = {};
-    let legalAspects: any = {};
+    let ethicalAspects: Record<string, unknown> = {};
+    let methodologicalAspects: Record<string, unknown> = {};
+    let legalAspects: Record<string, unknown> = {};
 
     // 1. Validar y extraer datos según el tipo de revisión (Digitalización Refactorizada)
     switch (reviewType) {
-      case ReviewType.EXPEDITA:
-        if (!dto.annex9)
+      case ReviewType.EXPEDITA: {
+        if (!dto.annex9) {
           throw new BadRequestException(
             'Debe completar el Anexo 9 para revisiones expeditas.',
           );
+        }
+
+        // Helper para validar cada aspecto (Ético, Metodológico, Jurídico)
+        const validateAspect = (
+          aspect: Annex9AspectDetailDto,
+          aspectName: string,
+        ) => {
+          if (!aspect) {
+            throw new BadRequestException(
+              `Debe proporcionar la evaluación de ${aspectName}.`,
+            );
+          }
+          if (!aspect.items || !Array.isArray(aspect.items)) {
+            throw new BadRequestException(
+              `Debe proporcionar el checklist de ítems para la evaluación de ${aspectName}.`,
+            );
+          }
+
+          // Verificar si algún ítem está en NC
+          const hasNC = aspect.items.some(
+            (it: EvaluationItemResponseDto) =>
+              it.estado === ChecklistItemState.NC,
+          );
+          if (hasNC && aspect.resultado === AspectResult.APROBADO) {
+            throw new BadRequestException(
+              `El resultado de la evaluación de ${aspectName} no puede ser APROBADO si contiene algún ítem en estado NC (No cumple).`,
+            );
+          }
+
+          // Validación de observaciones si el aspecto está CON_OBSERVACIONES
+          if (
+            aspect.resultado === AspectResult.CON_OBSERVACIONES &&
+            (!aspect.observaciones || !aspect.observaciones.trim())
+          ) {
+            throw new BadRequestException(
+              `Debe detallar las observaciones generales para la evaluación de ${aspectName}.`,
+            );
+          }
+
+          // Validación de observaciones para ítems específicos en NC
+          for (const item of aspect.items) {
+            if (
+              item.estado === ChecklistItemState.NC &&
+              (!item.observaciones || !item.observaciones.trim())
+            ) {
+              throw new BadRequestException(
+                `Debe detallar la observación específica para el ítem ${item.itemCodigo} de ${aspectName} por estar en estado NC (No cumple).`,
+              );
+            }
+          }
+        };
+
+        validateAspect(dto.annex9.etica, 'Ética');
+        validateAspect(dto.annex9.metodologia, 'Metodología');
+        validateAspect(dto.annex9.juridica, 'Jurídica');
 
         // Criterios Técnicos PET: Consistencia de Resultados
         const hasObservations =
-          dto.annex9.eticaResult === AspectResult.CON_OBSERVACIONES ||
-          dto.annex9.metodologiaResult === AspectResult.CON_OBSERVACIONES ||
-          dto.annex9.juridicaResult === AspectResult.CON_OBSERVACIONES;
+          dto.annex9.etica.resultado === AspectResult.CON_OBSERVACIONES ||
+          dto.annex9.metodologia.resultado === AspectResult.CON_OBSERVACIONES ||
+          dto.annex9.juridica.resultado === AspectResult.CON_OBSERVACIONES;
 
         const hasNoAprobado =
-          dto.annex9.eticaResult === AspectResult.NO_APROBADO ||
-          dto.annex9.metodologiaResult === AspectResult.NO_APROBADO ||
-          dto.annex9.juridicaResult === AspectResult.NO_APROBADO;
+          dto.annex9.etica.resultado === AspectResult.NO_APROBADO ||
+          dto.annex9.metodologia.resultado === AspectResult.NO_APROBADO ||
+          dto.annex9.juridica.resultado === AspectResult.NO_APROBADO;
 
         if (hasNoAprobado && dto.result === EvaluationResult.APROBADO) {
           throw new BadRequestException(
@@ -206,55 +271,28 @@ export class EvaluationsService {
           );
         }
 
-        // Validación de observaciones obligatorias si un aspecto está CON_OBSERVACIONES
-        if (
-          dto.annex9.eticaResult === AspectResult.CON_OBSERVACIONES &&
-          (!dto.annex9.eticaObservaciones ||
-            !dto.annex9.eticaObservaciones.trim())
-        ) {
-          throw new BadRequestException(
-            'Debe detallar las observaciones para la evaluación ética.',
-          );
-        }
-
-        if (
-          dto.annex9.metodologiaResult === AspectResult.CON_OBSERVACIONES &&
-          (!dto.annex9.metodologiaObservaciones ||
-            !dto.annex9.metodologiaObservaciones.trim())
-        ) {
-          throw new BadRequestException(
-            'Debe detallar las observaciones para la evaluación metodológica.',
-          );
-        }
-
-        if (
-          dto.annex9.juridicaResult === AspectResult.CON_OBSERVACIONES &&
-          (!dto.annex9.juridicaObservaciones ||
-            !dto.annex9.juridicaObservaciones.trim())
-        ) {
-          throw new BadRequestException(
-            'Debe detallar las observaciones para la evaluación jurídica.',
-          );
-        }
-
         ethicalAspects = {
-          resultado: dto.annex9.eticaResult,
-          plazo: dto.annex9.eticaPlazo,
-          observaciones: dto.annex9.eticaObservaciones,
+          resultado: dto.annex9.etica.resultado,
+          plazo: dto.annex9.etica.plazo,
+          observaciones: dto.annex9.etica.observaciones,
+          items: dto.annex9.etica.items,
         };
         methodologicalAspects = {
-          resultado: dto.annex9.metodologiaResult,
-          plazo: dto.annex9.metodologiaPlazo,
-          observaciones: dto.annex9.metodologiaObservaciones,
+          resultado: dto.annex9.metodologia.resultado,
+          plazo: dto.annex9.metodologia.plazo,
+          observaciones: dto.annex9.metodologia.observaciones,
+          items: dto.annex9.metodologia.items,
         };
         legalAspects = {
-          resultado: dto.annex9.juridicaResult,
-          plazo: dto.annex9.juridicaPlazo,
-          observaciones: dto.annex9.juridicaObservaciones,
+          resultado: dto.annex9.juridica.resultado,
+          plazo: dto.annex9.juridica.plazo,
+          observaciones: dto.annex9.juridica.observaciones,
+          items: dto.annex9.juridica.items,
         };
         break;
+      }
 
-      case ReviewType.PLENO:
+      case ReviewType.PLENO: {
         if (!dto.annex10)
           throw new BadRequestException(
             'Debe completar el Anexo 10 para revisiones en pleno.',
@@ -264,8 +302,9 @@ export class EvaluationsService {
           condiciones: dto.annex10.condicionesDescripcion,
         };
         break;
+      }
 
-      case ReviewType.ENSAYO_CLINICO:
+      case ReviewType.ENSAYO_CLINICO: {
         if (!dto.annex11)
           throw new BadRequestException(
             'Debe completar el Anexo 11 para ensayos clínicos.',
@@ -275,13 +314,13 @@ export class EvaluationsService {
           fechaEvaluacion: dto.annex11.fechaEvaluacion,
         };
         break;
+      }
     }
 
-    // 2. Validación de Informe Consolidado (Obligatorio si no es APROBADO)
-    const isApproved = dto.result === 'APROBADO';
-    if (!isApproved && !dto.reportPath) {
+    // 2. Validación de Informe Consolidado (PDF/Word obligatorio siempre en el PET)
+    if (!dto.reportPath || !dto.reportPath.trim()) {
       throw new BadRequestException(
-        'Debe subir el Documento Consolidado (PDF) para sustentar el dictamen condicionado o no aprobado.',
+        'Debe subir obligatoriamente el Documento Consolidado (PDF/Word) firmado para registrar la evaluación.',
       );
     }
 
@@ -297,6 +336,108 @@ export class EvaluationsService {
       evaluatedByUserId: evaluatorId,
       evaluationDate: new Date(),
     });
+
+    // Guardar los detalles individuales del checklist en la BD (Opción A Relacional)
+    if (reviewType === ReviewType.EXPEDITA && dto.annex9) {
+      const detailsToSave: EvaluationResponseDetailOrmEntity[] = [];
+
+      const buildDetailsForAspect = (
+        items: EvaluationItemResponseDto[],
+        type: EvaluationCriterionType,
+      ) => {
+        items.forEach((item) => {
+          const detail = new EvaluationResponseDetailOrmEntity();
+          detail.evaluacionId = evaluation.id;
+          detail.criterioTipo = type;
+          detail.itemCodigo = item.itemCodigo;
+          detail.estado = item.estado;
+          detail.observaciones = item.observaciones;
+          detailsToSave.push(detail);
+        });
+      };
+
+      buildDetailsForAspect(
+        dto.annex9.etica.items,
+        EvaluationCriterionType.ETICA,
+      );
+      buildDetailsForAspect(
+        dto.annex9.metodologia.items,
+        EvaluationCriterionType.METODOLOGIA,
+      );
+      buildDetailsForAspect(
+        dto.annex9.juridica.items,
+        EvaluationCriterionType.JURIDICA,
+      );
+
+      await this.evaluationRepository.saveEvaluationResponseDetails(
+        detailsToSave,
+      );
+    }
+
+    // 3.1. Determinar valores para cada uno de los 3 criterios técnicos del PET
+    let eticaAprobado = false;
+    let metodologiaAprobado = false;
+    let juridicaAprobado = false;
+
+    if (reviewType === ReviewType.EXPEDITA && dto.annex9) {
+      eticaAprobado = dto.annex9.etica.resultado === AspectResult.APROBADO;
+      metodologiaAprobado =
+        dto.annex9.metodologia.resultado === AspectResult.APROBADO;
+      juridicaAprobado =
+        dto.annex9.juridica.resultado === AspectResult.APROBADO;
+    } else if (reviewType === ReviewType.PLENO && dto.annex10) {
+      const isApprovedOrCond =
+        dto.annex10.resultado === GlobalResult.APROBADO ||
+        dto.annex10.resultado === GlobalResult.APROBADO_CONDICIONADO;
+      eticaAprobado = isApprovedOrCond;
+      metodologiaAprobado = isApprovedOrCond;
+      juridicaAprobado = isApprovedOrCond;
+    } else if (reviewType === ReviewType.ENSAYO_CLINICO && dto.annex11) {
+      const isApprovedOrCond =
+        dto.annex11.resultado === GlobalResult.APROBADO ||
+        dto.annex11.resultado === GlobalResult.APROBADO_CONDICIONADO;
+      eticaAprobado = isApprovedOrCond;
+      metodologiaAprobado = isApprovedOrCond;
+      juridicaAprobado = isApprovedOrCond;
+    }
+
+    // Guardar relaciones en la tabla pivote evaluacion_criterio (IDs: 1 = Ética, 2 = Metodológica, 3 = Jurídica)
+    await this.evaluationRepository.saveEvaluationCriteria(
+      evaluation.id,
+      1,
+      eticaAprobado,
+    );
+    await this.evaluationRepository.saveEvaluationCriteria(
+      evaluation.id,
+      2,
+      metodologiaAprobado,
+    );
+    await this.evaluationRepository.saveEvaluationCriteria(
+      evaluation.id,
+      3,
+      juridicaAprobado,
+    );
+
+    // 3.2. Calcular y guardar el plazo de subsanación de 30 días laborables si requiere correcciones
+    const needsCorrection =
+      dto.result === EvaluationResult.PENDIENTE_SUBSANACION ||
+      dto.result === EvaluationResult.APROBADO_CON_OBSERVACIONES ||
+      (reviewType === ReviewType.EXPEDITA &&
+        (dto.annex9?.etica.resultado === AspectResult.CON_OBSERVACIONES ||
+          dto.annex9?.metodologia.resultado ===
+            AspectResult.CON_OBSERVACIONES ||
+          dto.annex9?.juridica.resultado === AspectResult.CON_OBSERVACIONES));
+
+    if (needsCorrection) {
+      const deadlineDate = this.deadlineService.calculateSubsanacionDeadline(
+        new Date(),
+      );
+      await this.evaluationRepository.saveVersion({
+        id: assignment.versionId,
+        correctionDeadlineDays: 30,
+        correctionDeadlineDate: deadlineDate,
+      });
+    }
 
     // 4. Actualizar estado de la asignación
     await this.evaluationRepository.saveAssignment({

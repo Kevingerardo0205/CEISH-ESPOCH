@@ -1,5 +1,13 @@
-import { IsString, IsOptional, IsEnum, IsDateString } from 'class-validator';
+import {
+  IsString,
+  IsOptional,
+  IsEnum,
+  IsDateString,
+  IsArray,
+  ValidateNested,
+} from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Type } from 'class-transformer';
 
 /**
  * Resultados para áreas específicas (Anexo 9)
@@ -20,72 +28,96 @@ export enum GlobalResult {
 }
 
 /**
+ * Estados para los ítems individuales del checklist
+ */
+export enum ChecklistItemState {
+  C = 'C', // Cumple
+  NC = 'NC', // No cumple
+  NA = 'NA', // No aplica
+}
+
+/**
+ * DTO para la respuesta individual de un ítem del checklist
+ */
+export class EvaluationItemResponseDto {
+  @ApiProperty({
+    example: 'ET_2',
+    description: 'Código del ítem (ej. ET_1, MET_5)',
+  })
+  @IsString()
+  itemCodigo!: string;
+
+  @ApiProperty({
+    enum: ChecklistItemState,
+    example: 'NC',
+    description: 'Estado: C (Cumple), NC (No cumple), NA (No aplica)',
+  })
+  @IsEnum(ChecklistItemState)
+  estado!: ChecklistItemState;
+
+  @ApiProperty({
+    required: false,
+    example: 'Falta describir riesgos de confidencialidad.',
+    description: 'Observación del evaluador',
+  })
+  @IsOptional()
+  @IsString()
+  observaciones?: string;
+}
+
+/**
+ * DTO para el detalle de un aspecto (Ético, Metodológico o Jurídico)
+ */
+export class Annex9AspectDetailDto {
+  @ApiProperty({ enum: AspectResult })
+  @IsEnum(AspectResult)
+  resultado!: AspectResult;
+
+  @ApiProperty({
+    required: false,
+    description: 'Plazo para absolver observaciones',
+  })
+  @IsOptional()
+  @IsString()
+  plazo?: string;
+
+  @ApiProperty({
+    required: false,
+    description: 'Observaciones generales del aspecto',
+  })
+  @IsOptional()
+  @IsString()
+  observaciones?: string;
+
+  @ApiProperty({
+    type: [EvaluationItemResponseDto],
+    description: 'Checklist de ítems individuales del aspecto',
+  })
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => EvaluationItemResponseDto)
+  items!: EvaluationItemResponseDto[];
+}
+
+/**
  * ANEXO 9: Guía para evaluación expedita
- * Triple evaluación: Ética, Metodológica y Jurídica
+ * Triple evaluación: Ética, Metodológica y Jurídica con checklist de ítems
  */
 export class Annex9Dto {
-  // Evaluación Ética
-  @ApiProperty({ enum: AspectResult })
-  @IsEnum(AspectResult)
-  eticaResult!: AspectResult;
+  @ApiProperty({ type: Annex9AspectDetailDto })
+  @ValidateNested()
+  @Type(() => Annex9AspectDetailDto)
+  etica!: Annex9AspectDetailDto;
 
-  @ApiProperty({
-    required: false,
-    description: 'Plazo para absolver observaciones éticas',
-  })
-  @IsOptional()
-  @IsString()
-  eticaPlazo?: string;
+  @ApiProperty({ type: Annex9AspectDetailDto })
+  @ValidateNested()
+  @Type(() => Annex9AspectDetailDto)
+  metodologia!: Annex9AspectDetailDto;
 
-  @ApiProperty({
-    required: false,
-    description: 'Observaciones detalladas de la evaluación ética',
-  })
-  @IsOptional()
-  @IsString()
-  eticaObservaciones?: string;
-
-  // Evaluación Metodológica
-  @ApiProperty({ enum: AspectResult })
-  @IsEnum(AspectResult)
-  metodologiaResult!: AspectResult;
-
-  @ApiProperty({
-    required: false,
-    description: 'Plazo para absolver observaciones metodológicas',
-  })
-  @IsOptional()
-  @IsString()
-  metodologiaPlazo?: string;
-
-  @ApiProperty({
-    required: false,
-    description: 'Observaciones detalladas de la evaluación metodológica',
-  })
-  @IsOptional()
-  @IsString()
-  metodologiaObservaciones?: string;
-
-  // Evaluación Jurídica
-  @ApiProperty({ enum: AspectResult })
-  @IsEnum(AspectResult)
-  juridicaResult!: AspectResult;
-
-  @ApiProperty({
-    required: false,
-    description: 'Plazo para absolver observaciones jurídicas',
-  })
-  @IsOptional()
-  @IsString()
-  juridicaPlazo?: string;
-
-  @ApiProperty({
-    required: false,
-    description: 'Observaciones detalladas de la evaluación jurídica',
-  })
-  @IsOptional()
-  @IsString()
-  juridicaObservaciones?: string;
+  @ApiProperty({ type: Annex9AspectDetailDto })
+  @ValidateNested()
+  @Type(() => Annex9AspectDetailDto)
+  juridica!: Annex9AspectDetailDto;
 }
 
 /**
@@ -106,7 +138,7 @@ export class Annex10Dto {
 }
 
 /**
- * ANEXO 11: Guía para evaluación de ensayos clínicos
+ * ANEXO 11: Guía para evaluación de ensayos clínicos (Obsoleto en la práctica pero conservado para compatibilidad)
  */
 export class Annex11Dto {
   @ApiProperty({

@@ -2,6 +2,7 @@ import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/eva
 import { EvaluatorProfileOrmEntity } from '../../infrastructure/database/evaluator-profile.entity.orm';
 import { ProtocolVersionOrmEntity } from '../../infrastructure/database/protocol-version.entity.orm';
 import { EvaluationOrmEntity } from '../../infrastructure/database/evaluation.entity.orm';
+import { EvaluationResponseDetailOrmEntity } from '../../infrastructure/database/evaluation-response-detail.entity.orm';
 
 export abstract class IEvaluationRepository {
   // Assignments
@@ -51,4 +52,15 @@ export abstract class IEvaluationRepository {
   abstract findEvaluationByAssignmentId(
     assignmentId: number,
   ): Promise<EvaluationOrmEntity | null>;
+  abstract saveEvaluationCriteria(
+    evaluationId: number,
+    criteriaId: number,
+    valor: boolean,
+  ): Promise<void>;
+  abstract saveEvaluationResponseDetails(
+    details: EvaluationResponseDetailOrmEntity[],
+  ): Promise<EvaluationResponseDetailOrmEntity[]>;
+  abstract findEvaluationDetailsByEvaluationId(
+    evaluationId: number,
+  ): Promise<EvaluationResponseDetailOrmEntity[]>;
 }

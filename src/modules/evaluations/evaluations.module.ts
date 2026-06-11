@@ -5,7 +5,9 @@ import { EvaluatorProfileOrmEntity } from './infrastructure/database/evaluator-p
 import { EvaluatorProfileUserOrmEntity } from './infrastructure/database/evaluator-profile-user.entity.orm';
 import { ProtocolVersionOrmEntity } from './infrastructure/database/protocol-version.entity.orm';
 import { EvaluationOrmEntity } from './infrastructure/database/evaluation.entity.orm';
+import { EvaluationResponseDetailOrmEntity } from './infrastructure/database/evaluation-response-detail.entity.orm';
 import { SessionOrmEntity } from './infrastructure/database/session.entity.orm';
+
 import { MinutesOrmEntity } from './infrastructure/database/minutes.entity.orm';
 import { UserOrmEntity } from '../auth/infrastructure/database/user.entity.orm';
 import { EvaluationsService } from './application/services/evaluations.service';
@@ -32,7 +34,9 @@ import { ResolutionTypeOrmEntity } from '../resolutions/infrastructure/database/
       EvaluatorProfileUserOrmEntity,
       ProtocolVersionOrmEntity,
       EvaluationOrmEntity,
+      EvaluationResponseDetailOrmEntity,
       SessionOrmEntity,
+
       MinutesOrmEntity,
       UserOrmEntity,
       InvestigatorOrmEntity,

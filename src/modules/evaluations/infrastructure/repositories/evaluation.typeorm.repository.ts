@@ -7,7 +7,9 @@ import { EvaluatorProfileOrmEntity } from '../database/evaluator-profile.entity.
 import { EvaluatorProfileUserOrmEntity } from '../database/evaluator-profile-user.entity.orm';
 import { ProtocolVersionOrmEntity } from '../database/protocol-version.entity.orm';
 import { EvaluationOrmEntity } from '../database/evaluation.entity.orm';
+import { EvaluationResponseDetailOrmEntity } from '../database/evaluation-response-detail.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
+
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
 
@@ -24,6 +26,8 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     private readonly userRepo: Repository<UserOrmEntity>,
     @InjectRepository(EvaluationOrmEntity)
     private readonly evaluationRepo: Repository<EvaluationOrmEntity>,
+    @InjectRepository(EvaluationResponseDetailOrmEntity)
+    private readonly detailRepo: Repository<EvaluationResponseDetailOrmEntity>,
   ) {}
 
   async findAssignmentById(
@@ -198,6 +202,34 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     return this.evaluationRepo.findOne({
       where: { assignmentId },
       relations: ['assignment'],
+    });
+  }
+
+  async saveEvaluationCriteria(
+    evaluationId: number,
+    criteriaId: number,
+    valor: boolean,
+  ): Promise<void> {
+    await this.evaluationRepo.query(
+      `INSERT INTO evaluacion.evaluacion_criterio (evaluacion_id, criterio_id, valor)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (evaluacion_id, criterio_id) DO UPDATE SET valor = $3`,
+      [evaluationId, criteriaId, valor],
+    );
+  }
+
+  async saveEvaluationResponseDetails(
+    details: EvaluationResponseDetailOrmEntity[],
+  ): Promise<EvaluationResponseDetailOrmEntity[]> {
+    return this.detailRepo.save(details);
+  }
+
+  async findEvaluationDetailsByEvaluationId(
+    evaluationId: number,
+  ): Promise<EvaluationResponseDetailOrmEntity[]> {
+    return this.detailRepo.find({
+      where: { evaluacionId: evaluationId },
+      order: { id: 'ASC' },
     });
   }
 }
