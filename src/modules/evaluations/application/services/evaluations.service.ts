@@ -4,9 +4,53 @@ import {
   BadRequestException,
   ConflictException,
   Inject,
+  ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
+
+/**
+ * Catálogo canónico de ítems del Anexo 9 (Guía de Evaluación Técnica).
+ * Solo los códigos se persisten en BD; las descripciones viven aquí.
+ */
+const ANNEX9_ITEM_CATALOG: Record<string, string> = {
+  // Ética (10 ítems)
+  ET_1: 'Respeta a la persona y comunidad que participa en el estudio.',
+  ET_2: 'Autonomía: Consentimiento informado/Idoneidad del formulario escrito y del proceso de obtención. Voluntariedad.',
+  ET_3: 'Beneficencia (Valoración del estudio para la persona, comunidad y país).',
+  ET_4: 'Confidencialidad.',
+  ET_5: 'Aleatorización equitativa de la muestra.',
+  ET_6: 'Protección de la población vulnerable.',
+  ET_7: 'Riesgos potenciales del estudio.',
+  ET_8: 'Beneficios potenciales del estudio.',
+  ET_9: 'Competencias éticas y experticia del investigador.',
+  ET_10: 'Declaración de conflicto de intereses.',
+  // Metodología (12 ítems)
+  MET_1:
+    'Coherencia entre título, objetivos, hipótesis (de ser pertinente), introducción y justificación. Marco teórico y problema de investigación.',
+  MET_2: 'Metodología - Diseño del estudio.',
+  MET_3: 'Metodología - Sujetos y tamaño de la muestra.',
+  MET_4: 'Metodología - Definición de variables.',
+  MET_5: 'Metodología - Medición de variables y procedimientos.',
+  MET_6: 'Metodología - Estandarización.',
+  MET_7: 'Metodología - Manejo de datos.',
+  MET_8: 'Metodología - Análisis estadístico.',
+  MET_9: 'Metodología - Resultados y beneficios esperados.',
+  MET_10: 'Metodología - Referencias Bibliográficas.',
+  MET_11:
+    'Metodología - Coherencia entre cronograma, financiamiento y personal.',
+  MET_12: 'Metodología - Anexos.',
+  // Jurídica (5 ítems)
+  JUR_1:
+    'La investigación está acorde a la legislación y normativa vigente nacional e internacional.',
+  JUR_2:
+    'Es un estudio multicéntrico y cuenta con la aprobación del Comité de Ética del país donde radica el patrocinador del estudio.',
+  JUR_3: 'Existe contrato entre el promotor del estudio y los investigadores.',
+  JUR_4:
+    'Existen acuerdos relevantes entre el promotor de la investigación y el sitio clínico en donde ésta se realice.',
+  JUR_5:
+    'Existe póliza de seguro que cubra las responsabilidades de todos los implicados y prevea compensaciones.',
+};
 import { IEvaluationRepository } from '../../domain/ports/evaluation.repository.port';
 import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
@@ -43,6 +87,11 @@ import { AssignPeerEvaluatorsDto } from '../dtos/assign-peer-evaluators.dto';
 import { SubmitPeerRiskDto } from '../dtos/submit-peer-risk.dto';
 import { InvestigatorProfileOrmEntity } from '../../../auth/infrastructure/database/investigator-profile.entity.orm';
 import { EvaluatorProfileUserOrmEntity } from '../../infrastructure/database/evaluator-profile-user.entity.orm';
+import { PdfGeneratorService } from '../../../../shared/utils/pdf-generator.service';
+import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
+import { DocxGeneratorService } from '../../../../shared/utils/docx-generator.service';
+import { Logger } from '@nestjs/common';
+import { Permission } from '../../../../shared/enums/permission.enum';
 
 @Injectable()
 export class EvaluationsService {
@@ -65,7 +114,13 @@ export class EvaluationsService {
     private readonly profileRepo: Repository<InvestigatorProfileOrmEntity>,
     @InjectRepository(EvaluatorProfileUserOrmEntity)
     private readonly evaluatorProfileUserRepo: Repository<EvaluatorProfileUserOrmEntity>,
+    private readonly pdfGeneratorService: PdfGeneratorService,
+    private readonly docxGeneratorService: DocxGeneratorService,
+    @Inject(IStorageService)
+    private readonly storageService: IStorageService,
   ) {}
+
+  private readonly logger = new Logger(EvaluationsService.name);
 
   /**
    * HU-004: Dashboard de carga por evaluador y protocolos pendientes
@@ -317,15 +372,22 @@ export class EvaluationsService {
       }
     }
 
-    // 2. Validación de Informe Consolidado (PDF/Word obligatorio siempre en el PET)
-    if (!dto.reportPath || !dto.reportPath.trim()) {
+    // 2. Validación de Informe Consolidado (PDF/Word obligatorio siempre en el PET, excepto si es borrador)
+    if (!dto.isDraft && (!dto.reportPath || !dto.reportPath.trim())) {
       throw new BadRequestException(
         'Debe subir obligatoriamente el Documento Consolidado (PDF/Word) firmado para registrar la evaluación.',
       );
     }
 
-    // 3. Guardar evaluación en BD (JSONB fields)
+    // Buscar si ya existe una evaluación previa para esta asignación (por ejemplo, un borrador guardado)
+    const existingEvaluation =
+      await this.evaluationRepository.findEvaluationByAssignmentId(
+        dto.assignmentId,
+      );
+
+    // 3. Guardar o actualizar evaluación en BD (JSONB fields)
     const evaluation = await this.evaluationRepository.saveEvaluation({
+      ...(existingEvaluation || {}),
       assignmentId: dto.assignmentId,
       ethicalAspects,
       methodologicalAspects,
@@ -369,9 +431,123 @@ export class EvaluationsService {
         EvaluationCriterionType.JURIDICA,
       );
 
+      if (existingEvaluation) {
+        await this.evaluationRepository.deleteEvaluationResponseDetails(
+          existingEvaluation.id,
+        );
+      }
+
       await this.evaluationRepository.saveEvaluationResponseDetails(
         detailsToSave,
       );
+
+      // ─────────────────────────────────────────────────────────────────────
+      // FASE 2: Generar PDF + DOCX del Anexo 9 y subir a Cloudflare R2
+      // ─────────────────────────────────────────────────────────────────────
+      try {
+        const protocol = await this.protocolRepository.findById(
+          assignment.version.protocolId,
+        );
+        const evaluator = assignment.evaluator;
+        const now = new Date();
+
+        // Función compartida: mapear ítems con descripción canónica
+        const mapItems = (items: EvaluationItemResponseDto[]) =>
+          items.map((it) => ({
+            label: ANNEX9_ITEM_CATALOG[it.itemCodigo] ?? it.itemCodigo,
+            text: ANNEX9_ITEM_CATALOG[it.itemCodigo] ?? it.itemCodigo,
+            c: it.estado === ChecklistItemState.C,
+            nc: it.estado === ChecklistItemState.NC,
+            na: it.estado === ChecklistItemState.NA,
+            obs: it.observaciones,
+            observaciones: it.observaciones,
+          }));
+
+        const ethicalMapped = mapItems(dto.annex9.etica.items);
+        const methodologicalMapped = mapItems(dto.annex9.metodologia.items);
+        const legalMapped = mapItems(dto.annex9.juridica.items);
+
+        const commonData = {
+          ceishCode: protocol?.ceishCode || 'S/C',
+          investigatorName:
+            protocol?.principalInvestigator?.fullName ||
+            evaluator?.fullName ||
+            'Evaluador',
+          protocolTitle: protocol?.title || 'Sin título',
+          studyType: protocol?.studyType?.name || 'Observacional',
+          ethicalResult: dto.annex9.etica.resultado,
+          ethicalPlazo: dto.annex9.etica.plazo,
+          methodologicalResult: dto.annex9.metodologia.resultado,
+          methodologicalPlazo: dto.annex9.metodologia.plazo,
+          legalResult: dto.annex9.juridica.resultado,
+          legalPlazo: dto.annex9.juridica.plazo,
+        };
+
+        const timestamp = Date.now();
+        const evalId = evaluation.id;
+
+        // Generar PDF y DOCX en paralelo
+        const [pdfBuffer, docxBuffer] = await Promise.all([
+          this.pdfGeneratorService.generateAnnex9Report({
+            ...commonData,
+            date: now,
+            ethicalChecklist: ethicalMapped,
+            methodologicalChecklist: methodologicalMapped,
+            legalChecklist: legalMapped,
+            observations: [
+              dto.annex9.etica.observaciones,
+              dto.annex9.metodologia.observaciones,
+              dto.annex9.juridica.observaciones,
+              dto.observations,
+            ].filter((o): o is string => !!o && o.trim().length > 0),
+            revisores: evaluator?.fullName ? [evaluator.fullName] : undefined,
+          }),
+          this.docxGeneratorService.generateAnnex9Docx({
+            ...commonData,
+            evaluationDate: now,
+            ethicalItems: ethicalMapped,
+            methodologicalItems: methodologicalMapped,
+            legalItems: legalMapped,
+            revisorName: evaluator?.fullName,
+          }),
+        ]);
+
+        // Subir ambos a Cloudflare R2 en paralelo
+        const r2KeyPdf = `evaluations/anexo9/${evalId}-${timestamp}.pdf`;
+        const r2KeyDocx = `evaluations/anexo9/${evalId}-${timestamp}.docx`;
+
+        await Promise.all([
+          this.storageService.uploadFile(
+            r2KeyPdf,
+            pdfBuffer,
+            'application/pdf',
+          ),
+          this.storageService.uploadFile(
+            r2KeyDocx,
+            docxBuffer,
+            'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          ),
+        ]);
+
+        // Persistir ambas rutas en BD
+        await this.evaluationRepository.saveEvaluation({
+          ...evaluation,
+          rutaPdf: r2KeyPdf,
+          rutaDocx: r2KeyDocx,
+        });
+        evaluation.rutaPdf = r2KeyPdf;
+        evaluation.rutaDocx = r2KeyDocx;
+
+        this.logger.log(
+          `Anexo 9 generado (PDF + DOCX) y subido a R2 para evaluación #${evalId}`,
+        );
+      } catch (genErr) {
+        // No bloquear la evaluación si la generación falla; se loguea
+        this.logger.error(
+          `Error generando documentos Anexo 9 para evaluación #${evaluation.id}:`,
+          genErr,
+        );
+      }
     }
 
     // 3.1. Determinar valores para cada uno de los 3 criterios técnicos del PET
@@ -417,6 +593,18 @@ export class EvaluationsService {
       3,
       juridicaAprobado,
     );
+
+    // Si es un borrador (isDraft === true), actualizamos el estado temporal en la asignación pero manteniendo el status en ASSIGNED (6)
+    if (dto.isDraft) {
+      await this.evaluationRepository.saveAssignment({
+        ...assignment,
+        recommendation: dto.result,
+        evaluationReport: dto.observations,
+        reportPath: dto.reportPath,
+        statusId: AssignmentStatus.ASSIGNED,
+      });
+      return evaluation;
+    }
 
     // 3.2. Calcular y guardar el plazo de subsanación de 30 días laborables si requiere correcciones
     const needsCorrection =
@@ -943,5 +1131,266 @@ export class EvaluationsService {
       deadline: a.deadline,
       evaluationDate: a.actualSubmissionDate || null,
     }));
+  }
+
+  /**
+   * Consultar los detalles relacionales del checklist (Anexo 9) de una evaluación.
+   * Enriquece cada ítem con su descripción canónica del catálogo y genera
+   * estadísticas de cumplimiento por criterio técnico.
+   */
+  async getEvaluationChecklistDetails(id: number) {
+    // Intentar buscar por ID de evaluación primero
+    let evaluation = await this.evaluationRepository.findEvaluationById(id);
+
+    // Si no se encuentra, intentar buscar por ID de asignación
+    if (!evaluation) {
+      evaluation =
+        await this.evaluationRepository.findEvaluationByAssignmentId(id);
+    }
+
+    if (!evaluation) {
+      throw new NotFoundException(
+        `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
+      );
+    }
+
+    const details =
+      await this.evaluationRepository.findEvaluationDetailsByEvaluationId(
+        evaluation.id,
+      );
+
+    if (!details || details.length === 0) {
+      throw new NotFoundException(
+        `No se encontraron detalles de checklist para la evaluación con ID ${evaluation.id}. Solo las revisiones de tipo EXPEDITA persisten el checklist relacional.`,
+      );
+    }
+
+    // Enriquecer con descripción canónica
+    const enrichedItems = details.map((d) => ({
+      id: d.id,
+      evaluacionId: d.evaluacionId,
+      criterioTipo: d.criterioTipo,
+      itemCodigo: d.itemCodigo,
+      descripcion: ANNEX9_ITEM_CATALOG[d.itemCodigo] ?? `Ítem ${d.itemCodigo}`,
+      estado: d.estado,
+      observaciones: d.observaciones ?? null,
+      creadoEn: d.createdAt,
+    }));
+
+    // Estadísticas de cumplimiento por criterio
+    const criterios = ['ETICA', 'METODOLOGIA', 'JURIDICA'] as const;
+    const stats = criterios.reduce(
+      (acc, criterio) => {
+        const criterioItems = enrichedItems.filter(
+          (i) => i.criterioTipo === criterio,
+        );
+        acc[criterio] = {
+          total: criterioItems.length,
+          cumple: criterioItems.filter((i) => i.estado === 'C').length,
+          noCumple: criterioItems.filter((i) => i.estado === 'NC').length,
+          noAplica: criterioItems.filter((i) => i.estado === 'NA').length,
+        };
+        return acc;
+      },
+      {} as Record<
+        string,
+        { total: number; cumple: number; noCumple: number; noAplica: number }
+      >,
+    );
+
+    return {
+      evaluacionId: evaluation.id,
+      totalItems: enrichedItems.length,
+      estadisticas: stats,
+      items: enrichedItems,
+    };
+  }
+
+  /**
+   * Fase 2: Obtener URL firmada (30 min) para descargar el PDF del Anexo 9
+   * generado automáticamente desde Cloudflare R2.
+   */
+  async getEvaluationDocumentUrl(id: number): Promise<{
+    evaluacionId: number;
+    downloadUrl: string;
+    expiresInSeconds: number;
+    r2Key: string;
+  }> {
+    // Intentar buscar por ID de evaluación primero
+    let evaluation = await this.evaluationRepository.findEvaluationById(id);
+
+    // Si no se encuentra, intentar buscar por ID de asignación
+    if (!evaluation) {
+      evaluation =
+        await this.evaluationRepository.findEvaluationByAssignmentId(id);
+    }
+
+    if (!evaluation) {
+      throw new NotFoundException(
+        `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
+      );
+    }
+
+    if (!evaluation.rutaPdf) {
+      throw new NotFoundException(
+        `No existe un PDF del Anexo 9 generado para la evaluación #${evaluation.id}. ` +
+          `El documento se genera automáticamente al registrar una evaluación EXPEDITA. ` +
+          `Verifique que la evaluación sea de tipo Revisión Expedita.`,
+      );
+    }
+
+    const SIGNED_URL_EXPIRY = 1800; // 30 minutos
+    const downloadUrl = await this.storageService.getDownloadUrl(
+      evaluation.rutaPdf,
+      SIGNED_URL_EXPIRY,
+    );
+
+    return {
+      evaluacionId: evaluation.id,
+      downloadUrl,
+      expiresInSeconds: SIGNED_URL_EXPIRY,
+      r2Key: evaluation.rutaPdf,
+    };
+  }
+
+  /**
+   * Fase 2: Obtener URL firmada (30 min) para descargar el DOCX del Anexo 9
+   * generado automáticamente desde Cloudflare R2.
+   */
+  async getEvaluationDocxUrl(id: number): Promise<{
+    evaluacionId: number;
+    downloadUrl: string;
+    expiresInSeconds: number;
+    r2Key: string;
+    filename: string;
+  }> {
+    // Intentar buscar por ID de evaluación primero
+    let evaluation = await this.evaluationRepository.findEvaluationById(id);
+
+    // Si no se encuentra, intentar buscar por ID de asignación
+    if (!evaluation) {
+      evaluation =
+        await this.evaluationRepository.findEvaluationByAssignmentId(id);
+    }
+
+    if (!evaluation) {
+      throw new NotFoundException(
+        `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
+      );
+    }
+
+    if (!evaluation.rutaDocx) {
+      throw new NotFoundException(
+        `No existe un DOCX del Anexo 9 generado para la evaluación #${evaluation.id}. ` +
+          `El documento Word se genera automáticamente al registrar una evaluación EXPEDITA. ` +
+          `Verifique que la evaluación sea de tipo Revisión Expedita.`,
+      );
+    }
+
+    const SIGNED_URL_EXPIRY = 1800; // 30 minutos
+    const downloadUrl = await this.storageService.getDownloadUrl(
+      evaluation.rutaDocx,
+      SIGNED_URL_EXPIRY,
+    );
+
+    // Nombre sugerido de archivo para la descarga
+    const filename = `Anexo9_Evaluacion_${evaluation.id}.docx`;
+
+    return {
+      evaluacionId: evaluation.id,
+      downloadUrl,
+      expiresInSeconds: SIGNED_URL_EXPIRY,
+      r2Key: evaluation.rutaDocx,
+      filename,
+    };
+  }
+
+  async getObservationsForInvestigator(
+    protocolId: number,
+    userId: number,
+    userPermissions: string[],
+  ) {
+    const protocol = await this.protocolOrmRepository.findOne({
+      where: { id: protocolId },
+      relations: ['investigators'],
+    });
+    if (!protocol) throw new NotFoundException('Protocolo no encontrado');
+
+    const isOwner = protocol.principalInvestigatorId === userId;
+    const isCoInvestigator = protocol.investigators?.some(
+      (inv) => inv.userId === userId,
+    );
+    const hasOfficialPermission = userPermissions?.some((p) =>
+      [
+        Permission.EVALUACION_INFORMES,
+        Permission.RESOLUCION_CREAR,
+        Permission.RESOLUCION_FIRMAR,
+        Permission.RECEPCION_VIEW,
+      ].includes(p as Permission),
+    );
+
+    if (!isOwner && !isCoInvestigator && !hasOfficialPermission) {
+      throw new ForbiddenException(
+        'No tienes permiso para acceder a las observaciones de este protocolo.',
+      );
+    }
+
+    const version = await this.evaluationRepository.findVersionByProtocolId(
+      protocolId,
+      protocol.currentVersion,
+    );
+    if (!version) {
+      return {
+        protocolId,
+        observations: [],
+        message: 'No hay evaluaciones registradas para este protocolo.',
+      };
+    }
+
+    const assignments =
+      await this.evaluationRepository.findAssignmentsByVersionId(version.id);
+    const completedAssignments = assignments.filter(
+      (a) => a.statusId === +AssignmentStatus.COMPLETED,
+    );
+
+    const observations = [];
+    for (const assignment of completedAssignments) {
+      const evaluation =
+        await this.evaluationRepository.findEvaluationByAssignmentId(
+          assignment.id,
+        );
+      if (evaluation) {
+        const details =
+          await this.evaluationRepository.findEvaluationDetailsByEvaluationId(
+            evaluation.id,
+          );
+
+        // Enriquecer cada detalle del checklist con la descripción canónica del catálogo
+        const checklistDetails = details.map((d) => ({
+          criterionType: d.criterioTipo,
+          itemCode: d.itemCodigo,
+          description: ANNEX9_ITEM_CATALOG[d.itemCodigo] || 'Sin descripción',
+          state: d.estado,
+          observations: d.observaciones,
+        }));
+
+        observations.push({
+          evaluatorProfile: assignment.profile?.name || 'Evaluador',
+          result: evaluation.result,
+          generalObservations: evaluation.observations,
+          evaluationDate: evaluation.evaluationDate,
+          ethicalAspects: evaluation.ethicalAspects as unknown,
+          methodologicalAspects: evaluation.methodologicalAspects as unknown,
+          legalAspects: evaluation.legalAspects as unknown,
+          checklistDetails,
+        });
+      }
+    }
+
+    return {
+      protocolId,
+      versionNumber: version.versionNumber,
+      observations,
+    };
   }
 }

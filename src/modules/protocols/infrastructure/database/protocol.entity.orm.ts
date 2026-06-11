@@ -5,6 +5,7 @@ import {
   JoinColumn,
   OneToMany,
   OneToOne,
+  Relation,
 } from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { StudyTypeOrmEntity } from './study-type.entity.orm';
@@ -26,7 +27,7 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
 
   @ManyToOne(() => ProtocolVersionOrmEntity)
   @JoinColumn({ name: 'version_actual_id' })
-  activeVersion?: ProtocolVersionOrmEntity;
+  activeVersion?: Relation<ProtocolVersionOrmEntity>;
 
   get reception(): ReceptionOrmEntity | undefined {
     return this.activeVersion?.reception;
@@ -247,7 +248,7 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @OneToMany(() => ProtocolVersionOrmEntity, (version) => version.protocol, {
     cascade: true,
   })
-  versions!: ProtocolVersionOrmEntity[];
+  versions!: Relation<ProtocolVersionOrmEntity>[];
 
   get currentVersion(): number {
     if (this.versions && this.versions.length > 0) {
@@ -264,19 +265,19 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
     (investigator) => investigator.protocol,
     { cascade: true },
   )
-  investigators!: InvestigatorOrmEntity[];
+  investigators!: Relation<InvestigatorOrmEntity>[];
 
   @OneToMany(
     () => ParticipatingInstitutionOrmEntity,
     (institution) => institution.protocol,
     { cascade: true },
   )
-  institutions!: ParticipatingInstitutionOrmEntity[];
+  institutions!: Relation<ParticipatingInstitutionOrmEntity>[];
 
   @OneToMany(
     () => ProtocolRequirementOrmEntity,
     (requirement) => requirement.protocol,
     { cascade: true },
   )
-  checklist!: ProtocolRequirementOrmEntity[];
+  checklist!: Relation<ProtocolRequirementOrmEntity>[];
 }

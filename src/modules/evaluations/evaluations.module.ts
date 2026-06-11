@@ -25,6 +25,8 @@ import { PeerRiskAssignmentOrmEntity } from './infrastructure/database/peer-assi
 import { RiskLevelOrmEntity } from '../protocols/infrastructure/database/risk-level.entity.orm';
 import { RevisionModalityOrmEntity } from './infrastructure/database/revision-modality.entity.orm';
 import { ResolutionTypeOrmEntity } from '../resolutions/infrastructure/database/resolution-type.entity.orm';
+import { PdfGeneratorService } from '../../shared/utils/pdf-generator.service';
+import { DocxGeneratorService } from '../../shared/utils/docx-generator.service';
 
 @Module({
   imports: [
@@ -55,6 +57,8 @@ import { ResolutionTypeOrmEntity } from '../resolutions/infrastructure/database/
     EvaluationsService,
     ConflictOfInterestService,
     EvaluationConsolidationService,
+    PdfGeneratorService,
+    DocxGeneratorService,
     {
       provide: IEvaluationRepository,
       useClass: EvaluationTypeOrmRepository,

@@ -196,6 +196,10 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     return this.evaluationRepo.save(entity as EvaluationOrmEntity);
   }
 
+  async findEvaluationById(id: number): Promise<EvaluationOrmEntity | null> {
+    return this.evaluationRepo.findOne({ where: { id } });
+  }
+
   async findEvaluationByAssignmentId(
     assignmentId: number,
   ): Promise<EvaluationOrmEntity | null> {
@@ -231,5 +235,9 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
       where: { evaluacionId: evaluationId },
       order: { id: 'ASC' },
     });
+  }
+
+  async deleteEvaluationResponseDetails(evaluationId: number): Promise<void> {
+    await this.detailRepo.delete({ evaluacionId: evaluationId });
   }
 }

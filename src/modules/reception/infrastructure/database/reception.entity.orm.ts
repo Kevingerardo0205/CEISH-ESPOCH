@@ -5,6 +5,7 @@ import {
   JoinColumn,
   PrimaryGeneratedColumn,
   OneToOne,
+  Relation,
 } from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
@@ -20,7 +21,7 @@ export class ReceptionOrmEntity {
 
   @OneToOne(() => ProtocolVersionOrmEntity, (version) => version.reception)
   @JoinColumn({ name: 'version_id' })
-  version!: ProtocolVersionOrmEntity;
+  version!: Relation<ProtocolVersionOrmEntity>;
 
   get protocolId(): number {
     return this.version?.protocolId;

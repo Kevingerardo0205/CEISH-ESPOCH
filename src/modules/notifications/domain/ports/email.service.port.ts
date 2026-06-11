@@ -40,6 +40,7 @@ export abstract class IEmailServicePort {
     ceishCode: string,
     decision: string,
     pdfBuffer: Buffer,
+    additionalAttachments?: Array<{ filename: string; content: Buffer }>,
   ): Promise<void>;
 
   abstract notifyPresidentNewProtocol(

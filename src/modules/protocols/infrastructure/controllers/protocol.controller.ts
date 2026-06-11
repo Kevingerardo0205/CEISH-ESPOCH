@@ -148,7 +148,7 @@ export class ProtocolController {
   @ApiQuery({ name: 'riesgoMayor', type: Boolean, required: false })
   @ApiQuery({ name: 'institucionesPublicas', type: Boolean, required: false })
   async getRequirements(
-    @Query('tipo') tipo: StudyTypeCode,
+    @Query('tipo') tipo: string,
     @Query('muestras') muestras?: string,
     @Query('vulnerable') vulnerable?: string,
     @Query('multicentrico') multicentrico?: string,

@@ -5,6 +5,7 @@ import {
   IsObject,
   ValidateNested,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -80,4 +81,14 @@ export class SubmitEvaluationDto {
   @IsOptional()
   @IsString()
   reportPath?: string;
+
+  @ApiProperty({
+    example: false,
+    required: false,
+    description:
+      'Indica si es un borrador (guarda y genera Anexo 9 sin cerrar el flujo)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isDraft?: boolean;
 }

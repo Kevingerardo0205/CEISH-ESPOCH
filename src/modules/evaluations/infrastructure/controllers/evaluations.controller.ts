@@ -190,4 +190,54 @@ export class EvaluationsController {
       req.user.id,
     );
   }
+
+  @Get(':id/checklist-details')
+  @Permissions(Permission.EVALUATION_VIEW_MINE)
+  @ApiOperation({
+    summary:
+      'Consultar los ítems relacionales del checklist (Anexo 9) de una evaluación específica. ' +
+      'Retorna cada ítem enriquecido con su descripción canónica y estadísticas de cumplimiento por criterio técnico (Ética, Metodología, Jurídica).',
+  })
+  async getChecklistDetails(@Param('id', ParseIntPipe) id: number) {
+    return this.evaluationsService.getEvaluationChecklistDetails(id);
+  }
+
+  @Get(':id/document')
+  @Permissions(Permission.EVALUATION_VIEW_MINE)
+  @ApiOperation({
+    summary:
+      'Obtener URL firmada (30 min) para descargar el PDF del Anexo 9 auto-generado. ' +
+      'Solo disponible para evaluaciones de tipo Revisión Expedita. El PDF se almacena en Cloudflare R2.',
+  })
+  async getEvaluationDocument(@Param('id', ParseIntPipe) id: number) {
+    return this.evaluationsService.getEvaluationDocumentUrl(id);
+  }
+
+  @Get(':id/document/docx')
+  @Permissions(Permission.EVALUATION_VIEW_MINE)
+  @ApiOperation({
+    summary:
+      'Obtener URL firmada (30 min) para descargar el DOCX Word del Anexo 9 auto-generado. ' +
+      'Solo disponible para evaluaciones de tipo Revisión Expedita. El DOCX se almacena en Cloudflare R2. ' +
+      'El campo filename de la respuesta indica el nombre sugerido para guardar el archivo.',
+  })
+  async getEvaluationDocumentDocx(@Param('id', ParseIntPipe) id: number) {
+    return this.evaluationsService.getEvaluationDocxUrl(id);
+  }
+
+  @Get('protocol/:protocolId/observations')
+  @ApiOperation({
+    summary:
+      'Obtener observaciones detalladas y consolidadas de cada evaluador para un protocolo (Investigador/Secretaría)',
+  })
+  async getProtocolObservationsForInvestigator(
+    @Param('protocolId', ParseIntPipe) protocolId: number,
+    @Request() req,
+  ) {
+    return this.evaluationsService.getObservationsForInvestigator(
+      protocolId,
+      req.user.id,
+      req.user.permissions,
+    );
+  }
 }

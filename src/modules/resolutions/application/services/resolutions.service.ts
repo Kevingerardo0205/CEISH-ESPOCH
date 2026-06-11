@@ -2,14 +2,16 @@ import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { ResolutionOrmEntity } from '../../infrastructure/database/resolution.entity.orm';
 import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
 import { IEvaluationRepository } from '../../../evaluations/domain/ports/evaluation.repository.port';
-
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
+import { IStorageService } from '../../../shared/storage/domain/ports/storage.service.port';
+import { AssignmentStatus } from '../../../evaluations/domain/enums/assignment-status.enum';
 
 @Injectable()
 export class ResolutionsService {
@@ -19,6 +21,8 @@ export class ResolutionsService {
     private readonly protocolRepository: IProtocolRepository,
     private readonly evaluationRepository: IEvaluationRepository,
     private readonly emailService: IEmailServicePort,
+    @Inject(IStorageService)
+    private readonly storageService: IStorageService,
   ) {}
 
   async createResolution(dto: any, userId: number, pdfBuffer?: Buffer) {
@@ -46,7 +50,7 @@ export class ResolutionsService {
       majorObservations: dto.majorObservations,
       minorObservations: dto.minorObservations,
       correctionProcedure: dto.correctionProcedure,
-      pdfLetterPath: dto.pdfLetterPath,
+      letterFilePath: dto.pdfLetterPath || dto.letterFilePath || dto.archivoCartaPdf,
       signedByPresident: true,
       signedBySecretary: true,
       createdByUserId: userId,
@@ -60,8 +64,59 @@ export class ResolutionsService {
       approvalDate: dto.resolutionTypeId === 1 ? new Date() : undefined,
     });
 
+    // Descargar informes de los evaluadores para adjuntarlos
+    const assignments = await this.evaluationRepository.findAssignmentsByVersionId(version.id);
+    const completedAssignments = assignments.filter(
+      (a) => a.statusId === +AssignmentStatus.COMPLETED,
+    );
+
+    const additionalAttachments: Array<{ filename: string; content: Buffer }> = [];
+    for (const assignment of completedAssignments) {
+      const evaluation = await this.evaluationRepository.findEvaluationByAssignmentId(assignment.id);
+      if (evaluation) {
+        const fileKey = evaluation.reportPath || evaluation.rutaPdf;
+        if (fileKey) {
+          try {
+            const url = await this.storageService.getDownloadUrl(fileKey);
+            const response = await fetch(url);
+            if (response.ok) {
+              const arrayBuffer = await response.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+              
+              const profileName = assignment.profile?.name || 'Evaluador';
+              const extension = fileKey.endsWith('.docx') ? 'docx' : 'pdf';
+              const filename = `Informe_${profileName}_Evaluador.${extension}`.replace(/\s+/g, '_');
+              
+              additionalAttachments.push({
+                filename,
+                content: buffer,
+              });
+            }
+          } catch (e) {
+            console.error(`Error downloading evaluator file ${fileKey}:`, e);
+          }
+        }
+      }
+    }
+
+    // Resolver el pdfBuffer si se subió a través del path de almacenamiento
+    let resolutionPdfBuffer = pdfBuffer;
+    const consolidatedPath = dto.pdfLetterPath || dto.letterFilePath || dto.archivoCartaPdf;
+    if (!resolutionPdfBuffer && consolidatedPath) {
+      try {
+        const url = await this.storageService.getDownloadUrl(consolidatedPath);
+        const response = await fetch(url);
+        if (response.ok) {
+          const arrayBuffer = await response.arrayBuffer();
+          resolutionPdfBuffer = Buffer.from(arrayBuffer);
+        }
+      } catch (e) {
+        console.error(`Error downloading consolidated resolution file:`, e);
+      }
+    }
+
     // Notificar Automáticamente (Sprint 5)
-    if (pdfBuffer && protocol.principalInvestigator) {
+    if (resolutionPdfBuffer && protocol.principalInvestigator) {
       await this.emailService
         .sendResolutionEmail(
           protocol.principalInvestigator.institutionalEmail,
@@ -69,7 +124,8 @@ export class ResolutionsService {
           protocol.title || 'Sin Título',
           protocol.ceishCode || 'S/C',
           dto.resolutionLabel || 'Dictamen Emitido',
-          pdfBuffer,
+          resolutionPdfBuffer,
+          additionalAttachments,
         )
         .catch((e) => console.error('Error enviando email de resolución:', e));
     }

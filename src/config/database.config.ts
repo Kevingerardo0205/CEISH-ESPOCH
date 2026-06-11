@@ -12,6 +12,6 @@ export default registerAs(
     database: process.env.DB_NAME || 'ceish_db',
     autoLoadEntities: true,
     synchronize: process.env.NODE_ENV !== 'production', // ¡Cuidado en prod!
-    logging: process.env.NODE_ENV !== 'production',
+    logging: process.env.DB_LOG_QUERIES === 'true' ? true : ['error'],
   }),
 );

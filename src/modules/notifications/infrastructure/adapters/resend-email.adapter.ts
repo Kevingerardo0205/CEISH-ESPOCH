@@ -169,8 +169,20 @@ export class ResendEmailAdapter implements IEmailServicePort {
     ceishCode: string,
     decision: string,
     pdfBuffer: Buffer,
+    additionalAttachments?: Array<{ filename: string; content: Buffer }>,
   ): Promise<void> {
     try {
+      const attachments = [
+        {
+          filename: `Resolucion_${ceishCode}.pdf`,
+          content: pdfBuffer,
+        },
+      ];
+
+      if (additionalAttachments && additionalAttachments.length > 0) {
+        attachments.push(...additionalAttachments);
+      }
+
       const data = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
@@ -181,12 +193,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
           ceishCode,
           decision,
         ),
-        attachments: [
-          {
-            filename: `Resolucion_${ceishCode}.pdf`,
-            content: pdfBuffer,
-          },
-        ],
+        attachments,
       });
       console.log('Email de resolución enviado:', data);
     } catch (error) {

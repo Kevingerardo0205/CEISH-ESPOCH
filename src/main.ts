@@ -12,6 +12,11 @@ async function bootstrap() {
   // Necesario para que DosDefenseMiddleware extraiga correctamente req.ip
   app.set('trust proxy', 1);
   app.setGlobalPrefix('api');
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
 
   // Configuración de Swagger
   const config = new DocumentBuilder()

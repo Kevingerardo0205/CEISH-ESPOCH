@@ -49,6 +49,7 @@ export abstract class IEvaluationRepository {
   abstract saveEvaluation(
     entity: Partial<EvaluationOrmEntity>,
   ): Promise<EvaluationOrmEntity>;
+  abstract findEvaluationById(id: number): Promise<EvaluationOrmEntity | null>;
   abstract findEvaluationByAssignmentId(
     assignmentId: number,
   ): Promise<EvaluationOrmEntity | null>;
@@ -63,4 +64,5 @@ export abstract class IEvaluationRepository {
   abstract findEvaluationDetailsByEvaluationId(
     evaluationId: number,
   ): Promise<EvaluationResponseDetailOrmEntity[]>;
+  abstract deleteEvaluationResponseDetails(evaluationId: number): Promise<void>;
 }

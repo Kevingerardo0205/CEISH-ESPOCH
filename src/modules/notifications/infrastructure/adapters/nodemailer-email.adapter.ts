@@ -120,7 +120,19 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     ceishCode: string,
     decision: string,
     pdfBuffer: Buffer,
+    additionalAttachments?: Array<{ filename: string; content: Buffer }>,
   ): Promise<void> {
+    const attachments = [
+      {
+        filename: `Resolucion_${ceishCode}.pdf`,
+        content: pdfBuffer,
+      },
+    ];
+
+    if (additionalAttachments && additionalAttachments.length > 0) {
+      attachments.push(...additionalAttachments);
+    }
+
     await this.sendMailWithRetry({
       to: email,
       subject: `Resolución de Comité: ${ceishCode} - ${decision}`,
@@ -130,12 +142,7 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
         ceishCode,
         decision,
       ),
-      attachments: [
-        {
-          filename: `Resolucion_${ceishCode}.pdf`,
-          content: pdfBuffer,
-        },
-      ],
+      attachments,
     });
   }
 
