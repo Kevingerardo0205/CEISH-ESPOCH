@@ -6,10 +6,17 @@ import { ResolutionsService } from './application/services/resolutions.service';
 import { ResolutionsController } from './infrastructure/controllers/resolutions.controller';
 import { ProtocolsModule } from '../protocols/protocols.module';
 import { EvaluationsModule } from '../evaluations/evaluations.module';
+import { ReceptionOrmEntity } from '../reception/infrastructure/database/reception.entity.orm';
+import { ProtocolRequirementOrmEntity } from '../protocols/infrastructure/database/protocol-requirement.entity.orm';
 
 @Module({
   imports: [
-    TypeOrmModule.forFeature([ResolutionOrmEntity, ResolutionTypeOrmEntity]),
+    TypeOrmModule.forFeature([
+      ResolutionOrmEntity,
+      ResolutionTypeOrmEntity,
+      ReceptionOrmEntity,
+      ProtocolRequirementOrmEntity,
+    ]),
     ProtocolsModule,
     EvaluationsModule,
   ],

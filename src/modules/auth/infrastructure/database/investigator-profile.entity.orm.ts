@@ -1,4 +1,5 @@
-import { Entity, Column, OneToOne, JoinColumn, Relation } from 'typeorm';
+import { Entity, Column, OneToOne, JoinColumn } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { UserOrmEntity } from './user.entity.orm';
 import { EncryptionTransformer } from '../../../../shared/encryption/encryption.transformer';
 import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';

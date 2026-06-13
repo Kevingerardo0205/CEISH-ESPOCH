@@ -83,9 +83,13 @@ export class ProtocolTypeOrmRepository
         '(reception.statusId = 9 OR reception.statusId IS NULL OR reception.id IS NULL OR reception.statusId = 11)',
       );
     } else if (receptionStatus) {
-      if (receptionStatus === ReceptionStatus.PENDIENTE_SUBSANACION) {
+      if (receptionStatus === ReceptionStatus.EVALUACION_SUBSANACIONES) {
         qb.andWhere(
-          '(reception.statusId = 9 OR reception.statusId IS NULL OR reception.id IS NULL)',
+          'reception.statusId = 9 AND activeVersion.versionNumber > 1',
+        );
+      } else if (receptionStatus === ReceptionStatus.PENDIENTE_SUBSANACION) {
+        qb.andWhere(
+          '(reception.statusId = 9 OR reception.statusId IS NULL OR reception.id IS NULL) AND (activeVersion.versionNumber = 1 OR activeVersion.id IS NULL)',
         );
       } else {
         let statusId = 9;

@@ -30,8 +30,8 @@ export class EvaluationOrmEntity {
   @Column({ name: 'aspectos_juridicos', type: 'jsonb', nullable: true })
   legalAspects?: any;
 
-  @Column({ name: 'resultado', length: 50, nullable: true })
-  result?: string;
+  @Column({ name: 'resultado_id', nullable: true })
+  result?: number;
 
   @Column({ name: 'observaciones', type: 'text', nullable: true })
   observations?: string;

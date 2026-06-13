@@ -127,7 +127,7 @@ export class EvaluationsService {
    */
   async getEvaluatorsDashboard(profileId?: number) {
     const evaluators =
-      await this.evaluationRepository.findEvaluatorsWithWorkload(profileId);
+      await this.evaluationRepository.findEvaluatorsWithWorkload(profileId) as Array<{ id: number; fullName: string; currentLoad: number; [key: string]: any }>;
 
     // Solo se listan en el dashboard de la Presidenta si la recepción está COMPLETA y el nivel de riesgo ha sido consolidado
     const protocols = await this.protocolOrmRepository.find({
@@ -180,7 +180,7 @@ export class EvaluationsService {
     const now = new Date();
 
     return assignments
-      .filter((a) => a.statusId === AssignmentStatus.ASSIGNED)
+      .filter((a) => a.statusId === (AssignmentStatus.ASSIGNED as number))
       .map((a) => {
         const deadline = a.deadline ? new Date(a.deadline) : null;
         let diffDays: number | null = null;
@@ -322,7 +322,7 @@ export class EvaluationsService {
 
         if (hasObservations && dto.result === EvaluationResult.APROBADO) {
           throw new BadRequestException(
-            'El dictamen global no puede ser APROBADO si algún componente tiene observaciones. Debe ser APROBADO_CON_OBSERVACIONES o PENDIENTE_SUBSANACION.',
+            'El dictamen global no puede ser APROBADO si algún componente tiene observaciones. Debe ser APROBADO_CON_OBSERVACIONES.',
           );
         }
 
@@ -608,7 +608,6 @@ export class EvaluationsService {
 
     // 3.2. Calcular y guardar el plazo de subsanación de 30 días laborables si requiere correcciones
     const needsCorrection =
-      dto.result === EvaluationResult.PENDIENTE_SUBSANACION ||
       dto.result === EvaluationResult.APROBADO_CON_OBSERVACIONES ||
       (reviewType === ReviewType.EXPEDITA &&
         (dto.annex9?.etica.resultado === AspectResult.CON_OBSERVACIONES ||
@@ -660,7 +659,7 @@ export class EvaluationsService {
         assignment.versionId,
       );
     const pending = allAssignments.filter(
-      (a) => a.statusId !== AssignmentStatus.COMPLETED,
+      (a) => a.statusId !== (AssignmentStatus.COMPLETED as number),
     );
 
     if (pending.length === 0) {
@@ -684,7 +683,7 @@ export class EvaluationsService {
       descripcion: dto.descripcion,
       ordenPrioridad: dto.ordenPrioridad || 0,
       isActive: true,
-    } as any);
+    } as unknown as Partial<EvaluatorProfileOrmEntity>);
   }
 
   async updateProfile(id: number, dto: UpdateEvaluatorProfileDto) {
@@ -692,7 +691,7 @@ export class EvaluationsService {
     if (!profile)
       throw new NotFoundException('Perfil de evaluador no encontrado');
 
-    await this.evaluationRepository.updateProfile(id, dto as any);
+    await this.evaluationRepository.updateProfile(id, dto as unknown as Partial<EvaluatorProfileOrmEntity>);
     return this.evaluationRepository.findProfileById(id);
   }
 
@@ -830,8 +829,8 @@ export class EvaluationsService {
       await this.evaluationRepository.findAssignmentsByVersionId(version.id);
     for (const existing of existingAssignments) {
       if (
-        existing.statusId === AssignmentStatus.SUGGESTED ||
-        existing.statusId === AssignmentStatus.ASSIGNED
+        existing.statusId === (AssignmentStatus.SUGGESTED as number) ||
+        existing.statusId === (AssignmentStatus.ASSIGNED as number)
       ) {
         await this.evaluationRepository.deleteAssignment(existing.id);
       }
@@ -1030,7 +1029,7 @@ export class EvaluationsService {
                 version.id,
               );
             for (const a of assignmentsToUpdate) {
-              if (a.statusId === AssignmentStatus.ASSIGNED) {
+              if (a.statusId === (AssignmentStatus.ASSIGNED as number)) {
                 a.deadline = newDeadline;
                 await this.evaluationRepository.saveAssignment(a);
               }
@@ -1088,7 +1087,7 @@ export class EvaluationsService {
   /**
    * Obtener información sobre el estado de la conformidad y evaluaciones de un protocolo
    */
-  async getSubmitProtocolInfo(protocolId: number, userId: number) {
+  async getSubmitProtocolInfo(protocolId: number, _userId: number) {
     const protocol = await this.protocolOrmRepository.findOne({
       where: { id: protocolId },
       relations: [
@@ -1125,7 +1124,7 @@ export class EvaluationsService {
       evaluatorId: a.evaluatorId.toString(),
       investigator: a.evaluator?.fullName || 'Evaluador Asignado',
       status:
-        a.statusId === AssignmentStatus.COMPLETED ? 'COMPLETED' : 'PENDING',
+        a.statusId === (AssignmentStatus.COMPLETED as number) ? 'COMPLETED' : 'PENDING',
       reviewType: protocol.reviewType || 'PLENO',
       isRiskEvaluator: riskEvaluatorIds.includes(a.evaluatorId),
       deadline: a.deadline,
@@ -1182,13 +1181,13 @@ export class EvaluationsService {
     const stats = criterios.reduce(
       (acc, criterio) => {
         const criterioItems = enrichedItems.filter(
-          (i) => i.criterioTipo === criterio,
+          (i) => (i.criterioTipo as string) === criterio,
         );
         acc[criterio] = {
           total: criterioItems.length,
-          cumple: criterioItems.filter((i) => i.estado === 'C').length,
-          noCumple: criterioItems.filter((i) => i.estado === 'NC').length,
-          noAplica: criterioItems.filter((i) => i.estado === 'NA').length,
+          cumple: criterioItems.filter((i) => (i.estado as string) === 'C').length,
+          noCumple: criterioItems.filter((i) => (i.estado as string) === 'NC').length,
+          noAplica: criterioItems.filter((i) => (i.estado as string) === 'NA').length,
         };
         return acc;
       },
@@ -1326,7 +1325,7 @@ export class EvaluationsService {
         Permission.RESOLUCION_CREAR,
         Permission.RESOLUCION_FIRMAR,
         Permission.RECEPCION_VIEW,
-      ].includes(p as Permission),
+      ].includes(p),
     );
 
     if (!isOwner && !isCoInvestigator && !hasOfficialPermission) {

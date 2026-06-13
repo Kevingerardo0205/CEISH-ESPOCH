@@ -10,8 +10,12 @@ import { ResolutionOrmEntity } from '../../infrastructure/database/resolution.en
 import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
 import { IEvaluationRepository } from '../../../evaluations/domain/ports/evaluation.repository.port';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
-import { IStorageService } from '../../../shared/storage/domain/ports/storage.service.port';
+import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import { AssignmentStatus } from '../../../evaluations/domain/enums/assignment-status.enum';
+import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
+import { ProtocolRequirementOrmEntity } from '../../../protocols/infrastructure/database/protocol-requirement.entity.orm';
+import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
+import { RequirementStatus } from '../../../protocols/domain/enums/requirement-status.enum';
 
 @Injectable()
 export class ResolutionsService {
@@ -23,6 +27,11 @@ export class ResolutionsService {
     private readonly emailService: IEmailServicePort,
     @Inject(IStorageService)
     private readonly storageService: IStorageService,
+    @InjectRepository(ReceptionOrmEntity)
+    private readonly receptionRepo: Repository<ReceptionOrmEntity>,
+    @InjectRepository(ProtocolRequirementOrmEntity)
+    private readonly requirementRepo: Repository<ProtocolRequirementOrmEntity>,
+    private readonly deadlineService: ProtocolDeadlineService,
   ) {}
 
   async createResolution(dto: any, userId: number, pdfBuffer?: Buffer) {
@@ -50,7 +59,8 @@ export class ResolutionsService {
       majorObservations: dto.majorObservations,
       minorObservations: dto.minorObservations,
       correctionProcedure: dto.correctionProcedure,
-      letterFilePath: dto.pdfLetterPath || dto.letterFilePath || dto.archivoCartaPdf,
+      letterFilePath:
+        dto.pdfLetterPath || dto.letterFilePath || dto.archivoCartaPdf,
       signedByPresident: true,
       signedBySecretary: true,
       createdByUserId: userId,
@@ -64,15 +74,68 @@ export class ResolutionsService {
       approvalDate: dto.resolutionTypeId === 1 ? new Date() : undefined,
     });
 
+    // Si requiere subsanación (correcciones: tipo 2 o 4), creamos la siguiente versión y reiniciamos recepción
+    if (dto.resolutionTypeId === 2 || dto.resolutionTypeId === 4) {
+      const nextVersionNumber = version.versionNumber + 1;
+      const deadlineDate = this.deadlineService.calculateSubsanacionDeadline(
+        new Date(),
+      );
+
+      // 1. Crear nueva versión
+      const newVersion = await this.evaluationRepository.saveVersion({
+        protocolId: dto.protocolId,
+        versionNumber: nextVersionNumber,
+        submissionDate: new Date(),
+        statusId: 1, // Inicial
+        correctionDeadlineDays: 30,
+        correctionDeadlineDate: deadlineDate,
+      });
+
+      // 2. Asociar el protocolo a la nueva versión
+      await this.protocolRepository.update(dto.protocolId, {
+        versionActualId: newVersion.id,
+      });
+
+      // 3. Crear una nueva recepción para esta versión para recibir los archivos corregidos
+      const newReception = this.receptionRepo.create({
+        protocolId: dto.protocolId,
+        versionId: newVersion.id,
+        statusId: 9, // INICIADO
+        createdByUserId: userId,
+        hasMissingItems: false,
+      } as any);
+      await this.receptionRepo.save(newReception);
+
+      // 4. Resetear los checklist items del protocolo que no estén aprobados
+      const checklistItems = await this.requirementRepo.find({
+        where: { protocolId: dto.protocolId },
+      });
+      for (const item of checklistItems) {
+        if (
+          item.status !== RequirementStatus.APROBADO &&
+          item.status !== RequirementStatus.NO_APLICA
+        ) {
+          await this.requirementRepo.update(item.id, {
+            status: RequirementStatus.NO_PRESENTADO,
+          });
+        }
+      }
+    }
+
     // Descargar informes de los evaluadores para adjuntarlos
-    const assignments = await this.evaluationRepository.findAssignmentsByVersionId(version.id);
+    const assignments =
+      await this.evaluationRepository.findAssignmentsByVersionId(version.id);
     const completedAssignments = assignments.filter(
       (a) => a.statusId === +AssignmentStatus.COMPLETED,
     );
 
-    const additionalAttachments: Array<{ filename: string; content: Buffer }> = [];
+    const additionalAttachments: Array<{ filename: string; content: Buffer }> =
+      [];
     for (const assignment of completedAssignments) {
-      const evaluation = await this.evaluationRepository.findEvaluationByAssignmentId(assignment.id);
+      const evaluation =
+        await this.evaluationRepository.findEvaluationByAssignmentId(
+          assignment.id,
+        );
       if (evaluation) {
         const fileKey = evaluation.reportPath || evaluation.rutaPdf;
         if (fileKey) {
@@ -82,11 +145,15 @@ export class ResolutionsService {
             if (response.ok) {
               const arrayBuffer = await response.arrayBuffer();
               const buffer = Buffer.from(arrayBuffer);
-              
+
               const profileName = assignment.profile?.name || 'Evaluador';
               const extension = fileKey.endsWith('.docx') ? 'docx' : 'pdf';
-              const filename = `Informe_${profileName}_Evaluador.${extension}`.replace(/\s+/g, '_');
-              
+              const filename =
+                `Informe_${profileName}_Evaluador.${extension}`.replace(
+                  /\s+/g,
+                  '_',
+                );
+
               additionalAttachments.push({
                 filename,
                 content: buffer,
@@ -101,7 +168,8 @@ export class ResolutionsService {
 
     // Resolver el pdfBuffer si se subió a través del path de almacenamiento
     let resolutionPdfBuffer = pdfBuffer;
-    const consolidatedPath = dto.pdfLetterPath || dto.letterFilePath || dto.archivoCartaPdf;
+    const consolidatedPath =
+      dto.pdfLetterPath || dto.letterFilePath || dto.archivoCartaPdf;
     if (!resolutionPdfBuffer && consolidatedPath) {
       try {
         const url = await this.storageService.getDownloadUrl(consolidatedPath);

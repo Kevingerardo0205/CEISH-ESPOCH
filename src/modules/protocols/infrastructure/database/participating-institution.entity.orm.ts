@@ -1,4 +1,5 @@
-import { Entity, Column, ManyToOne, JoinColumn, Relation } from 'typeorm';
+import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { ProtocolOrmEntity } from './protocol.entity.orm';
 import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
 

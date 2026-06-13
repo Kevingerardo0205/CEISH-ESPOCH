@@ -5,8 +5,8 @@ import {
   JoinColumn,
   OneToMany,
   OneToOne,
-  Relation,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { StudyTypeOrmEntity } from './study-type.entity.orm';
 import { RiskLevelOrmEntity } from './risk-level.entity.orm';
@@ -152,6 +152,12 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
     if (sId === 11) return ReceptionStatus.INCOMPLETO;
     if (sId === 15) return ReceptionStatus.EN_REVISION_SECRETARIA;
     if (sId === 12) return 'ARCHIVADO' as any;
+
+    const currentVerNumber = this.activeVersion?.versionNumber || 1;
+    if (currentVerNumber > 1) {
+      return ReceptionStatus.EVALUACION_SUBSANACIONES;
+    }
+
     return ReceptionStatus.PENDIENTE_SUBSANACION;
   }
 
