@@ -1,11 +1,13 @@
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 import {
   Injectable,
   NotFoundException,
   BadRequestException,
+  ConflictException,
   Inject,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, DataSource } from 'typeorm';
 import { ResolutionOrmEntity } from '../../infrastructure/database/resolution.entity.orm';
 import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
 import { IEvaluationRepository } from '../../../evaluations/domain/ports/evaluation.repository.port';
@@ -16,6 +18,9 @@ import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/r
 import { ProtocolRequirementOrmEntity } from '../../../protocols/infrastructure/database/protocol-requirement.entity.orm';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
 import { RequirementStatus } from '../../../protocols/domain/enums/requirement-status.enum';
+import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
+import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
+import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 
 @Injectable()
 export class ResolutionsService {
@@ -32,6 +37,7 @@ export class ResolutionsService {
     @InjectRepository(ProtocolRequirementOrmEntity)
     private readonly requirementRepo: Repository<ProtocolRequirementOrmEntity>,
     private readonly deadlineService: ProtocolDeadlineService,
+    private readonly dataSource: DataSource,
   ) {}
 
   async createResolution(dto: any, userId: number, pdfBuffer?: Buffer) {
@@ -50,76 +56,141 @@ export class ResolutionsService {
         'El protocolo no tiene una versión activa para resolución.',
       );
 
-    const resolution = this.resolutionRepo.create({
-      protocolId: dto.protocolId,
-      versionId: version.id,
-      resolutionTypeId: dto.resolutionTypeId,
-      validityYears: dto.validityYears || 1,
-      followUpPeriodDays: dto.followUpPeriodDays,
-      majorObservations: dto.majorObservations,
-      minorObservations: dto.minorObservations,
-      correctionProcedure: dto.correctionProcedure,
-      letterFilePath:
-        dto.pdfLetterPath || dto.letterFilePath || dto.archivoCartaPdf,
-      signedByPresident: true,
-      signedBySecretary: true,
-      createdByUserId: userId,
-    } as any);
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
 
-    const saved = await this.resolutionRepo.save(resolution);
+    let saved: any;
 
-    // Actualizar estado del protocolo y versión
-    await this.protocolRepository.update(dto.protocolId, {
-      statusId: 4, // FINALIZADO/EVALUADO
-      approvalDate: dto.resolutionTypeId === 1 ? new Date() : undefined,
-    });
-
-    // Si requiere subsanación (correcciones: tipo 2 o 4), creamos la siguiente versión y reiniciamos recepción
-    if (dto.resolutionTypeId === 2 || dto.resolutionTypeId === 4) {
-      const nextVersionNumber = version.versionNumber + 1;
-      const deadlineDate = this.deadlineService.calculateSubsanacionDeadline(
-        new Date(),
-      );
-
-      // 1. Crear nueva versión
-      const newVersion = await this.evaluationRepository.saveVersion({
+    try {
+      const resolution = queryRunner.manager.create(ResolutionOrmEntity, {
         protocolId: dto.protocolId,
-        versionNumber: nextVersionNumber,
-        submissionDate: new Date(),
-        statusId: 1, // Inicial
-        correctionDeadlineDays: 30,
-        correctionDeadlineDate: deadlineDate,
-      });
-
-      // 2. Asociar el protocolo a la nueva versión
-      await this.protocolRepository.update(dto.protocolId, {
-        versionActualId: newVersion.id,
-      });
-
-      // 3. Crear una nueva recepción para esta versión para recibir los archivos corregidos
-      const newReception = this.receptionRepo.create({
-        protocolId: dto.protocolId,
-        versionId: newVersion.id,
-        statusId: 9, // INICIADO
+        versionId: version.id,
+        resolutionTypeId: dto.resolutionTypeId,
+        validityYears: dto.validityYears || 1,
+        followUpPeriodDays: dto.followUpPeriodDays,
+        majorObservations: dto.majorObservations,
+        minorObservations: dto.minorObservations,
+        correctionProcedure: dto.correctionProcedure,
+        letterFilePath:
+          dto.pdfLetterPath || dto.letterFilePath || dto.archivoCartaPdf,
+        signedByPresident: true,
+        signedBySecretary: true,
         createdByUserId: userId,
-        hasMissingItems: false,
       } as any);
-      await this.receptionRepo.save(newReception);
 
-      // 4. Resetear los checklist items del protocolo que no estén aprobados
-      const checklistItems = await this.requirementRepo.find({
-        where: { protocolId: dto.protocolId },
-      });
-      for (const item of checklistItems) {
-        if (
-          item.status !== RequirementStatus.APROBADO &&
-          item.status !== RequirementStatus.NO_APLICA
-        ) {
-          await this.requirementRepo.update(item.id, {
-            status: RequirementStatus.NO_PRESENTADO,
-          });
+      saved = await queryRunner.manager.save(ResolutionOrmEntity, resolution);
+
+      // Actualizar estado del protocolo y versión
+      if (dto.resolutionTypeId === 1) {
+        // APROBADO:
+        // - Versión actual -> 17 (ProtocolStatus.APROBADO)
+        await queryRunner.manager.update(ProtocolVersionOrmEntity, version.id, {
+          statusId: ProtocolStatus.APROBADO,
+          resolutionDate: new Date(),
+          resolutionTypeId: dto.resolutionTypeId,
+        });
+
+        // - Protocolo -> 17 (ProtocolStatus.APROBADO)
+        await queryRunner.manager.update(ProtocolOrmEntity, dto.protocolId, {
+          statusId: ProtocolStatus.APROBADO,
+          approvalDate: new Date(),
+        });
+      } else if (dto.resolutionTypeId === 3) {
+        // RECHAZADO:
+        // - Versión actual -> 18 (ProtocolStatus.RECHAZADO)
+        await queryRunner.manager.update(ProtocolVersionOrmEntity, version.id, {
+          statusId: ProtocolStatus.RECHAZADO,
+          resolutionDate: new Date(),
+          resolutionTypeId: dto.resolutionTypeId,
+        });
+
+        // - Protocolo -> 18 (ProtocolStatus.RECHAZADO)
+        await queryRunner.manager.update(ProtocolOrmEntity, dto.protocolId, {
+          statusId: ProtocolStatus.RECHAZADO,
+        });
+      } else if (dto.resolutionTypeId === 2 || dto.resolutionTypeId === 4) {
+        // APROBADO CON OBSERVACIONES:
+        // - Versión actual (V1) -> 19 (ProtocolStatus.REQUIERE_SUBSANACION_VERSION)
+        await queryRunner.manager.update(ProtocolVersionOrmEntity, version.id, {
+          statusId: ProtocolStatus.REQUIERE_SUBSANACION_VERSION,
+          resolutionDate: new Date(),
+          resolutionTypeId: 2, // Map to 2
+        });
+
+        const nextVersionNumber = version.versionNumber + 1;
+        const deadlineDate = this.deadlineService.calculateSubsanacionDeadline(
+          new Date(),
+        );
+
+        // 1. Crear nueva versión V2
+        const newVersion = queryRunner.manager.create(
+          ProtocolVersionOrmEntity,
+          {
+            protocolId: dto.protocolId,
+            versionNumber: nextVersionNumber,
+            submissionDate: new Date(),
+            statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL, // Nueva versión inicia en 21 (EN_CONTROL_DOCUMENTAL)
+            correctionDeadlineDays: 30,
+            correctionDeadlineDate: deadlineDate,
+          } as any,
+        );
+
+        const savedVersion = await queryRunner.manager.save(
+          ProtocolVersionOrmEntity,
+          newVersion,
+        );
+
+        // 2. Asociar el protocolo a la nueva versión y sincronizar su estado a 21 (EN_CONTROL_DOCUMENTAL)
+        await queryRunner.manager.update(ProtocolOrmEntity, dto.protocolId, {
+          versionActualId: savedVersion.id,
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+        });
+
+        // 3. Crear una nueva recepción para esta versión para recibir los archivos corregidos (inicia en INICIADO 9)
+        const newReception = queryRunner.manager.create(ReceptionOrmEntity, {
+          protocolId: dto.protocolId,
+          versionId: savedVersion.id,
+          statusId: ProtocolStatus.INICIADO,
+          createdByUserId: userId,
+          hasMissingItems: false,
+        } as any);
+        await queryRunner.manager.save(ReceptionOrmEntity, newReception);
+
+        // 4. Resetear los checklist items del protocolo que no estén aprobados
+        const checklistItems = await queryRunner.manager.find(
+          ProtocolRequirementOrmEntity,
+          {
+            where: { protocolId: dto.protocolId },
+          },
+        );
+        for (const item of checklistItems) {
+          if (
+            item.status !== RequirementStatus.APROBADO &&
+            item.status !== RequirementStatus.NO_APLICA
+          ) {
+            await queryRunner.manager.update(
+              ProtocolRequirementOrmEntity,
+              item.id,
+              {
+                status: RequirementStatus.NO_PRESENTADO,
+              },
+            );
+          }
         }
       }
+
+      await queryRunner.commitTransaction();
+    } catch (err: any) {
+      await queryRunner.rollbackTransaction();
+      if (err.code === '23505') {
+        throw new ConflictException(
+          'La versión de este protocolo ya ha sido creada o modificada por otra transacción concurrente.',
+        );
+      }
+      throw err;
+    } finally {
+      await queryRunner.release();
     }
 
     // Descargar informes de los evaluadores para adjuntarlos

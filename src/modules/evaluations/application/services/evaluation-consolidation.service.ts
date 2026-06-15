@@ -33,7 +33,7 @@ export class EvaluationConsolidationService {
     const assignments =
       await this.evaluationRepository.findAssignmentsByVersionId(version.id);
     const completedAssignments = assignments.filter(
-      (a) => a.statusId === (AssignmentStatus.COMPLETED as number),
+      (a) => a.statusId === +AssignmentStatus.COMPLETED,
     );
 
     if (completedAssignments.length === 0) {
@@ -65,11 +65,15 @@ export class EvaluationConsolidationService {
         observations: e.observations,
       })),
       summary: {
-        ethical: evaluations.map((e) => e.ethicalAspects as unknown).filter(Boolean),
+        ethical: evaluations
+          .map((e) => e.ethicalAspects as unknown)
+          .filter(Boolean),
         methodological: evaluations
           .map((e) => e.methodologicalAspects as unknown)
           .filter(Boolean),
-        legal: evaluations.map((e) => e.legalAspects as unknown).filter(Boolean),
+        legal: evaluations
+          .map((e) => e.legalAspects as unknown)
+          .filter(Boolean),
       },
       // Lógica de decisión sugerida (Unanimidad o Mayoría)
       suggestedGlobalResult: this.calculateGlobalResult(
