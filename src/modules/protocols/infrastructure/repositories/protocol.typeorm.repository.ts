@@ -62,7 +62,7 @@ export class ProtocolTypeOrmRepository
   async findAll(
     query: QueryProtocolDto,
   ): Promise<[ProtocolOrmEntity[], number]> {
-    const { page, limit, skip } = getPaginationParams(query);
+    const { limit, skip } = getPaginationParams(query);
     const { studyType, receptionStatus, reviewType } = query;
 
     const qb = this.repo
@@ -78,6 +78,9 @@ export class ProtocolTypeOrmRepository
       .leftJoinAndSelect('p.versions', 'versions');
 
     if (studyType) qb.andWhere('studyType.code = :studyType', { studyType });
+    if (query.statusId) {
+      qb.andWhere('p.statusId = :statusId', { statusId: query.statusId });
+    }
     if (query.subsanar === 'true' || (query.subsanar as any) === true) {
       qb.andWhere(
         '(reception.statusId = 9 OR reception.statusId IS NULL OR reception.id IS NULL OR reception.statusId = 11)',

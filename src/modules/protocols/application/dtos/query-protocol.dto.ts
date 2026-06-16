@@ -28,6 +28,13 @@ export class QueryProtocolDto {
   @Min(1)
   investigatorId?: number;
 
+  @ApiPropertyOptional({ type: Number })
+  @IsOptional()
+  @Type(() => Number)
+  @IsInt()
+  @Min(1)
+  statusId?: number;
+
   @ApiPropertyOptional({ type: String })
   @IsOptional()
   subsanar?: string;
