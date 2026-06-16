@@ -48,23 +48,10 @@ export class ResolutionOrmEntity {
   @Column({ name: 'periodo_seguimiento_dias', nullable: true })
   followUpPeriodDays?: number;
 
-  @Column({ name: 'observaciones_mayores', type: 'text', nullable: true })
-  majorObservations?: string;
+  @Column({ name: 'observaciones', type: 'text', nullable: true })
+  observations?: string;
 
-  @Column({ name: 'observaciones_menores', type: 'text', nullable: true })
-  minorObservations?: string;
 
-  @Column({ name: 'procedimiento_subsanacion', type: 'text', nullable: true })
-  correctionProcedure?: string;
-
-  @Column({ name: 'firmada_por_presidente', default: false })
-  signedByPresident!: boolean;
-
-  @Column({ name: 'firmada_por_secretario', default: false })
-  signedBySecretary!: boolean;
-
-  @Column({ name: 'firma_electronica_valida', default: false })
-  isDigitalSignatureValid!: boolean;
 
   @Column({ name: 'archivo_carta_pdf', length: 500, nullable: true })
   letterFilePath?: string;

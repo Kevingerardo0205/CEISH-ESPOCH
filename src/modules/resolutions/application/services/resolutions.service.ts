@@ -21,6 +21,7 @@ import { RequirementStatus } from '../../../protocols/domain/enums/requirement-s
 import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
+import { DocumentTemplateOrmEntity } from '../../../documents/infrastructure/database/document-template.entity.orm';
 
 @Injectable()
 export class ResolutionsService {
@@ -40,6 +41,24 @@ export class ResolutionsService {
     private readonly dataSource: DataSource,
   ) {}
 
+  /**
+   * Determina automáticamente el tipo de resolución global según las evaluaciones individuales de los evaluadores.
+   * - Si hay al menos un RECHAZADO (3) -> RECHAZADO (3).
+   * - Si no hay rechazos, pero hay al menos un APROBADO_CON_OBSERVACIONES (2) -> APROBADO_CON_OBSERVACIONES (2).
+   * - Si todos son APROBADO (1) -> APROBADO (1).
+   */
+  private determineResolutionType(evaluations: any[]): number {
+    const results = evaluations.map((e) => e.result);
+
+    if (results.includes(3)) {
+      return 3;
+    }
+    if (results.includes(2)) {
+      return 2;
+    }
+    return 1;
+  }
+
   async createResolution(dto: any, userId: number, pdfBuffer?: Buffer) {
     const protocol = await this.protocolRepository.findById(dto.protocolId, {
       relations: ['principalInvestigator', 'studyType'],
@@ -56,6 +75,69 @@ export class ResolutionsService {
         'El protocolo no tiene una versión activa para resolución.',
       );
 
+    // Cargar asignaciones e informes de los evaluadores
+    const assignments =
+      await this.evaluationRepository.findAssignmentsByVersionId(version.id);
+    const completedAssignments = assignments.filter(
+      (a) => a.statusId === +AssignmentStatus.COMPLETED,
+    );
+
+    if (completedAssignments.length === 0) {
+      throw new BadRequestException(
+        'No existen evaluaciones completadas para calcular el dictamen de resolución.',
+      );
+    }
+
+    const evaluations: any[] = [];
+    const additionalAttachments: Array<{ filename: string; content: Buffer }> =
+      [];
+
+    for (const assignment of completedAssignments) {
+      const evaluation =
+        await this.evaluationRepository.findEvaluationByAssignmentId(
+          assignment.id,
+        );
+      if (evaluation) {
+        evaluations.push(evaluation);
+
+        const fileKey = evaluation.reportPath || evaluation.rutaPdf;
+        if (fileKey) {
+          try {
+            const url = await this.storageService.getDownloadUrl(fileKey);
+            const response = await fetch(url);
+            if (response.ok) {
+              const arrayBuffer = await response.arrayBuffer();
+              const buffer = Buffer.from(arrayBuffer);
+
+              const profileName = assignment.profile?.name || 'Evaluador';
+              const extension = fileKey.endsWith('.docx') ? 'docx' : 'pdf';
+              const filename =
+                `Informe_${profileName}_Evaluador.${extension}`.replace(
+                  /\s+/g,
+                  '_',
+                );
+
+              additionalAttachments.push({
+                filename,
+                content: buffer,
+              });
+            }
+          } catch (e) {
+            console.error(`Error downloading evaluator file ${fileKey}:`, e);
+          }
+        }
+      }
+    }
+
+    if (evaluations.length === 0) {
+      throw new BadRequestException(
+        'No se pudieron cargar los informes detallados de las evaluaciones para calcular la resolución.',
+      );
+    }
+
+    // Calcular automáticamente el tipo de resolución mediante el motor de decisión
+    const resolutionTypeId = this.determineResolutionType(evaluations);
+
     const queryRunner = this.dataSource.createQueryRunner();
     await queryRunner.connect();
     await queryRunner.startTransaction();
@@ -66,29 +148,25 @@ export class ResolutionsService {
       const resolution = queryRunner.manager.create(ResolutionOrmEntity, {
         protocolId: dto.protocolId,
         versionId: version.id,
-        resolutionTypeId: dto.resolutionTypeId,
+        resolutionTypeId: resolutionTypeId, // Tipo calculado automáticamente
         validityYears: dto.validityYears || 1,
         followUpPeriodDays: dto.followUpPeriodDays,
-        majorObservations: dto.majorObservations,
-        minorObservations: dto.minorObservations,
-        correctionProcedure: dto.correctionProcedure,
+        observations: dto.observations,
         letterFilePath:
           dto.pdfLetterPath || dto.letterFilePath || dto.archivoCartaPdf,
-        signedByPresident: true,
-        signedBySecretary: true,
         createdByUserId: userId,
       } as any);
 
       saved = await queryRunner.manager.save(ResolutionOrmEntity, resolution);
 
       // Actualizar estado del protocolo y versión
-      if (dto.resolutionTypeId === 1) {
+      if (resolutionTypeId === 1) {
         // APROBADO:
         // - Versión actual -> 17 (ProtocolStatus.APROBADO)
         await queryRunner.manager.update(ProtocolVersionOrmEntity, version.id, {
           statusId: ProtocolStatus.APROBADO,
           resolutionDate: new Date(),
-          resolutionTypeId: dto.resolutionTypeId,
+          resolutionTypeId: resolutionTypeId,
         });
 
         // - Protocolo -> 17 (ProtocolStatus.APROBADO)
@@ -96,29 +174,29 @@ export class ResolutionsService {
           statusId: ProtocolStatus.APROBADO,
           approvalDate: new Date(),
         });
-      } else if (dto.resolutionTypeId === 3) {
+      } else if (resolutionTypeId === 3) {
         // RECHAZADO:
         // - Versión actual -> 18 (ProtocolStatus.RECHAZADO)
         await queryRunner.manager.update(ProtocolVersionOrmEntity, version.id, {
           statusId: ProtocolStatus.RECHAZADO,
           resolutionDate: new Date(),
-          resolutionTypeId: dto.resolutionTypeId,
+          resolutionTypeId: resolutionTypeId,
         });
 
         // - Protocolo -> 18 (ProtocolStatus.RECHAZADO)
         await queryRunner.manager.update(ProtocolOrmEntity, dto.protocolId, {
           statusId: ProtocolStatus.RECHAZADO,
         });
-      } else if (dto.resolutionTypeId === 2 || dto.resolutionTypeId === 4) {
+      } else if (resolutionTypeId === 2) {
         // APROBADO CON OBSERVACIONES:
         // - Versión actual (V1) -> 19 (ProtocolStatus.REQUIERE_SUBSANACION_VERSION)
         await queryRunner.manager.update(ProtocolVersionOrmEntity, version.id, {
           statusId: ProtocolStatus.REQUIERE_SUBSANACION_VERSION,
           resolutionDate: new Date(),
-          resolutionTypeId: 2, // Map to 2
+          resolutionTypeId: 2,
         });
 
-        const nextVersionNumber = version.versionNumber + 1;
+        const nextVersionNumber = (version.versionNumber || 1) + 1;
         const deadlineDate = this.deadlineService.calculateSubsanacionDeadline(
           new Date(),
         );
@@ -193,50 +271,6 @@ export class ResolutionsService {
       await queryRunner.release();
     }
 
-    // Descargar informes de los evaluadores para adjuntarlos
-    const assignments =
-      await this.evaluationRepository.findAssignmentsByVersionId(version.id);
-    const completedAssignments = assignments.filter(
-      (a) => a.statusId === +AssignmentStatus.COMPLETED,
-    );
-
-    const additionalAttachments: Array<{ filename: string; content: Buffer }> =
-      [];
-    for (const assignment of completedAssignments) {
-      const evaluation =
-        await this.evaluationRepository.findEvaluationByAssignmentId(
-          assignment.id,
-        );
-      if (evaluation) {
-        const fileKey = evaluation.reportPath || evaluation.rutaPdf;
-        if (fileKey) {
-          try {
-            const url = await this.storageService.getDownloadUrl(fileKey);
-            const response = await fetch(url);
-            if (response.ok) {
-              const arrayBuffer = await response.arrayBuffer();
-              const buffer = Buffer.from(arrayBuffer);
-
-              const profileName = assignment.profile?.name || 'Evaluador';
-              const extension = fileKey.endsWith('.docx') ? 'docx' : 'pdf';
-              const filename =
-                `Informe_${profileName}_Evaluador.${extension}`.replace(
-                  /\s+/g,
-                  '_',
-                );
-
-              additionalAttachments.push({
-                filename,
-                content: buffer,
-              });
-            }
-          } catch (e) {
-            console.error(`Error downloading evaluator file ${fileKey}:`, e);
-          }
-        }
-      }
-    }
-
     // Resolver el pdfBuffer si se subió a través del path de almacenamiento
     let resolutionPdfBuffer = pdfBuffer;
     const consolidatedPath =
@@ -256,13 +290,20 @@ export class ResolutionsService {
 
     // Notificar Automáticamente (Sprint 5)
     if (resolutionPdfBuffer && protocol.principalInvestigator) {
+      const resolutionLabel =
+        resolutionTypeId === 1
+          ? 'Protocolo Aprobado'
+          : resolutionTypeId === 3
+            ? 'Protocolo Rechazado'
+            : 'Aprobado con Observaciones / Subsanación';
+
       await this.emailService
         .sendResolutionEmail(
           protocol.principalInvestigator.institutionalEmail,
           protocol.principalInvestigator.fullName,
           protocol.title || 'Sin Título',
           protocol.ceishCode || 'S/C',
-          dto.resolutionLabel || 'Dictamen Emitido',
+          resolutionLabel,
           resolutionPdfBuffer,
           additionalAttachments,
         )
@@ -277,5 +318,16 @@ export class ResolutionsService {
       where: { protocolId },
       relations: ['protocol', 'version'],
     });
+  }
+
+  async getObservationsResponseTemplateUrl(): Promise<string> {
+    const template = await this.dataSource
+      .getRepository(DocumentTemplateOrmEntity)
+      .findOne({
+        where: { code: 'RESPUESTA_OBSERVACIONES', isActive: true },
+      });
+    const path =
+      template?.filePath || 'templates/formato_respuesta_observaciones.docx';
+    return this.storageService.getDownloadUrl(path);
   }
 }

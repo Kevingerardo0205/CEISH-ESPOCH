@@ -6,16 +6,33 @@ import {
   Param,
   UseGuards,
   Request,
+  Redirect,
 } from '@nestjs/common';
 import { ResolutionsService } from '../../application/services/resolutions.service';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
-import { Roles } from '../../../../shared/decorators/roles.decorator';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 
 import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
 import { Permissions } from '../../../../shared/decorators/permissions.decorator';
 import { Permission } from '../../../../shared/enums/permission.enum';
+
+export interface CreateResolutionPayload {
+  protocolId: number;
+  validityYears?: number;
+  followUpPeriodDays?: number;
+  observations?: string;
+  pdfLetterPath?: string;
+  letterFilePath?: string;
+  archivoCartaPdf?: string;
+  pdfBuffer?: Buffer;
+}
+
+export interface RequestWithUser {
+  user: {
+    id: number;
+  };
+}
 
 @Controller('resolutions')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
@@ -25,13 +42,27 @@ export class ResolutionsController {
   @Post()
   @Permissions(Permission.RESOLUTION_CREATE)
   @Audit('RESOLUTION_CREATED')
-  async create(@Body() dto: any, @Request() req) {
+  async create(
+    @Body() dto: CreateResolutionPayload,
+    @Request() req: RequestWithUser,
+  ): Promise<unknown> {
     // pdfBuffer se extraería si la secretaria sube el archivo en esta misma petición
     return this.resolutionsService.createResolution(
       dto,
       req.user.id,
       dto.pdfBuffer,
-    );
+    ) as Promise<unknown>;
+  }
+
+  @Get('templates/observations-response')
+  @Redirect('https://nestjs.com', 302)
+  async getObservationsResponseTemplate(): Promise<{
+    url: string;
+    statusCode: number;
+  }> {
+    const url =
+      await this.resolutionsService.getObservationsResponseTemplateUrl();
+    return { url, statusCode: 302 };
   }
 
   @Get('protocol/:protocolId')
