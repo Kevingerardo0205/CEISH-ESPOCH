@@ -51,8 +51,6 @@ export class ResolutionOrmEntity {
   @Column({ name: 'observaciones', type: 'text', nullable: true })
   observations?: string;
 
-
-
   @Column({ name: 'archivo_carta_pdf', length: 500, nullable: true })
   letterFilePath?: string;
 

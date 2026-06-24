@@ -63,14 +63,26 @@ export class ReceptionTypeOrmRepository
   async findDocumentsByProtocolId(
     protocolId: number,
   ): Promise<DocumentOrmEntity[]> {
-    return this.documentRepo
+    const docs = await this.documentRepo
       .createQueryBuilder('d')
       .innerJoin(ProtocolOrmEntity, 'p', 'd.protocolo_id = p.id')
       .where('p.id = :protocolId', { protocolId })
       .andWhere('d.version_id = p.version_actual_id')
       .leftJoinAndSelect('d.requirement', 'requirement')
       .leftJoinAndSelect('d.tipoDocumento', 'tipoDocumento')
+      .orderBy('d.id', 'ASC')
       .getMany();
+
+    const uniqueDocsMap = new Map<string, DocumentOrmEntity>();
+    for (const doc of docs) {
+      const key = doc.requirementId
+        ? `req-${doc.requirementId}`
+        : doc.tipoDocumentoId
+          ? `type-${doc.tipoDocumentoId}`
+          : `doc-${doc.id}`;
+      uniqueDocsMap.set(key, doc);
+    }
+    return Array.from(uniqueDocsMap.values());
   }
 
   async saveValidation(

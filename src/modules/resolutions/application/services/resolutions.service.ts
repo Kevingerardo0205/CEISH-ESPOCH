@@ -235,7 +235,7 @@ export class ResolutionsService {
         } as any);
         await queryRunner.manager.save(ReceptionOrmEntity, newReception);
 
-        // 4. Resetear los checklist items del protocolo que no estén aprobados
+        // 4. Resetear los checklist items del protocolo para la nueva versión de subsanación
         const checklistItems = await queryRunner.manager.find(
           ProtocolRequirementOrmEntity,
           {
@@ -243,10 +243,17 @@ export class ResolutionsService {
           },
         );
         for (const item of checklistItems) {
-          if (
-            item.status !== RequirementStatus.APROBADO &&
-            item.status !== RequirementStatus.NO_APLICA
-          ) {
+          if (item.status === RequirementStatus.APROBADO) {
+            // Los aprobados en V1 pasan a PRESENTADO en V2 para que puedan ser corregidos/reemplazados,
+            // pero sin perder el archivo previo si no requiere cambio.
+            await queryRunner.manager.update(
+              ProtocolRequirementOrmEntity,
+              item.id,
+              {
+                status: RequirementStatus.PRESENTADO,
+              },
+            );
+          } else if (item.status !== RequirementStatus.NO_APLICA) {
             await queryRunner.manager.update(
               ProtocolRequirementOrmEntity,
               item.id,

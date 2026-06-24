@@ -1374,29 +1374,10 @@ export class EvaluationsService {
           assignment.id,
         );
       if (evaluation) {
-        const details =
-          await this.evaluationRepository.findEvaluationDetailsByEvaluationId(
-            evaluation.id,
-          );
-
-        // Enriquecer cada detalle del checklist con la descripción canónica del catálogo
-        const checklistDetails = details.map((d) => ({
-          criterionType: d.criterioTipo,
-          itemCode: d.itemCodigo,
-          description: ANNEX9_ITEM_CATALOG[d.itemCodigo] || 'Sin descripción',
-          state: d.estado,
-          observations: d.observaciones,
-        }));
-
         observations.push({
           evaluatorProfile: assignment.profile?.name || 'Evaluador',
           result: evaluation.result,
-          generalObservations: evaluation.observations,
-          evaluationDate: evaluation.evaluationDate,
-          ethicalAspects: evaluation.ethicalAspects as unknown,
-          methodologicalAspects: evaluation.methodologicalAspects as unknown,
-          legalAspects: evaluation.legalAspects as unknown,
-          checklistDetails,
+          reportPath: evaluation.reportPath || assignment.reportPath,
         });
       }
     }

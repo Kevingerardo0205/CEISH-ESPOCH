@@ -79,7 +79,16 @@ export class ProtocolTypeOrmRepository
 
     if (studyType) qb.andWhere('studyType.code = :studyType', { studyType });
     if (query.statusId) {
-      qb.andWhere('p.statusId = :statusId', { statusId: query.statusId });
+      const statusParam = Number(query.statusId);
+      if (statusParam === 3 || statusParam === 14) {
+        qb.andWhere('p.statusId = 14'); // Mapear EVALUADO (antiguo 3 / nuevo 14)
+      } else if (statusParam === 2 || statusParam === 13) {
+        qb.andWhere('p.statusId = 13'); // Mapear EN EVALUACION (antiguo 2 / nuevo 13)
+      } else if (statusParam === 4) {
+        qb.andWhere('p.statusId IN (17, 18, 19)'); // Mapear RESUELTO (antiguo 4) a APROBADO (17), RECHAZADO (18), REQUIERE_SUBSANACION_VERSION (19)
+      } else {
+        qb.andWhere('p.statusId = :statusId', { statusId: statusParam });
+      }
     }
     if (query.subsanar === 'true' || (query.subsanar as any) === true) {
       qb.andWhere(

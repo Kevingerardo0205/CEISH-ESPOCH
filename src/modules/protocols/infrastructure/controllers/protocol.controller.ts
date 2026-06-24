@@ -7,7 +7,6 @@ import {
   Query,
   UseGuards,
   Request,
-  ParseBoolPipe,
   BadRequestException,
 } from '@nestjs/common';
 import { ProtocolsService } from '../../application/services/protocols.service';
@@ -24,6 +23,7 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 import { StudyTypeCode } from '../../domain/enums/study-type.enum';
+import { ReceptionStatus } from '../../domain/enums/reception-status.enum';
 import { UploadDocumentDto } from '../../../reception/application/dtos/upload-document.dto';
 import {
   isValidPdfExtension,
@@ -64,6 +64,20 @@ export class ProtocolController {
   async findMyProtocols(@Query() query: QueryProtocolDto, @Request() req) {
     query.investigatorId = req.user.id;
     return this.protocolsService.findAll(query);
+  }
+
+  @Get('mis-subsanaciones')
+  @ApiOperation({
+    summary:
+      'Listar los protocolos en fase de subsanación de observaciones del investigador logueado',
+  })
+  async findMySubsanaciones(@Request() req: any) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const investigatorId = req.user?.id as number;
+    return this.protocolsService.findAll({
+      investigatorId,
+      receptionStatus: ReceptionStatus.EVALUACION_SUBSANACIONES,
+    });
   }
 
   @Get('checklist/:id')

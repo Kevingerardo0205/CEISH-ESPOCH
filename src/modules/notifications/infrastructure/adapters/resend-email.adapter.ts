@@ -151,7 +151,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
         attachments: [
           {
             filename: `Constancia_Recepcion_${ceishCode}.pdf`,
-            content: pdfBuffer,
+            content: pdfBuffer.toString('base64'),
           },
         ],
       });
@@ -175,12 +175,17 @@ export class ResendEmailAdapter implements IEmailServicePort {
       const attachments = [
         {
           filename: `Resolucion_${ceishCode}.pdf`,
-          content: pdfBuffer,
+          content: pdfBuffer.toString('base64'),
         },
       ];
 
       if (additionalAttachments && additionalAttachments.length > 0) {
-        attachments.push(...additionalAttachments);
+        attachments.push(
+          ...additionalAttachments.map((att) => ({
+            filename: att.filename,
+            content: att.content.toString('base64'),
+          })),
+        );
       }
 
       const data = await this.resend.emails.send({
