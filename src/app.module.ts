@@ -13,6 +13,7 @@ import { EvaluationsModule } from './modules/evaluations/evaluations.module';
 import { ResolutionsModule } from './modules/resolutions/resolutions.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
 import { EncryptionService } from './shared/encryption/encryption.service';
 import { setEncryptionService } from './shared/encryption/encryption.transformer';
 import { DosDefenseMiddleware } from './shared/middleware/dos-defense.middleware';
@@ -57,6 +58,7 @@ import { ThrottleExceptionFilter } from './shared/filters/throttle-exception.fil
     EvaluationsModule,
     ResolutionsModule,
     NotificationsModule,
+    AiAssistantModule,
   ],
   controllers: [],
   providers: [

@@ -19,18 +19,28 @@ export class DatabaseRefactoringAndNormalizations1786000000000 implements Migrat
     `);
 
     // C. Migrar datos de recepcion.recepciones.codigo_ceish_generado a public.protocolos.codigo_ceish
-    await queryRunner.query(`
-      UPDATE public.protocolos p
-      SET codigo_ceish = r.codigo_ceish_generado
-      FROM recepcion.recepciones r
-      WHERE r.protocolo_id = p.id AND p.codigo_ceish IS NULL;
+    const checkCeishGenerado = await queryRunner.query(`
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_schema = 'recepcion' 
+        AND table_name = 'recepciones' 
+        AND column_name = 'codigo_ceish_generado'
     `);
+    const hasCeishGenerado = checkCeishGenerado.length > 0;
 
-    // D. Eliminar la columna codigo_ceish_generado de recepcion.recepciones
-    await queryRunner.query(`
-      ALTER TABLE recepcion.recepciones 
-      DROP COLUMN IF EXISTS codigo_ceish_generado;
-    `);
+    if (hasCeishGenerado) {
+      await queryRunner.query(`
+        UPDATE public.protocolos p
+        SET codigo_ceish = r.codigo_ceish_generado
+        FROM recepcion.recepciones r
+        WHERE r.protocolo_id = p.id AND p.codigo_ceish IS NULL;
+      `);
+
+      // D. Eliminar la columna codigo_ceish_generado de recepcion.recepciones
+      await queryRunner.query(`
+        ALTER TABLE recepcion.recepciones 
+        DROP COLUMN IF EXISTS codigo_ceish_generado;
+      `);
+    }
 
     // E. Actualizar la función catalogos.generate_codigo_ceish para leer de public.protocolos
     await queryRunner.query(`
@@ -79,7 +89,7 @@ export class DatabaseRefactoringAndNormalizations1786000000000 implements Migrat
       (2, 'APROBADO_CON_OBSERVACIONES'),
       (3, 'RECHAZADO'),
       (4, 'PENDIENTE_SUBSANACION')
-      ON CONFLICT (nombre) DO NOTHING;
+      ON CONFLICT (id) DO UPDATE SET nombre = EXCLUDED.nombre;
       
       -- Sincronizar secuencia
       SELECT pg_catalog.setval('catalogos.tipos_resolucion_id_seq', COALESCE((SELECT MAX(id) FROM catalogos.tipos_resolucion), 1), true);
@@ -101,24 +111,34 @@ export class DatabaseRefactoringAndNormalizations1786000000000 implements Migrat
       FOREIGN KEY (tipo_resolucion_id) REFERENCES catalogos.tipos_resolucion(id) ON DELETE SET NULL;
     `);
 
-    // D. Migrar datos antiguos a tipo_resolucion_id
-    await queryRunner.query(`
-      UPDATE public.versiones_protocolo
-      SET tipo_resolucion_id = CASE
-        WHEN tipo_resolucion = 'APROBADO' THEN 1
-        WHEN tipo_resolucion = 'APROBADO_CON_OBSERVACIONES' THEN 2
-        WHEN tipo_resolucion = 'RECHAZADO' THEN 3
-        WHEN tipo_resolucion = 'PENDIENTE_SUBSANACION' THEN 4
-        ELSE NULL
-      END
-      WHERE tipo_resolucion IS NOT NULL;
+    // D. Migrar datos antiguos a tipo_resolucion_id si la columna antigua aún existe
+    const checkTipoResolucion = await queryRunner.query(`
+      SELECT 1 FROM information_schema.columns 
+      WHERE table_schema = 'public' 
+        AND table_name = 'versiones_protocolo' 
+        AND column_name = 'tipo_resolucion'
     `);
+    const hasTipoResolucion = checkTipoResolucion.length > 0;
 
-    // E. Eliminar tipo_resolucion como columna de texto
-    await queryRunner.query(`
-      ALTER TABLE public.versiones_protocolo 
-      DROP COLUMN IF EXISTS tipo_resolucion;
-    `);
+    if (hasTipoResolucion) {
+      await queryRunner.query(`
+        UPDATE public.versiones_protocolo
+        SET tipo_resolucion_id = CASE
+          WHEN tipo_resolucion = 'APROBADO' THEN 1
+          WHEN tipo_resolucion = 'APROBADO_CON_OBSERVACIONES' THEN 2
+          WHEN tipo_resolucion = 'RECHAZADO' THEN 3
+          WHEN tipo_resolucion = 'PENDIENTE_SUBSANACION' THEN 4
+          ELSE NULL
+        END
+        WHERE tipo_resolucion IS NOT NULL;
+      `);
+
+      // E. Eliminar tipo_resolucion como columna de texto
+      await queryRunner.query(`
+        ALTER TABLE public.versiones_protocolo 
+        DROP COLUMN IF EXISTS tipo_resolucion;
+      `);
+    }
 
     // === 3. asignado_por y aprobado_asignacion_por sin FK en BD ===
     await queryRunner.query(`
