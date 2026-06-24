@@ -2,9 +2,9 @@ import {
   IsNumber,
   IsOptional,
   IsString,
-  IsObject,
   ValidateNested,
   IsEnum,
+  IsBoolean,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
@@ -14,12 +14,8 @@ import {
   Annex11Dto,
 } from './annexes/evaluation-forms.dto';
 
-export enum EvaluationResult {
-  APROBADO = 'APROBADO',
-  APROBADO_CON_OBSERVACIONES = 'APROBADO_CON_OBSERVACIONES',
-  RECHAZADO = 'RECHAZADO',
-  PENDIENTE_SUBSANACION = 'PENDIENTE_SUBSANACION',
-}
+import { EvaluatorDictamen } from '../../domain/enums/evaluator-dictamen.enum';
+export { EvaluatorDictamen as EvaluationResult };
 
 export class SubmitEvaluationDto {
   @ApiProperty({ example: 1, description: 'ID de la asignación de evaluación' })
@@ -57,12 +53,12 @@ export class SubmitEvaluationDto {
   annex11?: Annex11Dto;
 
   @ApiProperty({
-    example: 'APROBADO',
-    enum: EvaluationResult,
+    example: 1,
+    enum: EvaluatorDictamen,
     description: 'Dictamen final de la evaluación',
   })
-  @IsEnum(EvaluationResult)
-  result!: EvaluationResult;
+  @IsEnum(EvaluatorDictamen)
+  result!: EvaluatorDictamen;
 
   @ApiProperty({
     example: 'El protocolo cumple con los estándares éticos.',
@@ -80,4 +76,14 @@ export class SubmitEvaluationDto {
   @IsOptional()
   @IsString()
   reportPath?: string;
+
+  @ApiProperty({
+    example: false,
+    required: false,
+    description:
+      'Indica si es un borrador (guarda y genera Anexo 9 sin cerrar el flujo)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isDraft?: boolean;
 }

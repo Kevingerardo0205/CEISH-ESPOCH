@@ -13,7 +13,6 @@ import {
 } from '@nestjs/common';
 import { EvaluationsService } from '../../application/services/evaluations.service';
 import { EvaluationConsolidationService } from '../../application/services/evaluation-consolidation.service';
-import { AssignEvaluatorsDto } from '../../application/dtos/assign-evaluator.dto';
 import { SubmitEvaluationDto } from '../../application/dtos/submit-evaluation.dto';
 import {
   CreateEvaluatorProfileDto,
@@ -69,46 +68,6 @@ export class EvaluationsController {
     return this.evaluationsService.getEvaluatorsDashboard(
       profileId ? +profileId : undefined,
     );
-  }
-
-  @Post('suggest')
-  @Permissions(Permission.EVALUATORS_SUGGEST)
-  @Audit('EVALUATORS_SUGGESTED')
-  @ApiOperation({
-    summary: 'Presidenta sugiere uno o más evaluadores a un protocolo',
-  })
-  async suggest(@Body() dto: AssignEvaluatorsDto, @Request() req) {
-    return this.evaluationsService.suggestEvaluators(dto, req.user.id);
-  }
-
-  @Get('pending-suggestions')
-  @Permissions(Permission.EVALUATORS_ASSIGN)
-  @ApiOperation({
-    summary:
-      'Listar todas las sugerencias de evaluadores pendientes de confirmar',
-  })
-  async getPendingSuggestions() {
-    return this.evaluationsService.getPendingSuggestions();
-  }
-
-  @Patch('confirm-assignment')
-  @Permissions(Permission.EVALUATORS_ASSIGN)
-  @Audit('EVALUATORS_ASSIGNED')
-  @ApiOperation({
-    summary: 'Secretaria confirma las sugerencias y asigna oficialmente',
-  })
-  async confirm(@Body('assignmentIds') ids: number[], @Request() req) {
-    return this.evaluationsService.confirmAssignments(ids, req.user.id);
-  }
-
-  @Delete('reject-suggestion/:id')
-  @Permissions(Permission.EVALUATORS_ASSIGN)
-  @Audit('EVALUATION_SUGGESTION_REJECTED')
-  @ApiOperation({
-    summary: 'Secretaria rechaza (elimina) una sugerencia de la Presidenta',
-  })
-  async reject(@Param('id', ParseIntPipe) id: number) {
-    return this.evaluationsService.rejectSuggestion(id);
   }
 
   @Get('my-assignments')
@@ -229,6 +188,56 @@ export class EvaluationsController {
     return this.evaluationsService.getSubmitProtocolInfo(
       protocolId,
       req.user.id,
+    );
+  }
+
+  @Get(':id/checklist-details')
+  @Permissions(Permission.EVALUATION_VIEW_MINE)
+  @ApiOperation({
+    summary:
+      'Consultar los ítems relacionales del checklist (Anexo 9) de una evaluación específica. ' +
+      'Retorna cada ítem enriquecido con su descripción canónica y estadísticas de cumplimiento por criterio técnico (Ética, Metodología, Jurídica).',
+  })
+  async getChecklistDetails(@Param('id', ParseIntPipe) id: number) {
+    return this.evaluationsService.getEvaluationChecklistDetails(id);
+  }
+
+  @Get(':id/document')
+  @Permissions(Permission.EVALUATION_VIEW_MINE)
+  @ApiOperation({
+    summary:
+      'Obtener URL firmada (30 min) para descargar el PDF del Anexo 9 auto-generado. ' +
+      'Solo disponible para evaluaciones de tipo Revisión Expedita. El PDF se almacena en Cloudflare R2.',
+  })
+  async getEvaluationDocument(@Param('id', ParseIntPipe) id: number) {
+    return this.evaluationsService.getEvaluationDocumentUrl(id);
+  }
+
+  @Get(':id/document/docx')
+  @Permissions(Permission.EVALUATION_VIEW_MINE)
+  @ApiOperation({
+    summary:
+      'Obtener URL firmada (30 min) para descargar el DOCX Word del Anexo 9 auto-generado. ' +
+      'Solo disponible para evaluaciones de tipo Revisión Expedita. El DOCX se almacena en Cloudflare R2. ' +
+      'El campo filename de la respuesta indica el nombre sugerido para guardar el archivo.',
+  })
+  async getEvaluationDocumentDocx(@Param('id', ParseIntPipe) id: number) {
+    return this.evaluationsService.getEvaluationDocxUrl(id);
+  }
+
+  @Get('protocol/:protocolId/observations')
+  @ApiOperation({
+    summary:
+      'Obtener observaciones detalladas y consolidadas de cada evaluador para un protocolo (Investigador/Secretaría)',
+  })
+  async getProtocolObservationsForInvestigator(
+    @Param('protocolId', ParseIntPipe) protocolId: number,
+    @Request() req,
+  ) {
+    return this.evaluationsService.getObservationsForInvestigator(
+      protocolId,
+      req.user.id,
+      req.user.permissions,
     );
   }
 }

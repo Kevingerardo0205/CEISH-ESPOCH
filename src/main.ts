@@ -12,6 +12,11 @@ async function bootstrap() {
   // Necesario para que DosDefenseMiddleware extraiga correctamente req.ip
   app.set('trust proxy', 1);
   app.setGlobalPrefix('api');
+  app.enableCors({
+    origin: true,
+    methods: 'GET,HEAD,PUT,PATCH,POST,DELETE,OPTIONS',
+    credentials: true,
+  });
 
   // Configuración de Swagger
   const config = new DocumentBuilder()
@@ -33,7 +38,6 @@ async function bootstrap() {
   app.useGlobalFilters(new HttpExceptionFilter());
   app.useGlobalInterceptors(new ResponseInterceptor());
   app.useGlobalPipes(new GlobalValidationPipe());
-
 
   await app.listen(process.env.PORT ?? 3002);
   console.log(

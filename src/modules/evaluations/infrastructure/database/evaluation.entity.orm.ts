@@ -30,14 +30,20 @@ export class EvaluationOrmEntity {
   @Column({ name: 'aspectos_juridicos', type: 'jsonb', nullable: true })
   legalAspects?: any;
 
-  @Column({ name: 'resultado', length: 50, nullable: true })
-  result?: string;
+  @Column({ name: 'resultado_id', nullable: true })
+  result?: number;
 
   @Column({ name: 'observaciones', type: 'text', nullable: true })
   observations?: string;
 
   @Column({ name: 'ruta_informe_pdf', length: 500, nullable: true })
   reportPath?: string;
+
+  @Column({ name: 'ruta_docx', length: 500, nullable: true })
+  rutaDocx?: string;
+
+  @Column({ name: 'ruta_pdf', length: 500, nullable: true })
+  rutaPdf?: string;
 
   @CreateDateColumn({ name: 'fecha_evaluacion', type: 'timestamp' })
   evaluationDate!: Date;

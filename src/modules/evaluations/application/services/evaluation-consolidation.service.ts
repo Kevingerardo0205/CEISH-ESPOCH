@@ -4,6 +4,13 @@ import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.re
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationOrmEntity } from '../../infrastructure/database/evaluation.entity.orm';
 
+const getResultString = (resultId?: number | null): string => {
+  if (resultId === 1) return 'APROBADO';
+  if (resultId === 2) return 'APROBADO_CON_OBSERVACIONES';
+  if (resultId === 3) return 'RECHAZADO';
+  return 'PENDIENTE_SUBSANACION'; // fallback/legacy
+};
+
 @Injectable()
 export class EvaluationConsolidationService {
   constructor(
@@ -26,7 +33,7 @@ export class EvaluationConsolidationService {
     const assignments =
       await this.evaluationRepository.findAssignmentsByVersionId(version.id);
     const completedAssignments = assignments.filter(
-      (a) => a.statusId === AssignmentStatus.COMPLETED,
+      (a) => a.statusId === +AssignmentStatus.COMPLETED,
     );
 
     if (completedAssignments.length === 0) {
@@ -54,19 +61,23 @@ export class EvaluationConsolidationService {
       completedEvaluations: evaluations.length,
       recommendations: evaluations.map((e) => ({
         evaluator: e.evaluatedBy?.fullName || 'Anónimo',
-        result: e.result,
+        result: getResultString(e.result),
         observations: e.observations,
       })),
       summary: {
-        ethical: evaluations.map((e) => e.ethicalAspects).filter(Boolean),
-        methodological: evaluations
-          .map((e) => e.methodologicalAspects)
+        ethical: evaluations
+          .map((e) => e.ethicalAspects as unknown)
           .filter(Boolean),
-        legal: evaluations.map((e) => e.legalAspects).filter(Boolean),
+        methodological: evaluations
+          .map((e) => e.methodologicalAspects as unknown)
+          .filter(Boolean),
+        legal: evaluations
+          .map((e) => e.legalAspects as unknown)
+          .filter(Boolean),
       },
       // Lógica de decisión sugerida (Unanimidad o Mayoría)
       suggestedGlobalResult: this.calculateGlobalResult(
-        evaluations.map((e) => e.result).filter((r): r is string => !!r),
+        evaluations.map((e) => getResultString(e.result)),
       ),
     };
 

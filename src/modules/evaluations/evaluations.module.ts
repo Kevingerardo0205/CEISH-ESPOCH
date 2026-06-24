@@ -5,7 +5,9 @@ import { EvaluatorProfileOrmEntity } from './infrastructure/database/evaluator-p
 import { EvaluatorProfileUserOrmEntity } from './infrastructure/database/evaluator-profile-user.entity.orm';
 import { ProtocolVersionOrmEntity } from './infrastructure/database/protocol-version.entity.orm';
 import { EvaluationOrmEntity } from './infrastructure/database/evaluation.entity.orm';
+import { EvaluationResponseDetailOrmEntity } from './infrastructure/database/evaluation-response-detail.entity.orm';
 import { SessionOrmEntity } from './infrastructure/database/session.entity.orm';
+
 import { MinutesOrmEntity } from './infrastructure/database/minutes.entity.orm';
 import { UserOrmEntity } from '../auth/infrastructure/database/user.entity.orm';
 import { EvaluationsService } from './application/services/evaluations.service';
@@ -23,6 +25,8 @@ import { PeerRiskAssignmentOrmEntity } from './infrastructure/database/peer-assi
 import { RiskLevelOrmEntity } from '../protocols/infrastructure/database/risk-level.entity.orm';
 import { RevisionModalityOrmEntity } from './infrastructure/database/revision-modality.entity.orm';
 import { ResolutionTypeOrmEntity } from '../resolutions/infrastructure/database/resolution-type.entity.orm';
+import { PdfGeneratorService } from '../../shared/utils/pdf-generator.service';
+import { DocxGeneratorService } from '../../shared/utils/docx-generator.service';
 
 @Module({
   imports: [
@@ -32,7 +36,9 @@ import { ResolutionTypeOrmEntity } from '../resolutions/infrastructure/database/
       EvaluatorProfileUserOrmEntity,
       ProtocolVersionOrmEntity,
       EvaluationOrmEntity,
+      EvaluationResponseDetailOrmEntity,
       SessionOrmEntity,
+
       MinutesOrmEntity,
       UserOrmEntity,
       InvestigatorOrmEntity,
@@ -51,6 +57,8 @@ import { ResolutionTypeOrmEntity } from '../resolutions/infrastructure/database/
     EvaluationsService,
     ConflictOfInterestService,
     EvaluationConsolidationService,
+    PdfGeneratorService,
+    DocxGeneratorService,
     {
       provide: IEvaluationRepository,
       useClass: EvaluationTypeOrmRepository,

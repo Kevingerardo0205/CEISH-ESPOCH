@@ -2,6 +2,8 @@ import { Injectable } from '@nestjs/common';
 import { TDocumentDefinitions } from 'pdfmake/interfaces';
 import { PDF_LOGOS } from './pdf-logos';
 
+declare const require: any;
+
 @Injectable()
 export class PdfGeneratorService {
   private pdfmake: any;

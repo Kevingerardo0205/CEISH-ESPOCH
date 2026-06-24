@@ -16,6 +16,9 @@ export class DocumentMapper {
       id: orm.id,
       protocolId: orm.protocolId,
       requirementId: orm.requirementId,
+      requirementName: orm.requirement?.requirementName || null,
+      requirementCode: orm.requirement?.requirementCode || null,
+      typeName: orm.tipoDocumento?.nombre || null,
       fileName: orm.fileName,
       url: viewUrl, // El frontend usará este campo siempre
       path: orm.path,

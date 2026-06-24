@@ -52,4 +52,11 @@ export class ProtocolDeadlineService {
     const days = reviewType === ReviewType.EXPEDITA ? 8 : 15;
     return this.addBusinessDays(assignmentDate, days);
   }
+
+  /**
+   * Deadline for correcting observations (30 business days)
+   */
+  calculateSubsanacionDeadline(evaluationDate: Date = new Date()): Date {
+    return this.addBusinessDays(evaluationDate, 30);
+  }
 }

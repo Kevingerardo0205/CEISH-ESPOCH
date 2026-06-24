@@ -1,4 +1,5 @@
 import { Entity, Column, ManyToMany, JoinTable, OneToOne } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { RoleOrmEntity } from './role.entity.orm';
 import { InvestigatorProfileOrmEntity } from './investigator-profile.entity.orm';
 import { EncryptionTransformer } from '../../../../shared/encryption/encryption.transformer';
@@ -66,7 +67,7 @@ export class UserOrmEntity extends BaseOrmEntity {
   resetPasswordExpires: Date | null = null;
 
   @OneToOne(() => InvestigatorProfileOrmEntity, (profile) => profile.user)
-  investigatorProfile?: InvestigatorProfileOrmEntity;
+  investigatorProfile?: Relation<InvestigatorProfileOrmEntity>;
 
   @ManyToMany(() => RoleOrmEntity)
   @JoinTable({

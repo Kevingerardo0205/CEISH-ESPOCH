@@ -1,4 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { ProtocolOrmEntity } from './protocol.entity.orm';
 import { InvestigatorRole } from '../../domain/enums/investigator-role.enum';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
@@ -37,7 +38,7 @@ export class InvestigatorOrmEntity extends BaseOrmEntity {
 
   @ManyToOne(() => ProtocolOrmEntity, (protocol) => protocol.investigators)
   @JoinColumn({ name: 'protocolo_id' })
-  protocol!: ProtocolOrmEntity;
+  protocol!: Relation<ProtocolOrmEntity>;
 
   @Column({ name: 'protocolo_id' })
   protocolId!: number;

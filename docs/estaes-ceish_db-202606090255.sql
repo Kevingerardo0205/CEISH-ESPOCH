@@ -5,7 +5,7 @@
 -- Dumped from database version 15.17
 -- Dumped by pg_dump version 17.0
 
--- Started on 2026-06-02 23:50:17
+-- Started on 2026-06-09 02:55:03
 
 SET statement_timeout = 0;
 SET lock_timeout = 0;
@@ -30,7 +30,7 @@ CREATE SCHEMA catalogos;
 ALTER SCHEMA catalogos OWNER TO ceish_user;
 
 --
--- TOC entry 4298 (class 0 OID 0)
+-- TOC entry 4289 (class 0 OID 0)
 -- Dependencies: 5
 -- Name: SCHEMA catalogos; Type: COMMENT; Schema: -; Owner: ceish_user
 --
@@ -49,7 +49,7 @@ CREATE SCHEMA evaluacion;
 ALTER SCHEMA evaluacion OWNER TO ceish_user;
 
 --
--- TOC entry 4299 (class 0 OID 0)
+-- TOC entry 4290 (class 0 OID 0)
 -- Dependencies: 7
 -- Name: SCHEMA evaluacion; Type: COMMENT; Schema: -; Owner: ceish_user
 --
@@ -68,7 +68,7 @@ CREATE SCHEMA gestion;
 ALTER SCHEMA gestion OWNER TO ceish_user;
 
 --
--- TOC entry 4300 (class 0 OID 0)
+-- TOC entry 4291 (class 0 OID 0)
 -- Dependencies: 10
 -- Name: SCHEMA gestion; Type: COMMENT; Schema: -; Owner: ceish_user
 --
@@ -87,7 +87,7 @@ CREATE SCHEMA ml_features;
 ALTER SCHEMA ml_features OWNER TO ceish_user;
 
 --
--- TOC entry 4301 (class 0 OID 0)
+-- TOC entry 4292 (class 0 OID 0)
 -- Dependencies: 12
 -- Name: SCHEMA ml_features; Type: COMMENT; Schema: -; Owner: ceish_user
 --
@@ -106,7 +106,7 @@ COMMENT ON SCHEMA ml_features IS 'Microservicio Python ML - Innovación de tesis
 ALTER SCHEMA public OWNER TO ceish_user;
 
 --
--- TOC entry 4302 (class 0 OID 0)
+-- TOC entry 4293 (class 0 OID 0)
 -- Dependencies: 13
 -- Name: SCHEMA public; Type: COMMENT; Schema: -; Owner: ceish_user
 --
@@ -125,7 +125,7 @@ CREATE SCHEMA recepcion;
 ALTER SCHEMA recepcion OWNER TO ceish_user;
 
 --
--- TOC entry 4304 (class 0 OID 0)
+-- TOC entry 4295 (class 0 OID 0)
 -- Dependencies: 6
 -- Name: SCHEMA recepcion; Type: COMMENT; Schema: -; Owner: ceish_user
 --
@@ -144,7 +144,7 @@ CREATE SCHEMA resolucion;
 ALTER SCHEMA resolucion OWNER TO ceish_user;
 
 --
--- TOC entry 4305 (class 0 OID 0)
+-- TOC entry 4296 (class 0 OID 0)
 -- Dependencies: 8
 -- Name: SCHEMA resolucion; Type: COMMENT; Schema: -; Owner: ceish_user
 --
@@ -163,7 +163,7 @@ CREATE SCHEMA seguimiento;
 ALTER SCHEMA seguimiento OWNER TO ceish_user;
 
 --
--- TOC entry 4306 (class 0 OID 0)
+-- TOC entry 4297 (class 0 OID 0)
 -- Dependencies: 9
 -- Name: SCHEMA seguimiento; Type: COMMENT; Schema: -; Owner: ceish_user
 --
@@ -182,7 +182,7 @@ CREATE SCHEMA sistema;
 ALTER SCHEMA sistema OWNER TO ceish_user;
 
 --
--- TOC entry 4307 (class 0 OID 0)
+-- TOC entry 4298 (class 0 OID 0)
 -- Dependencies: 11
 -- Name: SCHEMA sistema; Type: COMMENT; Schema: -; Owner: ceish_user
 --
@@ -191,7 +191,7 @@ COMMENT ON SCHEMA sistema IS 'Normas de funcionamiento PET 5.1: Auditoría, par�
 
 
 --
--- TOC entry 1126 (class 1247 OID 44923)
+-- TOC entry 1125 (class 1247 OID 44923)
 -- Name: protocolo_instituciones_tipo_enum; Type: TYPE; Schema: public; Owner: ceish_user
 --
 
@@ -204,7 +204,7 @@ CREATE TYPE public.protocolo_instituciones_tipo_enum AS ENUM (
 ALTER TYPE public.protocolo_instituciones_tipo_enum OWNER TO ceish_user;
 
 --
--- TOC entry 1135 (class 1247 OID 44961)
+-- TOC entry 1134 (class 1247 OID 44961)
 -- Name: protocolo_investigadores_rol_enum; Type: TYPE; Schema: public; Owner: ceish_user
 --
 
@@ -218,7 +218,7 @@ CREATE TYPE public.protocolo_investigadores_rol_enum AS ENUM (
 ALTER TYPE public.protocolo_investigadores_rol_enum OWNER TO ceish_user;
 
 --
--- TOC entry 1162 (class 1247 OID 106565)
+-- TOC entry 1161 (class 1247 OID 106565)
 -- Name: protocolo_requisitos_estado_enum; Type: TYPE; Schema: public; Owner: ceish_user
 --
 
@@ -235,7 +235,7 @@ CREATE TYPE public.protocolo_requisitos_estado_enum AS ENUM (
 ALTER TYPE public.protocolo_requisitos_estado_enum OWNER TO ceish_user;
 
 --
--- TOC entry 1141 (class 1247 OID 45008)
+-- TOC entry 1140 (class 1247 OID 45008)
 -- Name: protocolos_cobertura_geografica_enum; Type: TYPE; Schema: public; Owner: ceish_user
 --
 
@@ -250,7 +250,7 @@ CREATE TYPE public.protocolos_cobertura_geografica_enum AS ENUM (
 ALTER TYPE public.protocolos_cobertura_geografica_enum OWNER TO ceish_user;
 
 --
--- TOC entry 1156 (class 1247 OID 57493)
+-- TOC entry 1155 (class 1247 OID 57493)
 -- Name: protocolos_estado_recepcion_enum; Type: TYPE; Schema: public; Owner: ceish_user
 --
 
@@ -265,7 +265,7 @@ CREATE TYPE public.protocolos_estado_recepcion_enum AS ENUM (
 ALTER TYPE public.protocolos_estado_recepcion_enum OWNER TO ceish_user;
 
 --
--- TOC entry 1150 (class 1247 OID 45081)
+-- TOC entry 1149 (class 1247 OID 45081)
 -- Name: protocolos_tipo_revision_enum; Type: TYPE; Schema: public; Owner: ceish_user
 --
 
@@ -286,53 +286,34 @@ ALTER TYPE public.protocolos_tipo_revision_enum OWNER TO ceish_user;
 CREATE FUNCTION catalogos.generate_codigo_ceish(p_tipo_id integer, p_year integer) RETURNS character varying
     LANGUAGE plpgsql
     AS $$
-            DECLARE
-                v_tipo_sigla varchar;
-                v_secuencial int;
-                v_nuevo_codigo varchar;
-            BEGIN
-                -- Obtener sigla según tipo_estudio_id
-                SELECT CASE 
-                    WHEN codigo = 'IO' THEN 'IO'
-                    WHEN codigo = 'EI' THEN 'EI'
-                    WHEN codigo = 'EC' THEN 'EC'
-                    ELSE 'EX'
-                END INTO v_tipo_sigla
-                FROM catalogos.tipos_estudio WHERE id = p_tipo_id;
+                  DECLARE
+                      v_tipo_sigla varchar;
+                      v_secuencial int;
+                      v_nuevo_codigo varchar;
+                  BEGIN
+                      -- Obtener sigla según tipo_estudio_id
+                      SELECT CASE 
+                          WHEN codigo = 'IO' THEN 'IO'
+                          WHEN codigo = 'EI' THEN 'EI'
+                          WHEN codigo = 'EC' THEN 'EC'
+                          ELSE 'EX'
+                      END INTO v_tipo_sigla
+                      FROM catalogos.tipos_estudio WHERE id = p_tipo_id;
 
-                -- Calcular secuencial
-                SELECT COALESCE(MAX(CAST(split_part(codigo_ceish, '-', 4) AS INTEGER)), 0) + 1 
-                INTO v_secuencial
-                FROM public.protocolos 
-                WHERE codigo_ceish LIKE 'CEISH-ESPOCH-' || v_tipo_sigla || '-%-' || p_year;
+                      -- Calcular secuencial
+                      SELECT COALESCE(MAX(CAST(split_part(codigo_ceish, '-', 4) AS INTEGER)), 0) + 1 
+                      INTO v_secuencial
+                      FROM public.protocolos 
+                      WHERE codigo_ceish LIKE 'CEISH-ESPOCH-' || v_tipo_sigla || '-%-' || p_year;
 
-                v_nuevo_codigo := 'CEISH-ESPOCH-' || v_tipo_sigla || '-' || LPAD(v_secuencial::text, 3, '0') || '-' || p_year;
-                
-                RETURN v_nuevo_codigo;
-            END;
-            $$;
+                      v_nuevo_codigo := 'CEISH-ESPOCH-' || v_tipo_sigla || '-' || LPAD(v_secuencial::text, 3, '0') || '-' || p_year;
+                      
+                      RETURN v_nuevo_codigo;
+                  END;
+                  $$;
 
 
 ALTER FUNCTION catalogos.generate_codigo_ceish(p_tipo_id integer, p_year integer) OWNER TO ceish_user;
-
---
--- TOC entry 349 (class 1255 OID 57367)
--- Name: trg_assign_ceish_code(); Type: FUNCTION; Schema: public; Owner: ceish_user
---
-
-CREATE FUNCTION public.trg_assign_ceish_code() RETURNS trigger
-    LANGUAGE plpgsql
-    AS $$
-            BEGIN
-                IF NEW.estado_recepcion = 'COMPLETO' AND (OLD.estado_recepcion IS NULL OR OLD.estado_recepcion != 'COMPLETO') AND NEW.codigo_ceish IS NULL THEN
-                    NEW.codigo_ceish := catalogos.generate_codigo_ceish(NEW.tipo_estudio_id, EXTRACT(YEAR FROM CURRENT_DATE)::int);
-                END IF;
-                RETURN NEW;
-            END;
-            $$;
-
-
-ALTER FUNCTION public.trg_assign_ceish_code() OWNER TO ceish_user;
 
 SET default_tablespace = '';
 
@@ -368,7 +349,7 @@ CREATE SEQUENCE catalogos.causales_suspension_id_seq
 ALTER SEQUENCE catalogos.causales_suspension_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4308 (class 0 OID 0)
+-- TOC entry 4299 (class 0 OID 0)
 -- Dependencies: 250
 -- Name: causales_suspension_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -407,7 +388,7 @@ CREATE SEQUENCE catalogos.criterios_evaluacion_id_seq
 ALTER SEQUENCE catalogos.criterios_evaluacion_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4309 (class 0 OID 0)
+-- TOC entry 4300 (class 0 OID 0)
 -- Dependencies: 248
 -- Name: criterios_evaluacion_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -447,7 +428,7 @@ CREATE SEQUENCE catalogos.estados_id_seq
 ALTER SEQUENCE catalogos.estados_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4310 (class 0 OID 0)
+-- TOC entry 4301 (class 0 OID 0)
 -- Dependencies: 234
 -- Name: estados_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -500,7 +481,7 @@ CREATE SEQUENCE catalogos.modalidades_revision_id_seq
 ALTER SEQUENCE catalogos.modalidades_revision_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4311 (class 0 OID 0)
+-- TOC entry 4302 (class 0 OID 0)
 -- Dependencies: 242
 -- Name: modalidades_revision_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -545,7 +526,7 @@ CREATE SEQUENCE catalogos.modulos_id_seq
 ALTER SEQUENCE catalogos.modulos_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4312 (class 0 OID 0)
+-- TOC entry 4303 (class 0 OID 0)
 -- Dependencies: 333
 -- Name: modulos_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -589,7 +570,7 @@ CREATE SEQUENCE catalogos.niveles_riesgo_id_seq
 ALTER SEQUENCE catalogos.niveles_riesgo_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4313 (class 0 OID 0)
+-- TOC entry 4304 (class 0 OID 0)
 -- Dependencies: 232
 -- Name: niveles_riesgo_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -631,7 +612,7 @@ CREATE SEQUENCE catalogos.perfiles_evaluador_id_seq
 ALTER SEQUENCE catalogos.perfiles_evaluador_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4314 (class 0 OID 0)
+-- TOC entry 4305 (class 0 OID 0)
 -- Dependencies: 239
 -- Name: perfiles_evaluador_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -685,7 +666,7 @@ CREATE SEQUENCE catalogos.perfiles_investigador_id_seq
 ALTER SEQUENCE catalogos.perfiles_investigador_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4315 (class 0 OID 0)
+-- TOC entry 4306 (class 0 OID 0)
 -- Dependencies: 331
 -- Name: perfiles_investigador_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -728,7 +709,7 @@ CREATE SEQUENCE catalogos.permisos_id_seq
 ALTER SEQUENCE catalogos.permisos_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4316 (class 0 OID 0)
+-- TOC entry 4307 (class 0 OID 0)
 -- Dependencies: 227
 -- Name: permisos_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -785,7 +766,7 @@ CREATE SEQUENCE catalogos.roles_id_seq
 ALTER SEQUENCE catalogos.roles_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4317 (class 0 OID 0)
+-- TOC entry 4308 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: roles_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -845,7 +826,7 @@ CREATE SEQUENCE catalogos.tipos_documento_id_seq
 ALTER SEQUENCE catalogos.tipos_documento_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4318 (class 0 OID 0)
+-- TOC entry 4309 (class 0 OID 0)
 -- Dependencies: 236
 -- Name: tipos_documento_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -893,7 +874,7 @@ CREATE SEQUENCE catalogos.tipos_estudio_id_seq
 ALTER SEQUENCE catalogos.tipos_estudio_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4319 (class 0 OID 0)
+-- TOC entry 4310 (class 0 OID 0)
 -- Dependencies: 230
 -- Name: tipos_estudio_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -931,7 +912,7 @@ CREATE SEQUENCE catalogos.tipos_resolucion_id_seq
 ALTER SEQUENCE catalogos.tipos_resolucion_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4320 (class 0 OID 0)
+-- TOC entry 4311 (class 0 OID 0)
 -- Dependencies: 246
 -- Name: tipos_resolucion_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -974,7 +955,7 @@ CREATE SEQUENCE catalogos.tipos_seguimiento_id_seq
 ALTER SEQUENCE catalogos.tipos_seguimiento_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4321 (class 0 OID 0)
+-- TOC entry 4312 (class 0 OID 0)
 -- Dependencies: 244
 -- Name: tipos_seguimiento_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -1027,7 +1008,7 @@ CREATE SEQUENCE catalogos.usuarios_id_seq
 ALTER SEQUENCE catalogos.usuarios_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4322 (class 0 OID 0)
+-- TOC entry 4313 (class 0 OID 0)
 -- Dependencies: 224
 -- Name: usuarios_id_seq; Type: SEQUENCE OWNED BY; Schema: catalogos; Owner: ceish_user
 --
@@ -1118,7 +1099,7 @@ CREATE SEQUENCE evaluacion.actas_id_seq
 ALTER SEQUENCE evaluacion.actas_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4323 (class 0 OID 0)
+-- TOC entry 4314 (class 0 OID 0)
 -- Dependencies: 269
 -- Name: actas_id_seq; Type: SEQUENCE OWNED BY; Schema: evaluacion; Owner: ceish_user
 --
@@ -1148,7 +1129,8 @@ CREATE TABLE evaluacion.asignaciones_evaluacion (
     fecha_sugerencia timestamp without time zone DEFAULT now() NOT NULL,
     fecha_confirmacion timestamp without time zone,
     sugerido_por integer,
-    confirmado_por integer
+    confirmado_por integer,
+    ruta_informe_pdf character varying(500)
 );
 
 
@@ -1171,7 +1153,7 @@ CREATE SEQUENCE evaluacion.asignaciones_evaluacion_id_seq
 ALTER SEQUENCE evaluacion.asignaciones_evaluacion_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4324 (class 0 OID 0)
+-- TOC entry 4315 (class 0 OID 0)
 -- Dependencies: 262
 -- Name: asignaciones_evaluacion_id_seq; Type: SEQUENCE OWNED BY; Schema: evaluacion; Owner: ceish_user
 --
@@ -1191,7 +1173,8 @@ CREATE TABLE evaluacion.asignaciones_pares_riesgo (
     nivel_riesgo_propuesto_id integer,
     observaciones text,
     fecha_asignacion timestamp without time zone DEFAULT now() NOT NULL,
-    fecha_envio timestamp without time zone
+    fecha_envio timestamp without time zone,
+    ruta_informe_pdf character varying(500)
 );
 
 
@@ -1214,7 +1197,7 @@ CREATE SEQUENCE evaluacion.asignaciones_pares_riesgo_id_seq
 ALTER SEQUENCE evaluacion.asignaciones_pares_riesgo_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4325 (class 0 OID 0)
+-- TOC entry 4316 (class 0 OID 0)
 -- Dependencies: 335
 -- Name: asignaciones_pares_riesgo_id_seq; Type: SEQUENCE OWNED BY; Schema: evaluacion; Owner: ceish_user
 --
@@ -1259,7 +1242,7 @@ CREATE SEQUENCE evaluacion.asistencia_sesiones_id_seq
 ALTER SEQUENCE evaluacion.asistencia_sesiones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4326 (class 0 OID 0)
+-- TOC entry 4317 (class 0 OID 0)
 -- Dependencies: 273
 -- Name: asistencia_sesiones_id_seq; Type: SEQUENCE OWNED BY; Schema: evaluacion; Owner: ceish_user
 --
@@ -1319,7 +1302,7 @@ CREATE SEQUENCE evaluacion.evaluaciones_id_seq
 ALTER SEQUENCE evaluacion.evaluaciones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4327 (class 0 OID 0)
+-- TOC entry 4318 (class 0 OID 0)
 -- Dependencies: 264
 -- Name: evaluaciones_id_seq; Type: SEQUENCE OWNED BY; Schema: evaluacion; Owner: ceish_user
 --
@@ -1362,7 +1345,7 @@ CREATE SEQUENCE evaluacion.sesiones_id_seq
 ALTER SEQUENCE evaluacion.sesiones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4328 (class 0 OID 0)
+-- TOC entry 4319 (class 0 OID 0)
 -- Dependencies: 267
 -- Name: sesiones_id_seq; Type: SEQUENCE OWNED BY; Schema: evaluacion; Owner: ceish_user
 --
@@ -1410,7 +1393,7 @@ CREATE SEQUENCE gestion.enmiendas_id_seq
 ALTER SEQUENCE gestion.enmiendas_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4329 (class 0 OID 0)
+-- TOC entry 4320 (class 0 OID 0)
 -- Dependencies: 286
 -- Name: enmiendas_id_seq; Type: SEQUENCE OWNED BY; Schema: gestion; Owner: ceish_user
 --
@@ -1462,7 +1445,7 @@ CREATE SEQUENCE gestion.renovaciones_id_seq
 ALTER SEQUENCE gestion.renovaciones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4330 (class 0 OID 0)
+-- TOC entry 4321 (class 0 OID 0)
 -- Dependencies: 288
 -- Name: renovaciones_id_seq; Type: SEQUENCE OWNED BY; Schema: gestion; Owner: ceish_user
 --
@@ -1526,7 +1509,7 @@ CREATE SEQUENCE gestion.suspensiones_id_seq
 ALTER SEQUENCE gestion.suspensiones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4331 (class 0 OID 0)
+-- TOC entry 4322 (class 0 OID 0)
 -- Dependencies: 290
 -- Name: suspensiones_id_seq; Type: SEQUENCE OWNED BY; Schema: gestion; Owner: ceish_user
 --
@@ -1572,7 +1555,7 @@ CREATE SEQUENCE ml_features.analisis_documentos_id_seq
 ALTER SEQUENCE ml_features.analisis_documentos_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4332 (class 0 OID 0)
+-- TOC entry 4323 (class 0 OID 0)
 -- Dependencies: 312
 -- Name: analisis_documentos_id_seq; Type: SEQUENCE OWNED BY; Schema: ml_features; Owner: ceish_user
 --
@@ -1617,7 +1600,7 @@ CREATE SEQUENCE ml_features.balanceo_evaluadores_id_seq
 ALTER SEQUENCE ml_features.balanceo_evaluadores_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4333 (class 0 OID 0)
+-- TOC entry 4324 (class 0 OID 0)
 -- Dependencies: 314
 -- Name: balanceo_evaluadores_id_seq; Type: SEQUENCE OWNED BY; Schema: ml_features; Owner: ceish_user
 --
@@ -1661,7 +1644,7 @@ CREATE SEQUENCE ml_features.chatbot_conversaciones_id_seq
 ALTER SEQUENCE ml_features.chatbot_conversaciones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4334 (class 0 OID 0)
+-- TOC entry 4325 (class 0 OID 0)
 -- Dependencies: 318
 -- Name: chatbot_conversaciones_id_seq; Type: SEQUENCE OWNED BY; Schema: ml_features; Owner: ceish_user
 --
@@ -1721,7 +1704,7 @@ CREATE SEQUENCE ml_features.modelos_versiones_id_seq
 ALTER SEQUENCE ml_features.modelos_versiones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4335 (class 0 OID 0)
+-- TOC entry 4326 (class 0 OID 0)
 -- Dependencies: 309
 -- Name: modelos_versiones_id_seq; Type: SEQUENCE OWNED BY; Schema: ml_features; Owner: ceish_user
 --
@@ -1765,7 +1748,7 @@ CREATE SEQUENCE ml_features.prediccion_incumplimientos_id_seq
 ALTER SEQUENCE ml_features.prediccion_incumplimientos_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4336 (class 0 OID 0)
+-- TOC entry 4327 (class 0 OID 0)
 -- Dependencies: 316
 -- Name: prediccion_incumplimientos_id_seq; Type: SEQUENCE OWNED BY; Schema: ml_features; Owner: ceish_user
 --
@@ -1810,7 +1793,7 @@ CREATE SEQUENCE ml_features.predicciones_log_id_seq
 ALTER SEQUENCE ml_features.predicciones_log_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4337 (class 0 OID 0)
+-- TOC entry 4328 (class 0 OID 0)
 -- Dependencies: 307
 -- Name: predicciones_log_id_seq; Type: SEQUENCE OWNED BY; Schema: ml_features; Owner: ceish_user
 --
@@ -1857,7 +1840,7 @@ CREATE SEQUENCE ml_features.protocolo_features_id_seq
 ALTER SEQUENCE ml_features.protocolo_features_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4338 (class 0 OID 0)
+-- TOC entry 4329 (class 0 OID 0)
 -- Dependencies: 305
 -- Name: protocolo_features_id_seq; Type: SEQUENCE OWNED BY; Schema: ml_features; Owner: ceish_user
 --
@@ -1901,7 +1884,7 @@ CREATE SEQUENCE ml_features.reportes_msp_id_seq
 ALTER SEQUENCE ml_features.reportes_msp_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4339 (class 0 OID 0)
+-- TOC entry 4330 (class 0 OID 0)
 -- Dependencies: 320
 -- Name: reportes_msp_id_seq; Type: SEQUENCE OWNED BY; Schema: ml_features; Owner: ceish_user
 --
@@ -1940,7 +1923,7 @@ CREATE SEQUENCE public.migrations_id_seq
 ALTER SEQUENCE public.migrations_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4340 (class 0 OID 0)
+-- TOC entry 4331 (class 0 OID 0)
 -- Dependencies: 329
 -- Name: migrations_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ceish_user
 --
@@ -1988,7 +1971,7 @@ CREATE SEQUENCE public.protocolo_instituciones_id_seq
 ALTER SEQUENCE public.protocolo_instituciones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4341 (class 0 OID 0)
+-- TOC entry 4332 (class 0 OID 0)
 -- Dependencies: 322
 -- Name: protocolo_instituciones_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ceish_user
 --
@@ -2038,7 +2021,7 @@ CREATE SEQUENCE public.protocolo_investigadores_id_seq
 ALTER SEQUENCE public.protocolo_investigadores_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4342 (class 0 OID 0)
+-- TOC entry 4333 (class 0 OID 0)
 -- Dependencies: 326
 -- Name: protocolo_investigadores_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ceish_user
 --
@@ -2084,7 +2067,7 @@ CREATE SEQUENCE public.protocolo_requisitos_id_seq
 ALTER SEQUENCE public.protocolo_requisitos_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4343 (class 0 OID 0)
+-- TOC entry 4334 (class 0 OID 0)
 -- Dependencies: 324
 -- Name: protocolo_requisitos_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ceish_user
 --
@@ -2110,7 +2093,6 @@ CREATE TABLE public.protocolos (
     poblacion_vulnerable boolean DEFAULT false NOT NULL,
     utiliza_muestras_biologicas boolean DEFAULT false NOT NULL,
     multicentrico boolean DEFAULT false NOT NULL,
-    version_actual integer DEFAULT 1 NOT NULL,
     creado_en timestamp without time zone DEFAULT now() NOT NULL,
     actualizado_en timestamp without time zone DEFAULT now() NOT NULL,
     eliminado_en timestamp without time zone,
@@ -2120,20 +2102,8 @@ CREATE TABLE public.protocolos (
     fecha_estimada_fin date,
     fecha_limite_renovacion date,
     cobertura_geografica public.protocolos_cobertura_geografica_enum,
-    codigo_ceish character varying(100),
     titulo character varying(1000),
-    fecha_recepcion timestamp without time zone,
     tipo_revision public.protocolos_tipo_revision_enum,
-    estado_recepcion public.protocolos_estado_recepcion_enum DEFAULT 'PENDIENTE_SUBSANACION'::public.protocolos_estado_recepcion_enum NOT NULL,
-    requisitos_faltantes text,
-    fecha_limite_subsanacion timestamp without time zone,
-    fecha_limite_respuesta timestamp without time zone,
-    notificado_presidente boolean DEFAULT false NOT NULL,
-    fecha_notificacion_presidente timestamp without time zone,
-    notificado_investigador boolean DEFAULT false NOT NULL,
-    fecha_notificacion_investigador timestamp without time zone,
-    certificado_recepcion_emitido boolean DEFAULT false NOT NULL,
-    fecha_emision_certificado timestamp without time zone,
     declaracion_no_iniciado boolean DEFAULT false NOT NULL,
     fecha_declaracion_no_iniciado timestamp without time zone,
     ip_declaracion_no_iniciado character varying(45),
@@ -2143,13 +2113,12 @@ CREATE TABLE public.protocolos (
     patrocinador_pagina_web character varying(200),
     patrocinador_organo_ejecutor character varying(200),
     tiene_instituciones_externas boolean DEFAULT false NOT NULL,
-    investigador_principal_inv_id integer,
     poblacion_indigena boolean DEFAULT false NOT NULL,
-    version character varying(20) DEFAULT '1.0'::character varying NOT NULL,
     nivel_riesgo_confirmado boolean DEFAULT false NOT NULL,
     sometimiento_tiempos_aceptado boolean DEFAULT false NOT NULL,
     fecha_sometimiento_tiempos timestamp without time zone,
-    ip_sometimiento_tiempos character varying(45)
+    ip_sometimiento_tiempos character varying(45),
+    codigo_ceish character varying(50)
 );
 
 
@@ -2209,7 +2178,7 @@ CREATE SEQUENCE public.protocolos_id_seq
 ALTER SEQUENCE public.protocolos_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4344 (class 0 OID 0)
+-- TOC entry 4335 (class 0 OID 0)
 -- Dependencies: 252
 -- Name: protocolos_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ceish_user
 --
@@ -2229,11 +2198,11 @@ CREATE TABLE public.versiones_protocolo (
     estado_id integer,
     fecha_envio timestamp without time zone,
     fecha_resolucion timestamp without time zone,
-    tipo_resolucion character varying(50),
     observaciones text,
     plazo_subsanacion_dias integer DEFAULT 30 NOT NULL,
     fecha_limite_subsanacion date,
-    validado_por integer
+    validado_por integer,
+    tipo_resolucion_id integer
 );
 
 
@@ -2256,7 +2225,7 @@ CREATE SEQUENCE public.versiones_protocolo_id_seq
 ALTER SEQUENCE public.versiones_protocolo_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4345 (class 0 OID 0)
+-- TOC entry 4336 (class 0 OID 0)
 -- Dependencies: 254
 -- Name: versiones_protocolo_id_seq; Type: SEQUENCE OWNED BY; Schema: public; Owner: ceish_user
 --
@@ -2305,7 +2274,7 @@ CREATE SEQUENCE recepcion.documentos_id_seq
 ALTER SEQUENCE recepcion.documentos_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4346 (class 0 OID 0)
+-- TOC entry 4337 (class 0 OID 0)
 -- Dependencies: 256
 -- Name: documentos_id_seq; Type: SEQUENCE OWNED BY; Schema: recepcion; Owner: ceish_user
 --
@@ -2331,7 +2300,6 @@ CREATE TABLE recepcion.recepciones (
     constancia_emitida boolean DEFAULT false NOT NULL,
     fecha_constancia timestamp without time zone,
     plazo_respuesta_dias integer,
-    codigo_ceish_generado character varying(50),
     observaciones text,
     creado_por integer
 );
@@ -2356,7 +2324,7 @@ CREATE SEQUENCE recepcion.recepciones_id_seq
 ALTER SEQUENCE recepcion.recepciones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4347 (class 0 OID 0)
+-- TOC entry 4338 (class 0 OID 0)
 -- Dependencies: 260
 -- Name: recepciones_id_seq; Type: SEQUENCE OWNED BY; Schema: recepcion; Owner: ceish_user
 --
@@ -2398,7 +2366,7 @@ CREATE SEQUENCE recepcion.validaciones_documento_id_seq
 ALTER SEQUENCE recepcion.validaciones_documento_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4348 (class 0 OID 0)
+-- TOC entry 4339 (class 0 OID 0)
 -- Dependencies: 258
 -- Name: validaciones_documento_id_seq; Type: SEQUENCE OWNED BY; Schema: recepcion; Owner: ceish_user
 --
@@ -2444,7 +2412,7 @@ CREATE SEQUENCE resolucion.notificaciones_resolucion_id_seq
 ALTER SEQUENCE resolucion.notificaciones_resolucion_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4349 (class 0 OID 0)
+-- TOC entry 4340 (class 0 OID 0)
 -- Dependencies: 277
 -- Name: notificaciones_resolucion_id_seq; Type: SEQUENCE OWNED BY; Schema: resolucion; Owner: ceish_user
 --
@@ -2496,7 +2464,7 @@ CREATE SEQUENCE resolucion.resoluciones_id_seq
 ALTER SEQUENCE resolucion.resoluciones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4350 (class 0 OID 0)
+-- TOC entry 4341 (class 0 OID 0)
 -- Dependencies: 275
 -- Name: resoluciones_id_seq; Type: SEQUENCE OWNED BY; Schema: resolucion; Owner: ceish_user
 --
@@ -2552,7 +2520,7 @@ CREATE SEQUENCE seguimiento.eventos_adversos_id_seq
 ALTER SEQUENCE seguimiento.eventos_adversos_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4351 (class 0 OID 0)
+-- TOC entry 4342 (class 0 OID 0)
 -- Dependencies: 284
 -- Name: eventos_adversos_id_seq; Type: SEQUENCE OWNED BY; Schema: seguimiento; Owner: ceish_user
 --
@@ -2605,7 +2573,7 @@ CREATE SEQUENCE seguimiento.informes_seguimiento_id_seq
 ALTER SEQUENCE seguimiento.informes_seguimiento_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4352 (class 0 OID 0)
+-- TOC entry 4343 (class 0 OID 0)
 -- Dependencies: 281
 -- Name: informes_seguimiento_id_seq; Type: SEQUENCE OWNED BY; Schema: seguimiento; Owner: ceish_user
 --
@@ -2656,7 +2624,7 @@ CREATE SEQUENCE seguimiento.seguimientos_id_seq
 ALTER SEQUENCE seguimiento.seguimientos_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4353 (class 0 OID 0)
+-- TOC entry 4344 (class 0 OID 0)
 -- Dependencies: 279
 -- Name: seguimientos_id_seq; Type: SEQUENCE OWNED BY; Schema: seguimiento; Owner: ceish_user
 --
@@ -2702,7 +2670,7 @@ CREATE SEQUENCE sistema.audit_log_id_seq
 ALTER SEQUENCE sistema.audit_log_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4354 (class 0 OID 0)
+-- TOC entry 4345 (class 0 OID 0)
 -- Dependencies: 299
 -- Name: audit_log_id_seq; Type: SEQUENCE OWNED BY; Schema: sistema; Owner: ceish_user
 --
@@ -2743,7 +2711,7 @@ CREATE SEQUENCE sistema.declaracion_confidencialidad_id_seq
 ALTER SEQUENCE sistema.declaracion_confidencialidad_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4355 (class 0 OID 0)
+-- TOC entry 4346 (class 0 OID 0)
 -- Dependencies: 301
 -- Name: declaracion_confidencialidad_id_seq; Type: SEQUENCE OWNED BY; Schema: sistema; Owner: ceish_user
 --
@@ -2785,7 +2753,7 @@ CREATE SEQUENCE sistema.declaracion_conflicto_interes_id_seq
 ALTER SEQUENCE sistema.declaracion_conflicto_interes_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4356 (class 0 OID 0)
+-- TOC entry 4347 (class 0 OID 0)
 -- Dependencies: 303
 -- Name: declaracion_conflicto_interes_id_seq; Type: SEQUENCE OWNED BY; Schema: sistema; Owner: ceish_user
 --
@@ -2833,7 +2801,7 @@ CREATE SEQUENCE sistema.notificaciones_id_seq
 ALTER SEQUENCE sistema.notificaciones_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4357 (class 0 OID 0)
+-- TOC entry 4348 (class 0 OID 0)
 -- Dependencies: 295
 -- Name: notificaciones_id_seq; Type: SEQUENCE OWNED BY; Schema: sistema; Owner: ceish_user
 --
@@ -2876,7 +2844,7 @@ CREATE SEQUENCE sistema.parametros_sistema_id_seq
 ALTER SEQUENCE sistema.parametros_sistema_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4358 (class 0 OID 0)
+-- TOC entry 4349 (class 0 OID 0)
 -- Dependencies: 297
 -- Name: parametros_sistema_id_seq; Type: SEQUENCE OWNED BY; Schema: sistema; Owner: ceish_user
 --
@@ -2919,7 +2887,7 @@ CREATE SEQUENCE sistema.plantillas_comunicacion_id_seq
 ALTER SEQUENCE sistema.plantillas_comunicacion_id_seq OWNER TO ceish_user;
 
 --
--- TOC entry 4359 (class 0 OID 0)
+-- TOC entry 4350 (class 0 OID 0)
 -- Dependencies: 293
 -- Name: plantillas_comunicacion_id_seq; Type: SEQUENCE OWNED BY; Schema: sistema; Owner: ceish_user
 --
@@ -2928,7 +2896,7 @@ ALTER SEQUENCE sistema.plantillas_comunicacion_id_seq OWNED BY sistema.plantilla
 
 
 --
--- TOC entry 3627 (class 2604 OID 23985)
+-- TOC entry 3626 (class 2604 OID 23985)
 -- Name: causales_suspension id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -2936,7 +2904,7 @@ ALTER TABLE ONLY catalogos.causales_suspension ALTER COLUMN id SET DEFAULT nextv
 
 
 --
--- TOC entry 3626 (class 2604 OID 23974)
+-- TOC entry 3625 (class 2604 OID 23974)
 -- Name: criterios_evaluacion id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -2944,7 +2912,7 @@ ALTER TABLE ONLY catalogos.criterios_evaluacion ALTER COLUMN id SET DEFAULT next
 
 
 --
--- TOC entry 3609 (class 2604 OID 23878)
+-- TOC entry 3608 (class 2604 OID 23878)
 -- Name: estados id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -2952,7 +2920,7 @@ ALTER TABLE ONLY catalogos.estados ALTER COLUMN id SET DEFAULT nextval('catalogo
 
 
 --
--- TOC entry 3621 (class 2604 OID 23945)
+-- TOC entry 3620 (class 2604 OID 23945)
 -- Name: modalidades_revision id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -2960,7 +2928,7 @@ ALTER TABLE ONLY catalogos.modalidades_revision ALTER COLUMN id SET DEFAULT next
 
 
 --
--- TOC entry 3753 (class 2604 OID 65620)
+-- TOC entry 3746 (class 2604 OID 65620)
 -- Name: modulos id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -2968,7 +2936,7 @@ ALTER TABLE ONLY catalogos.modulos ALTER COLUMN id SET DEFAULT nextval('catalogo
 
 
 --
--- TOC entry 3605 (class 2604 OID 23868)
+-- TOC entry 3604 (class 2604 OID 23868)
 -- Name: niveles_riesgo id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -2976,7 +2944,7 @@ ALTER TABLE ONLY catalogos.niveles_riesgo ALTER COLUMN id SET DEFAULT nextval('c
 
 
 --
--- TOC entry 3616 (class 2604 OID 23915)
+-- TOC entry 3615 (class 2604 OID 23915)
 -- Name: perfiles_evaluador id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -2984,7 +2952,7 @@ ALTER TABLE ONLY catalogos.perfiles_evaluador ALTER COLUMN id SET DEFAULT nextva
 
 
 --
--- TOC entry 3748 (class 2604 OID 49249)
+-- TOC entry 3741 (class 2604 OID 49249)
 -- Name: perfiles_investigador id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -2992,7 +2960,7 @@ ALTER TABLE ONLY catalogos.perfiles_investigador ALTER COLUMN id SET DEFAULT nex
 
 
 --
--- TOC entry 3597 (class 2604 OID 23834)
+-- TOC entry 3596 (class 2604 OID 23834)
 -- Name: permisos id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -3000,7 +2968,7 @@ ALTER TABLE ONLY catalogos.permisos ALTER COLUMN id SET DEFAULT nextval('catalog
 
 
 --
--- TOC entry 3587 (class 2604 OID 23785)
+-- TOC entry 3586 (class 2604 OID 23785)
 -- Name: roles id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -3008,7 +2976,7 @@ ALTER TABLE ONLY catalogos.roles ALTER COLUMN id SET DEFAULT nextval('catalogos.
 
 
 --
--- TOC entry 3610 (class 2604 OID 23887)
+-- TOC entry 3609 (class 2604 OID 23887)
 -- Name: tipos_documento id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -3016,7 +2984,7 @@ ALTER TABLE ONLY catalogos.tipos_documento ALTER COLUMN id SET DEFAULT nextval('
 
 
 --
--- TOC entry 3600 (class 2604 OID 23858)
+-- TOC entry 3599 (class 2604 OID 23858)
 -- Name: tipos_estudio id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -3024,7 +2992,7 @@ ALTER TABLE ONLY catalogos.tipos_estudio ALTER COLUMN id SET DEFAULT nextval('ca
 
 
 --
--- TOC entry 3625 (class 2604 OID 23965)
+-- TOC entry 3624 (class 2604 OID 23965)
 -- Name: tipos_resolucion id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -3032,7 +3000,7 @@ ALTER TABLE ONLY catalogos.tipos_resolucion ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
--- TOC entry 3622 (class 2604 OID 23954)
+-- TOC entry 3621 (class 2604 OID 23954)
 -- Name: tipos_seguimiento id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -3040,7 +3008,7 @@ ALTER TABLE ONLY catalogos.tipos_seguimiento ALTER COLUMN id SET DEFAULT nextval
 
 
 --
--- TOC entry 3591 (class 2604 OID 23798)
+-- TOC entry 3590 (class 2604 OID 23798)
 -- Name: usuarios id; Type: DEFAULT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -3048,7 +3016,7 @@ ALTER TABLE ONLY catalogos.usuarios ALTER COLUMN id SET DEFAULT nextval('catalog
 
 
 --
--- TOC entry 3666 (class 2604 OID 24249)
+-- TOC entry 3659 (class 2604 OID 24249)
 -- Name: actas id; Type: DEFAULT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -3056,7 +3024,7 @@ ALTER TABLE ONLY evaluacion.actas ALTER COLUMN id SET DEFAULT nextval('evaluacio
 
 
 --
--- TOC entry 3658 (class 2604 OID 24152)
+-- TOC entry 3651 (class 2604 OID 24152)
 -- Name: asignaciones_evaluacion id; Type: DEFAULT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -3064,7 +3032,7 @@ ALTER TABLE ONLY evaluacion.asignaciones_evaluacion ALTER COLUMN id SET DEFAULT 
 
 
 --
--- TOC entry 3758 (class 2604 OID 139788)
+-- TOC entry 3751 (class 2604 OID 139788)
 -- Name: asignaciones_pares_riesgo id; Type: DEFAULT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -3072,7 +3040,7 @@ ALTER TABLE ONLY evaluacion.asignaciones_pares_riesgo ALTER COLUMN id SET DEFAUL
 
 
 --
--- TOC entry 3670 (class 2604 OID 24301)
+-- TOC entry 3663 (class 2604 OID 24301)
 -- Name: asistencia_sesiones id; Type: DEFAULT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -3080,7 +3048,7 @@ ALTER TABLE ONLY evaluacion.asistencia_sesiones ALTER COLUMN id SET DEFAULT next
 
 
 --
--- TOC entry 3662 (class 2604 OID 24197)
+-- TOC entry 3655 (class 2604 OID 24197)
 -- Name: evaluaciones id; Type: DEFAULT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -3088,7 +3056,7 @@ ALTER TABLE ONLY evaluacion.evaluaciones ALTER COLUMN id SET DEFAULT nextval('ev
 
 
 --
--- TOC entry 3664 (class 2604 OID 24232)
+-- TOC entry 3657 (class 2604 OID 24232)
 -- Name: sesiones id; Type: DEFAULT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -3096,7 +3064,7 @@ ALTER TABLE ONLY evaluacion.sesiones ALTER COLUMN id SET DEFAULT nextval('evalua
 
 
 --
--- TOC entry 3691 (class 2604 OID 24468)
+-- TOC entry 3684 (class 2604 OID 24468)
 -- Name: enmiendas id; Type: DEFAULT; Schema: gestion; Owner: ceish_user
 --
 
@@ -3104,7 +3072,7 @@ ALTER TABLE ONLY gestion.enmiendas ALTER COLUMN id SET DEFAULT nextval('gestion.
 
 
 --
--- TOC entry 3694 (class 2604 OID 24504)
+-- TOC entry 3687 (class 2604 OID 24504)
 -- Name: renovaciones id; Type: DEFAULT; Schema: gestion; Owner: ceish_user
 --
 
@@ -3112,7 +3080,7 @@ ALTER TABLE ONLY gestion.renovaciones ALTER COLUMN id SET DEFAULT nextval('gesti
 
 
 --
--- TOC entry 3700 (class 2604 OID 24536)
+-- TOC entry 3693 (class 2604 OID 24536)
 -- Name: suspensiones id; Type: DEFAULT; Schema: gestion; Owner: ceish_user
 --
 
@@ -3120,7 +3088,7 @@ ALTER TABLE ONLY gestion.suspensiones ALTER COLUMN id SET DEFAULT nextval('gesti
 
 
 --
--- TOC entry 3724 (class 2604 OID 24743)
+-- TOC entry 3717 (class 2604 OID 24743)
 -- Name: analisis_documentos id; Type: DEFAULT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -3128,7 +3096,7 @@ ALTER TABLE ONLY ml_features.analisis_documentos ALTER COLUMN id SET DEFAULT nex
 
 
 --
--- TOC entry 3726 (class 2604 OID 24760)
+-- TOC entry 3719 (class 2604 OID 24760)
 -- Name: balanceo_evaluadores id; Type: DEFAULT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -3136,7 +3104,7 @@ ALTER TABLE ONLY ml_features.balanceo_evaluadores ALTER COLUMN id SET DEFAULT ne
 
 
 --
--- TOC entry 3730 (class 2604 OID 24795)
+-- TOC entry 3723 (class 2604 OID 24795)
 -- Name: chatbot_conversaciones id; Type: DEFAULT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -3144,7 +3112,7 @@ ALTER TABLE ONLY ml_features.chatbot_conversaciones ALTER COLUMN id SET DEFAULT 
 
 
 --
--- TOC entry 3721 (class 2604 OID 24715)
+-- TOC entry 3714 (class 2604 OID 24715)
 -- Name: modelos_versiones id; Type: DEFAULT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -3152,7 +3120,7 @@ ALTER TABLE ONLY ml_features.modelos_versiones ALTER COLUMN id SET DEFAULT nextv
 
 
 --
--- TOC entry 3728 (class 2604 OID 24775)
+-- TOC entry 3721 (class 2604 OID 24775)
 -- Name: prediccion_incumplimientos id; Type: DEFAULT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -3160,7 +3128,7 @@ ALTER TABLE ONLY ml_features.prediccion_incumplimientos ALTER COLUMN id SET DEFA
 
 
 --
--- TOC entry 3719 (class 2604 OID 24700)
+-- TOC entry 3712 (class 2604 OID 24700)
 -- Name: predicciones_log id; Type: DEFAULT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -3168,7 +3136,7 @@ ALTER TABLE ONLY ml_features.predicciones_log ALTER COLUMN id SET DEFAULT nextva
 
 
 --
--- TOC entry 3717 (class 2604 OID 24683)
+-- TOC entry 3710 (class 2604 OID 24683)
 -- Name: protocolo_features id; Type: DEFAULT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -3176,7 +3144,7 @@ ALTER TABLE ONLY ml_features.protocolo_features ALTER COLUMN id SET DEFAULT next
 
 
 --
--- TOC entry 3732 (class 2604 OID 24810)
+-- TOC entry 3725 (class 2604 OID 24810)
 -- Name: reportes_msp id; Type: DEFAULT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -3184,7 +3152,7 @@ ALTER TABLE ONLY ml_features.reportes_msp ALTER COLUMN id SET DEFAULT nextval('m
 
 
 --
--- TOC entry 3747 (class 2604 OID 45068)
+-- TOC entry 3740 (class 2604 OID 45068)
 -- Name: migrations id; Type: DEFAULT; Schema: public; Owner: ceish_user
 --
 
@@ -3192,7 +3160,7 @@ ALTER TABLE ONLY public.migrations ALTER COLUMN id SET DEFAULT nextval('public.m
 
 
 --
--- TOC entry 3734 (class 2604 OID 44931)
+-- TOC entry 3727 (class 2604 OID 44931)
 -- Name: protocolo_instituciones id; Type: DEFAULT; Schema: public; Owner: ceish_user
 --
 
@@ -3200,7 +3168,7 @@ ALTER TABLE ONLY public.protocolo_instituciones ALTER COLUMN id SET DEFAULT next
 
 
 --
--- TOC entry 3743 (class 2604 OID 44971)
+-- TOC entry 3736 (class 2604 OID 44971)
 -- Name: protocolo_investigadores id; Type: DEFAULT; Schema: public; Owner: ceish_user
 --
 
@@ -3208,7 +3176,7 @@ ALTER TABLE ONLY public.protocolo_investigadores ALTER COLUMN id SET DEFAULT nex
 
 
 --
--- TOC entry 3738 (class 2604 OID 44951)
+-- TOC entry 3731 (class 2604 OID 44951)
 -- Name: protocolo_requisitos id; Type: DEFAULT; Schema: public; Owner: ceish_user
 --
 
@@ -3216,7 +3184,7 @@ ALTER TABLE ONLY public.protocolo_requisitos ALTER COLUMN id SET DEFAULT nextval
 
 
 --
--- TOC entry 3628 (class 2604 OID 23994)
+-- TOC entry 3627 (class 2604 OID 23994)
 -- Name: protocolos id; Type: DEFAULT; Schema: public; Owner: ceish_user
 --
 
@@ -3224,7 +3192,7 @@ ALTER TABLE ONLY public.protocolos ALTER COLUMN id SET DEFAULT nextval('public.p
 
 
 --
--- TOC entry 3645 (class 2604 OID 24031)
+-- TOC entry 3638 (class 2604 OID 24031)
 -- Name: versiones_protocolo id; Type: DEFAULT; Schema: public; Owner: ceish_user
 --
 
@@ -3232,7 +3200,7 @@ ALTER TABLE ONLY public.versiones_protocolo ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
--- TOC entry 3647 (class 2604 OID 24058)
+-- TOC entry 3640 (class 2604 OID 24058)
 -- Name: documentos id; Type: DEFAULT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -3240,7 +3208,7 @@ ALTER TABLE ONLY recepcion.documentos ALTER COLUMN id SET DEFAULT nextval('recep
 
 
 --
--- TOC entry 3653 (class 2604 OID 24122)
+-- TOC entry 3646 (class 2604 OID 24122)
 -- Name: recepciones id; Type: DEFAULT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -3248,7 +3216,7 @@ ALTER TABLE ONLY recepcion.recepciones ALTER COLUMN id SET DEFAULT nextval('rece
 
 
 --
--- TOC entry 3651 (class 2604 OID 24095)
+-- TOC entry 3644 (class 2604 OID 24095)
 -- Name: validaciones_documento id; Type: DEFAULT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -3256,7 +3224,7 @@ ALTER TABLE ONLY recepcion.validaciones_documento ALTER COLUMN id SET DEFAULT ne
 
 
 --
--- TOC entry 3680 (class 2604 OID 24360)
+-- TOC entry 3673 (class 2604 OID 24360)
 -- Name: notificaciones_resolucion id; Type: DEFAULT; Schema: resolucion; Owner: ceish_user
 --
 
@@ -3264,7 +3232,7 @@ ALTER TABLE ONLY resolucion.notificaciones_resolucion ALTER COLUMN id SET DEFAUL
 
 
 --
--- TOC entry 3674 (class 2604 OID 24326)
+-- TOC entry 3667 (class 2604 OID 24326)
 -- Name: resoluciones id; Type: DEFAULT; Schema: resolucion; Owner: ceish_user
 --
 
@@ -3272,7 +3240,7 @@ ALTER TABLE ONLY resolucion.resoluciones ALTER COLUMN id SET DEFAULT nextval('re
 
 
 --
--- TOC entry 3686 (class 2604 OID 24445)
+-- TOC entry 3679 (class 2604 OID 24445)
 -- Name: eventos_adversos id; Type: DEFAULT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -3280,7 +3248,7 @@ ALTER TABLE ONLY seguimiento.eventos_adversos ALTER COLUMN id SET DEFAULT nextva
 
 
 --
--- TOC entry 3685 (class 2604 OID 24411)
+-- TOC entry 3678 (class 2604 OID 24411)
 -- Name: informes_seguimiento id; Type: DEFAULT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -3288,7 +3256,7 @@ ALTER TABLE ONLY seguimiento.informes_seguimiento ALTER COLUMN id SET DEFAULT ne
 
 
 --
--- TOC entry 3682 (class 2604 OID 24380)
+-- TOC entry 3675 (class 2604 OID 24380)
 -- Name: seguimientos id; Type: DEFAULT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -3296,7 +3264,7 @@ ALTER TABLE ONLY seguimiento.seguimientos ALTER COLUMN id SET DEFAULT nextval('s
 
 
 --
--- TOC entry 3713 (class 2604 OID 24630)
+-- TOC entry 3706 (class 2604 OID 24630)
 -- Name: audit_log id; Type: DEFAULT; Schema: sistema; Owner: ceish_user
 --
 
@@ -3304,7 +3272,7 @@ ALTER TABLE ONLY sistema.audit_log ALTER COLUMN id SET DEFAULT nextval('sistema.
 
 
 --
--- TOC entry 3715 (class 2604 OID 24645)
+-- TOC entry 3708 (class 2604 OID 24645)
 -- Name: declaracion_confidencialidad id; Type: DEFAULT; Schema: sistema; Owner: ceish_user
 --
 
@@ -3312,7 +3280,7 @@ ALTER TABLE ONLY sistema.declaracion_confidencialidad ALTER COLUMN id SET DEFAUL
 
 
 --
--- TOC entry 3716 (class 2604 OID 24664)
+-- TOC entry 3709 (class 2604 OID 24664)
 -- Name: declaracion_conflicto_interes id; Type: DEFAULT; Schema: sistema; Owner: ceish_user
 --
 
@@ -3320,7 +3288,7 @@ ALTER TABLE ONLY sistema.declaracion_conflicto_interes ALTER COLUMN id SET DEFAU
 
 
 --
--- TOC entry 3708 (class 2604 OID 24587)
+-- TOC entry 3701 (class 2604 OID 24587)
 -- Name: notificaciones id; Type: DEFAULT; Schema: sistema; Owner: ceish_user
 --
 
@@ -3328,7 +3296,7 @@ ALTER TABLE ONLY sistema.notificaciones ALTER COLUMN id SET DEFAULT nextval('sis
 
 
 --
--- TOC entry 3711 (class 2604 OID 24613)
+-- TOC entry 3704 (class 2604 OID 24613)
 -- Name: parametros_sistema id; Type: DEFAULT; Schema: sistema; Owner: ceish_user
 --
 
@@ -3336,7 +3304,7 @@ ALTER TABLE ONLY sistema.parametros_sistema ALTER COLUMN id SET DEFAULT nextval(
 
 
 --
--- TOC entry 3706 (class 2604 OID 24575)
+-- TOC entry 3699 (class 2604 OID 24575)
 -- Name: plantillas_comunicacion id; Type: DEFAULT; Schema: sistema; Owner: ceish_user
 --
 
@@ -3344,7 +3312,7 @@ ALTER TABLE ONLY sistema.plantillas_comunicacion ALTER COLUMN id SET DEFAULT nex
 
 
 --
--- TOC entry 4207 (class 0 OID 23982)
+-- TOC entry 4198 (class 0 OID 23982)
 -- Dependencies: 251
 -- Data for Name: causales_suspension; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3354,7 +3322,7 @@ COPY catalogos.causales_suspension (id, nombre) FROM stdin;
 
 
 --
--- TOC entry 4205 (class 0 OID 23971)
+-- TOC entry 4196 (class 0 OID 23971)
 -- Dependencies: 249
 -- Data for Name: criterios_evaluacion; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3364,7 +3332,7 @@ COPY catalogos.criterios_evaluacion (id, tipo, descripcion) FROM stdin;
 
 
 --
--- TOC entry 4191 (class 0 OID 23875)
+-- TOC entry 4182 (class 0 OID 23875)
 -- Dependencies: 235
 -- Data for Name: estados; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3388,7 +3356,7 @@ COPY catalogos.estados (id, nombre, categoria, codigo) FROM stdin;
 
 
 --
--- TOC entry 4197 (class 0 OID 23924)
+-- TOC entry 4188 (class 0 OID 23924)
 -- Dependencies: 241
 -- Data for Name: evaluadores_perfil; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3411,7 +3379,7 @@ COPY catalogos.evaluadores_perfil (usuario_id, perfil_id, fecha_asignacion, acti
 
 
 --
--- TOC entry 4199 (class 0 OID 23942)
+-- TOC entry 4190 (class 0 OID 23942)
 -- Dependencies: 243
 -- Data for Name: modalidades_revision; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3421,7 +3389,7 @@ COPY catalogos.modalidades_revision (id, nombre) FROM stdin;
 
 
 --
--- TOC entry 4290 (class 0 OID 65617)
+-- TOC entry 4281 (class 0 OID 65617)
 -- Dependencies: 334
 -- Data for Name: modulos; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3439,22 +3407,22 @@ COPY catalogos.modulos (id, nombre, codigo, icono, orden, activo, creado_en, act
 
 
 --
--- TOC entry 4189 (class 0 OID 23865)
+-- TOC entry 4180 (class 0 OID 23865)
 -- Dependencies: 233
 -- Data for Name: niveles_riesgo; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
 
 COPY catalogos.niveles_riesgo (id, codigo, nombre, tipo_revision, activo, creado_en, actualizado_en, eliminado_en) FROM stdin;
-4	SIN_RIESGO	Investigación sin riesgo	EXPEDITA	t	2026-05-06 05:41:30.59653	2026-05-06 05:41:30.59653	\N
 5	RIESGO_MINIMO	Investigación con riesgo mínimo	EXPEDITA	t	2026-05-06 05:41:30.59653	2026-05-06 05:41:30.59653	\N
 6	RIESGO_MODERADO	Investigación con riesgo moderado	PLENO	t	2026-05-06 05:41:30.59653	2026-05-06 05:41:30.59653	\N
 7	RIESGO_MAYOR	Investigación con riesgo mayor	PLENO	t	2026-05-06 05:41:30.59653	2026-05-06 05:41:30.59653	\N
-8	ENSAYO_CLINICO	Ensayo clínico con intervención en humanoss	PLENO	t	2026-05-06 05:41:30.59653	2026-05-06 05:41:30.59653	\N
+8	ENSAYO_CLINICO	Ensayo clínico con intervención en humanoss	PLENO	f	2026-05-06 05:41:30.59653	2026-05-06 05:41:30.59653	\N
+4	SIN_RIESG	Investigación sin riesgo	EXPEDITA	t	2026-05-06 05:41:30.59653	2026-05-06 05:41:30.59653	\N
 \.
 
 
 --
--- TOC entry 4196 (class 0 OID 23912)
+-- TOC entry 4187 (class 0 OID 23912)
 -- Dependencies: 240
 -- Data for Name: perfiles_evaluador; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3469,7 +3437,7 @@ COPY catalogos.perfiles_evaluador (id, nombre, descripcion, obligatorio_para_tip
 
 
 --
--- TOC entry 4288 (class 0 OID 49246)
+-- TOC entry 4279 (class 0 OID 49246)
 -- Dependencies: 332
 -- Data for Name: perfiles_investigador; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3490,7 +3458,7 @@ COPY catalogos.perfiles_investigador (id, usuario_id, email_personal, telefono, 
 
 
 --
--- TOC entry 4184 (class 0 OID 23831)
+-- TOC entry 4175 (class 0 OID 23831)
 -- Dependencies: 228
 -- Data for Name: permisos; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3542,7 +3510,7 @@ COPY catalogos.permisos (id, nombre, creado_en, actualizado_en, eliminado_en, co
 
 
 --
--- TOC entry 4185 (class 0 OID 23839)
+-- TOC entry 4176 (class 0 OID 23839)
 -- Dependencies: 229
 -- Data for Name: rol_permisos; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3696,7 +3664,7 @@ COPY catalogos.rol_permisos (rol_id, permiso_id) FROM stdin;
 
 
 --
--- TOC entry 4179 (class 0 OID 23782)
+-- TOC entry 4170 (class 0 OID 23782)
 -- Dependencies: 223
 -- Data for Name: roles; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3711,7 +3679,7 @@ COPY catalogos.roles (id, nombre, creado_en, actualizado_en, eliminado_en, activ
 
 
 --
--- TOC entry 4194 (class 0 OID 23896)
+-- TOC entry 4185 (class 0 OID 23896)
 -- Dependencies: 238
 -- Data for Name: tipo_documento_estudio; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3764,7 +3732,7 @@ COPY catalogos.tipo_documento_estudio (tipo_documento_id, tipo_estudio_id, oblig
 
 
 --
--- TOC entry 4193 (class 0 OID 23884)
+-- TOC entry 4184 (class 0 OID 23884)
 -- Dependencies: 237
 -- Data for Name: tipos_documento; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3812,7 +3780,7 @@ COPY catalogos.tipos_documento (id, nombre, es_obligatorio, es_condicional, cond
 
 
 --
--- TOC entry 4187 (class 0 OID 23855)
+-- TOC entry 4178 (class 0 OID 23855)
 -- Dependencies: 231
 -- Data for Name: tipos_estudio; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3826,17 +3794,21 @@ COPY catalogos.tipos_estudio (id, nombre, plazo_evaluacion_dias, requiere_arcsa,
 
 
 --
--- TOC entry 4203 (class 0 OID 23962)
+-- TOC entry 4194 (class 0 OID 23962)
 -- Dependencies: 247
 -- Data for Name: tipos_resolucion; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
 
 COPY catalogos.tipos_resolucion (id, nombre) FROM stdin;
+1	APROBADO
+2	APROBADO_CON_OBSERVACIONES
+3	RECHAZADO
+4	PENDIENTE_SUBSANACION
 \.
 
 
 --
--- TOC entry 4201 (class 0 OID 23951)
+-- TOC entry 4192 (class 0 OID 23951)
 -- Dependencies: 245
 -- Data for Name: tipos_seguimiento; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3846,7 +3818,7 @@ COPY catalogos.tipos_seguimiento (id, nombre, codigo, plazo_dias_desde_aprobacio
 
 
 --
--- TOC entry 4181 (class 0 OID 23795)
+-- TOC entry 4172 (class 0 OID 23795)
 -- Dependencies: 225
 -- Data for Name: usuarios; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3866,28 +3838,28 @@ COPY catalogos.usuarios (id, cedula, nombres_completos, email_institucional, pas
 23	1234567890	ewew ddd ewew aefew	kevinqbgna309@gmail.com	$2b$10$Hva2JK/FbxOwFV7r29MkQOd78xgSGFMPuFTy6Y7l3IIRZZNXRNNLm	t	0	\N	\N	\N	2026-05-05 07:16:37.855651	2026-05-05 07:16:37.855651	\N	f	$2b$10$PC1fmJBy1v8r1EqeL35rUOT8l/pYkOjzGn0VXG0VWpX9x7/ugVCo2	\N	\N
 24	9876543321	as dad ad sad	kevinqui23dssslligana309@gmail.com	$2b$10$0qr.tMPJujUNsdrDOiWXueXWTXGr50uVh93WSKq2nRp0J7IKPkXBm	t	0	\N	\N	\N	2026-05-05 07:26:32.599626	2026-05-05 07:26:32.599626	\N	f	$2b$10$0hd1y2XXkbWG3IzQ7PSwjeubK7nBy4C65tOoReouGa0t9JVSdRCPO	\N	\N
 26	1850897999	adasd asdasd dasd sadas	uilligana309@gmail.com	$2b$10$33BqzPBHy5bTrp3Ec4xf.uavgBe5m.8fGTkq3vMM1jGhmlmMTxQFC	t	0	\N	\N	\N	2026-05-05 08:04:28.602641	2026-05-05 08:04:28.602641	\N	f	$2b$10$STWCj1mkCPXQByKuIpI0M.lyyhvbCn3/BAy8YOHkVVhWy5jGcCrbK	\N	\N
-37	0600000002	Patricia Alejandra Ríos Guarango	patricia.rios@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	\N	\N	2026-06-01 16:10:42.126634	2026-06-01 16:10:42.126634	\N	t	\N	\N	\N
+30	9999999992	Test Secretaria	secretaria@test.com	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$7NIKwlRFawpWMtTeGiF0v.6j./yqANcJuOM3RGkOpZmzxsDwWKHH2	\N	2026-05-05 21:54:15.000179	2026-06-08 18:31:15.521148	\N	t	\N	\N	\N
 29	9999999991	Test Investigador	investigador@test.com	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$V1I9l31T6HD8KwU67oK2SeEHRNv17GuBAm/n4muWGhTgrYDwMcvnW	\N	2026-05-05 21:54:15.000179	2026-05-26 18:42:34.142913	\N	t	\N	\N	\N
-34	0606097335	liliana  berzabet paguay carrillo	lilianapaguay15@gmail.com	$2b$10$bco5ZdNva5PxJOWRQGb/.eb9CRqk2.yp5T5gy.VS4WlBnjr6znAKi	t	0	\N	$2b$10$Ta0CfCGrOSjmXYHJFDBMwO5KORRgGjeM7282vHJKT1MhD1lyeXeAC	\N	2026-05-26 20:42:04.338599	2026-06-03 00:52:12.976878	\N	t	\N	\N	\N
-28	1850867399	wdsd asd asd asdasd	kevinquilligana309@gmail.com	$2b$10$bfLg9i7Yyb8.7kLu6biurOeLTPyA7doFl2Wyt/HIU73XH2m0Elrd.	t	0	\N	$2b$10$SOhn.1UaeAJiiko5WlEW4eqaKNylxuCi9V1V8qDxHUXFBT92O2DRe	\N	2026-05-05 08:39:24.567458	2026-05-31 19:57:49.191942	\N	t	\N	\N	\N
-39	0600000004	Ana Karina Albuja Landi	ana.albuja@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	\N	\N	2026-06-01 16:10:42.126634	2026-06-01 16:10:42.126634	\N	t	\N	\N	\N
+38	0600000003	Patricio David Ramos Padilla	patricio.ramos@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$kVIwZDZD/WX1wCRvTRePk.xPIjuQlHmlmXyb8J9Om7D5zG2.9HSfG	\N	2026-06-01 16:10:42.126634	2026-06-06 09:08:13.002004	\N	t	\N	\N	\N
+28	1850867399	wdsd asd asd asdasd	kevinquilligana309@gmail.com	$2b$10$bfLg9i7Yyb8.7kLu6biurOeLTPyA7doFl2Wyt/HIU73XH2m0Elrd.	t	0	\N	$2b$10$ahII0M1McPYiFZ4Q5bxFP.BAPmzYXhys.9KFKRqlWrh59jmqepnc6	\N	2026-05-05 08:39:24.567458	2026-06-06 08:27:49.993688	\N	t	\N	\N	\N
 33	9999999995	Test Admin TI	admin@test.com	$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	\N	\N	2026-05-05 21:54:15.000179	2026-05-05 21:54:15.000179	\N	t	\N	\N	\N
-30	9999999992	Test Secretaria	secretaria@test.com	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$sStTLUF3KmeM4kQqdfe3YuzR6AUbnUlOFw6ukNvFcMf7Ph/7ROGlO	\N	2026-05-05 21:54:15.000179	2026-06-03 01:22:04.391762	\N	t	\N	\N	\N
+40	0600000005	Veronica Mercedes Cando Brito	veronica.cando@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$qeXxkxqRuHhV8ij0A5Usveq1qxWItkTzAe8tB/L4oKo1MtOi2vyki	\N	2026-06-01 16:10:42.126634	2026-06-09 07:27:43.537304	\N	t	\N	\N	\N
+34	0606097335	liliana  berzabet paguay carrillo	lilianapaguay15@gmail.com	$2b$10$bco5ZdNva5PxJOWRQGb/.eb9CRqk2.yp5T5gy.VS4WlBnjr6znAKi	t	0	\N	$2b$10$ftIhdynLqiTeUKphd0KCpOXwfV8Y2YFQlrAJUE6bo9FTWAl06Q3UK	\N	2026-05-26 20:42:04.338599	2026-06-08 15:42:56.231724	\N	t	\N	\N	\N
 8	1850327239	Usuario Prueba	kevin@espoch.edu.ec	$2b$10$89.v9XpL8.7t7Xv2Y8Y0O.S6I6L0L0L0L0L0L0L0L0L0L0L0L0L0	t	1	\N	$2b$10$kaw0/pllbpXMHSdYp8DEnuNBf5ygR0pvyJFLYxh3fnhqZZTRTb8kG	\N	2026-05-03 15:50:17.144782	2026-05-05 10:38:15.616234	\N	t	\N	\N	\N
 100	0000000000	Super Administrador	admin@ceish.com	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$7Z.GiWgKR2IGz6ehDJllF.59bCr8/53OG.jhwnUUSsw4zYCtyZnEe	\N	2026-05-05 05:40:26.034114	2026-06-01 15:29:16.00969	\N	t	\N	\N	\N
 36	0600000001	Rolando Teruel Ginés	rolando.teruel@espoch.edu.ec	\N	t	0	\N	\N	\N	2026-06-01 16:10:42.126634	2026-06-01 16:10:42.126634	\N	t	\N	\N	\N
 31	9999999993	Test Presidente	presidente@test.com	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$EZeW3OLOtxVmw.IhVegBiuNStFo4NVrdZzgTwyheD9cpCVzG1CQky	\N	2026-05-05 21:54:15.000179	2026-05-28 20:36:12.849727	\N	t	\N	\N	\N
-38	0600000003	Patricio David Ramos Padilla	patricio.ramos@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	\N	\N	2026-06-01 16:10:42.126634	2026-06-01 16:10:42.126634	\N	t	\N	\N	\N
-40	0600000005	Veronica Mercedes Cando Brito	veronica.cando@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	\N	\N	2026-06-01 16:10:42.126634	2026-06-01 16:10:42.126634	\N	t	\N	\N	\N
-41	0600000006	Gabriel Alejandro Tamayo Becerra	gabriel.tamayo@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	\N	\N	2026-06-01 16:10:42.126634	2026-06-01 16:10:42.126634	\N	t	\N	\N	\N
-42	0600000007	Nelly Margarita Padilla Padilla	nelly.padilla@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	\N	\N	2026-06-01 16:10:42.126634	2026-06-01 16:10:42.126634	\N	t	\N	\N	\N
-32	9999999994	Test Evaluador	evaluador@test.com	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$pTRS6K2rpF7B.EQiqxt2L.QjUH.xKtDc6d6mkCu5Fk4PPWpAWA.yC	\N	2026-05-05 21:54:15.000179	2026-06-03 01:35:33.5634	\N	t	\N	\N	\N
-43	0600000008	Jaime David Camacho Castillo	jaime.camacho@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	\N	\N	2026-06-01 16:10:42.126634	2026-06-01 16:10:42.126634	\N	t	\N	\N	\N
+37	0600000002	Patricia Alejandra Ríos Guarango	patricia.rios@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$TiIQreaAzOZS2NdrUy/DbuoPdgt/r.ZBSgf7kuMryiFsBTIeBzswC	\N	2026-06-01 16:10:42.126634	2026-06-06 09:08:56.474482	\N	t	\N	\N	\N
+42	0600000007	Nelly Margarita Padilla Padilla	nelly.padilla@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$Kude7G8z7YQnZBrL93Wv/ep18I.V3dm.SJtSZiJdisODVi4tYPPFK	\N	2026-06-01 16:10:42.126634	2026-06-06 09:06:39.078637	\N	t	\N	\N	\N
+39	0600000004	Ana Karina Albuja Landi	ana.albuja@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$KTPTI33zAo1znY5tP32g/eHBQ4RPyPXZH8YT0feADsvpvnlHUc16S	\N	2026-06-01 16:10:42.126634	2026-06-06 09:15:46.405439	\N	t	\N	\N	\N
+41	0600000006	Gabriel Alejandro Tamayo Becerra	gabriel.tamayo@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$vElNi.tJ8J0j5Q.GHGdy4.mIxVG13C1gvuZgIUCBKKwO/9DZrw/JW	\N	2026-06-01 16:10:42.126634	2026-06-06 09:07:46.616066	\N	t	\N	\N	\N
+32	9999999994	Test Evaluador	evaluador@test.com	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$nsPVwd4b.0t1Eg6eKFkvlO/8pXHTpJpZuEUBcC3eKehgY3dnvJv2K	\N	2026-05-05 21:54:15.000179	2026-06-08 06:36:21.257018	\N	t	\N	\N	\N
+43	0600000008	Jaime David Camacho Castillo	jaime.camacho@espoch.edu.ec	$2b$10$3SnIjux4BKsLHEG7Fj6NkuNMVA/.piXzOlTAkc/S7AklEOcp7jewm	t	0	\N	$2b$10$d0FcVKTyPmUEkLsN0JUCqu4g8CZF8W3ue4X90Qpn8Td8by1xhw1TS	\N	2026-06-01 16:10:42.126634	2026-06-06 09:07:59.411719	\N	t	\N	\N	\N
 \.
 
 
 --
--- TOC entry 4182 (class 0 OID 23809)
+-- TOC entry 4173 (class 0 OID 23809)
 -- Dependencies: 226
 -- Data for Name: usuarios_roles; Type: TABLE DATA; Schema: catalogos; Owner: ceish_user
 --
@@ -3915,7 +3887,7 @@ COPY catalogos.usuarios_roles (usuario_id, rol_id) FROM stdin;
 
 
 --
--- TOC entry 4228 (class 0 OID 24282)
+-- TOC entry 4219 (class 0 OID 24282)
 -- Dependencies: 272
 -- Data for Name: acta_asistente; Type: TABLE DATA; Schema: evaluacion; Owner: ceish_user
 --
@@ -3925,7 +3897,7 @@ COPY evaluacion.acta_asistente (acta_id, usuario_id) FROM stdin;
 
 
 --
--- TOC entry 4227 (class 0 OID 24267)
+-- TOC entry 4218 (class 0 OID 24267)
 -- Dependencies: 271
 -- Data for Name: acta_protocolo; Type: TABLE DATA; Schema: evaluacion; Owner: ceish_user
 --
@@ -3935,7 +3907,7 @@ COPY evaluacion.acta_protocolo (acta_id, protocolo_id) FROM stdin;
 
 
 --
--- TOC entry 4226 (class 0 OID 24246)
+-- TOC entry 4217 (class 0 OID 24246)
 -- Dependencies: 270
 -- Data for Name: actas; Type: TABLE DATA; Schema: evaluacion; Owner: ceish_user
 --
@@ -3945,41 +3917,47 @@ COPY evaluacion.actas (id, sesion_id, numero_acta, resumen_agenda, decisiones_to
 
 
 --
--- TOC entry 4219 (class 0 OID 24149)
+-- TOC entry 4210 (class 0 OID 24149)
 -- Dependencies: 263
 -- Data for Name: asignaciones_evaluacion; Type: TABLE DATA; Schema: evaluacion; Owner: ceish_user
 --
 
-COPY evaluacion.asignaciones_evaluacion (id, version_id, evaluador_id, perfil_id, modalidad_id, estado_id, fecha_limite, fecha_asignacion, fecha_entrega_real, informe_evaluacion, recomendacion, asignado_por, aprobado_asignacion_por, fecha_sugerencia, fecha_confirmacion, sugerido_por, confirmado_por) FROM stdin;
-1	5	32	\N	\N	6	2026-06-23	2026-06-02 23:57:25.434898	\N	\N	\N	30	\N	2026-06-02 23:57:25.434898	\N	\N	\N
-2	5	8	\N	\N	6	2026-06-23	2026-06-02 23:57:25.45176	\N	\N	\N	30	\N	2026-06-02 23:57:25.45176	\N	\N	\N
-3	5	41	8	\N	6	2026-06-23	2026-06-02 23:57:25.491499	\N	\N	\N	30	\N	2026-06-02 23:57:25.491499	\N	\N	\N
-4	5	42	10	\N	6	2026-06-23	2026-06-02 23:57:25.533754	\N	\N	\N	30	\N	2026-06-02 23:57:25.533754	\N	\N	\N
-5	5	43	10	\N	6	2026-06-23	2026-06-02 23:57:25.547456	\N	\N	\N	30	\N	2026-06-02 23:57:25.547456	\N	\N	\N
-6	2	39	6	\N	6	2026-06-23	2026-06-03 00:19:06.698011	\N	\N	\N	30	\N	2026-06-03 00:19:06.698011	\N	\N	\N
-7	2	40	6	\N	6	2026-06-23	2026-06-03 00:19:06.70888	\N	\N	\N	30	\N	2026-06-03 00:19:06.70888	\N	\N	\N
-8	2	41	8	\N	6	2026-06-23	2026-06-03 00:19:06.719141	\N	\N	\N	30	\N	2026-06-03 00:19:06.719141	\N	\N	\N
-9	2	42	10	\N	6	2026-06-23	2026-06-03 00:19:06.73296	\N	\N	\N	30	\N	2026-06-03 00:19:06.73296	\N	\N	\N
-10	2	43	10	\N	6	2026-06-23	2026-06-03 00:19:06.743298	\N	\N	\N	30	\N	2026-06-03 00:19:06.743298	\N	\N	\N
+COPY evaluacion.asignaciones_evaluacion (id, version_id, evaluador_id, perfil_id, modalidad_id, estado_id, fecha_limite, fecha_asignacion, fecha_entrega_real, informe_evaluacion, recomendacion, asignado_por, aprobado_asignacion_por, fecha_sugerencia, fecha_confirmacion, sugerido_por, confirmado_por, ruta_informe_pdf) FROM stdin;
+1	5	32	\N	\N	6	2026-06-23	2026-06-02 23:57:25.434898	\N	\N	\N	30	\N	2026-06-02 23:57:25.434898	\N	\N	\N	\N
+2	5	8	\N	\N	6	2026-06-23	2026-06-02 23:57:25.45176	\N	\N	\N	30	\N	2026-06-02 23:57:25.45176	\N	\N	\N	\N
+3	5	41	8	\N	6	2026-06-23	2026-06-02 23:57:25.491499	\N	\N	\N	30	\N	2026-06-02 23:57:25.491499	\N	\N	\N	\N
+4	5	42	10	\N	6	2026-06-23	2026-06-02 23:57:25.533754	\N	\N	\N	30	\N	2026-06-02 23:57:25.533754	\N	\N	\N	\N
+5	5	43	10	\N	6	2026-06-23	2026-06-02 23:57:25.547456	\N	\N	\N	30	\N	2026-06-02 23:57:25.547456	\N	\N	\N	\N
+6	2	39	6	\N	6	2026-06-23	2026-06-03 00:19:06.698011	\N	\N	\N	30	\N	2026-06-03 00:19:06.698011	\N	\N	\N	\N
+7	2	40	6	\N	6	2026-06-23	2026-06-03 00:19:06.70888	\N	\N	\N	30	\N	2026-06-03 00:19:06.70888	\N	\N	\N	\N
+8	2	41	8	\N	6	2026-06-23	2026-06-03 00:19:06.719141	\N	\N	\N	30	\N	2026-06-03 00:19:06.719141	\N	\N	\N	\N
+9	2	42	10	\N	6	2026-06-23	2026-06-03 00:19:06.73296	\N	\N	\N	30	\N	2026-06-03 00:19:06.73296	\N	\N	\N	\N
+10	2	43	10	\N	6	2026-06-23	2026-06-03 00:19:06.743298	\N	\N	\N	30	\N	2026-06-03 00:19:06.743298	\N	\N	\N	\N
+11	95	37	9	\N	6	2026-06-29	2026-06-08 06:21:36.713096	\N	\N	\N	30	\N	2026-06-08 06:21:36.713096	\N	\N	\N	\N
+12	95	40	6	\N	6	2026-06-29	2026-06-08 06:21:36.725708	\N	\N	\N	30	\N	2026-06-08 06:21:36.725708	\N	\N	\N	\N
+13	95	8	\N	\N	6	2026-06-29	2026-06-08 06:21:36.735259	\N	\N	\N	30	\N	2026-06-08 06:21:36.735259	\N	\N	\N	\N
+14	95	41	8	\N	6	2026-06-29	2026-06-08 06:21:36.746146	\N	\N	\N	30	\N	2026-06-08 06:21:36.746146	\N	\N	\N	\N
 \.
 
 
 --
--- TOC entry 4292 (class 0 OID 139785)
+-- TOC entry 4283 (class 0 OID 139785)
 -- Dependencies: 336
 -- Data for Name: asignaciones_pares_riesgo; Type: TABLE DATA; Schema: evaluacion; Owner: ceish_user
 --
 
-COPY evaluacion.asignaciones_pares_riesgo (id, protocolo_id, evaluador_id, nivel_riesgo_propuesto_id, observaciones, fecha_asignacion, fecha_envio) FROM stdin;
-13	126	32	\N	\N	2026-06-02 23:57:25.394272	\N
-14	126	8	\N	\N	2026-06-02 23:57:25.394272	\N
-15	119	41	\N	\N	2026-06-03 00:19:06.683289	\N
-16	119	42	\N	\N	2026-06-03 00:19:06.683289	\N
+COPY evaluacion.asignaciones_pares_riesgo (id, protocolo_id, evaluador_id, nivel_riesgo_propuesto_id, observaciones, fecha_asignacion, fecha_envio, ruta_informe_pdf) FROM stdin;
+13	126	32	\N	\N	2026-06-02 23:57:25.394272	\N	\N
+14	126	8	\N	\N	2026-06-02 23:57:25.394272	\N	\N
+15	119	41	\N	\N	2026-06-03 00:19:06.683289	\N	\N
+16	119	42	\N	\N	2026-06-03 00:19:06.683289	\N	\N
+17	146	40	\N	\N	2026-06-08 06:21:36.695341	\N	\N
+18	146	41	\N	\N	2026-06-08 06:21:36.695341	\N	\N
 \.
 
 
 --
--- TOC entry 4230 (class 0 OID 24298)
+-- TOC entry 4221 (class 0 OID 24298)
 -- Dependencies: 274
 -- Data for Name: asistencia_sesiones; Type: TABLE DATA; Schema: evaluacion; Owner: ceish_user
 --
@@ -3989,7 +3967,7 @@ COPY evaluacion.asistencia_sesiones (id, sesion_id, usuario_id, asistio, partici
 
 
 --
--- TOC entry 4222 (class 0 OID 24213)
+-- TOC entry 4213 (class 0 OID 24213)
 -- Dependencies: 266
 -- Data for Name: evaluacion_criterio; Type: TABLE DATA; Schema: evaluacion; Owner: ceish_user
 --
@@ -3999,7 +3977,7 @@ COPY evaluacion.evaluacion_criterio (evaluacion_id, criterio_id, valor) FROM std
 
 
 --
--- TOC entry 4221 (class 0 OID 24194)
+-- TOC entry 4212 (class 0 OID 24194)
 -- Dependencies: 265
 -- Data for Name: evaluaciones; Type: TABLE DATA; Schema: evaluacion; Owner: ceish_user
 --
@@ -4009,7 +3987,7 @@ COPY evaluacion.evaluaciones (id, asignacion_id, aspectos_eticos, aspectos_metod
 
 
 --
--- TOC entry 4224 (class 0 OID 24229)
+-- TOC entry 4215 (class 0 OID 24229)
 -- Dependencies: 268
 -- Data for Name: sesiones; Type: TABLE DATA; Schema: evaluacion; Owner: ceish_user
 --
@@ -4019,7 +3997,7 @@ COPY evaluacion.sesiones (id, tipo_sesion, quorum_alcanzado, estado_id, creado_p
 
 
 --
--- TOC entry 4243 (class 0 OID 24465)
+-- TOC entry 4234 (class 0 OID 24465)
 -- Dependencies: 287
 -- Data for Name: enmiendas; Type: TABLE DATA; Schema: gestion; Owner: ceish_user
 --
@@ -4029,7 +4007,7 @@ COPY gestion.enmiendas (id, protocolo_id, numero_enmienda, version_anterior_id, 
 
 
 --
--- TOC entry 4245 (class 0 OID 24501)
+-- TOC entry 4236 (class 0 OID 24501)
 -- Dependencies: 289
 -- Data for Name: renovaciones; Type: TABLE DATA; Schema: gestion; Owner: ceish_user
 --
@@ -4039,7 +4017,7 @@ COPY gestion.renovaciones (id, protocolo_id, numero_renovacion, fecha_solicitud,
 
 
 --
--- TOC entry 4248 (class 0 OID 24556)
+-- TOC entry 4239 (class 0 OID 24556)
 -- Dependencies: 292
 -- Data for Name: suspension_causal; Type: TABLE DATA; Schema: gestion; Owner: ceish_user
 --
@@ -4049,7 +4027,7 @@ COPY gestion.suspension_causal (suspension_id, causal_id) FROM stdin;
 
 
 --
--- TOC entry 4247 (class 0 OID 24533)
+-- TOC entry 4238 (class 0 OID 24533)
 -- Dependencies: 291
 -- Data for Name: suspensiones; Type: TABLE DATA; Schema: gestion; Owner: ceish_user
 --
@@ -4059,7 +4037,7 @@ COPY gestion.suspensiones (id, protocolo_id, tipo, motivo, fecha, informe_motiva
 
 
 --
--- TOC entry 4269 (class 0 OID 24740)
+-- TOC entry 4260 (class 0 OID 24740)
 -- Dependencies: 313
 -- Data for Name: analisis_documentos; Type: TABLE DATA; Schema: ml_features; Owner: ceish_user
 --
@@ -4069,7 +4047,7 @@ COPY ml_features.analisis_documentos (id, documento_id, tipo_documento, texto_ex
 
 
 --
--- TOC entry 4271 (class 0 OID 24757)
+-- TOC entry 4262 (class 0 OID 24757)
 -- Dependencies: 315
 -- Data for Name: balanceo_evaluadores; Type: TABLE DATA; Schema: ml_features; Owner: ceish_user
 --
@@ -4079,7 +4057,7 @@ COPY ml_features.balanceo_evaluadores (id, fecha_calculo, evaluador_id, carga_ac
 
 
 --
--- TOC entry 4275 (class 0 OID 24792)
+-- TOC entry 4266 (class 0 OID 24792)
 -- Dependencies: 319
 -- Data for Name: chatbot_conversaciones; Type: TABLE DATA; Schema: ml_features; Owner: ceish_user
 --
@@ -4089,7 +4067,7 @@ COPY ml_features.chatbot_conversaciones (id, usuario_id, pregunta, respuesta, fu
 
 
 --
--- TOC entry 4267 (class 0 OID 24726)
+-- TOC entry 4258 (class 0 OID 24726)
 -- Dependencies: 311
 -- Data for Name: configuracion_ml; Type: TABLE DATA; Schema: ml_features; Owner: ceish_user
 --
@@ -4099,7 +4077,7 @@ COPY ml_features.configuracion_ml (clave, valor, descripcion, actualizado_por, f
 
 
 --
--- TOC entry 4266 (class 0 OID 24712)
+-- TOC entry 4257 (class 0 OID 24712)
 -- Dependencies: 310
 -- Data for Name: modelos_versiones; Type: TABLE DATA; Schema: ml_features; Owner: ceish_user
 --
@@ -4109,7 +4087,7 @@ COPY ml_features.modelos_versiones (id, nombre_modelo, version, metricas_evaluac
 
 
 --
--- TOC entry 4273 (class 0 OID 24772)
+-- TOC entry 4264 (class 0 OID 24772)
 -- Dependencies: 317
 -- Data for Name: prediccion_incumplimientos; Type: TABLE DATA; Schema: ml_features; Owner: ceish_user
 --
@@ -4119,7 +4097,7 @@ COPY ml_features.prediccion_incumplimientos (id, protocolo_id, seguimiento_id, p
 
 
 --
--- TOC entry 4264 (class 0 OID 24697)
+-- TOC entry 4255 (class 0 OID 24697)
 -- Dependencies: 308
 -- Data for Name: predicciones_log; Type: TABLE DATA; Schema: ml_features; Owner: ceish_user
 --
@@ -4129,7 +4107,7 @@ COPY ml_features.predicciones_log (id, protocolo_id, tipo_prediccion, entrada_js
 
 
 --
--- TOC entry 4262 (class 0 OID 24680)
+-- TOC entry 4253 (class 0 OID 24680)
 -- Dependencies: 306
 -- Data for Name: protocolo_features; Type: TABLE DATA; Schema: ml_features; Owner: ceish_user
 --
@@ -4139,7 +4117,7 @@ COPY ml_features.protocolo_features (id, protocolo_id, texto, longitud, riesgo, 
 
 
 --
--- TOC entry 4277 (class 0 OID 24807)
+-- TOC entry 4268 (class 0 OID 24807)
 -- Dependencies: 321
 -- Data for Name: reportes_msp; Type: TABLE DATA; Schema: ml_features; Owner: ceish_user
 --
@@ -4149,7 +4127,7 @@ COPY ml_features.reportes_msp (id, tipo_reporte, periodo_desde, periodo_hasta, d
 
 
 --
--- TOC entry 4286 (class 0 OID 45065)
+-- TOC entry 4277 (class 0 OID 45065)
 -- Dependencies: 330
 -- Data for Name: migrations; Type: TABLE DATA; Schema: public; Owner: ceish_user
 --
@@ -4185,11 +4163,17 @@ COPY public.migrations (id, "timestamp", name) FROM stdin;
 31	1778930000000	ConsolidateDatabaseStructure1778930000000
 32	1779000000000	AddPeerRiskEvaluation1779000000000
 33	1780000000000	SeedRealEvaluators1780000000000
+34	1781000000000	DatabaseNormalizationOptionA1781000000000
+35	1782000000000	RemoveRedundantVersionColumn1782000000000
+36	1783000000000	DatabaseNormalizationOptionAVersions1783000000000
+37	1784000000000	RemovePrincipalInvestigatorRecordLink1784000000000
+38	1785000000000	AddReportPathToAssignments1785000000000
+39	1786000000000	DatabaseRefactoringAndNormalizations1786000000000
 \.
 
 
 --
--- TOC entry 4279 (class 0 OID 44928)
+-- TOC entry 4270 (class 0 OID 44928)
 -- Dependencies: 323
 -- Data for Name: protocolo_instituciones; Type: TABLE DATA; Schema: public; Owner: ceish_user
 --
@@ -4278,7 +4262,7 @@ COPY public.protocolo_instituciones (id, creado_en, actualizado_en, eliminado_en
 
 
 --
--- TOC entry 4283 (class 0 OID 44968)
+-- TOC entry 4274 (class 0 OID 44968)
 -- Dependencies: 327
 -- Data for Name: protocolo_investigadores; Type: TABLE DATA; Schema: public; Owner: ceish_user
 --
@@ -4377,11 +4361,30 @@ COPY public.protocolo_investigadores (id, creado_en, actualizado_en, eliminado_e
 123	2026-05-28 20:24:14.062738	2026-05-28 20:24:14.062738	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	125	34
 124	2026-05-28 20:28:07.197529	2026-05-28 20:28:07.197529	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	126	34
 125	2026-05-28 20:57:51.181957	2026-05-28 20:57:51.181957	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	127	34
+126	2026-06-07 19:45:27.579601	2026-06-07 19:45:27.579601	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	128	34
+127	2026-06-07 19:47:48.86819	2026-06-07 19:47:48.86819	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	129	34
+128	2026-06-07 19:53:22.707169	2026-06-07 19:53:22.707169	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	130	34
+129	2026-06-07 19:58:03.849466	2026-06-07 19:58:03.849466	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	131	34
+130	2026-06-07 20:12:27.55296	2026-06-07 20:12:27.55296	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	132	34
+131	2026-06-07 20:16:43.352628	2026-06-07 20:16:43.352628	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	133	34
+132	2026-06-07 20:37:45.178933	2026-06-07 20:37:45.178933	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	134	34
+133	2026-06-07 20:41:08.437217	2026-06-07 20:41:08.437217	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	135	34
+134	2026-06-08 03:38:36.17404	2026-06-08 03:38:36.17404	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	136	34
+135	2026-06-08 03:46:24.387943	2026-06-08 03:46:24.387943	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	137	34
+136	2026-06-08 04:11:51.049379	2026-06-08 04:11:51.049379	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	138	34
+137	2026-06-08 04:34:56.676825	2026-06-08 04:34:56.676825	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	139	34
+138	2026-06-08 05:20:43.908953	2026-06-08 05:20:43.908953	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	140	34
+139	2026-06-08 05:38:42.40881	2026-06-08 05:38:42.40881	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	141	34
+140	2026-06-08 05:45:40.985268	2026-06-08 05:45:40.985268	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	142	34
+141	2026-06-08 05:49:22.382164	2026-06-08 05:49:22.382164	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	143	34
+142	2026-06-08 05:56:37.011451	2026-06-08 05:56:37.011451	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	144	34
+143	2026-06-08 06:04:58.857924	2026-06-08 06:04:58.857924	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	145	34
+144	2026-06-08 06:13:35.694392	2026-06-08 06:13:35.694392	\N	liliana  berzabet paguay carrillo	0606097335	Investigador	ESPOCH	lilianapaguay15@gmail.com	0986491708	Información en perfil	PRINCIPAL	146	34
 \.
 
 
 --
--- TOC entry 4281 (class 0 OID 44948)
+-- TOC entry 4272 (class 0 OID 44948)
 -- Dependencies: 325
 -- Data for Name: protocolo_requisitos; Type: TABLE DATA; Schema: public; Owner: ceish_user
 --
@@ -5383,6 +5386,14 @@ COPY public.protocolo_requisitos (id, creado_en, actualizado_en, eliminado_en, c
 1008	2026-05-27 14:14:13.379982	2026-05-27 14:23:55.351064	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	RECHAZADO	2	FALTA DOCUMENTACION	120
 1009	2026-05-27 14:14:13.379982	2026-05-27 14:23:58.670465	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	APROBADO	2		120
 1010	2026-05-27 14:14:13.379982	2026-05-27 14:24:00.705725	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	APROBADO	4		120
+1092	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	129
+1093	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	129
+1094	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	NO_PRESENTADO	0	\N	129
+1095	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	NO_PRESENTADO	0	\N	129
+1096	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	129
+1097	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	129
+1098	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	129
+1099	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	130
 1016	2026-05-27 14:52:05.204321	2026-05-27 14:53:27.900234	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	APROBADO	1		121
 1017	2026-05-27 14:52:05.204321	2026-05-27 14:53:31.659829	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	APROBADO	22		121
 1018	2026-05-27 14:52:05.204321	2026-05-27 14:53:34.006543	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	APROBADO	2		121
@@ -5392,6 +5403,15 @@ COPY public.protocolo_requisitos (id, creado_en, actualizado_en, eliminado_en, c
 1022	2026-05-27 14:52:05.204321	2026-05-27 14:54:12.364741	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	APROBADO	5		121
 1023	2026-05-27 14:52:05.204321	2026-05-27 14:54:15.042097	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	APROBADO	2		121
 1024	2026-05-27 14:52:05.204321	2026-05-27 14:54:19.342264	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	APROBADO	1		121
+1100	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	130
+1101	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	130
+1102	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	130
+1103	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	130
+1104	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	130
+1105	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	NO_PRESENTADO	0	\N	130
+1106	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	NO_PRESENTADO	0	\N	130
+1107	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	130
+1108	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	130
 1032	2026-05-28 16:23:57.878175	2026-05-28 16:25:58.262948	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	PRESENTADO	0	\N	122
 1031	2026-05-28 16:23:57.878175	2026-05-28 16:26:20.329447	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	PRESENTADO	0	\N	122
 1041	2026-05-28 16:27:48.389377	2026-05-28 16:28:02.349672	\N	ANEXO_5	Carta de Interés Institucional (Anexo 5)	PRESENTADO	0	\N	123
@@ -5441,115 +5461,303 @@ COPY public.protocolo_requisitos (id, creado_en, actualizado_en, eliminado_en, c
 1068	2026-05-28 20:28:07.273593	2026-05-28 20:30:56.26201	\N	ANEXO_5	Carta de Interés Institucional (Anexo 5)	APROBADO	1		126
 1078	2026-05-28 20:57:51.218886	2026-05-28 20:57:51.218886	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	127
 1079	2026-05-28 20:57:51.218886	2026-05-28 20:57:51.218886	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	127
+1080	2026-06-07 19:45:27.700399	2026-06-07 19:45:27.700399	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	128
+1081	2026-06-07 19:45:27.700399	2026-06-07 19:45:27.700399	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	128
+1082	2026-06-07 19:45:27.700399	2026-06-07 19:45:27.700399	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	128
+1083	2026-06-07 19:45:27.700399	2026-06-07 19:45:27.700399	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	128
+1084	2026-06-07 19:45:27.700399	2026-06-07 19:45:27.700399	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	128
+1085	2026-06-07 19:45:27.700399	2026-06-07 19:45:27.700399	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	128
+1086	2026-06-07 19:45:27.700399	2026-06-07 19:45:27.700399	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	128
+1087	2026-06-07 19:45:27.700399	2026-06-07 19:45:27.700399	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	128
+1088	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	129
+1089	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	129
+1090	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	129
+1091	2026-06-07 19:47:48.911207	2026-06-07 19:47:48.911207	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	129
+1109	2026-06-07 19:53:22.7479	2026-06-07 19:53:22.7479	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	130
+1110	2026-06-07 19:58:03.885972	2026-06-07 19:58:03.885972	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	131
+1111	2026-06-07 19:58:03.885972	2026-06-07 19:58:03.885972	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	131
+1112	2026-06-07 19:58:03.885972	2026-06-07 19:58:03.885972	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	131
+1113	2026-06-07 19:58:03.885972	2026-06-07 19:58:03.885972	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	131
+1114	2026-06-07 19:58:03.885972	2026-06-07 19:58:03.885972	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	131
+1115	2026-06-07 19:58:03.885972	2026-06-07 19:58:03.885972	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	131
+1116	2026-06-07 19:58:03.885972	2026-06-07 19:58:03.885972	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	NO_PRESENTADO	0	\N	131
+1117	2026-06-07 19:58:03.885972	2026-06-07 19:58:03.885972	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	NO_PRESENTADO	0	\N	131
+1118	2026-06-07 19:58:03.885972	2026-06-07 19:58:03.885972	\N	ANEXO_5	Carta de Interés Institucional (Anexo 5)	NO_PRESENTADO	0	\N	131
+1119	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	132
+1120	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	132
+1121	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	132
+1122	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	132
+1123	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	132
+1124	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	132
+1125	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	NO_PRESENTADO	0	\N	132
+1126	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	NO_PRESENTADO	0	\N	132
+1127	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	132
+1128	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	132
+1129	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	ANEXO_5	Carta de Interés Institucional (Anexo 5)	NO_PRESENTADO	0	\N	132
+1130	2026-06-07 20:12:27.600015	2026-06-07 20:12:27.600015	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	132
+1131	2026-06-07 20:16:43.406741	2026-06-07 20:16:43.406741	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	133
+1132	2026-06-07 20:16:43.406741	2026-06-07 20:16:43.406741	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	133
+1133	2026-06-07 20:16:43.406741	2026-06-07 20:16:43.406741	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	133
+1134	2026-06-07 20:16:43.406741	2026-06-07 20:16:43.406741	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	133
+1135	2026-06-07 20:16:43.406741	2026-06-07 20:16:43.406741	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	133
+1136	2026-06-07 20:16:43.406741	2026-06-07 20:16:43.406741	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	133
+1137	2026-06-07 20:16:43.406741	2026-06-07 20:16:43.406741	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	133
+1138	2026-06-07 20:16:43.406741	2026-06-07 20:16:43.406741	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	133
+1139	2026-06-07 20:16:43.406741	2026-06-07 20:16:43.406741	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	133
+1140	2026-06-07 20:37:45.222523	2026-06-07 20:37:45.222523	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	134
+1141	2026-06-07 20:37:45.222523	2026-06-07 20:37:45.222523	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	134
+1142	2026-06-07 20:37:45.222523	2026-06-07 20:37:45.222523	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	134
+1143	2026-06-07 20:37:45.222523	2026-06-07 20:37:45.222523	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	134
+1144	2026-06-07 20:37:45.222523	2026-06-07 20:37:45.222523	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	134
+1145	2026-06-07 20:37:45.222523	2026-06-07 20:37:45.222523	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	134
+1146	2026-06-07 20:37:45.222523	2026-06-07 20:37:45.222523	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	NO_PRESENTADO	0	\N	134
+1147	2026-06-07 20:37:45.222523	2026-06-07 20:37:45.222523	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	NO_PRESENTADO	0	\N	134
+1148	2026-06-07 20:37:45.222523	2026-06-07 20:37:45.222523	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	134
+1149	2026-06-07 20:41:08.482908	2026-06-07 20:41:08.482908	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	135
+1150	2026-06-07 20:41:08.482908	2026-06-07 20:41:08.482908	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	135
+1151	2026-06-07 20:41:08.482908	2026-06-07 20:41:08.482908	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	135
+1152	2026-06-07 20:41:08.482908	2026-06-07 20:41:08.482908	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	135
+1153	2026-06-07 20:41:08.482908	2026-06-07 20:41:08.482908	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	135
+1154	2026-06-07 20:41:08.482908	2026-06-07 20:41:08.482908	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	135
+1155	2026-06-07 20:41:08.482908	2026-06-07 20:41:08.482908	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	135
+1156	2026-06-07 20:41:08.482908	2026-06-07 20:41:08.482908	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	135
+1157	2026-06-07 20:41:08.482908	2026-06-07 20:41:08.482908	\N	ANEXO_5	Carta de Interés Institucional (Anexo 5)	NO_PRESENTADO	0	\N	135
+1158	2026-06-07 20:41:08.482908	2026-06-07 20:41:08.482908	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	135
+1159	2026-06-08 03:38:36.223659	2026-06-08 03:38:36.223659	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	136
+1160	2026-06-08 03:38:36.223659	2026-06-08 03:38:36.223659	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	136
+1161	2026-06-08 03:38:36.223659	2026-06-08 03:38:36.223659	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	136
+1162	2026-06-08 03:38:36.223659	2026-06-08 03:38:36.223659	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	136
+1163	2026-06-08 03:38:36.223659	2026-06-08 03:38:36.223659	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	136
+1164	2026-06-08 03:38:36.223659	2026-06-08 03:38:36.223659	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	136
+1165	2026-06-08 03:38:36.223659	2026-06-08 03:38:36.223659	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	136
+1166	2026-06-08 03:38:36.223659	2026-06-08 03:38:36.223659	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	136
+1167	2026-06-08 03:38:36.223659	2026-06-08 03:38:36.223659	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	136
+1168	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	137
+1169	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	137
+1170	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	137
+1171	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	137
+1172	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	137
+1173	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	137
+1174	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	NO_PRESENTADO	0	\N	137
+1175	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	NO_PRESENTADO	0	\N	137
+1176	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	137
+1177	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	137
+1178	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	ANEXO_5	Carta de Interés Institucional (Anexo 5)	NO_PRESENTADO	0	\N	137
+1179	2026-06-08 03:46:24.436135	2026-06-08 03:46:24.436135	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	137
+1180	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	138
+1181	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	138
+1182	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	138
+1183	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	138
+1184	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	138
+1185	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	138
+1186	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	NO_PRESENTADO	0	\N	138
+1187	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	NO_PRESENTADO	0	\N	138
+1188	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	138
+1189	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	138
+1190	2026-06-08 04:11:51.097272	2026-06-08 04:11:51.097272	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	138
+1191	2026-06-08 04:34:56.708296	2026-06-08 04:34:56.708296	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	139
+1192	2026-06-08 04:34:56.708296	2026-06-08 04:34:56.708296	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	139
+1193	2026-06-08 04:34:56.708296	2026-06-08 04:34:56.708296	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	139
+1194	2026-06-08 04:34:56.708296	2026-06-08 04:34:56.708296	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	139
+1195	2026-06-08 04:34:56.708296	2026-06-08 04:34:56.708296	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	139
+1196	2026-06-08 04:34:56.708296	2026-06-08 04:34:56.708296	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	139
+1197	2026-06-08 04:34:56.708296	2026-06-08 04:34:56.708296	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	139
+1198	2026-06-08 04:34:56.708296	2026-06-08 04:34:56.708296	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	139
+1199	2026-06-08 04:34:56.708296	2026-06-08 04:34:56.708296	\N	ANEXO_5	Carta de Interés Institucional (Anexo 5)	NO_PRESENTADO	0	\N	139
+1200	2026-06-08 04:34:56.708296	2026-06-08 04:34:56.708296	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	139
+1201	2026-06-08 05:20:43.963468	2026-06-08 05:20:43.963468	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	140
+1202	2026-06-08 05:20:43.963468	2026-06-08 05:20:43.963468	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	140
+1203	2026-06-08 05:20:43.963468	2026-06-08 05:20:43.963468	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	140
+1204	2026-06-08 05:20:43.963468	2026-06-08 05:20:43.963468	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	140
+1205	2026-06-08 05:20:43.963468	2026-06-08 05:20:43.963468	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	140
+1206	2026-06-08 05:20:43.963468	2026-06-08 05:20:43.963468	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	140
+1207	2026-06-08 05:20:43.963468	2026-06-08 05:20:43.963468	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	140
+1208	2026-06-08 05:20:43.963468	2026-06-08 05:20:43.963468	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	140
+1209	2026-06-08 05:20:43.963468	2026-06-08 05:20:43.963468	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	140
+1210	2026-06-08 05:38:42.469939	2026-06-08 05:38:42.469939	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	141
+1211	2026-06-08 05:38:42.469939	2026-06-08 05:38:42.469939	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	141
+1212	2026-06-08 05:38:42.469939	2026-06-08 05:38:42.469939	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	141
+1213	2026-06-08 05:38:42.469939	2026-06-08 05:38:42.469939	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	141
+1214	2026-06-08 05:38:42.469939	2026-06-08 05:38:42.469939	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	141
+1215	2026-06-08 05:38:42.469939	2026-06-08 05:38:42.469939	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	141
+1216	2026-06-08 05:38:42.469939	2026-06-08 05:38:42.469939	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	141
+1217	2026-06-08 05:38:42.469939	2026-06-08 05:38:42.469939	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	141
+1218	2026-06-08 05:38:42.469939	2026-06-08 05:38:42.469939	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	141
+1219	2026-06-08 05:45:41.022277	2026-06-08 05:45:41.022277	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	142
+1220	2026-06-08 05:45:41.022277	2026-06-08 05:45:41.022277	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	142
+1221	2026-06-08 05:45:41.022277	2026-06-08 05:45:41.022277	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	142
+1222	2026-06-08 05:45:41.022277	2026-06-08 05:45:41.022277	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	142
+1223	2026-06-08 05:45:41.022277	2026-06-08 05:45:41.022277	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	142
+1224	2026-06-08 05:45:41.022277	2026-06-08 05:45:41.022277	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	142
+1225	2026-06-08 05:45:41.022277	2026-06-08 05:45:41.022277	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	NO_PRESENTADO	0	\N	142
+1226	2026-06-08 05:45:41.022277	2026-06-08 05:45:41.022277	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	NO_PRESENTADO	0	\N	142
+1227	2026-06-08 05:45:41.022277	2026-06-08 05:45:41.022277	\N	ANEXO_5	Carta de Interés Institucional (Anexo 5)	NO_PRESENTADO	0	\N	142
+1228	2026-06-08 05:45:41.022277	2026-06-08 05:45:41.022277	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	142
+1229	2026-06-08 05:49:22.44443	2026-06-08 05:49:22.44443	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	143
+1230	2026-06-08 05:49:22.44443	2026-06-08 05:49:22.44443	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	143
+1231	2026-06-08 05:49:22.44443	2026-06-08 05:49:22.44443	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	143
+1232	2026-06-08 05:49:22.44443	2026-06-08 05:49:22.44443	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	143
+1233	2026-06-08 05:49:22.44443	2026-06-08 05:49:22.44443	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	143
+1234	2026-06-08 05:49:22.44443	2026-06-08 05:49:22.44443	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	143
+1235	2026-06-08 05:49:22.44443	2026-06-08 05:49:22.44443	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	NO_PRESENTADO	0	\N	143
+1236	2026-06-08 05:49:22.44443	2026-06-08 05:49:22.44443	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	NO_PRESENTADO	0	\N	143
+1237	2026-06-08 05:49:22.44443	2026-06-08 05:49:22.44443	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	143
+1238	2026-06-08 05:56:37.071594	2026-06-08 05:56:37.071594	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	144
+1239	2026-06-08 05:56:37.071594	2026-06-08 05:56:37.071594	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	144
+1240	2026-06-08 05:56:37.071594	2026-06-08 05:56:37.071594	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	144
+1241	2026-06-08 05:56:37.071594	2026-06-08 05:56:37.071594	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	144
+1242	2026-06-08 05:56:37.071594	2026-06-08 05:56:37.071594	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	144
+1243	2026-06-08 05:56:37.071594	2026-06-08 05:56:37.071594	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	144
+1244	2026-06-08 05:56:37.071594	2026-06-08 05:56:37.071594	\N	CONFIDENCIALIDAD	Declaratoria de Compromiso de Confidencialidad	NO_PRESENTADO	0	\N	144
+1245	2026-06-08 05:56:37.071594	2026-06-08 05:56:37.071594	\N	CONFLICTO_INTERES	Declaración de Conflicto de Interés	NO_PRESENTADO	0	\N	144
+1246	2026-06-08 05:56:37.071594	2026-06-08 05:56:37.071594	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	144
+1247	2026-06-08 06:04:58.90608	2026-06-08 06:04:58.90608	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	NO_PRESENTADO	0	\N	145
+1248	2026-06-08 06:04:58.90608	2026-06-08 06:04:58.90608	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	NO_PRESENTADO	0	\N	145
+1249	2026-06-08 06:04:58.90608	2026-06-08 06:04:58.90608	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	NO_PRESENTADO	0	\N	145
+1250	2026-06-08 06:04:58.90608	2026-06-08 06:04:58.90608	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	NO_PRESENTADO	0	\N	145
+1251	2026-06-08 06:04:58.90608	2026-06-08 06:04:58.90608	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	NO_PRESENTADO	0	\N	145
+1252	2026-06-08 06:04:58.90608	2026-06-08 06:04:58.90608	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	NO_PRESENTADO	0	\N	145
+1253	2026-06-08 06:04:58.90608	2026-06-08 06:04:58.90608	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	NO_PRESENTADO	0	\N	145
+1254	2026-06-08 06:04:58.90608	2026-06-08 06:04:58.90608	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	NO_PRESENTADO	0	\N	145
+1255	2026-06-08 06:04:58.90608	2026-06-08 06:04:58.90608	\N	ANEXO_5	Carta de Interés Institucional (Anexo 5)	NO_PRESENTADO	0	\N	145
+1256	2026-06-08 06:04:58.90608	2026-06-08 06:04:58.90608	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	NO_PRESENTADO	0	\N	145
+1257	2026-06-08 06:13:35.733328	2026-06-08 06:18:27.638838	\N	ANEXO_1	Anexo 1: Solicitud de Evaluación	APROBADO	1		146
+1265	2026-06-08 06:13:35.733328	2026-06-08 06:18:29.630473	\N	FICHA_INTERVENCION	Ficha Descriptiva de la Intervención y Riesgos	APROBADO	1		146
+1264	2026-06-08 06:13:35.733328	2026-06-08 06:18:31.258634	\N	CONSENTIMIENTO_COM	Consentimiento Colectivo o Comunitario (Líder/Asamblea)	APROBADO	1		146
+1258	2026-06-08 06:13:35.733328	2026-06-08 06:18:33.127062	\N	ANEXO_2	Anexo 2: Formulario de Protocolo	APROBADO	1		146
+1259	2026-06-08 06:13:35.733328	2026-06-08 06:18:36.666384	\N	CONSENTIMIENTO	Formulario de Consentimiento Informado	APROBADO	1		146
+1261	2026-06-08 06:13:35.733328	2026-06-08 06:18:38.851878	\N	CV_INVESTIGADORES	Currículos Vitae de Investigadores	APROBADO	1		146
+1260	2026-06-08 06:13:35.733328	2026-06-08 06:18:40.429194	\N	INSTRUMENTOS	Instrumentos de Investigación (Fichas, encuestas, manuales)	APROBADO	1		146
+1262	2026-06-08 06:13:35.733328	2026-06-08 06:18:43.381977	\N	ANEXO_4	Declaración de Responsabilidad (Anexo 4)	APROBADO	1		146
+1263	2026-06-08 06:13:35.733328	2026-06-08 06:18:46.500597	\N	TRADUCCION_ANCESTRAL	Traducción a idiomas ancestrales	APROBADO	1		146
 \.
 
 
 --
--- TOC entry 4209 (class 0 OID 23991)
+-- TOC entry 4200 (class 0 OID 23991)
 -- Dependencies: 253
 -- Data for Name: protocolos; Type: TABLE DATA; Schema: public; Owner: ceish_user
 --
 
-COPY public.protocolos (id, tipo_estudio_id, nivel_riesgo_id, investigador_principal_id, estado_id, fecha_aprobacion, fecha_vencimiento, fecha_finalizacion, duracion_estudio_meses, poblacion_vulnerable, utiliza_muestras_biologicas, multicentrico, version_actual, creado_en, actualizado_en, eliminado_en, monto_financiamiento, fuentes_financiamiento, fecha_estimada_inicio, fecha_estimada_fin, fecha_limite_renovacion, cobertura_geografica, codigo_ceish, titulo, fecha_recepcion, tipo_revision, estado_recepcion, requisitos_faltantes, fecha_limite_subsanacion, fecha_limite_respuesta, notificado_presidente, fecha_notificacion_presidente, notificado_investigador, fecha_notificacion_investigador, certificado_recepcion_emitido, fecha_emision_certificado, declaracion_no_iniciado, fecha_declaracion_no_iniciado, ip_declaracion_no_iniciado, patrocinador_ruc, patrocinador_telefono_institucional, patrocinador_direccion, patrocinador_pagina_web, patrocinador_organo_ejecutor, tiene_instituciones_externas, investigador_principal_inv_id, poblacion_indigena, version, nivel_riesgo_confirmado, sometimiento_tiempos_aceptado, fecha_sometimiento_tiempos, ip_sometimiento_tiempos) FROM stdin;
-1	\N	\N	6	\N	\N	\N	\N	\N	f	f	f	1	2026-04-16 09:29:59.477376	2026-04-16 09:29:59.477376	\N	\N	\N	\N	\N	\N	\N	TEMP-001	\N	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	f	\N	\N	\N	\N	\N	\N	\N	f	\N	f	1.0	f	f	\N	\N
-4	8	5	28	\N	\N	\N	\N	1	t	t	t	1	2026-05-06 12:00:55.287199	2026-05-06 12:00:55.307824	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	fdgdsfgsdfgdsfgsdfgdfgd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-06 07:00:55.303	::ffff:192.168.1.103	5464536546546	0975765456	ghjghjh		ghjghjghj	t	2	f	1.0	f	f	\N	\N
-5	6	5	28	\N	\N	\N	\N	1	t	t	t	1	2026-05-06 12:02:16.208318	2026-05-06 12:02:16.237865	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	fdgdsfgsdfgdsfgsdfgdfgd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-06 07:02:16.22	::ffff:192.168.1.103	5464536546546	0975765456	ghjghjh		ghjghjghj	t	3	f	1.0	f	f	\N	\N
-6	6	6	28	\N	\N	\N	\N	1	t	t	f	1	2026-05-06 12:12:45.070971	2026-05-06 12:12:45.095655	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	dsfdffggsgdsfdsfdffggsgdsfdsfdffggsgdsfdsfdffggsgdsfdsfdffggsgdsf	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-06 07:12:45.08	::ffff:192.168.1.103	3423141234234	0967567654	fhjjfhfgjhj		hgjfgjfh	f	4	f	1.0	f	f	\N	\N
-7	6	5	28	\N	\N	\N	\N	1	t	t	t	1	2026-05-06 12:31:59.437915	2026-05-06 12:31:59.465477	\N	0.00	\N	\N	\N	\N	LOCAL	\N	adfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsfer	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-06 07:31:59.431	::ffff:192.168.1.103	5647456456466	0986767765	hfghjghj		ghjghjfgh	f	5	f	1.0	f	f	\N	\N
-8	5	5	28	\N	\N	\N	\N	1	t	t	f	1	2026-05-06 12:40:09.300255	2026-05-06 12:40:09.325966	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	sdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdf	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-06 07:40:09.299	::ffff:192.168.1.103	3454353434534	0964564564	fghfghfyh		jhghnf	f	6	f	1.0	f	f	\N	\N
-9	6	4	28	\N	\N	\N	\N	1	t	t	t	1	2026-05-06 12:47:03.262095	2026-05-06 12:47:03.289719	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	fdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfg	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-06 07:47:03.222	::ffff:192.168.1.103	6754436456346	0956754675	ghjfghj		ghjfghj	t	7	f	1.0	f	f	\N	\N
-10	7	4	28	\N	\N	\N	\N	1	t	t	t	1	2026-05-06 13:13:31.998307	2026-05-06 13:13:32.022551	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	sdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdf	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-06 08:13:31.952	::ffff:192.168.1.103	8966454634564	0965756756	jkljklhjk		ljklhjkljkl	f	8	f	1.0	f	f	\N	\N
-11	6	5	29	\N	\N	\N	\N	12	t	t	f	1	2026-05-13 03:49:03.427155	2026-05-13 03:49:03.455146	\N	100.00	\N	\N	\N	\N	PROVINCIAL	\N	hgfghfdghhgfghfdghhgfghfdghhgfghfdghhgfghfdghhgfghfdghhgfghfdghhgfghfdgh	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-12 22:49:00.481	::ffff:192.168.1.103	0879786775675	0978567567	456fghfgh		hfghfhg	f	9	t	1.0	f	f	\N	\N
-12	7	6	28	\N	\N	\N	\N	1	t	t	t	1	2026-05-13 14:12:47.986396	2026-05-13 14:12:48.119754	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	dgfhrthrthrtheertyhertyret	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-13 09:12:46.098	::ffff:192.168.1.103	8797567546456	0988888888	56gvhbn		hjgfj	f	10	t	1.0	f	f	\N	\N
-13	8	6	28	\N	\N	\N	\N	2	t	f	t	1	2026-05-15 05:53:41.721676	2026-05-15 05:53:41.79971	\N	1000.00	\N	\N	\N	\N	PROVINCIAL	\N	dssfsdfsdfsdfsdssfsdfsdfsdfsdssfsdfsdfsdfsdssfsdfsdfsdfsdssfsdfsdfsdfs	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 00:53:42.032	::ffff:192.168.1.104	0920420343892	0923423423	amabato		sadasdasdasdasd	f	11	t	1.0	f	f	\N	\N
-14	8	5	28	\N	\N	\N	\N	10	t	t	f	1	2026-05-15 09:03:26.953649	2026-05-15 09:03:26.985679	\N	100.00	\N	\N	\N	\N	PROVINCIAL	\N	eyetreterterrrrrrrrrrrrreyetreterterrrrrrrrrrrrreyetreterterrrrrrrrrrrrreyetreterterrrrrrrrrrrrreyetreterterrrrrrrrrrrrreyetreterterrrrrrrrrrrrr	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 04:03:26.7	::ffff:192.168.1.104	4534534534534	0945345345	dfgdffgdfgdfgdfgdf		gdrggggggggggggggggggggg	f	12	t	1.0	f	f	\N	\N
-15	6	7	28	\N	\N	\N	\N	10	t	t	f	1	2026-05-15 09:14:58.262589	2026-05-15 09:14:58.296912	\N	100.00	\N	\N	\N	\N	PROVINCIAL	\N	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 04:14:59.101	::ffff:192.168.1.104	4350345345345	0943543534	dsfsdfds		sdfdsf	f	13	t	1.0	f	f	\N	\N
-16	6	7	28	\N	\N	\N	\N	99	t	t	f	1	2026-05-15 09:28:14.595807	2026-05-15 09:28:14.626697	\N	100.00	\N	\N	\N	\N	PROVINCIAL	\N	ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 04:28:14.819	::ffff:192.168.1.104	6544444444444	0999999999	ytutyut		utyutu	f	14	t	1.0	f	f	\N	\N
-17	7	7	28	\N	\N	\N	\N	12	t	t	t	1	2026-05-15 09:38:18.823678	2026-05-15 09:38:19.551582	\N	10.00	\N	\N	\N	\N	NACIONAL	\N	dffffffffffffffffffffffffffdffffffffffffffffffffffffffdffffffffffffffffffffffffff	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 04:38:18.198	::ffff:192.168.1.104	4566666666666	0999999999	ggdffffffffff		vvvvvvvv	f	15	t	1.0	f	f	\N	\N
-18	7	8	28	\N	\N	\N	\N	1	t	t	t	1	2026-05-15 10:17:32.768478	2026-05-15 10:17:32.890604	\N	100.00	\N	\N	\N	\N	NACIONAL	\N	drrrrrrrrrrrssssssssss	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 05:17:31.882	::ffff:192.168.1.104	0943333333333	0943333333	fdggggg		fddddddddd	t	16	t	1.0	f	f	\N	\N
-19	7	6	28	\N	\N	\N	\N	1	t	t	t	1	2026-05-15 10:27:31.071912	2026-05-15 10:27:31.095652	\N	100.00	\N	\N	\N	\N	PROVINCIAL	\N	dffffffffffffffffffffffdffffffffffffffffffffffdffffffffffffffffffffff	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 05:27:31.614	::ffff:192.168.1.104	4533333333333	0999999999	eeeeeeeeeeeeeeeeeeeeee		errrrrrrrr	f	17	t	1.0	f	f	\N	\N
-20	7	8	28	\N	\N	\N	\N	1	f	f	f	1	2026-05-15 10:43:54.975287	2026-05-15 10:43:55.005528	\N	220.00	\N	\N	\N	\N	PROVINCIAL	\N	saaaaaaassssssssssssssssssssssss	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 05:43:54.207	::ffff:192.168.1.104	4355555555555	0955555555	fggggd		gfgh	f	18	t	1.0	f	f	\N	\N
-21	7	6	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-15 10:52:12.747857	2026-05-15 10:52:12.768837	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	ddddddddddddddddddzzzzzss	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 05:52:13.143	::ffff:192.168.1.104	3455555555555	0999999999	dfdddddddddddd		ffffffffff	f	19	f	1.0	f	f	\N	\N
-22	8	8	28	\N	\N	\N	\N	1	t	t	f	1	2026-05-15 11:29:02.705187	2026-05-15 11:29:02.738839	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	wwwwwwwwwwwwwwwwwwwwwwwww	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 06:29:01.657	::ffff:192.168.1.104	5666666666666	0988888888	55555		tttttttttttt	f	20	t	1.0	f	f	\N	\N
-23	7	8	28	\N	\N	\N	\N	1	t	t	f	1	2026-05-15 11:37:09.418638	2026-05-15 11:37:09.5098	\N	0.00	\N	\N	\N	\N	NACIONAL	\N	ssssssssssssssssssssssssssssssssssss	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 06:37:08.558	::ffff:192.168.1.104	3333333333333	0944444444	4444444444		4444444	f	21	t	1.0	f	f	\N	\N
-24	7	8	28	\N	\N	\N	\N	1	t	t	f	1	2026-05-15 11:38:57.672821	2026-05-15 11:38:57.696553	\N	0.00	\N	\N	\N	\N	NACIONAL	\N	ssssssssssssssssssssssssssssssssssss	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 06:38:57.784	::ffff:192.168.1.104	3333333333333	0944444444	fdddddddddddddddddddd		fddddddddddddddd	f	22	t	1.0	f	f	\N	\N
-25	8	7	28	\N	\N	\N	\N	1	t	t	f	1	2026-05-15 11:40:10.785714	2026-05-15 11:40:10.813121	\N	0.00	\N	\N	\N	\N	ZONAL	\N	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 06:40:11.439	::ffff:192.168.1.104	4444444444455	0977777777	drfffffffffffffffffff		ffffffffffffffffffffffffffffff	f	23	t	1.0	f	f	\N	\N
-26	8	7	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-16 02:11:38.413906	2026-05-16 02:11:38.873177	\N	0.00	\N	\N	\N	\N	ZONAL	\N	assssssssssssssssssssssss	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 21:11:38.406	::ffff:192.168.1.104	2333333333333	0932222222	fffffffff		vffffffff	f	24	f	1.0	f	f	\N	\N
-27	8	7	28	\N	\N	\N	\N	1	t	t	f	1	2026-05-16 02:17:55.187936	2026-05-16 02:17:55.226644	\N	0.00	\N	\N	\N	\N	ZONAL	\N	dffffffffffffffffffffffffffffffffffffff	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 21:17:55.203	::ffff:192.168.1.104	3333333333333	0944444444	ddddddddddddddddddddddd		ddddddddddd	f	25	t	1.0	f	f	\N	\N
-28	8	7	28	\N	\N	\N	\N	1	t	t	f	1	2026-05-16 02:19:07.210451	2026-05-16 02:19:07.236192	\N	0.00	\N	\N	\N	\N	ZONAL	\N	dffffffffffffffffffffffffffffffffffffff	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 21:19:07.201	::ffff:192.168.1.104	3333333333333	0944444444	ddddddddddddddddddddddd		ddddddddddd	f	26	t	1.0	f	f	\N	\N
-29	6	8	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-16 02:23:40.851817	2026-05-16 02:23:40.902955	\N	0.00	\N	\N	\N	\N	NACIONAL	\N	eeeeeeeeeeeeeeeeeeeeeeee	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-15 21:23:40.847	::ffff:192.168.1.104	4555555555555	0966666666	hhhhhhhh		hhhh	f	27	f	1.0	f	f	\N	\N
-30	6	7	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-16 07:08:06.344182	2026-05-16 07:08:06.468994	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	ddddddddddddddddddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-16 02:08:06.326	::ffff:192.168.1.104	3333333333333	0944444444	dddddddddd		dddddddddd	f	28	t	1.0	f	f	\N	\N
-31	8	6	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-16 07:30:42.598408	2026-05-16 07:30:42.624558	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	gggggggggggggggggddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-16 02:30:42.608	::ffff:192.168.1.104	4344444444444	0944444444	dddddd		ddddddddd	f	29	t	1.0	f	f	\N	\N
-32	8	6	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-16 07:38:16.43987	2026-05-16 07:38:16.468408	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	gggggggggggggggggddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-16 02:38:16.455	::ffff:192.168.1.104	4344444444444	0944444444	dddddd		ddddddddd	f	30	t	1.0	f	f	\N	\N
-95	7	5	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-18 21:07:11.1959	2026-05-18 21:07:11.221499	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 16:07:11.196	::ffff:192.168.1.100	0966666666666	0966666666	0966666666666666666		66666666666	t	93	f	1.0	f	f	\N	\N
-33	8	7	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-16 08:15:54.168264	2026-05-16 08:15:54.191574	\N	0.00	\N	\N	\N	\N	ZONAL	\N	frrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-16 03:15:54.174	::ffff:192.168.1.104	3333333333333	0933333333	dddddddddddd		dddddddddd	f	31	f	1.0	f	f	\N	\N
-66	8	4	28	\N	\N	\N	\N	1	t	f	t	1	2026-05-16 19:33:56.566454	2026-05-16 19:33:56.604484	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	kjllllllllllllllllllllllllllllllllllllllllllllllllllljjjjj	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-16 14:33:56.475	::ffff:192.168.1.26	5555555555555	0999999999	ggggggggggggggggggggggggggggggg		gggggggggggggggggggggggggggggggggggggggg	f	64	f	1.0	f	f	\N	\N
-67	7	4	28	\N	\N	\N	\N	1	t	f	t	1	2026-05-16 19:34:35.710648	2026-05-16 19:34:35.73498	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	kjllllllllllllllllllllllllllllllllllllllllllllllllllljjjjj	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-16 14:34:35.717	::ffff:192.168.1.26	5555555555555	0999999999	ggggggggggggggggggggggggggggggg		gggggggggggggggggggggggggggggggggggggggg	f	65	f	1.0	f	f	\N	\N
-68	5	4	28	\N	\N	\N	\N	1	t	f	t	1	2026-05-16 19:41:07.260075	2026-05-16 19:41:07.284622	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	kjllllllllllllllllllllllllllllllllllllllllllllllllllljjjjj	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-16 14:41:07.275	::ffff:192.168.1.26	5555555555555	0999999999	ggggggggggggggggggggggggggggggg		gggggggggggggggggggggggggggggggggggggggg	f	66	f	1.0	f	f	\N	\N
-69	6	7	28	\N	\N	\N	\N	1	f	t	t	1	2026-05-17 06:04:23.172921	2026-05-17 06:04:23.200762	\N	0.00	\N	\N	\N	\N	LOCAL	\N	sssssssssssssssssssssssssssssssssssssssss	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 01:04:23.173	::ffff:192.168.1.9	2222222222222	0922222222	eeeeeeeeeeeeee		eeeeeeeeeeeeeee	f	67	t	1.0	f	f	\N	\N
-70	6	7	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-17 06:24:20.998307	2026-05-17 06:24:21.039031	\N	0.00	\N	\N	\N	\N	ZONAL	\N	ddddddddddddddddddddddddddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 01:24:20.995	::ffff:192.168.1.9	3333333333333	0933333333	ffffffffffffff		ffffffffffffff	f	68	t	1.0	f	f	\N	\N
-71	5	7	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-17 06:27:10.888949	2026-05-17 06:27:10.910754	\N	0.00	\N	\N	\N	\N	ZONAL	\N	ddddddddddddddddddddddddddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 01:27:10.885	::ffff:192.168.1.9	3333333333333	0933333333	ffffffffffffff		ffffffffffffff	f	69	t	1.0	f	f	\N	\N
-72	7	7	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-17 06:27:45.108799	2026-05-17 06:27:45.127562	\N	0.00	\N	\N	\N	\N	ZONAL	\N	ddddddddddddddddddddddddddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 01:27:45.101	::ffff:192.168.1.9	3333333333333	0933333333	ffffffffffffff		ffffffffffffff	f	70	t	1.0	f	f	\N	\N
-73	7	6	28	\N	\N	\N	\N	1	f	f	f	1	2026-05-17 06:35:20.317446	2026-05-17 06:35:20.339823	\N	0.00	\N	\N	\N	\N	LOCAL	\N	dssssssssssssssssddddddddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 01:35:20.316	::ffff:192.168.1.9	2222222222222	0944444444	fffffffffffffffffffff		ffffffffffffffffffffffff	t	71	t	1.0	f	f	\N	\N
-74	6	6	28	\N	\N	\N	\N	1	f	f	f	1	2026-05-17 06:35:56.847205	2026-05-17 06:35:56.878912	\N	0.00	\N	\N	\N	\N	LOCAL	\N	dssssssssssssssssddddddddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 01:35:56.85	::ffff:192.168.1.9	2222222222222	0944444444	fffffffffffffffffffff		ffffffffffffffffffffffff	t	72	t	1.0	f	f	\N	\N
-75	6	7	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-17 15:05:52.629566	2026-05-17 15:05:52.657116	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	kkkkkkkkkkkkkkkrrrrrrrrrrrrrrrrrrrk	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 10:05:52.623	::ffff:192.168.1.9	3333333333333	0933333333	rrrrrrrrrrrrrrrr		rrrrrrrrrrrrrrrrrrrr	f	73	t	1.0	f	f	\N	\N
-76	7	7	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-17 15:06:44.866339	2026-05-17 15:06:44.888296	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	kkkkkkkkkkkkkkkrrrrrrrrrrrrrrrrrrrk	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 10:06:44.751	::ffff:192.168.1.9	3333333333333	0933333333	rrrrrrrrrrrrrrrr		rrrrrrrrrrrrrrrrrrrr	f	74	t	1.0	f	f	\N	\N
-77	7	6	28	\N	\N	\N	\N	1	t	t	f	1	2026-05-17 15:08:29.221661	2026-05-17 15:08:29.250499	\N	0.00	\N	\N	\N	\N	ZONAL	\N	llllllllllllllllllllllll	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 10:08:29.358	::ffff:192.168.1.9	9888888888888	0999999999	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj		jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj	f	75	t	1.0	f	f	\N	\N
-78	7	8	28	\N	\N	\N	\N	1	t	t	t	1	2026-05-17 15:13:47.016236	2026-05-17 15:13:47.039485	\N	0.00	\N	\N	\N	\N	ZONAL	\N	rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 10:13:46.972	::ffff:192.168.1.9	4444444444444	0944444444	fffffffffffffffffffffffffff		ffffffffffffffffffffffffffffffffffffffffffff	f	76	f	1.0	f	f	\N	\N
-79	7	8	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-17 16:02:02.862707	2026-05-17 16:02:02.886481	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 11:02:03.175	::ffff:192.168.1.9	0999999999999	0988888888	jjjjjjjjjjjjjjjjjjjj		jjjjjjjjjjjjjj	f	77	t	1.0	f	f	\N	\N
-80	7	6	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-17 17:09:42.000148	2026-05-17 17:09:42.026936	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	eeeeeeeeeeeweeeeeeeeeeeeeeeeeeeeeeeeeeeeeee	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 12:09:42.28	::ffff:192.168.1.9	5555555555555	0955555555	gggggggggggggggggg		gggggggggggggggggg	f	78	t	1.0	f	f	\N	\N
-81	7	7	28	\N	\N	\N	\N	1	t	f	t	1	2026-05-17 17:36:51.209124	2026-05-17 17:36:51.237148	\N	0.00	\N	\N	\N	\N	ZONAL	\N	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 12:36:50.866	::ffff:192.168.1.9	0999999999999	0944444444	fffffffffffffffffffffffffffff		ffffffffffffffffffffffffff	f	79	f	1.0	f	f	\N	\N
-82	7	5	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-17 17:48:52.823697	2026-05-17 17:48:52.864079	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	fggggggggggggggggggggggggggggggf	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 12:48:51.999	::ffff:192.168.1.9	4444444444444	0955555555	gggggggggggg		ggggggggggggggggg	f	80	t	1.0	f	f	\N	\N
-83	7	7	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-17 18:02:31.627362	2026-05-17 18:02:31.652774	\N	0.00	\N	\N	\N	\N	ZONAL	\N	fffffffffffffffffffffffffffffffffffffffffff	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-17 13:02:32.267	::ffff:192.168.1.9	5555555555555	0988888888	uuuuuuuuuuuuuuu		uuuuuuuuuuuuuuu	f	81	t	1.0	f	f	\N	\N
-84	6	5	28	\N	\N	\N	\N	1	t	f	t	1	2026-05-18 15:17:17.413303	2026-05-18 15:17:17.443533	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	ffffffffffrrrrrrrrrrrr	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 10:17:17.499	::ffff:192.168.1.100	0999999999999	0999999999	jjjjjjjjjjjjjjjjjj		jjjjjjjjjjj	f	82	f	1.0	f	f	\N	\N
-85	7	6	28	\N	\N	\N	\N	1	f	f	f	1	2026-05-18 15:26:50.221621	2026-05-18 15:26:50.242228	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	eeeeeeeeeeeeeeeeeeeeee	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 10:26:51.095	::ffff:192.168.1.100	4444444444444	0966666666	hhhhhhhhhhhhhhhh		hhhhhhhhhhhhhhhhhhhhh	f	83	t	1.0	f	f	\N	\N
-86	7	8	28	\N	\N	\N	\N	1	t	t	t	1	2026-05-18 18:44:01.182665	2026-05-18 18:44:01.204614	\N	0.00	\N	\N	\N	\N	ZONAL	\N	ffffffffffffffffffffffffff	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 13:43:58.938	::ffff:192.168.1.100	6666666666666	0977777777	nnnnnnnnnnnn		nnnnnnnnnnnn	f	84	f	1.0	f	f	\N	\N
-87	6	8	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-18 18:52:42.913531	2026-05-18 18:52:42.937443	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	ddddddddddddddddddddddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 13:52:40.728	::ffff:192.168.1.100	4444444444444	0944444444	ffffffffffffffffffff		fffffffffffffffffffffff	f	85	t	1.0	f	f	\N	\N
-88	7	6	28	\N	\N	\N	\N	1	f	f	f	1	2026-05-18 19:02:52.401567	2026-05-18 19:02:52.418168	\N	6.00	\N	\N	\N	\N	PROVINCIAL	\N	dddddddddddddddddddddddddddddddddddddddddddddddddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 14:02:52.245	::ffff:192.168.1.100	5555555555555	0955555555	gggggggggggggggggggg		gggggggggggggggggggggg	f	86	t	1.0	f	f	\N	\N
-89	6	5	28	\N	\N	\N	\N	1	t	f	t	1	2026-05-18 19:16:47.390819	2026-05-18 19:16:47.413747	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	ddddddddddddddddddddddddddddddddddddddddddddddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 14:16:46.146	::ffff:192.168.1.100	7777777777777	0999999888	ggggggggggggg		ggggggggggggggg	f	87	f	1.0	f	f	\N	\N
-90	6	4	28	\N	\N	\N	\N	1	f	f	t	1	2026-05-18 19:39:15.604874	2026-05-18 19:39:15.621788	\N	0.00	\N	\N	\N	\N	ZONAL	\N	ffffffffffffffffffffffffffffffff	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 14:39:15.604	::ffff:192.168.1.100	4444444444444	0944444444	444444444444444444444		rrrrrrrrrrrrrrrrrrrrrr	f	88	t	1.0	f	f	\N	\N
-91	6	8	28	\N	\N	\N	\N	11	f	f	f	1	2026-05-18 19:47:28.570771	2026-05-18 19:47:28.589055	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	fffffffffffffffffffffffffffffffff	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 14:47:28.166	::ffff:192.168.1.100	3333333333333	0933333333	eeeeeeeeeee		eeeeeeeeeeeee	f	89	f	1.0	f	f	\N	\N
-92	6	6	28	\N	\N	\N	\N	1	f	f	t	1	2026-05-18 20:14:40.564002	2026-05-18 20:14:40.608215	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	gggggggggggggggggggggggggggg	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 15:14:40.559	::ffff:192.168.1.100	5555555555555	0999999999	hhhhhhhhhhhhh		ggggggggggggg	t	90	f	1.0	f	f	\N	\N
-93	7	5	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-18 20:37:36.093831	2026-05-18 20:37:36.119121	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	hjhgggggggggggggggggggggggggggggggg	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 15:37:36.091	::ffff:192.168.1.100	8999999999999	0999999999	nnnnnnnnnnnnnnnnnnnnnnnn		jjjjjjjjjjjjjjjjjjjjjjjjj	f	91	f	1.0	f	f	\N	\N
-94	7	4	28	\N	\N	\N	\N	1	f	f	t	1	2026-05-18 21:00:43.278751	2026-05-18 21:00:43.29938	\N	0.00	\N	\N	\N	\N	LOCAL	\N	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 16:00:43.279	::ffff:192.168.1.100	5555555555555	0955555555	5555555		ttttttt	f	92	f	1.0	f	f	\N	\N
-96	6	4	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-18 21:23:14.716309	2026-05-18 21:23:14.743509	\N	0.00	\N	\N	\N	\N	ZONAL	\N	ttttttttttttttgggggggggggggggtttt	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 16:23:14.715	::ffff:192.168.1.100	6666666666666	0966666666	yyyyyyyyyyyyyyy		yyyyyyyyyyyyyyyyyyyyyyyyyyy	f	94	t	1.0	f	f	\N	\N
-97	6	5	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-18 22:29:30.251864	2026-05-18 22:29:30.296547	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	ggggggggggggggggggffffffffffffffffffffffffg	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 17:29:30.259	::ffff:192.168.1.100	0989999999999	0999999999	jjjjjjjjjjjjjjjjj		jjjjjjjjjjjjjjj	f	95	t	1.0	f	f	\N	\N
-98	7	5	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-18 22:39:36.665222	2026-05-18 22:39:36.691946	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	ggggggggggggggggggffffffffffffffffffffffffg	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 17:39:36.666	::ffff:192.168.1.100	0989999999999	0999999999	jjjjjjjjjjjjjjjjj		jjjjjjjjjjjjjjj	f	96	t	1.0	f	f	\N	\N
-99	6	4	28	\N	\N	\N	\N	1	f	f	t	1	2026-05-18 22:49:03.055436	2026-05-18 22:49:03.081191	\N	0.00	\N	\N	\N	\N	LOCAL	\N	fffffffffffffffffffffffffff	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 17:49:03.046	::ffff:192.168.1.100	0999999999999	0999999999	8777777777777		777777777777	f	97	t	1.0	f	f	\N	\N
-100	6	5	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-18 22:57:15.532772	2026-05-23 06:11:38.49721	\N	0.00	\N	\N	\N	\N	PROVINCIAL	CEISH-ESPOCH-EI-001-2026	gggggggggggggggggggggggggggggggggggg	\N	\N	COMPLETO	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-18 17:57:15.531	::ffff:192.168.1.100	6666666666666	0966666666	hhhhhhhhh		hhhhhhhhhhh	f	98	t	1.0	f	f	\N	\N
-108	6	5	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-22 10:13:45.693327	2026-05-26 19:14:01.395248	\N	0.00	\N	\N	\N	\N	PROVINCIAL	CEISH-ESPOCH-EI-003-2026	ggggggggggggggggggggggggggggggggggggggggggggg	\N	\N	INCOMPLETO	- Falta documento obligatorio: Anexo 1: Solicitud de Evaluación\n- Falta documento obligatorio: Anexo 2: Formulario de Protocolo\n- Falta documento obligatorio: Formulario de Consentimiento Informado\n- Falta documento obligatorio: Instrumentos de Investigación (Fichas, encuestas, manuales)\n- Falta documento obligatorio: Currículos Vitae de Investigadores\n- Falta documento obligatorio: Declaración de Responsabilidad (Anexo 4)\n- Falta documento obligatorio: Traducción a idiomas ancestrales\n- Falta documento obligatorio: Consentimiento Colectivo o Comunitario (Líder/Asamblea)\n- Falta documento obligatorio: Declaratoria de Compromiso de Confidencialidad\n- Falta documento obligatorio: Declaración de Conflicto de Interés\n- Falta documento obligatorio: Ficha Descriptiva de la Intervención y Riesgos	2026-06-16 14:14:01.015	\N	f	\N	f	\N	f	\N	t	2026-05-22 05:13:45.694	::ffff:192.168.1.102	4444444444444	0944444444	rrrrrrrrrrrrrrr		rrrrrrrrrrrrrrrrr	f	106	t	1.0	f	f	\N	\N
-3	8	5	28	\N	\N	\N	\N	12	t	t	t	1	2026-05-06 11:55:07.826495	2026-05-18 23:19:57.06116	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	zxfsdfsadfzxfsdfsadfzxfsdfsadfzxfsdfsadfzxfsdfsadfzxfsdfsadfzxfsdfsadfzxfsdfsadf	\N	\N	INCOMPLETO		2026-06-08 18:19:57.055	\N	f	\N	f	\N	f	\N	t	2026-05-06 06:55:07.79	::ffff:192.168.1.103	8967536456456	0975676457	hjkghfgkk		jkfhkjkj	f	1	f	1.0	f	f	\N	\N
-102	7	5	28	\N	\N	\N	\N	1	f	f	t	1	2026-05-19 08:42:31.177232	2026-05-19 08:42:31.398822	\N	34.00	\N	\N	\N	\N	ZONAL	\N	knklnklvfonjdsvovfdnvjkfnjvkfnjkvnfjkndfjkjfdnvjfnvjfnvjdfnjvndfjvndfjvnjfnknklnklvfonjdsvovfdnvjkfnjvkfnjkvnfjkndfjkjfdnvjfnvjfnvjdfnjvndfjvndfjvnjfnknklnklvfonjdsvovfdnvjkfnjvkfnjkvnfjkndfjkjfdnv	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-19 03:42:31.131	::ffff:192.168.1.100	0606097335	0935554544	tnhnuyrnur	xhdfjgcvhkhjbhvhjbknl	nrynynuy	f	100	f	1.0	f	f	\N	\N
-104	7	6	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-22 09:11:21.026338	2026-05-22 09:11:21.058773	\N	0.00	\N	\N	\N	\N	ZONAL	\N	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-22 04:11:21.019	::ffff:192.168.1.102	3333333333333	0933333333	dddddddddddd		dddddddddddd	f	102	f	1.0	f	f	\N	\N
-105	6	5	29	\N	\N	\N	\N	1	t	f	f	1	2026-05-22 09:13:22.812176	2026-05-22 09:13:22.870936	\N	0.00	\N	\N	\N	\N	LOCAL	\N	dddddddddddddddddddddddddddddddddddddd	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-22 04:13:22.798	::ffff:192.168.1.103	4444444444444	0944444444	fffffffffffffffffff		ffffffffffffff	f	103	t	1.0	f	f	\N	\N
-103	6	7	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-19 09:01:44.24213	2026-05-19 09:01:44.267046	\N	0.00	\N	\N	\N	\N	ZONAL	\N	nhjmiyujhtgrffrgtnhjmiyujhtgrffrgtnhjmiyujhtgrffrgtnhjmiyujhtgrffrgtnhjmiyujhtgrffrgt	\N	\N	EN_REVISION_SECRETARIA	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-19 04:01:44.2	::ffff:192.168.1.103	0609854938754	0934738473	frgoitjoigtj		rijnfernijrnfijner	f	101	f	1.0	f	f	\N	\N
-101	6	4	28	\N	\N	\N	\N	1	t	f	t	1	2026-05-18 23:07:26.674695	2026-05-23 20:02:20.562071	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	ffffffffffffffffffffffffffffff	\N	\N	INCOMPLETO	- Falta documento obligatorio: Anexo 1: Solicitud de Evaluación\n- Falta documento obligatorio: Anexo 2: Formulario de Protocolo\n- Falta documento obligatorio: Formulario de Consentimiento Informado\n- Falta documento obligatorio: Instrumentos de Investigación (Fichas, encuestas, manuales)\n- Falta documento obligatorio: Currículos Vitae de Investigadores\n- Falta documento obligatorio: Declaración de Responsabilidad (Anexo 4)\n- Falta documento obligatorio: Declaratoria de Compromiso de Confidencialidad\n- Falta documento obligatorio: Declaración de Conflicto de Interés\n- Falta documento obligatorio: Ficha Descriptiva de la Intervención y Riesgos	2026-06-12 15:02:20.558	\N	f	\N	f	\N	f	\N	t	2026-05-18 18:07:26.665	::ffff:192.168.1.100	5555555555555	0955555555	hhhhhhhhhhhhhhhhhhhhhh		5555555555555	f	99	f	1.0	f	f	\N	\N
-110	6	7	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-23 19:44:27.182065	2026-05-23 19:46:49.249298	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	ssssssssssssssssssssssssssssssssssssss	\N	\N	INCOMPLETO	- Falta documento obligatorio: Anexo 1: Solicitud de Evaluación\n- Falta documento obligatorio: Anexo 2: Formulario de Protocolo\n- Falta documento obligatorio: Formulario de Consentimiento Informado\n- Falta documento obligatorio: Instrumentos de Investigación (Fichas, encuestas, manuales)\n- Falta documento obligatorio: Currículos Vitae de Investigadores\n- Falta documento obligatorio: Declaración de Responsabilidad (Anexo 4)\n- Falta documento obligatorio: Traducción a idiomas ancestrales\n- Falta documento obligatorio: Consentimiento Colectivo o Comunitario (Líder/Asamblea)\n- Falta documento obligatorio: Declaratoria de Compromiso de Confidencialidad\n- Falta documento obligatorio: Declaración de Conflicto de Interés\n- Falta documento obligatorio: Ficha Descriptiva de la Intervención y Riesgos	2026-06-12 14:46:48.044	\N	f	\N	f	\N	f	\N	t	2026-05-23 14:44:28.211	::ffff:192.168.1.10	3333333333333	0999999999	fffffffffffffff		fffffffffffffffff	f	108	t	1.0	f	f	\N	\N
-109	6	8	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-23 19:18:00.3792	2026-05-23 19:20:50.38792	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	ccccccccccccccccccccccccccccccccccccccccccccccccccc	\N	\N	INCOMPLETO	- Falta documento obligatorio: Anexo 1: Solicitud de Evaluación\n- Falta documento obligatorio: Anexo 2: Formulario de Protocolo\n- Falta documento obligatorio: Formulario de Consentimiento Informado\n- Falta documento obligatorio: Instrumentos de Investigación (Fichas, encuestas, manuales)\n- Falta documento obligatorio: Currículos Vitae de Investigadores\n- Falta documento obligatorio: Declaración de Responsabilidad (Anexo 4)\n- Falta documento obligatorio: Traducción a idiomas ancestrales\n- Falta documento obligatorio: Consentimiento Colectivo o Comunitario (Líder/Asamblea)\n- Falta documento obligatorio: Declaratoria de Compromiso de Confidencialidad\n- Falta documento obligatorio: Declaración de Conflicto de Interés\n- Falta documento obligatorio: Ficha Descriptiva de la Intervención y Riesgos	2026-06-12 14:20:51.051	\N	f	\N	f	\N	f	\N	t	2026-05-23 14:18:00.505	::ffff:192.168.1.10	0999999999999	0999999999	ddddddddddddddddddd		ddddddddddddddddddddddd	f	107	t	1.0	f	f	\N	\N
-107	6	5	28	\N	\N	\N	\N	1	t	f	t	1	2026-05-22 09:58:19.038623	2026-05-26 14:54:44.129733	\N	0.00	\N	\N	\N	\N	PROVINCIAL	CEISH-ESPOCH-EI-002-2026	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh	\N	\N	INCOMPLETO	- Falta documento obligatorio: Anexo 1: Solicitud de Evaluación\n- Falta documento obligatorio: Anexo 2: Formulario de Protocolo\n- Falta documento obligatorio: Formulario de Consentimiento Informado\n- Falta documento obligatorio: Instrumentos de Investigación (Fichas, encuestas, manuales)\n- Falta documento obligatorio: Currículos Vitae de Investigadores\n- Falta documento obligatorio: Declaración de Responsabilidad (Anexo 4)\n- Falta documento obligatorio: Declaratoria de Compromiso de Confidencialidad\n- Falta documento obligatorio: Declaración de Conflicto de Interés\n- Falta documento obligatorio: Ficha Descriptiva de la Intervención y Riesgos	2026-06-16 09:54:44.484	\N	f	\N	f	\N	f	\N	t	2026-05-22 04:58:19.036	::ffff:192.168.1.102	0999999999999	0999999999	ddddddddddddddd		ddddddddddddd	f	105	f	1.0	f	f	\N	\N
-106	6	5	28	\N	\N	\N	\N	1	t	f	f	1	2026-05-22 09:42:23.546219	2026-05-26 19:02:33.908676	\N	0.00	\N	\N	\N	\N	NACIONAL	\N	ddddddddddddddddddddddddddddddddddfffffff	\N	\N	INCOMPLETO	- Falta documento obligatorio: Anexo 1: Solicitud de Evaluación\n- Falta documento obligatorio: Anexo 2: Formulario de Protocolo\n- Falta documento obligatorio: Formulario de Consentimiento Informado\n- Falta documento obligatorio: Instrumentos de Investigación (Fichas, encuestas, manuales)\n- Falta documento obligatorio: Currículos Vitae de Investigadores\n- Falta documento obligatorio: Declaración de Responsabilidad (Anexo 4)\n- Falta documento obligatorio: Traducción a idiomas ancestrales\n- Falta documento obligatorio: Consentimiento Colectivo o Comunitario (Líder/Asamblea)\n- Falta documento obligatorio: Declaratoria de Compromiso de Confidencialidad\n- Falta documento obligatorio: Declaración de Conflicto de Interés\n- Falta documento obligatorio: Ficha Descriptiva de la Intervención y Riesgos	2026-06-16 14:02:33.884	\N	f	\N	f	\N	f	\N	t	2026-05-22 04:42:23.549	::ffff:192.168.1.102	4444444444444	0944444444	fffffffffffffffffffff		fffffffffffffff	f	104	t	1.0	f	f	\N	\N
-111	6	5	28	\N	\N	\N	\N	12	t	f	f	1	2026-05-26 19:25:22.025343	2026-05-26 21:35:51.680209	\N	0.00	\N	\N	\N	\N	PROVINCIAL	CEISH-ESPOCH-EI-004-2026	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee	2026-05-26 16:35:52.364	\N	COMPLETO	cualquier comentario	2026-06-16 16:35:51.607	\N	f	\N	f	\N	f	\N	t	2026-05-26 14:25:22.551	::ffff:192.168.1.102	0999999999999	0977777777	hhhhhhhhhhhhhhh		hhhhhhhhhhhhhhhhhhhhhhhhhhhhh	f	109	t	1.0	f	f	\N	\N
-113	6	7	28	\N	\N	\N	\N	12	f	f	t	1	2026-05-26 20:31:28.888919	2026-05-26 20:33:58.648661	\N	0.00	\N	\N	\N	\N	PROVINCIAL	\N	gdffffffffffffffffffffffffffffffffffffffffffffffffff	\N	\N	EN_REVISION_SECRETARIA	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-26 15:31:28.998	::ffff:192.168.1.102	1000000000000	0999999999	ddddddddddddddddddddddddddddd		dddddddddd	f	111	t	1.0	f	f	\N	\N
-112	6	5	28	\N	\N	\N	\N	1	f	t	f	1	2026-05-26 20:08:11.921808	2026-05-26 20:12:34.431253	\N	777.00	\N	\N	\N	\N	PROVINCIAL	CEISH-ESPOCH-EI-005-2026	holajjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj	\N	\N	INCOMPLETO	- Falta documento obligatorio: Anexo 1: Solicitud de Evaluación\n- Falta documento obligatorio: Anexo 2: Formulario de Protocolo\n- Falta documento obligatorio: Formulario de Consentimiento Informado\n- Falta documento obligatorio: Instrumentos de Investigación (Fichas, encuestas, manuales)\n- Falta documento obligatorio: Currículos Vitae de Investigadores\n- Falta documento obligatorio: Declaración de Responsabilidad (Anexo 4)\n- Falta documento obligatorio: Declaratoria de Compromiso de Confidencialidad\n- Falta documento obligatorio: Declaración de Conflicto de Interés\n- Falta documento obligatorio: Ficha Descriptiva de la Intervención y Riesgos	2026-06-16 15:12:34.711	\N	f	\N	f	\N	f	\N	t	2026-05-26 15:08:11.624	::ffff:192.168.1.104	5841861616516	0985616541	njnikm	,,l,kmkmkl	kmkmkknk	f	110	f	1.0	f	f	\N	\N
-114	6	\N	28	\N	\N	\N	\N	\N	t	t	t	1	2026-05-26 21:15:43.289704	2026-05-26 21:15:43.326717	\N	0.00	\N	\N	\N	\N	\N	\N	los niños de la casa de tomas armando	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-26 16:15:43.542	::ffff:192.168.1.104	\N	\N	\N		\N	t	112	t	1.0	f	f	\N	\N
-118	6	\N	28	\N	\N	\N	\N	\N	t	t	f	1	2026-05-27 07:20:58.461944	2026-05-27 07:20:58.588486	\N	0.00	\N	\N	\N	\N	\N	\N	DDDDDDDDDDDDDDDDDDDDDDDDDDDD	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-27 02:20:57.575	::ffff:192.168.1.102	\N	\N	\N		\N	t	116	t	1.0	f	f	\N	\N
-115	7	\N	34	\N	\N	\N	\N	\N	t	f	t	1	2026-05-26 21:22:47.60237	2026-05-26 21:27:57.399409	\N	0.00	\N	\N	\N	\N	\N	CEISH-ESPOCH-EC-001-2026	la la nuevpo aifvnfk nuevo rotoclo lilicita 	2026-05-26 16:27:58.038	\N	COMPLETO	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-26 16:22:46.895	::ffff:192.168.1.104	\N	\N	\N		\N	f	113	t	1.0	f	f	\N	\N
-117	6	\N	28	\N	\N	\N	\N	\N	f	f	t	1	2026-05-26 21:59:12.300092	2026-05-27 08:52:23.999876	\N	0.00	\N	\N	\N	\N	\N	CEISH-ESPOCH-EI-006-2026	los pasos de la sanitación de tomassss	2026-05-27 03:52:22.801	\N	COMPLETO	- Consentimiento Colectivo o Comunitario (Líder/Asamblea) requiere corrección: FALTA DOCUMENTACION ESTA MAL 	2026-06-16 17:02:23.435	\N	f	\N	f	\N	f	\N	t	2026-05-26 16:59:11.699	::ffff:192.168.1.102	\N	\N	\N		\N	f	115	t	1.0	f	f	\N	\N
-116	6	\N	28	\N	\N	\N	\N	\N	t	f	t	1	2026-05-26 21:45:06.237028	2026-05-26 21:48:11.29793	\N	0.00	\N	\N	\N	\N	\N	\N	el pepe de la salida de tu mami 	\N	\N	INCOMPLETO	- Declaración de Responsabilidad (Anexo 4) requiere corrección: falta \n- Traducción a idiomas ancestrales requiere corrección: falta	2026-06-16 16:48:11.811	\N	f	\N	f	\N	f	\N	t	2026-05-26 16:45:06.127	::ffff:192.168.1.102	\N	\N	\N		\N	f	114	t	1.0	f	f	\N	\N
-120	6	\N	34	\N	\N	\N	\N	\N	f	f	f	1	2026-05-27 14:14:13.280069	2026-05-27 14:24:29.376918	\N	0.00	\N	\N	\N	\N	\N	\N	NUEVO PROTOCOLO DE PRUEBA FILTRO CORRECTO	\N	\N	INCOMPLETO	- Anexo 2: Formulario de Protocolo requiere corrección: FALTA DOCUMENTACION	2026-06-17 09:24:27.183	\N	f	\N	f	\N	f	\N	t	2026-05-27 09:14:13.064	::ffff:192.168.1.104	\N	\N	\N		\N	f	118	t	1.0	f	f	\N	\N
-119	6	\N	34	13	\N	\N	\N	\N	t	t	f	1	2026-05-27 13:46:41.141399	2026-06-03 00:19:08.607457	\N	0.00	\N	\N	\N	\N	\N	CEISH-ESPOCH-EI-007-2026	frecuencia de anemia en menores de 6 años en riobamba 	2026-05-27 08:59:58.773	\N	COMPLETO	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-27 08:46:38.835	::ffff:192.168.1.104	\N	\N	\N		\N	f	117	t	1.0	f	t	2026-06-02 19:18:28.697	::1
-123	5	\N	34	\N	\N	\N	\N	\N	t	t	t	1	2026-05-28 16:27:48.34045	2026-05-28 16:28:54.664042	\N	0.00	\N	\N	\N	\N	\N	\N	Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \nde hemoglobina y hematocrito en estudiantes universitarios	\N	\N	EN_REVISION_SECRETARIA	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-28 11:27:48.117	::ffff:192.168.1.102	\N	\N	\N		\N	t	121	f	1.0	f	f	\N	\N
-121	6	\N	28	\N	\N	\N	\N	\N	f	f	f	1	2026-05-27 14:52:05.132239	2026-05-27 14:54:29.618401	\N	0.00	\N	\N	\N	\N	\N	CEISH-ESPOCH-EI-008-2026	prueva d knksdnkjf  sdfsdfdfsdfsdfsdf	2026-05-27 09:54:27.4	\N	COMPLETO	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-27 09:52:05.39	::ffff:192.168.1.102	\N	\N	\N		\N	f	119	t	1.0	f	f	\N	\N
-122	5	\N	34	\N	\N	\N	\N	\N	t	t	t	1	2026-05-28 16:23:57.803324	2026-05-28 16:23:57.823633	\N	0.00	\N	\N	\N	\N	\N	\N	Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \nde hemoglobina y hematocrito en estudiantes universitarios	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-28 11:23:56.95	::ffff:192.168.1.102	\N	\N	\N		\N	f	120	f	1.0	f	f	\N	\N
-125	5	\N	34	\N	\N	\N	\N	\N	t	t	t	1	2026-05-28 20:24:14.045606	2026-05-28 20:24:14.072442	\N	0.00	\N	\N	\N	\N	\N	\N	P3 Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles de hemoglobina y hematocrito en estudiantes universitarios	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-28 15:24:14.182	::ffff:172.26.235.109	\N	\N	\N		\N	t	123	f	1.0	f	f	\N	\N
-124	5	\N	34	\N	\N	\N	\N	\N	t	t	t	1	2026-05-28 16:31:47.547884	2026-06-03 01:01:02.725072	\N	0.00	\N	\N	\N	\N	\N	CEISH-ESPOCH-IO-001-2026	“ P2 Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \nde hemoglobina y hematocrito en estudiantes universitarios”	2026-05-28 14:46:13.888	\N	COMPLETO	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-28 11:31:48.222	::ffff:192.168.1.102	\N	\N	\N		\N	t	122	f	1.0	f	t	2026-06-02 20:01:02.722	::1
-127	6	\N	34	\N	\N	\N	\N	\N	t	t	t	1	2026-05-28 20:57:51.170288	2026-05-28 20:57:51.189687	\N	0.00	\N	\N	\N	\N	\N	\N	P4 Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles de hemoglobina y hematocrito en estudiantes universitarios	\N	\N	PENDIENTE_SUBSANACION	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-28 15:57:50.349	::ffff:172.26.235.109	\N	\N	\N		\N	f	125	t	1.0	f	f	\N	\N
-126	5	\N	34	13	\N	\N	\N	\N	t	t	t	1	2026-05-28 20:28:07.177756	2026-06-02 23:57:26.957551	\N	0.00	\N	\N	\N	\N	\N	CEISH-ESPOCH-IO-002-2026	P3 Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles de hemoglobina y hematocrito en estudiantes universitarios	2026-05-28 15:31:09.762	\N	COMPLETO	\N	\N	\N	f	\N	f	\N	f	\N	t	2026-05-28 15:28:05.405	::ffff:172.26.235.109	\N	\N	\N		\N	t	124	f	1.0	f	t	2026-05-31 15:02:05.167	::ffff:192.168.1.8
+COPY public.protocolos (id, tipo_estudio_id, nivel_riesgo_id, investigador_principal_id, estado_id, fecha_aprobacion, fecha_vencimiento, fecha_finalizacion, duracion_estudio_meses, poblacion_vulnerable, utiliza_muestras_biologicas, multicentrico, creado_en, actualizado_en, eliminado_en, monto_financiamiento, fuentes_financiamiento, fecha_estimada_inicio, fecha_estimada_fin, fecha_limite_renovacion, cobertura_geografica, titulo, tipo_revision, declaracion_no_iniciado, fecha_declaracion_no_iniciado, ip_declaracion_no_iniciado, patrocinador_ruc, patrocinador_telefono_institucional, patrocinador_direccion, patrocinador_pagina_web, patrocinador_organo_ejecutor, tiene_instituciones_externas, poblacion_indigena, nivel_riesgo_confirmado, sometimiento_tiempos_aceptado, fecha_sometimiento_tiempos, ip_sometimiento_tiempos, codigo_ceish) FROM stdin;
+128	5	\N	34	\N	\N	\N	\N	\N	f	t	t	2026-06-07 19:45:27.465282	2026-06-07 19:45:27.465282	\N	0.00	\N	\N	\N	\N	\N	Cloudflare Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \nde hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-06-07 14:45:27.461	::1	\N	\N	\N		\N	f	f	f	f	\N	\N	\N
+133	6	\N	34	\N	\N	\N	\N	\N	t	t	t	2026-06-07 20:16:43.326656	2026-06-07 20:16:43.326656	\N	0.00	\N	\N	\N	\N	\N	 sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \nde hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-06-07 15:16:43.319	::1	\N	\N	\N		\N	f	f	f	f	\N	\N	\N
+136	6	\N	34	\N	\N	\N	\N	\N	f	t	t	2026-06-08 03:38:36.152758	2026-06-08 03:38:36.152758	\N	0.00	\N	\N	\N	\N	\N	ceish-espoch-frontendceish-espoch-frontend  p1	\N	t	2026-06-07 22:38:36.155	::1	\N	\N	\N		\N	f	f	f	f	\N	\N	\N
+141	6	\N	34	\N	\N	\N	\N	\N	t	t	f	2026-06-08 05:38:42.375857	2026-06-08 05:38:42.375857	\N	0.00	\N	\N	\N	\N	\N	y_eliminado_en", "StudyTypeOrmEntity"."	\N	t	2026-06-08 00:38:42.348	::1	\N	\N	\N		\N	f	f	f	f	\N	\N	\N
+146	6	\N	34	13	\N	\N	\N	\N	f	f	f	2026-06-08 06:13:35.674423	2026-06-08 06:21:37.8815	\N	0.00	\N	\N	\N	\N	\N	Nuevo Protocolo\nComplete la información básica y cargue la documentación requerida por el CEISH.\n\n1\nInforma	\N	t	2026-06-08 01:13:35.663	::1	\N	\N	\N		\N	f	t	f	t	2026-06-08 01:20:37.531	::1	CEISH-ESPOCH-EI-009-2026
+1	\N	\N	6	\N	\N	\N	\N	\N	f	f	f	2026-04-16 09:29:59.477376	2026-04-16 09:29:59.477376	\N	\N	\N	\N	\N	\N	\N	\N	\N	f	\N	\N	\N	\N	\N	\N	\N	f	f	f	f	\N	\N	TEMP-001
+4	8	5	28	\N	\N	\N	\N	1	t	t	t	2026-05-06 12:00:55.287199	2026-05-06 12:00:55.307824	\N	0.00	\N	\N	\N	\N	PROVINCIAL	fdgdsfgsdfgdsfgsdfgdfgd	\N	t	2026-05-06 07:00:55.303	::ffff:192.168.1.103	5464536546546	0975765456	ghjghjh		ghjghjghj	t	f	f	f	\N	\N	\N
+129	6	\N	34	\N	\N	\N	\N	\N	t	f	t	2026-06-07 19:47:48.857209	2026-06-07 19:47:48.857209	\N	0.00	\N	\N	\N	\N	\N	Claudflare Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles de hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-06-07 14:47:48.849	::1	\N	\N	\N		\N	f	t	f	f	\N	\N	\N
+134	6	\N	34	\N	\N	\N	\N	\N	f	f	t	2026-06-07 20:37:45.165061	2026-06-07 20:37:45.165061	\N	0.00	\N	\N	\N	\N	\N	sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \nde hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-06-07 15:37:45.159	::1	\N	\N	\N		\N	f	t	f	f	\N	\N	\N
+137	6	\N	34	\N	\N	\N	\N	\N	t	f	f	2026-06-08 03:46:24.375289	2026-06-08 03:46:24.375289	\N	0.00	\N	\N	\N	\N	\N	dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd	\N	t	2026-06-07 22:46:24.366	::1	\N	\N	\N		\N	t	t	f	f	\N	\N	\N
+142	6	\N	34	\N	\N	\N	\N	\N	f	f	f	2026-06-08 05:45:40.968753	2026-06-08 05:45:40.968753	\N	0.00	\N	\N	\N	\N	\N	 Para solucionar esto, necesitas actualizar las llaves de la   \n  API de R2:	\N	t	2026-06-08 00:45:40.947	::1	\N	\N	\N		\N	t	t	f	f	\N	\N	\N
+33	8	7	28	\N	\N	\N	\N	1	t	f	f	2026-05-16 08:15:54.168264	2026-05-16 08:15:54.191574	\N	0.00	\N	\N	\N	\N	ZONAL	frrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr	\N	t	2026-05-16 03:15:54.174	::ffff:192.168.1.104	3333333333333	0933333333	dddddddddddd		dddddddddd	f	f	f	f	\N	\N	\N
+120	6	\N	34	\N	\N	\N	\N	\N	f	f	f	2026-05-27 14:14:13.280069	2026-05-27 14:24:29.376918	\N	0.00	\N	\N	\N	\N	\N	NUEVO PROTOCOLO DE PRUEBA FILTRO CORRECTO	\N	t	2026-05-27 09:14:13.064	::ffff:192.168.1.104	\N	\N	\N		\N	f	t	f	f	\N	\N	\N
+130	6	\N	34	\N	\N	\N	\N	\N	t	f	t	2026-06-07 19:53:22.691948	2026-06-07 19:53:22.691948	\N	0.00	\N	\N	\N	\N	\N	Clould Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles de hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-06-07 14:53:22.685	::1	\N	\N	\N		\N	f	t	f	f	\N	\N	\N
+135	6	\N	34	\N	\N	\N	\N	\N	f	t	f	2026-06-07 20:41:08.423637	2026-06-07 20:41:08.423637	\N	0.00	\N	\N	\N	\N	\N	Error al subir documento técnico.jjjjjjjjjjjj	\N	t	2026-06-07 15:41:08.423	::1	\N	\N	\N		\N	t	f	f	f	\N	\N	\N
+138	6	\N	34	\N	\N	\N	\N	\N	f	t	f	2026-06-08 04:11:51.03011	2026-06-08 04:11:51.03011	\N	0.00	\N	\N	\N	\N	\N	06060973350606097335 km	\N	t	2026-06-07 23:11:51.02	::1	\N	\N	\N		\N	f	t	f	f	\N	\N	\N
+143	6	\N	34	\N	\N	\N	\N	\N	f	f	f	2026-06-08 05:49:22.350498	2026-06-08 05:49:22.350498	\N	0.00	\N	\N	\N	\N	\N	 Para solucionar esto, necesitas actualizar las llaves de la   \n  API de R2:	\N	t	2026-06-08 00:49:22.363	::1	\N	\N	\N		\N	f	t	f	f	\N	\N	\N
+7	6	5	28	\N	\N	\N	\N	1	t	t	t	2026-05-06 12:31:59.437915	2026-05-06 12:31:59.465477	\N	0.00	\N	\N	\N	\N	LOCAL	adfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsferadfsdfsfer	\N	t	2026-05-06 07:31:59.431	::ffff:192.168.1.103	5647456456466	0986767765	hfghjghj		ghjghjfgh	f	f	f	f	\N	\N	\N
+8	5	5	28	\N	\N	\N	\N	1	t	t	f	2026-05-06 12:40:09.300255	2026-05-06 12:40:09.325966	\N	0.00	\N	\N	\N	\N	PROVINCIAL	sdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdf	\N	t	2026-05-06 07:40:09.299	::ffff:192.168.1.103	3454353434534	0964564564	fghfghfyh		jhghnf	f	f	f	f	\N	\N	\N
+9	6	4	28	\N	\N	\N	\N	1	t	t	t	2026-05-06 12:47:03.262095	2026-05-06 12:47:03.289719	\N	0.00	\N	\N	\N	\N	PROVINCIAL	fdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfgfdgdsfgdfg	\N	t	2026-05-06 07:47:03.222	::ffff:192.168.1.103	6754436456346	0956754675	ghjfghj		ghjfghj	t	f	f	f	\N	\N	\N
+10	7	4	28	\N	\N	\N	\N	1	t	t	t	2026-05-06 13:13:31.998307	2026-05-06 13:13:32.022551	\N	0.00	\N	\N	\N	\N	PROVINCIAL	sdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdfsdf	\N	t	2026-05-06 08:13:31.952	::ffff:192.168.1.103	8966454634564	0965756756	jkljklhjk		ljklhjkljkl	f	f	f	f	\N	\N	\N
+131	5	\N	34	\N	\N	\N	\N	\N	f	f	t	2026-06-07 19:58:03.835435	2026-06-07 19:58:03.835435	\N	0.00	\N	\N	\N	\N	\N	Clould Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \nde hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-06-07 14:58:03.834	::1	\N	\N	\N		\N	t	t	f	f	\N	\N	\N
+139	6	\N	34	\N	\N	\N	\N	\N	f	t	f	2026-06-08 04:34:56.666059	2026-06-08 04:34:56.666059	\N	0.00	\N	\N	\N	\N	\N	sssssssssssssssssssssssssssssssssssssssssssssssssss	\N	t	2026-06-07 23:34:56.601	::1	\N	\N	\N		\N	t	f	f	f	\N	\N	\N
+144	6	\N	34	\N	\N	\N	\N	\N	f	t	f	2026-06-08 05:56:36.984861	2026-06-08 05:56:36.984861	\N	0.00	\N	\N	\N	\N	\N	Utiliza endpoints específicos de la jurisdicción para clientes S3:\nDefaultUnión Europea (UE)	\N	t	2026-06-08 00:56:36.977	::1	\N	\N	\N		\N	f	f	f	f	\N	\N	\N
+106	6	5	28	\N	\N	\N	\N	1	t	f	f	2026-05-22 09:42:23.546219	2026-05-26 19:02:33.908676	\N	0.00	\N	\N	\N	\N	NACIONAL	ddddddddddddddddddddddddddddddddddfffffff	\N	t	2026-05-22 04:42:23.549	::ffff:192.168.1.102	4444444444444	0944444444	fffffffffffffffffffff		fffffffffffffff	f	t	f	f	\N	\N	\N
+5	6	5	28	\N	\N	\N	\N	1	t	t	t	2026-05-06 12:02:16.208318	2026-05-06 12:02:16.237865	\N	0.00	\N	\N	\N	\N	PROVINCIAL	fdgdsfgsdfgdsfgsdfgdfgd	\N	t	2026-05-06 07:02:16.22	::ffff:192.168.1.103	5464536546546	0975765456	ghjghjh		ghjghjghj	t	f	f	f	\N	\N	\N
+6	6	6	28	\N	\N	\N	\N	1	t	t	f	2026-05-06 12:12:45.070971	2026-05-06 12:12:45.095655	\N	0.00	\N	\N	\N	\N	PROVINCIAL	dsfdffggsgdsfdsfdffggsgdsfdsfdffggsgdsfdsfdffggsgdsfdsfdffggsgdsf	\N	t	2026-05-06 07:12:45.08	::ffff:192.168.1.103	3423141234234	0967567654	fhjjfhfgjhj		hgjfgjfh	f	f	f	f	\N	\N	\N
+11	6	5	29	\N	\N	\N	\N	12	t	t	f	2026-05-13 03:49:03.427155	2026-05-13 03:49:03.455146	\N	100.00	\N	\N	\N	\N	PROVINCIAL	hgfghfdghhgfghfdghhgfghfdghhgfghfdghhgfghfdghhgfghfdghhgfghfdghhgfghfdgh	\N	t	2026-05-12 22:49:00.481	::ffff:192.168.1.103	0879786775675	0978567567	456fghfgh		hfghfhg	f	t	f	f	\N	\N	\N
+12	7	6	28	\N	\N	\N	\N	1	t	t	t	2026-05-13 14:12:47.986396	2026-05-13 14:12:48.119754	\N	0.00	\N	\N	\N	\N	PROVINCIAL	dgfhrthrthrtheertyhertyret	\N	t	2026-05-13 09:12:46.098	::ffff:192.168.1.103	8797567546456	0988888888	56gvhbn		hjgfj	f	t	f	f	\N	\N	\N
+13	8	6	28	\N	\N	\N	\N	2	t	f	t	2026-05-15 05:53:41.721676	2026-05-15 05:53:41.79971	\N	1000.00	\N	\N	\N	\N	PROVINCIAL	dssfsdfsdfsdfsdssfsdfsdfsdfsdssfsdfsdfsdfsdssfsdfsdfsdfsdssfsdfsdfsdfs	\N	t	2026-05-15 00:53:42.032	::ffff:192.168.1.104	0920420343892	0923423423	amabato		sadasdasdasdasd	f	t	f	f	\N	\N	\N
+14	8	5	28	\N	\N	\N	\N	10	t	t	f	2026-05-15 09:03:26.953649	2026-05-15 09:03:26.985679	\N	100.00	\N	\N	\N	\N	PROVINCIAL	eyetreterterrrrrrrrrrrrreyetreterterrrrrrrrrrrrreyetreterterrrrrrrrrrrrreyetreterterrrrrrrrrrrrreyetreterterrrrrrrrrrrrreyetreterterrrrrrrrrrrrr	\N	t	2026-05-15 04:03:26.7	::ffff:192.168.1.104	4534534534534	0945345345	dfgdffgdfgdfgdfgdf		gdrggggggggggggggggggggg	f	t	f	f	\N	\N	\N
+15	6	7	28	\N	\N	\N	\N	10	t	t	f	2026-05-15 09:14:58.262589	2026-05-15 09:14:58.296912	\N	100.00	\N	\N	\N	\N	PROVINCIAL	aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa	\N	t	2026-05-15 04:14:59.101	::ffff:192.168.1.104	4350345345345	0943543534	dsfsdfds		sdfdsf	f	t	f	f	\N	\N	\N
+16	6	7	28	\N	\N	\N	\N	99	t	t	f	2026-05-15 09:28:14.595807	2026-05-15 09:28:14.626697	\N	100.00	\N	\N	\N	\N	PROVINCIAL	ssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssssss	\N	t	2026-05-15 04:28:14.819	::ffff:192.168.1.104	6544444444444	0999999999	ytutyut		utyutu	f	t	f	f	\N	\N	\N
+17	7	7	28	\N	\N	\N	\N	12	t	t	t	2026-05-15 09:38:18.823678	2026-05-15 09:38:19.551582	\N	10.00	\N	\N	\N	\N	NACIONAL	dffffffffffffffffffffffffffdffffffffffffffffffffffffffdffffffffffffffffffffffffff	\N	t	2026-05-15 04:38:18.198	::ffff:192.168.1.104	4566666666666	0999999999	ggdffffffffff		vvvvvvvv	f	t	f	f	\N	\N	\N
+18	7	8	28	\N	\N	\N	\N	1	t	t	t	2026-05-15 10:17:32.768478	2026-05-15 10:17:32.890604	\N	100.00	\N	\N	\N	\N	NACIONAL	drrrrrrrrrrrssssssssss	\N	t	2026-05-15 05:17:31.882	::ffff:192.168.1.104	0943333333333	0943333333	fdggggg		fddddddddd	t	t	f	f	\N	\N	\N
+19	7	6	28	\N	\N	\N	\N	1	t	t	t	2026-05-15 10:27:31.071912	2026-05-15 10:27:31.095652	\N	100.00	\N	\N	\N	\N	PROVINCIAL	dffffffffffffffffffffffdffffffffffffffffffffffdffffffffffffffffffffff	\N	t	2026-05-15 05:27:31.614	::ffff:192.168.1.104	4533333333333	0999999999	eeeeeeeeeeeeeeeeeeeeee		errrrrrrrr	f	t	f	f	\N	\N	\N
+20	7	8	28	\N	\N	\N	\N	1	f	f	f	2026-05-15 10:43:54.975287	2026-05-15 10:43:55.005528	\N	220.00	\N	\N	\N	\N	PROVINCIAL	saaaaaaassssssssssssssssssssssss	\N	t	2026-05-15 05:43:54.207	::ffff:192.168.1.104	4355555555555	0955555555	fggggd		gfgh	f	t	f	f	\N	\N	\N
+21	7	6	28	\N	\N	\N	\N	1	f	t	f	2026-05-15 10:52:12.747857	2026-05-15 10:52:12.768837	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ddddddddddddddddddzzzzzss	\N	t	2026-05-15 05:52:13.143	::ffff:192.168.1.104	3455555555555	0999999999	dfdddddddddddd		ffffffffff	f	f	f	f	\N	\N	\N
+22	8	8	28	\N	\N	\N	\N	1	t	t	f	2026-05-15 11:29:02.705187	2026-05-15 11:29:02.738839	\N	0.00	\N	\N	\N	\N	PROVINCIAL	wwwwwwwwwwwwwwwwwwwwwwwww	\N	t	2026-05-15 06:29:01.657	::ffff:192.168.1.104	5666666666666	0988888888	55555		tttttttttttt	f	t	f	f	\N	\N	\N
+23	7	8	28	\N	\N	\N	\N	1	t	t	f	2026-05-15 11:37:09.418638	2026-05-15 11:37:09.5098	\N	0.00	\N	\N	\N	\N	NACIONAL	ssssssssssssssssssssssssssssssssssss	\N	t	2026-05-15 06:37:08.558	::ffff:192.168.1.104	3333333333333	0944444444	4444444444		4444444	f	t	f	f	\N	\N	\N
+24	7	8	28	\N	\N	\N	\N	1	t	t	f	2026-05-15 11:38:57.672821	2026-05-15 11:38:57.696553	\N	0.00	\N	\N	\N	\N	NACIONAL	ssssssssssssssssssssssssssssssssssss	\N	t	2026-05-15 06:38:57.784	::ffff:192.168.1.104	3333333333333	0944444444	fdddddddddddddddddddd		fddddddddddddddd	f	t	f	f	\N	\N	\N
+25	8	7	28	\N	\N	\N	\N	1	t	t	f	2026-05-15 11:40:10.785714	2026-05-15 11:40:10.813121	\N	0.00	\N	\N	\N	\N	ZONAL	xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx	\N	t	2026-05-15 06:40:11.439	::ffff:192.168.1.104	4444444444455	0977777777	drfffffffffffffffffff		ffffffffffffffffffffffffffffff	f	t	f	f	\N	\N	\N
+26	8	7	28	\N	\N	\N	\N	1	f	t	f	2026-05-16 02:11:38.413906	2026-05-16 02:11:38.873177	\N	0.00	\N	\N	\N	\N	ZONAL	assssssssssssssssssssssss	\N	t	2026-05-15 21:11:38.406	::ffff:192.168.1.104	2333333333333	0932222222	fffffffff		vffffffff	f	f	f	f	\N	\N	\N
+27	8	7	28	\N	\N	\N	\N	1	t	t	f	2026-05-16 02:17:55.187936	2026-05-16 02:17:55.226644	\N	0.00	\N	\N	\N	\N	ZONAL	dffffffffffffffffffffffffffffffffffffff	\N	t	2026-05-15 21:17:55.203	::ffff:192.168.1.104	3333333333333	0944444444	ddddddddddddddddddddddd		ddddddddddd	f	t	f	f	\N	\N	\N
+28	8	7	28	\N	\N	\N	\N	1	t	t	f	2026-05-16 02:19:07.210451	2026-05-16 02:19:07.236192	\N	0.00	\N	\N	\N	\N	ZONAL	dffffffffffffffffffffffffffffffffffffff	\N	t	2026-05-15 21:19:07.201	::ffff:192.168.1.104	3333333333333	0944444444	ddddddddddddddddddddddd		ddddddddddd	f	t	f	f	\N	\N	\N
+29	6	8	28	\N	\N	\N	\N	1	f	t	f	2026-05-16 02:23:40.851817	2026-05-16 02:23:40.902955	\N	0.00	\N	\N	\N	\N	NACIONAL	eeeeeeeeeeeeeeeeeeeeeeee	\N	t	2026-05-15 21:23:40.847	::ffff:192.168.1.104	4555555555555	0966666666	hhhhhhhh		hhhh	f	f	f	f	\N	\N	\N
+30	6	7	28	\N	\N	\N	\N	1	t	f	f	2026-05-16 07:08:06.344182	2026-05-16 07:08:06.468994	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ddddddddddddddddddddddddd	\N	t	2026-05-16 02:08:06.326	::ffff:192.168.1.104	3333333333333	0944444444	dddddddddd		dddddddddd	f	t	f	f	\N	\N	\N
+31	8	6	28	\N	\N	\N	\N	1	f	t	f	2026-05-16 07:30:42.598408	2026-05-16 07:30:42.624558	\N	0.00	\N	\N	\N	\N	PROVINCIAL	gggggggggggggggggddddddddd	\N	t	2026-05-16 02:30:42.608	::ffff:192.168.1.104	4344444444444	0944444444	dddddd		ddddddddd	f	t	f	f	\N	\N	\N
+32	8	6	28	\N	\N	\N	\N	1	f	t	f	2026-05-16 07:38:16.43987	2026-05-16 07:38:16.468408	\N	0.00	\N	\N	\N	\N	PROVINCIAL	gggggggggggggggggddddddddd	\N	t	2026-05-16 02:38:16.455	::ffff:192.168.1.104	4344444444444	0944444444	dddddd		ddddddddd	f	t	f	f	\N	\N	\N
+66	8	4	28	\N	\N	\N	\N	1	t	f	t	2026-05-16 19:33:56.566454	2026-05-16 19:33:56.604484	\N	0.00	\N	\N	\N	\N	PROVINCIAL	kjllllllllllllllllllllllllllllllllllllllllllllllllllljjjjj	\N	t	2026-05-16 14:33:56.475	::ffff:192.168.1.26	5555555555555	0999999999	ggggggggggggggggggggggggggggggg		gggggggggggggggggggggggggggggggggggggggg	f	f	f	f	\N	\N	\N
+67	7	4	28	\N	\N	\N	\N	1	t	f	t	2026-05-16 19:34:35.710648	2026-05-16 19:34:35.73498	\N	0.00	\N	\N	\N	\N	PROVINCIAL	kjllllllllllllllllllllllllllllllllllllllllllllllllllljjjjj	\N	t	2026-05-16 14:34:35.717	::ffff:192.168.1.26	5555555555555	0999999999	ggggggggggggggggggggggggggggggg		gggggggggggggggggggggggggggggggggggggggg	f	f	f	f	\N	\N	\N
+68	5	4	28	\N	\N	\N	\N	1	t	f	t	2026-05-16 19:41:07.260075	2026-05-16 19:41:07.284622	\N	0.00	\N	\N	\N	\N	PROVINCIAL	kjllllllllllllllllllllllllllllllllllllllllllllllllllljjjjj	\N	t	2026-05-16 14:41:07.275	::ffff:192.168.1.26	5555555555555	0999999999	ggggggggggggggggggggggggggggggg		gggggggggggggggggggggggggggggggggggggggg	f	f	f	f	\N	\N	\N
+69	6	7	28	\N	\N	\N	\N	1	f	t	t	2026-05-17 06:04:23.172921	2026-05-17 06:04:23.200762	\N	0.00	\N	\N	\N	\N	LOCAL	sssssssssssssssssssssssssssssssssssssssss	\N	t	2026-05-17 01:04:23.173	::ffff:192.168.1.9	2222222222222	0922222222	eeeeeeeeeeeeee		eeeeeeeeeeeeeee	f	t	f	f	\N	\N	\N
+70	6	7	28	\N	\N	\N	\N	1	t	f	f	2026-05-17 06:24:20.998307	2026-05-17 06:24:21.039031	\N	0.00	\N	\N	\N	\N	ZONAL	ddddddddddddddddddddddddddddddddd	\N	t	2026-05-17 01:24:20.995	::ffff:192.168.1.9	3333333333333	0933333333	ffffffffffffff		ffffffffffffff	f	t	f	f	\N	\N	\N
+71	5	7	28	\N	\N	\N	\N	1	t	f	f	2026-05-17 06:27:10.888949	2026-05-17 06:27:10.910754	\N	0.00	\N	\N	\N	\N	ZONAL	ddddddddddddddddddddddddddddddddd	\N	t	2026-05-17 01:27:10.885	::ffff:192.168.1.9	3333333333333	0933333333	ffffffffffffff		ffffffffffffff	f	t	f	f	\N	\N	\N
+72	7	7	28	\N	\N	\N	\N	1	t	f	f	2026-05-17 06:27:45.108799	2026-05-17 06:27:45.127562	\N	0.00	\N	\N	\N	\N	ZONAL	ddddddddddddddddddddddddddddddddd	\N	t	2026-05-17 01:27:45.101	::ffff:192.168.1.9	3333333333333	0933333333	ffffffffffffff		ffffffffffffff	f	t	f	f	\N	\N	\N
+73	7	6	28	\N	\N	\N	\N	1	f	f	f	2026-05-17 06:35:20.317446	2026-05-17 06:35:20.339823	\N	0.00	\N	\N	\N	\N	LOCAL	dssssssssssssssssddddddddddddddd	\N	t	2026-05-17 01:35:20.316	::ffff:192.168.1.9	2222222222222	0944444444	fffffffffffffffffffff		ffffffffffffffffffffffff	t	t	f	f	\N	\N	\N
+74	6	6	28	\N	\N	\N	\N	1	f	f	f	2026-05-17 06:35:56.847205	2026-05-17 06:35:56.878912	\N	0.00	\N	\N	\N	\N	LOCAL	dssssssssssssssssddddddddddddddd	\N	t	2026-05-17 01:35:56.85	::ffff:192.168.1.9	2222222222222	0944444444	fffffffffffffffffffff		ffffffffffffffffffffffff	t	t	f	f	\N	\N	\N
+75	6	7	28	\N	\N	\N	\N	1	f	t	f	2026-05-17 15:05:52.629566	2026-05-17 15:05:52.657116	\N	0.00	\N	\N	\N	\N	PROVINCIAL	kkkkkkkkkkkkkkkrrrrrrrrrrrrrrrrrrrk	\N	t	2026-05-17 10:05:52.623	::ffff:192.168.1.9	3333333333333	0933333333	rrrrrrrrrrrrrrrr		rrrrrrrrrrrrrrrrrrrr	f	t	f	f	\N	\N	\N
+76	7	7	28	\N	\N	\N	\N	1	f	t	f	2026-05-17 15:06:44.866339	2026-05-17 15:06:44.888296	\N	0.00	\N	\N	\N	\N	PROVINCIAL	kkkkkkkkkkkkkkkrrrrrrrrrrrrrrrrrrrk	\N	t	2026-05-17 10:06:44.751	::ffff:192.168.1.9	3333333333333	0933333333	rrrrrrrrrrrrrrrr		rrrrrrrrrrrrrrrrrrrr	f	t	f	f	\N	\N	\N
+77	7	6	28	\N	\N	\N	\N	1	t	t	f	2026-05-17 15:08:29.221661	2026-05-17 15:08:29.250499	\N	0.00	\N	\N	\N	\N	ZONAL	llllllllllllllllllllllll	\N	t	2026-05-17 10:08:29.358	::ffff:192.168.1.9	9888888888888	0999999999	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj		jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj	f	t	f	f	\N	\N	\N
+107	6	5	28	\N	\N	\N	\N	1	t	f	t	2026-05-22 09:58:19.038623	2026-05-26 14:54:44.129733	\N	0.00	\N	\N	\N	\N	PROVINCIAL	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh	\N	t	2026-05-22 04:58:19.036	::ffff:192.168.1.102	0999999999999	0999999999	ddddddddddddddd		ddddddddddddd	f	f	f	f	\N	\N	CEISH-ESPOCH-EI-002-2026
+78	7	8	28	\N	\N	\N	\N	1	t	t	t	2026-05-17 15:13:47.016236	2026-05-17 15:13:47.039485	\N	0.00	\N	\N	\N	\N	ZONAL	rrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrrr	\N	t	2026-05-17 10:13:46.972	::ffff:192.168.1.9	4444444444444	0944444444	fffffffffffffffffffffffffff		ffffffffffffffffffffffffffffffffffffffffffff	f	f	f	f	\N	\N	\N
+79	7	8	28	\N	\N	\N	\N	1	f	t	f	2026-05-17 16:02:02.862707	2026-05-17 16:02:02.886481	\N	0.00	\N	\N	\N	\N	PROVINCIAL	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh	\N	t	2026-05-17 11:02:03.175	::ffff:192.168.1.9	0999999999999	0988888888	jjjjjjjjjjjjjjjjjjjj		jjjjjjjjjjjjjj	f	t	f	f	\N	\N	\N
+80	7	6	28	\N	\N	\N	\N	1	t	f	f	2026-05-17 17:09:42.000148	2026-05-17 17:09:42.026936	\N	0.00	\N	\N	\N	\N	PROVINCIAL	eeeeeeeeeeeweeeeeeeeeeeeeeeeeeeeeeeeeeeeeee	\N	t	2026-05-17 12:09:42.28	::ffff:192.168.1.9	5555555555555	0955555555	gggggggggggggggggg		gggggggggggggggggg	f	t	f	f	\N	\N	\N
+81	7	7	28	\N	\N	\N	\N	1	t	f	t	2026-05-17 17:36:51.209124	2026-05-17 17:36:51.237148	\N	0.00	\N	\N	\N	\N	ZONAL	jjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj	\N	t	2026-05-17 12:36:50.866	::ffff:192.168.1.9	0999999999999	0944444444	fffffffffffffffffffffffffffff		ffffffffffffffffffffffffff	f	f	f	f	\N	\N	\N
+82	7	5	28	\N	\N	\N	\N	1	t	f	f	2026-05-17 17:48:52.823697	2026-05-17 17:48:52.864079	\N	0.00	\N	\N	\N	\N	PROVINCIAL	fggggggggggggggggggggggggggggggf	\N	t	2026-05-17 12:48:51.999	::ffff:192.168.1.9	4444444444444	0955555555	gggggggggggg		ggggggggggggggggg	f	t	f	f	\N	\N	\N
+83	7	7	28	\N	\N	\N	\N	1	f	t	f	2026-05-17 18:02:31.627362	2026-05-17 18:02:31.652774	\N	0.00	\N	\N	\N	\N	ZONAL	fffffffffffffffffffffffffffffffffffffffffff	\N	t	2026-05-17 13:02:32.267	::ffff:192.168.1.9	5555555555555	0988888888	uuuuuuuuuuuuuuu		uuuuuuuuuuuuuuu	f	t	f	f	\N	\N	\N
+84	6	5	28	\N	\N	\N	\N	1	t	f	t	2026-05-18 15:17:17.413303	2026-05-18 15:17:17.443533	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ffffffffffrrrrrrrrrrrr	\N	t	2026-05-18 10:17:17.499	::ffff:192.168.1.100	0999999999999	0999999999	jjjjjjjjjjjjjjjjjj		jjjjjjjjjjj	f	f	f	f	\N	\N	\N
+85	7	6	28	\N	\N	\N	\N	1	f	f	f	2026-05-18 15:26:50.221621	2026-05-18 15:26:50.242228	\N	0.00	\N	\N	\N	\N	PROVINCIAL	eeeeeeeeeeeeeeeeeeeeee	\N	t	2026-05-18 10:26:51.095	::ffff:192.168.1.100	4444444444444	0966666666	hhhhhhhhhhhhhhhh		hhhhhhhhhhhhhhhhhhhhh	f	t	f	f	\N	\N	\N
+86	7	8	28	\N	\N	\N	\N	1	t	t	t	2026-05-18 18:44:01.182665	2026-05-18 18:44:01.204614	\N	0.00	\N	\N	\N	\N	ZONAL	ffffffffffffffffffffffffff	\N	t	2026-05-18 13:43:58.938	::ffff:192.168.1.100	6666666666666	0977777777	nnnnnnnnnnnn		nnnnnnnnnnnn	f	f	f	f	\N	\N	\N
+87	6	8	28	\N	\N	\N	\N	1	t	f	f	2026-05-18 18:52:42.913531	2026-05-18 18:52:42.937443	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ddddddddddddddddddddddddddddd	\N	t	2026-05-18 13:52:40.728	::ffff:192.168.1.100	4444444444444	0944444444	ffffffffffffffffffff		fffffffffffffffffffffff	f	t	f	f	\N	\N	\N
+88	7	6	28	\N	\N	\N	\N	1	f	f	f	2026-05-18 19:02:52.401567	2026-05-18 19:02:52.418168	\N	6.00	\N	\N	\N	\N	PROVINCIAL	dddddddddddddddddddddddddddddddddddddddddddddddddddddddd	\N	t	2026-05-18 14:02:52.245	::ffff:192.168.1.100	5555555555555	0955555555	gggggggggggggggggggg		gggggggggggggggggggggg	f	t	f	f	\N	\N	\N
+89	6	5	28	\N	\N	\N	\N	1	t	f	t	2026-05-18 19:16:47.390819	2026-05-18 19:16:47.413747	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ddddddddddddddddddddddddddddddddddddddddddddddddddddd	\N	t	2026-05-18 14:16:46.146	::ffff:192.168.1.100	7777777777777	0999999888	ggggggggggggg		ggggggggggggggg	f	f	f	f	\N	\N	\N
+90	6	4	28	\N	\N	\N	\N	1	f	f	t	2026-05-18 19:39:15.604874	2026-05-18 19:39:15.621788	\N	0.00	\N	\N	\N	\N	ZONAL	ffffffffffffffffffffffffffffffff	\N	t	2026-05-18 14:39:15.604	::ffff:192.168.1.100	4444444444444	0944444444	444444444444444444444		rrrrrrrrrrrrrrrrrrrrrr	f	t	f	f	\N	\N	\N
+91	6	8	28	\N	\N	\N	\N	11	f	f	f	2026-05-18 19:47:28.570771	2026-05-18 19:47:28.589055	\N	0.00	\N	\N	\N	\N	PROVINCIAL	fffffffffffffffffffffffffffffffff	\N	t	2026-05-18 14:47:28.166	::ffff:192.168.1.100	3333333333333	0933333333	eeeeeeeeeee		eeeeeeeeeeeee	f	f	f	f	\N	\N	\N
+92	6	6	28	\N	\N	\N	\N	1	f	f	t	2026-05-18 20:14:40.564002	2026-05-18 20:14:40.608215	\N	0.00	\N	\N	\N	\N	PROVINCIAL	gggggggggggggggggggggggggggg	\N	t	2026-05-18 15:14:40.559	::ffff:192.168.1.100	5555555555555	0999999999	hhhhhhhhhhhhh		ggggggggggggg	t	f	f	f	\N	\N	\N
+93	7	5	28	\N	\N	\N	\N	1	t	f	f	2026-05-18 20:37:36.093831	2026-05-18 20:37:36.119121	\N	0.00	\N	\N	\N	\N	PROVINCIAL	hjhgggggggggggggggggggggggggggggggg	\N	t	2026-05-18 15:37:36.091	::ffff:192.168.1.100	8999999999999	0999999999	nnnnnnnnnnnnnnnnnnnnnnnn		jjjjjjjjjjjjjjjjjjjjjjjjj	f	f	f	f	\N	\N	\N
+94	7	4	28	\N	\N	\N	\N	1	f	f	t	2026-05-18 21:00:43.278751	2026-05-18 21:00:43.29938	\N	0.00	\N	\N	\N	\N	LOCAL	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee	\N	t	2026-05-18 16:00:43.279	::ffff:192.168.1.100	5555555555555	0955555555	5555555		ttttttt	f	f	f	f	\N	\N	\N
+95	7	5	28	\N	\N	\N	\N	1	f	t	f	2026-05-18 21:07:11.1959	2026-05-18 21:07:11.221499	\N	0.00	\N	\N	\N	\N	PROVINCIAL	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh	\N	t	2026-05-18 16:07:11.196	::ffff:192.168.1.100	0966666666666	0966666666	0966666666666666666		66666666666	t	f	f	f	\N	\N	\N
+96	6	4	28	\N	\N	\N	\N	1	t	f	f	2026-05-18 21:23:14.716309	2026-05-18 21:23:14.743509	\N	0.00	\N	\N	\N	\N	ZONAL	ttttttttttttttgggggggggggggggtttt	\N	t	2026-05-18 16:23:14.715	::ffff:192.168.1.100	6666666666666	0966666666	yyyyyyyyyyyyyyy		yyyyyyyyyyyyyyyyyyyyyyyyyyy	f	t	f	f	\N	\N	\N
+97	6	5	28	\N	\N	\N	\N	1	t	f	f	2026-05-18 22:29:30.251864	2026-05-18 22:29:30.296547	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ggggggggggggggggggffffffffffffffffffffffffg	\N	t	2026-05-18 17:29:30.259	::ffff:192.168.1.100	0989999999999	0999999999	jjjjjjjjjjjjjjjjj		jjjjjjjjjjjjjjj	f	t	f	f	\N	\N	\N
+98	7	5	28	\N	\N	\N	\N	1	t	f	f	2026-05-18 22:39:36.665222	2026-05-18 22:39:36.691946	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ggggggggggggggggggffffffffffffffffffffffffg	\N	t	2026-05-18 17:39:36.666	::ffff:192.168.1.100	0989999999999	0999999999	jjjjjjjjjjjjjjjjj		jjjjjjjjjjjjjjj	f	t	f	f	\N	\N	\N
+99	6	4	28	\N	\N	\N	\N	1	f	f	t	2026-05-18 22:49:03.055436	2026-05-18 22:49:03.081191	\N	0.00	\N	\N	\N	\N	LOCAL	fffffffffffffffffffffffffff	\N	t	2026-05-18 17:49:03.046	::ffff:192.168.1.100	0999999999999	0999999999	8777777777777		777777777777	f	t	f	f	\N	\N	\N
+3	8	5	28	\N	\N	\N	\N	12	t	t	t	2026-05-06 11:55:07.826495	2026-05-18 23:19:57.06116	\N	0.00	\N	\N	\N	\N	PROVINCIAL	zxfsdfsadfzxfsdfsadfzxfsdfsadfzxfsdfsadfzxfsdfsadfzxfsdfsadfzxfsdfsadfzxfsdfsadf	\N	t	2026-05-06 06:55:07.79	::ffff:192.168.1.103	8967536456456	0975676457	hjkghfgkk		jkfhkjkj	f	f	f	f	\N	\N	\N
+102	7	5	28	\N	\N	\N	\N	1	f	f	t	2026-05-19 08:42:31.177232	2026-05-19 08:42:31.398822	\N	34.00	\N	\N	\N	\N	ZONAL	knklnklvfonjdsvovfdnvjkfnjvkfnjkvnfjkndfjkjfdnvjfnvjfnvjdfnjvndfjvndfjvnjfnknklnklvfonjdsvovfdnvjkfnjvkfnjkvnfjkndfjkjfdnvjfnvjfnvjdfnjvndfjvndfjvnjfnknklnklvfonjdsvovfdnvjkfnjvkfnjkvnfjkndfjkjfdnv	\N	t	2026-05-19 03:42:31.131	::ffff:192.168.1.100	0606097335	0935554544	tnhnuyrnur	xhdfjgcvhkhjbhvhjbknl	nrynynuy	f	f	f	f	\N	\N	\N
+103	6	7	28	\N	\N	\N	\N	1	f	t	f	2026-05-19 09:01:44.24213	2026-05-19 09:01:44.267046	\N	0.00	\N	\N	\N	\N	ZONAL	nhjmiyujhtgrffrgtnhjmiyujhtgrffrgtnhjmiyujhtgrffrgtnhjmiyujhtgrffrgtnhjmiyujhtgrffrgt	\N	t	2026-05-19 04:01:44.2	::ffff:192.168.1.103	0609854938754	0934738473	frgoitjoigtj		rijnfernijrnfijner	f	f	f	f	\N	\N	\N
+104	7	6	28	\N	\N	\N	\N	1	t	f	f	2026-05-22 09:11:21.026338	2026-05-22 09:11:21.058773	\N	0.00	\N	\N	\N	\N	ZONAL	hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh	\N	t	2026-05-22 04:11:21.019	::ffff:192.168.1.102	3333333333333	0933333333	dddddddddddd		dddddddddddd	f	f	f	f	\N	\N	\N
+105	6	5	29	\N	\N	\N	\N	1	t	f	f	2026-05-22 09:13:22.812176	2026-05-22 09:13:22.870936	\N	0.00	\N	\N	\N	\N	LOCAL	dddddddddddddddddddddddddddddddddddddd	\N	t	2026-05-22 04:13:22.798	::ffff:192.168.1.103	4444444444444	0944444444	fffffffffffffffffff		ffffffffffffff	f	t	f	f	\N	\N	\N
+119	6	\N	34	13	\N	\N	\N	\N	t	t	f	2026-05-27 13:46:41.141399	2026-06-03 00:19:08.607457	\N	0.00	\N	\N	\N	\N	\N	frecuencia de anemia en menores de 6 años en riobamba 	\N	t	2026-05-27 08:46:38.835	::ffff:192.168.1.104	\N	\N	\N		\N	f	t	f	t	2026-06-02 19:18:28.697	::1	CEISH-ESPOCH-EI-007-2026
+100	6	5	28	\N	\N	\N	\N	1	f	t	f	2026-05-18 22:57:15.532772	2026-05-23 06:11:38.49721	\N	0.00	\N	\N	\N	\N	PROVINCIAL	gggggggggggggggggggggggggggggggggggg	\N	t	2026-05-18 17:57:15.531	::ffff:192.168.1.100	6666666666666	0966666666	hhhhhhhhh		hhhhhhhhhhh	f	t	f	f	\N	\N	CEISH-ESPOCH-EI-001-2026
+111	6	5	28	\N	\N	\N	\N	12	t	f	f	2026-05-26 19:25:22.025343	2026-05-26 21:35:51.680209	\N	0.00	\N	\N	\N	\N	PROVINCIAL	eeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeeee	\N	t	2026-05-26 14:25:22.551	::ffff:192.168.1.102	0999999999999	0977777777	hhhhhhhhhhhhhhh		hhhhhhhhhhhhhhhhhhhhhhhhhhhhh	f	t	f	f	\N	\N	CEISH-ESPOCH-EI-004-2026
+108	6	5	28	\N	\N	\N	\N	1	t	f	f	2026-05-22 10:13:45.693327	2026-05-26 19:14:01.395248	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ggggggggggggggggggggggggggggggggggggggggggggg	\N	t	2026-05-22 05:13:45.694	::ffff:192.168.1.102	4444444444444	0944444444	rrrrrrrrrrrrrrr		rrrrrrrrrrrrrrrrr	f	t	f	f	\N	\N	CEISH-ESPOCH-EI-003-2026
+109	6	8	28	\N	\N	\N	\N	1	t	f	f	2026-05-23 19:18:00.3792	2026-05-23 19:20:50.38792	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ccccccccccccccccccccccccccccccccccccccccccccccccccc	\N	t	2026-05-23 14:18:00.505	::ffff:192.168.1.10	0999999999999	0999999999	ddddddddddddddddddd		ddddddddddddddddddddddd	f	t	f	f	\N	\N	\N
+110	6	7	28	\N	\N	\N	\N	1	t	f	f	2026-05-23 19:44:27.182065	2026-05-23 19:46:49.249298	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ssssssssssssssssssssssssssssssssssssss	\N	t	2026-05-23 14:44:28.211	::ffff:192.168.1.10	3333333333333	0999999999	fffffffffffffff		fffffffffffffffff	f	t	f	f	\N	\N	\N
+101	6	4	28	\N	\N	\N	\N	1	t	f	t	2026-05-18 23:07:26.674695	2026-05-23 20:02:20.562071	\N	0.00	\N	\N	\N	\N	PROVINCIAL	ffffffffffffffffffffffffffffff	\N	t	2026-05-18 18:07:26.665	::ffff:192.168.1.100	5555555555555	0955555555	hhhhhhhhhhhhhhhhhhhhhh		5555555555555	f	f	f	f	\N	\N	\N
+116	6	\N	28	\N	\N	\N	\N	\N	t	f	t	2026-05-26 21:45:06.237028	2026-05-26 21:48:11.29793	\N	0.00	\N	\N	\N	\N	\N	el pepe de la salida de tu mami 	\N	t	2026-05-26 16:45:06.127	::ffff:192.168.1.102	\N	\N	\N		\N	f	t	f	f	\N	\N	\N
+112	6	5	28	\N	\N	\N	\N	1	f	t	f	2026-05-26 20:08:11.921808	2026-05-26 20:12:34.431253	\N	777.00	\N	\N	\N	\N	PROVINCIAL	holajjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjjj	\N	t	2026-05-26 15:08:11.624	::ffff:192.168.1.104	5841861616516	0985616541	njnikm	,,l,kmkmkl	kmkmkknk	f	f	f	f	\N	\N	CEISH-ESPOCH-EI-005-2026
+113	6	7	28	\N	\N	\N	\N	12	f	f	t	2026-05-26 20:31:28.888919	2026-05-26 20:33:58.648661	\N	0.00	\N	\N	\N	\N	PROVINCIAL	gdffffffffffffffffffffffffffffffffffffffffffffffffff	\N	t	2026-05-26 15:31:28.998	::ffff:192.168.1.102	1000000000000	0999999999	ddddddddddddddddddddddddddddd		dddddddddd	f	t	f	f	\N	\N	\N
+114	6	\N	28	\N	\N	\N	\N	\N	t	t	t	2026-05-26 21:15:43.289704	2026-05-26 21:15:43.326717	\N	0.00	\N	\N	\N	\N	\N	los niños de la casa de tomas armando	\N	t	2026-05-26 16:15:43.542	::ffff:192.168.1.104	\N	\N	\N		\N	t	t	f	f	\N	\N	\N
+115	7	\N	34	\N	\N	\N	\N	\N	t	f	t	2026-05-26 21:22:47.60237	2026-05-26 21:27:57.399409	\N	0.00	\N	\N	\N	\N	\N	la la nuevpo aifvnfk nuevo rotoclo lilicita 	\N	t	2026-05-26 16:22:46.895	::ffff:192.168.1.104	\N	\N	\N		\N	f	t	f	f	\N	\N	CEISH-ESPOCH-EC-001-2026
+118	6	\N	28	\N	\N	\N	\N	\N	t	t	f	2026-05-27 07:20:58.461944	2026-05-27 07:20:58.588486	\N	0.00	\N	\N	\N	\N	\N	DDDDDDDDDDDDDDDDDDDDDDDDDDDD	\N	t	2026-05-27 02:20:57.575	::ffff:192.168.1.102	\N	\N	\N		\N	t	t	f	f	\N	\N	\N
+117	6	\N	28	\N	\N	\N	\N	\N	f	f	t	2026-05-26 21:59:12.300092	2026-05-27 08:52:23.999876	\N	0.00	\N	\N	\N	\N	\N	los pasos de la sanitación de tomassss	\N	t	2026-05-26 16:59:11.699	::ffff:192.168.1.102	\N	\N	\N		\N	f	t	f	f	\N	\N	CEISH-ESPOCH-EI-006-2026
+121	6	\N	28	\N	\N	\N	\N	\N	f	f	f	2026-05-27 14:52:05.132239	2026-05-27 14:54:29.618401	\N	0.00	\N	\N	\N	\N	\N	prueva d knksdnkjf  sdfsdfdfsdfsdfsdf	\N	t	2026-05-27 09:52:05.39	::ffff:192.168.1.102	\N	\N	\N		\N	f	t	f	f	\N	\N	CEISH-ESPOCH-EI-008-2026
+122	5	\N	34	\N	\N	\N	\N	\N	t	t	t	2026-05-28 16:23:57.803324	2026-05-28 16:23:57.823633	\N	0.00	\N	\N	\N	\N	\N	Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \nde hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-05-28 11:23:56.95	::ffff:192.168.1.102	\N	\N	\N		\N	f	f	f	f	\N	\N	\N
+123	5	\N	34	\N	\N	\N	\N	\N	t	t	t	2026-05-28 16:27:48.34045	2026-05-28 16:28:54.664042	\N	0.00	\N	\N	\N	\N	\N	Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \nde hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-05-28 11:27:48.117	::ffff:192.168.1.102	\N	\N	\N		\N	t	f	f	f	\N	\N	\N
+124	5	\N	34	\N	\N	\N	\N	\N	t	t	t	2026-05-28 16:31:47.547884	2026-06-03 01:01:02.725072	\N	0.00	\N	\N	\N	\N	\N	“ P2 Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \nde hemoglobina y hematocrito en estudiantes universitarios”	\N	t	2026-05-28 11:31:48.222	::ffff:192.168.1.102	\N	\N	\N		\N	t	f	f	t	2026-06-02 20:01:02.722	::1	CEISH-ESPOCH-IO-001-2026
+125	5	\N	34	\N	\N	\N	\N	\N	t	t	t	2026-05-28 20:24:14.045606	2026-05-28 20:24:14.072442	\N	0.00	\N	\N	\N	\N	\N	P3 Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles de hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-05-28 15:24:14.182	::ffff:172.26.235.109	\N	\N	\N		\N	t	f	f	f	\N	\N	\N
+126	5	\N	34	13	\N	\N	\N	\N	t	t	t	2026-05-28 20:28:07.177756	2026-06-02 23:57:26.957551	\N	0.00	\N	\N	\N	\N	\N	P3 Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles de hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-05-28 15:28:05.405	::ffff:172.26.235.109	\N	\N	\N		\N	t	f	f	t	2026-05-31 15:02:05.167	::ffff:192.168.1.8	CEISH-ESPOCH-IO-002-2026
+127	6	\N	34	\N	\N	\N	\N	\N	t	t	t	2026-05-28 20:57:51.170288	2026-05-28 20:57:51.189687	\N	0.00	\N	\N	\N	\N	\N	P4 Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles de hemoglobina y hematocrito en estudiantes universitarios	\N	t	2026-05-28 15:57:50.349	::ffff:172.26.235.109	\N	\N	\N		\N	f	t	f	f	\N	\N	\N
+132	6	\N	34	\N	\N	\N	\N	\N	f	t	f	2026-06-07 20:12:27.539751	2026-06-07 20:12:27.539751	\N	0.00	\N	\N	\N	\N	\N	Error al subir documento técnico.	\N	t	2026-06-07 15:12:27.54	::1	\N	\N	\N		\N	t	t	f	f	\N	\N	\N
+140	6	\N	34	\N	\N	\N	\N	\N	t	f	t	2026-06-08 05:20:43.864709	2026-06-08 05:20:43.864709	\N	0.00	\N	\N	\N	\N	\N	la hipótesis del checksum es la más fuerte de todas las que hemos visto hasta ahora.	\N	t	2026-06-08 00:20:43.823	::1	\N	\N	\N		\N	f	f	f	f	\N	\N	\N
+145	6	\N	34	\N	\N	\N	\N	\N	f	f	f	2026-06-08 06:04:58.8364	2026-06-08 06:04:58.8364	\N	0.00	\N	\N	\N	\N	\N	p1 de la muestra y la carga en la nube	\N	t	2026-06-08 01:04:58.865	::1	\N	\N	\N		\N	t	t	f	f	\N	\N	\N
 \.
 
 
 --
--- TOC entry 4284 (class 0 OID 45059)
+-- TOC entry 4275 (class 0 OID 45059)
 -- Dependencies: 328
 -- Data for Name: protocolos_backup; Type: TABLE DATA; Schema: public; Owner: ceish_user
 --
@@ -5560,22 +5768,112 @@ COPY public.protocolos_backup (id, tipo_estudio_id, nivel_riesgo_id, investigado
 
 
 --
--- TOC entry 4211 (class 0 OID 24028)
+-- TOC entry 4202 (class 0 OID 24028)
 -- Dependencies: 255
 -- Data for Name: versiones_protocolo; Type: TABLE DATA; Schema: public; Owner: ceish_user
 --
 
-COPY public.versiones_protocolo (id, protocolo_id, numero_version, estado_id, fecha_envio, fecha_resolucion, tipo_resolucion, observaciones, plazo_subsanacion_dias, fecha_limite_subsanacion, validado_por) FROM stdin;
-1	117	1	1	2026-05-27 03:52:19.96	\N	\N	\N	30	\N	\N
-2	119	1	1	2026-05-27 08:59:58.071	\N	\N	\N	30	\N	\N
-3	121	1	1	2026-05-27 09:54:27.138	\N	\N	\N	30	\N	\N
-4	124	1	1	2026-05-28 14:46:13.47	\N	\N	\N	30	\N	\N
-5	126	1	1	2026-05-28 15:31:09.646	\N	\N	\N	30	\N	\N
+COPY public.versiones_protocolo (id, protocolo_id, numero_version, estado_id, fecha_envio, fecha_resolucion, observaciones, plazo_subsanacion_dias, fecha_limite_subsanacion, validado_por, tipo_resolucion_id) FROM stdin;
+1	117	1	1	2026-05-27 03:52:19.96	\N	\N	30	\N	\N	\N
+2	119	1	1	2026-05-27 08:59:58.071	\N	\N	30	\N	\N	\N
+3	121	1	1	2026-05-27 09:54:27.138	\N	\N	30	\N	\N	\N
+4	124	1	1	2026-05-28 14:46:13.47	\N	\N	30	\N	\N	\N
+5	126	1	1	2026-05-28 15:31:09.646	\N	\N	30	\N	\N	\N
+6	106	1	1	2026-05-22 09:42:23.546219	\N	\N	30	\N	\N	\N
+7	120	1	1	2026-05-27 14:14:13.280069	\N	\N	30	\N	\N	\N
+8	101	1	1	2026-05-18 23:07:26.674695	\N	\N	30	\N	\N	\N
+9	20	1	1	2026-05-15 10:43:54.975287	\N	\N	30	\N	\N	\N
+10	82	1	1	2026-05-17 17:48:52.823697	\N	\N	30	\N	\N	\N
+11	25	1	1	2026-05-15 11:40:10.785714	\N	\N	30	\N	\N	\N
+12	26	1	1	2026-05-16 02:11:38.413906	\N	\N	30	\N	\N	\N
+13	27	1	1	2026-05-16 02:17:55.187936	\N	\N	30	\N	\N	\N
+14	93	1	1	2026-05-18 20:37:36.093831	\N	\N	30	\N	\N	\N
+15	11	1	1	2026-05-13 03:49:03.427155	\N	\N	30	\N	\N	\N
+16	17	1	1	2026-05-15 09:38:18.823678	\N	\N	30	\N	\N	\N
+17	66	1	1	2026-05-16 19:33:56.566454	\N	\N	30	\N	\N	\N
+18	89	1	1	2026-05-18 19:16:47.390819	\N	\N	30	\N	\N	\N
+19	33	1	1	2026-05-16 08:15:54.168264	\N	\N	30	\N	\N	\N
+20	109	1	1	2026-05-23 19:18:00.3792	\N	\N	30	\N	\N	\N
+21	31	1	1	2026-05-16 07:30:42.598408	\N	\N	30	\N	\N	\N
+22	12	1	1	2026-05-13 14:12:47.986396	\N	\N	30	\N	\N	\N
+23	10	1	1	2026-05-06 13:13:31.998307	\N	\N	30	\N	\N	\N
+24	18	1	1	2026-05-15 10:17:32.768478	\N	\N	30	\N	\N	\N
+25	98	1	1	2026-05-18 22:39:36.665222	\N	\N	30	\N	\N	\N
+26	104	1	1	2026-05-22 09:11:21.026338	\N	\N	30	\N	\N	\N
+27	102	1	1	2026-05-19 08:42:31.177232	\N	\N	30	\N	\N	\N
+28	71	1	1	2026-05-17 06:27:10.888949	\N	\N	30	\N	\N	\N
+29	72	1	1	2026-05-17 06:27:45.108799	\N	\N	30	\N	\N	\N
+30	83	1	1	2026-05-17 18:02:31.627362	\N	\N	30	\N	\N	\N
+31	15	1	1	2026-05-15 09:14:58.262589	\N	\N	30	\N	\N	\N
+32	125	1	1	2026-05-28 20:24:14.045606	\N	\N	30	\N	\N	\N
+33	77	1	1	2026-05-17 15:08:29.221661	\N	\N	30	\N	\N	\N
+34	73	1	1	2026-05-17 06:35:20.317446	\N	\N	30	\N	\N	\N
+35	123	1	1	2026-05-28 16:27:48.34045	\N	\N	30	\N	\N	\N
+36	13	1	1	2026-05-15 05:53:41.721676	\N	\N	30	\N	\N	\N
+37	91	1	1	2026-05-18 19:47:28.570771	\N	\N	30	\N	\N	\N
+38	21	1	1	2026-05-15 10:52:12.747857	\N	\N	30	\N	\N	\N
+39	5	1	1	2026-05-06 12:02:16.208318	\N	\N	30	\N	\N	\N
+40	112	1	1	2026-05-26 20:08:11.921808	\N	\N	30	\N	\N	\N
+41	96	1	1	2026-05-18 21:23:14.716309	\N	\N	30	\N	\N	\N
+42	107	1	1	2026-05-22 09:58:19.038623	\N	\N	30	\N	\N	\N
+43	108	1	1	2026-05-22 10:13:45.693327	\N	\N	30	\N	\N	\N
+44	19	1	1	2026-05-15 10:27:31.071912	\N	\N	30	\N	\N	\N
+45	85	1	1	2026-05-18 15:26:50.221621	\N	\N	30	\N	\N	\N
+46	32	1	1	2026-05-16 07:38:16.43987	\N	\N	30	\N	\N	\N
+47	78	1	1	2026-05-17 15:13:47.016236	\N	\N	30	\N	\N	\N
+48	100	1	1	2026-05-18 22:57:15.532772	\N	\N	30	\N	\N	\N
+49	113	1	1	2026-05-26 20:31:28.888919	\N	\N	30	\N	\N	\N
+50	24	1	1	2026-05-15 11:38:57.672821	\N	\N	30	\N	\N	\N
+51	68	1	1	2026-05-16 19:41:07.260075	\N	\N	30	\N	\N	\N
+52	8	1	1	2026-05-06 12:40:09.300255	\N	\N	30	\N	\N	\N
+53	80	1	1	2026-05-17 17:09:42.000148	\N	\N	30	\N	\N	\N
+54	110	1	1	2026-05-23 19:44:27.182065	\N	\N	30	\N	\N	\N
+55	99	1	1	2026-05-18 22:49:03.055436	\N	\N	30	\N	\N	\N
+56	28	1	1	2026-05-16 02:19:07.210451	\N	\N	30	\N	\N	\N
+57	94	1	1	2026-05-18 21:00:43.278751	\N	\N	30	\N	\N	\N
+58	30	1	1	2026-05-16 07:08:06.344182	\N	\N	30	\N	\N	\N
+59	95	1	1	2026-05-18 21:07:11.1959	\N	\N	30	\N	\N	\N
+60	122	1	1	2026-05-28 16:23:57.803324	\N	\N	30	\N	\N	\N
+61	127	1	1	2026-05-28 20:57:51.170288	\N	\N	30	\N	\N	\N
+62	97	1	1	2026-05-18 22:29:30.251864	\N	\N	30	\N	\N	\N
+63	114	1	1	2026-05-26 21:15:43.289704	\N	\N	30	\N	\N	\N
+64	67	1	1	2026-05-16 19:34:35.710648	\N	\N	30	\N	\N	\N
+65	76	1	1	2026-05-17 15:06:44.866339	\N	\N	30	\N	\N	\N
+66	69	1	1	2026-05-17 06:04:23.172921	\N	\N	30	\N	\N	\N
+67	81	1	1	2026-05-17 17:36:51.209124	\N	\N	30	\N	\N	\N
+68	79	1	1	2026-05-17 16:02:02.862707	\N	\N	30	\N	\N	\N
+69	90	1	1	2026-05-18 19:39:15.604874	\N	\N	30	\N	\N	\N
+70	116	1	1	2026-05-26 21:45:06.237028	\N	\N	30	\N	\N	\N
+71	84	1	1	2026-05-18 15:17:17.413303	\N	\N	30	\N	\N	\N
+72	74	1	1	2026-05-17 06:35:56.847205	\N	\N	30	\N	\N	\N
+73	6	1	1	2026-05-06 12:12:45.070971	\N	\N	30	\N	\N	\N
+74	29	1	1	2026-05-16 02:23:40.851817	\N	\N	30	\N	\N	\N
+75	16	1	1	2026-05-15 09:28:14.595807	\N	\N	30	\N	\N	\N
+76	103	1	1	2026-05-19 09:01:44.24213	\N	\N	30	\N	\N	\N
+77	115	1	1	2026-05-26 21:22:47.60237	\N	\N	30	\N	\N	\N
+78	4	1	1	2026-05-06 12:00:55.287199	\N	\N	30	\N	\N	\N
+79	92	1	1	2026-05-18 20:14:40.564002	\N	\N	30	\N	\N	\N
+80	23	1	1	2026-05-15 11:37:09.418638	\N	\N	30	\N	\N	\N
+81	1	1	1	2026-04-16 09:29:59.477376	\N	\N	30	\N	\N	\N
+82	111	1	1	2026-05-26 19:25:22.025343	\N	\N	30	\N	\N	\N
+83	86	1	1	2026-05-18 18:44:01.182665	\N	\N	30	\N	\N	\N
+84	22	1	1	2026-05-15 11:29:02.705187	\N	\N	30	\N	\N	\N
+85	70	1	1	2026-05-17 06:24:20.998307	\N	\N	30	\N	\N	\N
+86	105	1	1	2026-05-22 09:13:22.812176	\N	\N	30	\N	\N	\N
+87	75	1	1	2026-05-17 15:05:52.629566	\N	\N	30	\N	\N	\N
+88	3	1	1	2026-05-06 11:55:07.826495	\N	\N	30	\N	\N	\N
+89	87	1	1	2026-05-18 18:52:42.913531	\N	\N	30	\N	\N	\N
+90	14	1	1	2026-05-15 09:03:26.953649	\N	\N	30	\N	\N	\N
+91	9	1	1	2026-05-06 12:47:03.262095	\N	\N	30	\N	\N	\N
+92	118	1	1	2026-05-27 07:20:58.461944	\N	\N	30	\N	\N	\N
+93	88	1	1	2026-05-18 19:02:52.401567	\N	\N	30	\N	\N	\N
+94	7	1	1	2026-05-06 12:31:59.437915	\N	\N	30	\N	\N	\N
+95	146	1	1	2026-06-08 01:18:51.452	\N	\N	30	\N	\N	\N
 \.
 
 
 --
--- TOC entry 4213 (class 0 OID 24055)
+-- TOC entry 4204 (class 0 OID 24055)
 -- Dependencies: 257
 -- Data for Name: documentos; Type: TABLE DATA; Schema: recepcion; Owner: ceish_user
 --
@@ -5844,11 +6142,16 @@ COPY recepcion.documentos (id, protocolo_id, numero_hojas, hash_checksum, "tama�
 300	124	2	\N	180446	t	t	34	2026-05-28 16:31:55.271895	1779985914178-880210497.pdf	ingenieria_inversa_mantenimiento.pdf	\N	1042
 301	124	17	\N	111119	t	t	34	2026-05-28 16:32:02.157268	1779985921563-229549347.pdf	Lenguajes de SimulaciÃ³n asignados.pdf	\N	1043
 302	124	3	\N	111119	t	t	34	2026-05-28 16:32:06.776976	1779985926561-918335460.pdf	Lenguajes de SimulaciÃ³n asignados.pdf	\N	1044
+318	146	1	\N	75024	t	t	34	2026-06-08 06:13:51.121936	protocols/146/requirements/1257/Datap1.pdf	Datap1.pdf	\N	1257
+319	146	1	\N	75024	t	t	34	2026-06-08 06:14:06.636673	protocols/146/requirements/1265/Datap1.pdf	Datap1.pdf	\N	1265
+320	146	1	\N	331804	t	t	34	2026-06-08 06:14:12.342963	protocols/146/requirements/1264/Ejercicios_Propuestos_Simulacion.pdf	Ejercicios_Propuestos_Simulacion.pdf	\N	1264
 303	124	3	\N	111119	t	t	34	2026-05-28 16:32:11.796384	1779985931891-529268305.pdf	Lenguajes de SimulaciÃ³n asignados.pdf	\N	1045
+321	146	1	\N	75024	t	t	34	2026-06-08 06:14:18.385228	protocols/146/requirements/1258/Datap1.pdf	Datap1.pdf	\N	1258
 304	124	5	\N	111119	t	t	34	2026-05-28 16:32:17.200964	1779985937709-837821093.pdf	Lenguajes de SimulaciÃ³n asignados.pdf	\N	1046
 305	124	2	\N	111119	t	t	34	2026-05-28 16:32:24.492151	1779985943179-623193599.pdf	Lenguajes de SimulaciÃ³n asignados.pdf	\N	1047
 308	124	2	\N	3590175	t	t	34	2026-05-28 16:32:42.422923	1779985962413-196730439.pdf	Proyecto de.pdf	\N	1050
 307	124	2	\N	10606508	t	t	34	2026-05-28 16:32:36.585582	1779985956131-411556381.pdf	SLAM_Simulation_Language.pdf	\N	1049
+322	146	1	\N	75024	t	t	34	2026-06-08 06:14:23.461282	protocols/146/requirements/1259/Datap1.pdf	Datap1.pdf	\N	1259
 306	124	1	\N	10606508	t	t	34	2026-05-28 16:32:31.310245	1779985950330-826778245.pdf	SLAM_Simulation_Language.pdf	\N	1048
 309	126	1	\N	180446	t	t	34	2026-05-28 20:28:12.548025	1780000090822-140747119.pdf	ingenieria_inversa_mantenimiento.pdf	\N	1060
 310	126	5	\N	180446	t	t	34	2026-05-28 20:28:18.579945	1780000097435-273541699.pdf	ingenieria_inversa_mantenimiento.pdf	\N	1061
@@ -5859,115 +6162,138 @@ COPY recepcion.documentos (id, protocolo_id, numero_hojas, hash_checksum, "tama�
 315	126	4	\N	180446	t	t	34	2026-05-28 20:28:48.060606	1780000126565-39311571.pdf	ingenieria_inversa_mantenimiento.pdf	\N	1066
 316	126	3	\N	180446	t	t	34	2026-05-28 20:28:52.307931	1780000131203-277021307.pdf	ingenieria_inversa_mantenimiento.pdf	\N	1067
 317	126	1	\N	111119	t	t	34	2026-05-28 20:28:56.868357	1780000136170-888693414.pdf	Lenguajes de SimulaciÃ³n asignados.pdf	\N	1068
+323	146	1	\N	75024	t	t	34	2026-06-08 06:14:29.390552	protocols/146/requirements/1261/Datap1.pdf	Datap1.pdf	\N	1261
+324	146	1	\N	75024	t	t	34	2026-06-08 06:14:47.91314	protocols/146/requirements/1260/Datap1.pdf	Datap1.pdf	\N	1260
+325	146	1	\N	331804	t	t	34	2026-06-08 06:14:54.479757	protocols/146/requirements/1262/Ejercicios_Propuestos_Simulacion.pdf	Ejercicios_Propuestos_Simulacion.pdf	\N	1262
+326	146	1	\N	75024	t	t	34	2026-06-08 06:14:59.641217	protocols/146/requirements/1263/Datap1.pdf	Datap1.pdf	\N	1263
 \.
 
 
 --
--- TOC entry 4217 (class 0 OID 24119)
+-- TOC entry 4208 (class 0 OID 24119)
 -- Dependencies: 261
 -- Data for Name: recepciones; Type: TABLE DATA; Schema: recepcion; Owner: ceish_user
 --
 
-COPY recepcion.recepciones (id, protocolo_id, fecha_recepcion, estado_id, tiene_faltantes, lista_faltantes, fecha_notificacion_faltantes, plazo_completar_dias, fecha_limite_completar, constancia_emitida, fecha_constancia, plazo_respuesta_dias, codigo_ceish_generado, observaciones, creado_por) FROM stdin;
-108	106	2026-05-22 04:42:23.616	3	t		2026-05-26 14:02:33.735	15	2026-06-16	f	\N	\N	\N	\N	28
-4	1	2026-05-03 13:48:38.192261	\N	f	\N	\N	15	\N	f	\N	\N	\N	\N	\N
-6	4	2026-05-06 07:00:55.368	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-7	5	2026-05-06 07:02:16.307	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-8	6	2026-05-06 07:12:45.16	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-9	7	2026-05-06 07:31:59.508	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-10	8	2026-05-06 07:40:09.377	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-11	9	2026-05-06 07:47:03.419	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-12	10	2026-05-06 08:13:32.026	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-13	11	2026-05-12 22:49:00.671	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	29
-14	12	2026-05-13 09:12:46.402	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-15	13	2026-05-15 00:53:42.176	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-16	14	2026-05-15 04:03:27.146	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-17	15	2026-05-15 04:14:59.278	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-18	16	2026-05-15 04:28:14.922	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-19	17	2026-05-15 04:38:19.052	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-20	18	2026-05-15 05:17:32.097	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-21	19	2026-05-15 05:27:31.705	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-22	20	2026-05-15 05:43:54.296	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-23	21	2026-05-15 05:52:13.219	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-24	22	2026-05-15 06:29:01.776	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-25	23	2026-05-15 06:37:08.759	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-26	24	2026-05-15 06:38:57.892	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-27	25	2026-05-15 06:40:11.514	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-28	26	2026-05-15 21:11:39.16	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-29	27	2026-05-15 21:17:55.328	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-30	28	2026-05-15 21:19:07.264	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-31	29	2026-05-15 21:23:40.993	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-32	30	2026-05-16 02:08:06.504	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-33	31	2026-05-16 02:30:42.678	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-34	32	2026-05-16 02:38:16.522	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-35	33	2026-05-16 03:15:54.341	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-68	66	2026-05-16 14:33:56.59	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-69	67	2026-05-16 14:34:35.827	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-70	68	2026-05-16 14:41:07.351	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-71	69	2026-05-17 01:04:23.284	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-72	70	2026-05-17 01:24:21.097	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-73	71	2026-05-17 01:27:10.949	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-74	72	2026-05-17 01:27:45.163	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-75	73	2026-05-17 01:35:20.381	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-76	74	2026-05-17 01:35:56.948	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-77	75	2026-05-17 10:05:52.699	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-78	76	2026-05-17 10:06:44.823	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-79	77	2026-05-17 10:08:29.431	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-80	78	2026-05-17 10:13:47.04	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-81	79	2026-05-17 11:02:03.256	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-82	80	2026-05-17 12:09:42.354	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-83	81	2026-05-17 12:36:50.947	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-84	82	2026-05-17 12:48:52.107	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-85	83	2026-05-17 13:02:32.359	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-86	84	2026-05-18 10:17:17.59	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-87	85	2026-05-18 10:26:51.158	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-88	86	2026-05-18 13:43:59.014	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-89	87	2026-05-18 13:52:40.801	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-90	88	2026-05-18 14:02:52.302	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-91	89	2026-05-18 14:16:46.21	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-92	90	2026-05-18 14:39:15.659	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-93	91	2026-05-18 14:47:28.223	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-94	92	2026-05-18 15:14:40.768	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-95	93	2026-05-18 15:37:36.187	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-96	94	2026-05-18 16:00:43.337	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-97	95	2026-05-18 16:07:11.275	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-98	96	2026-05-18 16:23:14.791	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-99	97	2026-05-18 17:29:30.528	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-100	98	2026-05-18 17:39:36.748	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-101	99	2026-05-18 17:49:03.125	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-5	3	2026-05-06 06:55:08.19	3	t		2026-05-18 18:19:57.055	15	2026-06-08	f	\N	\N	\N	\N	28
-104	102	2026-05-19 03:42:31.906	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-105	103	2026-05-19 04:01:44.291	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-106	104	2026-05-22 04:11:21.566	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-107	105	2026-05-22 04:13:22.974	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	29
-121	119	2026-05-27 08:46:39.762	2	f	\N	\N	15	\N	f	\N	\N	\N	\N	34
-102	100	2026-05-18 17:57:15.609	2	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-113	111	2026-05-26 14:25:22.806	2	t	cualquier comentario	2026-05-26 16:35:51.607	15	2026-06-16	t	2026-05-26 16:41:05.514	\N	\N	\N	28
-110	108	2026-05-22 05:13:45.77	3	t	prueba 1	2026-05-26 14:14:00.945	15	2026-06-16	t	2026-05-26 14:17:11.065	\N	\N	\N	28
-111	109	2026-05-23 14:18:00.636	3	t	fffffffffffffffffffffffdfdf	2026-05-23 14:20:50.976	15	2026-06-12	f	\N	\N	\N	\N	28
-112	110	2026-05-23 14:44:28.377	3	t	kevincin	2026-05-23 14:46:47.924	15	2026-06-12	f	\N	\N	\N	\N	28
-103	101	2026-05-18 18:07:26.744	3	t	kevin  y	2026-05-23 15:02:20.482	15	2026-06-12	f	\N	\N	\N	\N	28
-118	116	2026-05-26 16:45:06.2	3	t	kevin kevin f	2026-05-26 16:48:11.454	15	2026-06-16	f	\N	\N	\N	\N	28
-109	107	2026-05-22 04:58:19.112	3	f	kevin pruebas 	2026-05-23 14:54:58.939	15	2026-06-16	f	\N	\N	\N	\N	28
-122	120	2026-05-27 09:14:13.191	3	t	FALTA DOCUMENTACION 	2026-05-27 09:24:27.001	15	2026-06-17	f	\N	\N	\N	\N	34
-114	112	2026-05-26 15:08:11.789	3	f	\N	\N	15	2026-06-16	t	2026-05-26 15:12:38.951	\N	\N	\N	28
-115	113	2026-05-26 15:31:29.157	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-116	114	2026-05-26 16:15:43.668	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-117	115	2026-05-26 16:22:46.974	2	f	\N	\N	15	\N	f	\N	\N	\N	\N	34
-120	118	2026-05-27 02:20:58.082	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-119	117	2026-05-26 16:59:11.903	2	f	HOLAS 	2026-05-26 17:02:23.356	15	2026-06-16	f	\N	\N	\N	\N	28
-123	121	2026-05-27 09:52:05.486	2	f	\N	\N	15	\N	f	\N	\N	\N	\N	28
-124	122	2026-05-28 11:23:57.042	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	34
-125	123	2026-05-28 11:27:48.187	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	34
-126	124	2026-05-28 11:31:48.291	2	f	\N	\N	15	\N	f	\N	\N	\N	\N	34
-127	125	2026-05-28 15:24:14.266	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	34
-128	126	2026-05-28 15:28:05.52	2	f	\N	\N	15	\N	f	\N	\N	\N	\N	34
-129	127	2026-05-28 15:57:50.414	1	f	\N	\N	15	\N	f	\N	\N	\N	\N	34
+COPY recepcion.recepciones (id, protocolo_id, fecha_recepcion, estado_id, tiene_faltantes, lista_faltantes, fecha_notificacion_faltantes, plazo_completar_dias, fecha_limite_completar, constancia_emitida, fecha_constancia, plazo_respuesta_dias, observaciones, creado_por) FROM stdin;
+130	128	2026-06-07 14:45:27.714	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+132	130	2026-06-07 14:53:22.754	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+134	132	2026-06-07 15:12:27.616	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+136	134	2026-06-07 15:37:45.232	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+138	136	2026-06-07 22:38:36.246	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+140	138	2026-06-07 23:11:51.106	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+141	139	2026-06-07 23:34:56.652	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+142	140	2026-06-08 00:20:43.957	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+143	141	2026-06-08 00:38:42.463	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+144	142	2026-06-08 00:45:41.015	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+145	143	2026-06-08 00:49:22.48	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+146	144	2026-06-08 00:56:37.079	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+147	145	2026-06-08 01:04:58.951	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+148	146	2026-06-08 01:18:53.367	2	f	\N	\N	15	\N	f	\N	\N	\N	34
+108	106	2026-05-22 04:42:23.616	3	t		2026-05-26 14:02:33.735	15	2026-06-16	f	\N	\N	\N	28
+4	1	2026-05-03 13:48:38.192261	\N	f	\N	\N	15	\N	f	\N	\N	\N	\N
+6	4	2026-05-06 07:00:55.368	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+7	5	2026-05-06 07:02:16.307	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+8	6	2026-05-06 07:12:45.16	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+9	7	2026-05-06 07:31:59.508	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+10	8	2026-05-06 07:40:09.377	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+11	9	2026-05-06 07:47:03.419	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+12	10	2026-05-06 08:13:32.026	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+13	11	2026-05-12 22:49:00.671	1	f	\N	\N	15	\N	f	\N	\N	\N	29
+14	12	2026-05-13 09:12:46.402	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+15	13	2026-05-15 00:53:42.176	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+16	14	2026-05-15 04:03:27.146	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+17	15	2026-05-15 04:14:59.278	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+18	16	2026-05-15 04:28:14.922	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+19	17	2026-05-15 04:38:19.052	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+20	18	2026-05-15 05:17:32.097	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+21	19	2026-05-15 05:27:31.705	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+22	20	2026-05-15 05:43:54.296	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+23	21	2026-05-15 05:52:13.219	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+24	22	2026-05-15 06:29:01.776	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+25	23	2026-05-15 06:37:08.759	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+26	24	2026-05-15 06:38:57.892	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+27	25	2026-05-15 06:40:11.514	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+28	26	2026-05-15 21:11:39.16	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+29	27	2026-05-15 21:17:55.328	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+30	28	2026-05-15 21:19:07.264	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+31	29	2026-05-15 21:23:40.993	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+32	30	2026-05-16 02:08:06.504	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+33	31	2026-05-16 02:30:42.678	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+34	32	2026-05-16 02:38:16.522	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+35	33	2026-05-16 03:15:54.341	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+68	66	2026-05-16 14:33:56.59	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+69	67	2026-05-16 14:34:35.827	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+70	68	2026-05-16 14:41:07.351	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+71	69	2026-05-17 01:04:23.284	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+72	70	2026-05-17 01:24:21.097	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+73	71	2026-05-17 01:27:10.949	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+74	72	2026-05-17 01:27:45.163	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+75	73	2026-05-17 01:35:20.381	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+76	74	2026-05-17 01:35:56.948	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+77	75	2026-05-17 10:05:52.699	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+78	76	2026-05-17 10:06:44.823	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+79	77	2026-05-17 10:08:29.431	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+80	78	2026-05-17 10:13:47.04	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+81	79	2026-05-17 11:02:03.256	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+82	80	2026-05-17 12:09:42.354	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+83	81	2026-05-17 12:36:50.947	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+84	82	2026-05-17 12:48:52.107	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+85	83	2026-05-17 13:02:32.359	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+86	84	2026-05-18 10:17:17.59	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+87	85	2026-05-18 10:26:51.158	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+88	86	2026-05-18 13:43:59.014	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+89	87	2026-05-18 13:52:40.801	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+90	88	2026-05-18 14:02:52.302	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+91	89	2026-05-18 14:16:46.21	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+92	90	2026-05-18 14:39:15.659	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+93	91	2026-05-18 14:47:28.223	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+94	92	2026-05-18 15:14:40.768	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+95	93	2026-05-18 15:37:36.187	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+96	94	2026-05-18 16:00:43.337	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+97	95	2026-05-18 16:07:11.275	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+98	96	2026-05-18 16:23:14.791	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+99	97	2026-05-18 17:29:30.528	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+100	98	2026-05-18 17:39:36.748	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+101	99	2026-05-18 17:49:03.125	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+5	3	2026-05-06 06:55:08.19	3	t		2026-05-18 18:19:57.055	15	2026-06-08	f	\N	\N	\N	28
+104	102	2026-05-19 03:42:31.906	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+105	103	2026-05-19 04:01:44.291	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+106	104	2026-05-22 04:11:21.566	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+107	105	2026-05-22 04:13:22.974	1	f	\N	\N	15	\N	f	\N	\N	\N	29
+121	119	2026-05-27 08:46:39.762	2	f	\N	\N	15	\N	f	\N	\N	\N	34
+102	100	2026-05-18 17:57:15.609	2	f	\N	\N	15	\N	f	\N	\N	\N	28
+113	111	2026-05-26 14:25:22.806	2	t	cualquier comentario	2026-05-26 16:35:51.607	15	2026-06-16	t	2026-05-26 16:41:05.514	\N	\N	28
+110	108	2026-05-22 05:13:45.77	3	t	prueba 1	2026-05-26 14:14:00.945	15	2026-06-16	t	2026-05-26 14:17:11.065	\N	\N	28
+111	109	2026-05-23 14:18:00.636	3	t	fffffffffffffffffffffffdfdf	2026-05-23 14:20:50.976	15	2026-06-12	f	\N	\N	\N	28
+112	110	2026-05-23 14:44:28.377	3	t	kevincin	2026-05-23 14:46:47.924	15	2026-06-12	f	\N	\N	\N	28
+103	101	2026-05-18 18:07:26.744	3	t	kevin  y	2026-05-23 15:02:20.482	15	2026-06-12	f	\N	\N	\N	28
+118	116	2026-05-26 16:45:06.2	3	t	kevin kevin f	2026-05-26 16:48:11.454	15	2026-06-16	f	\N	\N	\N	28
+109	107	2026-05-22 04:58:19.112	3	f	kevin pruebas 	2026-05-23 14:54:58.939	15	2026-06-16	f	\N	\N	\N	28
+122	120	2026-05-27 09:14:13.191	3	t	FALTA DOCUMENTACION 	2026-05-27 09:24:27.001	15	2026-06-17	f	\N	\N	\N	34
+114	112	2026-05-26 15:08:11.789	3	f	- Falta documento obligatorio: Anexo 1: Solicitud de Evaluación\n- Falta documento obligatorio: Anexo 2: Formulario de Protocolo\n- Falta documento obligatorio: Formulario de Consentimiento Informado\n- Falta documento obligatorio: Instrumentos de Investigación (Fichas, encuestas, manuales)\n- Falta documento obligatorio: Currículos Vitae de Investigadores\n- Falta documento obligatorio: Declaración de Responsabilidad (Anexo 4)\n- Falta documento obligatorio: Declaratoria de Compromiso de Confidencialidad\n- Falta documento obligatorio: Declaración de Conflicto de Interés\n- Falta documento obligatorio: Ficha Descriptiva de la Intervención y Riesgos	\N	15	2026-06-16	t	2026-05-26 15:12:38.951	\N	\N	28
+115	113	2026-05-26 15:31:29.157	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+116	114	2026-05-26 16:15:43.668	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+117	115	2026-05-26 16:22:46.974	2	f	\N	\N	15	\N	f	\N	\N	\N	34
+120	118	2026-05-27 02:20:58.082	1	f	\N	\N	15	\N	f	\N	\N	\N	28
+119	117	2026-05-26 16:59:11.903	2	f	HOLAS 	2026-05-26 17:02:23.356	15	2026-06-16	f	\N	\N	\N	28
+123	121	2026-05-27 09:52:05.486	2	f	\N	\N	15	\N	f	\N	\N	\N	28
+124	122	2026-05-28 11:23:57.042	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+125	123	2026-05-28 11:27:48.187	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+126	124	2026-05-28 11:31:48.291	2	f	\N	\N	15	\N	f	\N	\N	\N	34
+127	125	2026-05-28 15:24:14.266	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+128	126	2026-05-28 15:28:05.52	2	f	\N	\N	15	\N	f	\N	\N	\N	34
+129	127	2026-05-28 15:57:50.414	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+131	129	2026-06-07 14:47:48.916	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+133	131	2026-06-07 14:58:03.897	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+135	133	2026-06-07 15:16:43.416	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+137	135	2026-06-07 15:41:08.494	1	f	\N	\N	15	\N	f	\N	\N	\N	34
+139	137	2026-06-07 22:46:24.443	1	f	\N	\N	15	\N	f	\N	\N	\N	34
 \.
 
 
 --
--- TOC entry 4215 (class 0 OID 24092)
+-- TOC entry 4206 (class 0 OID 24092)
 -- Dependencies: 259
 -- Data for Name: validaciones_documento; Type: TABLE DATA; Schema: recepcion; Owner: ceish_user
 --
@@ -6298,11 +6624,21 @@ COPY recepcion.validaciones_documento (id, documento_id, estado_id, observacione
 323	315	1		30	2026-05-28 15:30:33.085
 324	316	1		30	2026-05-28 15:30:35.656
 325	317	1		30	2026-05-28 15:30:54.693
+326	318	1		30	2026-06-08 01:18:23.062
+327	318	1		30	2026-06-08 01:18:27.508
+328	319	1		30	2026-06-08 01:18:29.628
+329	320	1		30	2026-06-08 01:18:31.254
+330	321	1		30	2026-06-08 01:18:33.112
+331	322	1		30	2026-06-08 01:18:36.631
+332	323	1		30	2026-06-08 01:18:38.803
+333	324	1		30	2026-06-08 01:18:40.369
+334	325	1		30	2026-06-08 01:18:43.304
+335	326	1		30	2026-06-08 01:18:46.482
 \.
 
 
 --
--- TOC entry 4234 (class 0 OID 24357)
+-- TOC entry 4225 (class 0 OID 24357)
 -- Dependencies: 278
 -- Data for Name: notificaciones_resolucion; Type: TABLE DATA; Schema: resolucion; Owner: ceish_user
 --
@@ -6312,7 +6648,7 @@ COPY resolucion.notificaciones_resolucion (id, resolucion_id, destinatario_id, c
 
 
 --
--- TOC entry 4232 (class 0 OID 24323)
+-- TOC entry 4223 (class 0 OID 24323)
 -- Dependencies: 276
 -- Data for Name: resoluciones; Type: TABLE DATA; Schema: resolucion; Owner: ceish_user
 --
@@ -6322,7 +6658,7 @@ COPY resolucion.resoluciones (id, protocolo_id, version_id, tipo_resolucion_id, 
 
 
 --
--- TOC entry 4241 (class 0 OID 24442)
+-- TOC entry 4232 (class 0 OID 24442)
 -- Dependencies: 285
 -- Data for Name: eventos_adversos; Type: TABLE DATA; Schema: seguimiento; Owner: ceish_user
 --
@@ -6332,7 +6668,7 @@ COPY seguimiento.eventos_adversos (id, protocolo_id, tipo_evento, codigo_sujeto,
 
 
 --
--- TOC entry 4239 (class 0 OID 24426)
+-- TOC entry 4230 (class 0 OID 24426)
 -- Dependencies: 283
 -- Data for Name: informe_documento; Type: TABLE DATA; Schema: seguimiento; Owner: ceish_user
 --
@@ -6342,7 +6678,7 @@ COPY seguimiento.informe_documento (informe_id, documento_id) FROM stdin;
 
 
 --
--- TOC entry 4238 (class 0 OID 24408)
+-- TOC entry 4229 (class 0 OID 24408)
 -- Dependencies: 282
 -- Data for Name: informes_seguimiento; Type: TABLE DATA; Schema: seguimiento; Owner: ceish_user
 --
@@ -6352,7 +6688,7 @@ COPY seguimiento.informes_seguimiento (id, seguimiento_id, contenido, enviado_po
 
 
 --
--- TOC entry 4236 (class 0 OID 24377)
+-- TOC entry 4227 (class 0 OID 24377)
 -- Dependencies: 280
 -- Data for Name: seguimientos; Type: TABLE DATA; Schema: seguimiento; Owner: ceish_user
 --
@@ -6362,7 +6698,7 @@ COPY seguimiento.seguimientos (id, protocolo_id, tipo_seguimiento_id, fecha_prog
 
 
 --
--- TOC entry 4256 (class 0 OID 24627)
+-- TOC entry 4247 (class 0 OID 24627)
 -- Dependencies: 300
 -- Data for Name: audit_log; Type: TABLE DATA; Schema: sistema; Owner: ceish_user
 --
@@ -7106,11 +7442,1023 @@ COPY sistema.audit_log (id, usuario_id, accion, tabla, registro_id, datos_anteri
 767	34	PROTOCOL_TIMELINE_ACCEPTED	\N	\N	\N	{}	::1	\N	2026-06-03 00:18:28.838486
 768	30	PEER_EVALUATORS_ASSIGNED	\N	\N	\N	{"evaluatorIds": [39, 40, 41, 42, 43]}	::1	\N	2026-06-03 00:19:08.61783
 769	34	PROTOCOL_TIMELINE_ACCEPTED	\N	\N	\N	{}	::1	\N	2026-06-03 01:01:02.749603
+779	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:01:59.914964
+774	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:01:59.50971
+775	\N	IP_AUTO_BLOCKED	dos_defense	\N	\N	{"path": "/", "reason": "Superó 3 infracciones de rate limiting", "violations": 3, "blockedUntil": "2026-06-04T11:06:59.183Z", "durationMinutes": 5}	::ffff:127.0.0.1	\N	2026-06-04 11:01:59.439738
+772	\N	RATE_LIMIT_EXCEEDED	dos_defense	\N	\N	{"path": "/", "limit": 60, "method": "POST", "violation": 1, "autoBlocked": false, "maxViolations": 3, "requestsInWindow": 60}	::ffff:127.0.0.1	\N	2026-06-04 11:01:59.417991
+777	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:01:59.868941
+773	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:01:59.771135
+776	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:01:59.468656
+778	\N	RATE_LIMIT_EXCEEDED	dos_defense	\N	\N	{"path": "/", "limit": 60, "method": "POST", "violation": 3, "autoBlocked": true, "maxViolations": 3, "requestsInWindow": 60}	::ffff:127.0.0.1	\N	2026-06-04 11:01:59.91443
+771	\N	RATE_LIMIT_EXCEEDED	dos_defense	\N	\N	{"path": "/", "limit": 60, "method": "POST", "violation": 2, "autoBlocked": false, "maxViolations": 3, "requestsInWindow": 60}	::ffff:127.0.0.1	\N	2026-06-04 11:01:59.439655
+770	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:01:59.439723
+780	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.128194
+781	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.12951
+782	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.130364
+783	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.131147
+784	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.131875
+785	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.132693
+786	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.133589
+787	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.136164
+788	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.136914
+798	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.332918
+799	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.33895
+800	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.34591
+801	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.352214
+802	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.359289
+803	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.366345
+804	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.375665
+805	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.387111
+806	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.394337
+807	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.400971
+808	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.412847
+819	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.503502
+829	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.530254
+839	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.567571
+849	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.601381
+859	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.63775
+869	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.671181
+879	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.715685
+889	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.744197
+897	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.782205
+904	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.819121
+913	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.864965
+923	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.898531
+933	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.935045
+943	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.981198
+953	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.018005
+966	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.089536
+976	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.280408
+986	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.339806
+994	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.405587
+789	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.141495
+813	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.418004
+822	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.505113
+831	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.532309
+840	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.568205
+853	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.602205
+864	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.642811
+872	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.677282
+883	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.717886
+892	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.747435
+901	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.786687
+910	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.823703
+919	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.878762
+929	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.918568
+939	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.961465
+949	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.001229
+960	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.057241
+970	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.227896
+980	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.309269
+990	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.371857
+1000	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.426056
+1001	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.469671
+1020	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.594871
+1021	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.671018
+1040	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.805778
+1050	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.927447
+1051	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.97089
+1068	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.083776
+1073	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.177608
+1088	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.313352
+1093	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.37494
+791	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.231843
+809	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.414229
+820	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.504088
+832	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.530928
+841	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.568664
+850	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.60278
+860	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.638372
+873	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.672083
+881	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.716799
+893	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.745419
+899	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.785492
+906	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.820211
+916	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.86497
+926	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.902849
+936	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.939394
+946	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.982927
+954	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.024146
+964	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.085233
+971	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.239078
+981	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.335253
+991	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.392572
+1010	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.49335
+1011	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.570221
+1030	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.702853
+1031	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.771689
+1042	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.922901
+1059	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.984082
+1061	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.071204
+1080	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.2013
+1081	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.292697
+1100	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.389098
+792	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.232199
+812	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.416303
+823	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.505642
+833	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.532817
+843	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.570594
+852	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.608363
+862	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.640419
+871	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.673351
+884	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.719449
+894	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.74936
+898	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.783028
+905	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.819605
+914	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.864955
+924	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.900159
+934	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.935672
+944	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.981789
+956	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.032228
+962	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.08057
+972	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.241934
+984	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.33792
+996	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.409288
+1006	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.476667
+1015	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.57851
+1026	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.680406
+1035	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.779299
+1046	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.92459
+1055	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.977205
+1066	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.080197
+1075	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.1835
+1086	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.309212
+1095	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.377508
+793	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.232809
+811	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.415635
+824	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.506065
+834	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.534635
+844	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.576015
+854	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.611379
+863	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.640932
+870	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.673899
+880	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.716037
+890	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.744756
+911	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.832978
+921	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.880652
+931	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.921873
+941	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.973855
+951	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.01029
+959	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.052838
+969	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.170775
+979	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.308649
+989	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.370666
+999	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.416107
+1002	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.471016
+1019	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.586753
+1022	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.672813
+1039	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.790943
+1045	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.924191
+1056	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.978594
+1063	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.074817
+1078	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.189697
+1083	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.30038
+1097	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.379755
+1104	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.481472
+794	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.233323
+814	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.420099
+821	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.504555
+830	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.531499
+842	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.569152
+851	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.606646
+861	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.640091
+874	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.672412
+882	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.717391
+891	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.746687
+900	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.785972
+907	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.821622
+917	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.874013
+927	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.917335
+937	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.957843
+947	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.997762
+957	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.035103
+961	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.077475
+975	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.250451
+985	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.338818
+995	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.407273
+1008	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.48174
+1013	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.574471
+1028	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.687915
+1033	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.776011
+1043	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.923342
+1058	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.982316
+1064	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.077168
+1077	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.187864
+1084	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.30367
+1098	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.380865
+795	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.233789
+817	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.502333
+827	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.529146
+837	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.566037
+847	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.600304
+856	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.635904
+866	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.668972
+877	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.713285
+887	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.742213
+909	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.822868
+920	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.879339
+930	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.919212
+940	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.965142
+950	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.003576
+958	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.044187
+968	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.097076
+978	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.283706
+988	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.344936
+993	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.40379
+1007	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.4782
+1014	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.576847
+1027	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.684293
+1034	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.777886
+1048	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.925463
+1053	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.973901
+1070	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.095015
+1071	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.173011
+1090	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.324271
+1091	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.372219
+1106	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.485331
+1115	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.578955
+796	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.234153
+815	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.501338
+825	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.527912
+835	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.561513
+845	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.594827
+857	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.636595
+867	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.669629
+875	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.712209
+885	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.740677
+896	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.781318
+903	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.8186
+915	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.864947
+925	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.902521
+935	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.938412
+945	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.982353
+955	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.030653
+963	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.082829
+974	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.24827
+983	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.337116
+997	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.410971
+1003	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.472396
+1018	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.585142
+1023	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.674723
+1038	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.786745
+1049	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.926018
+1052	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.972385
+1067	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.081858
+1074	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.18019
+1087	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.311371
+1094	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.37603
+1109	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.491578
+797	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.234655
+816	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.501732
+826	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.528471
+836	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.565545
+846	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.599195
+855	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.63527
+865	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.667787
+876	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.712675
+886	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.741879
+895	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.780838
+902	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.818185
+912	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.864857
+922	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.89451
+932	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.934243
+942	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.980778
+952	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.017329
+965	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.087451
+973	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.245463
+982	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.336296
+998	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.412826
+1004	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.473932
+1017	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.583278
+1024	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.676704
+1037	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.783966
+1047	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.925072
+1054	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.975675
+1069	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.085044
+1072	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.175269
+1089	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.31506
+1092	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.373706
+1110	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.499509
+1005	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.475341
+1016	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.580873
+1025	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.67852
+1036	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.781364
+1044	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.923697
+1057	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.980084
+1065	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.078861
+1076	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.186045
+1085	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.3067
+1096	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.378568
+1107	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.488088
+1114	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.577738
+1124	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.695755
+1137	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.840308
+1147	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.936442
+1155	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.001243
+1166	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.13009
+1169	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.176591
+1172	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.210144
+1190	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.327344
+1191	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.407272
+1208	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.52096
+1213	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.614389
+1228	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.721837
+1233	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.809413
+1249	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.921212
+1252	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.010884
+1279	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.223048
+1282	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.316925
+1298	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.41983
+1308	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.516111
+1101	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.474888
+1120	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.591382
+1121	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.690997
+1140	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.858688
+1141	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.910243
+1160	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.021863
+1161	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.108593
+1177	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.218598
+1184	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.311652
+1196	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.416142
+1204	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.513428
+1217	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.619724
+1225	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.716773
+1236	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.814178
+1242	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.909611
+1259	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.022206
+1262	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.119861
+1276	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.218036
+1285	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.321051
+1296	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.416883
+1306	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.519764
+1315	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.632582
+1325	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.719581
+1338	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.824795
+1343	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.918148
+1359	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.026832
+1362	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.116474
+1379	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.231951
+1382	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.317016
+1392	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.46066
+1409	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.529967
+1103	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.479877
+1118	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.582624
+1123	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.693893
+1138	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.843855
+1142	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.915322
+1159	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.010903
+1162	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.112148
+1175	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.215689
+1186	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.314428
+1195	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.414303
+1206	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.516996
+1215	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.617186
+1229	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.723893
+1232	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.807913
+1248	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.919553
+1253	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.012367
+1278	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.22131
+1283	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.318154
+1299	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.421607
+1302	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.514493
+1330	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.737385
+1331	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.813158
+1350	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.940874
+1351	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.013652
+1370	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.133921
+1371	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.216356
+1390	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.336478
+1400	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.467721
+1401	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.516188
+1420	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.658338
+1421	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.719679
+1105	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.48322
+1116	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.580025
+1125	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.697933
+1136	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.834935
+1144	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.926174
+1157	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.006402
+1164	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.122437
+1174	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.21413
+1185	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.313185
+1197	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.41807
+1205	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.515282
+1216	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.618486
+1224	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.715439
+1237	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.816438
+1247	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.917887
+1254	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.013908
+1267	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.141165
+1268	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.182664
+1273	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.213437
+1288	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.325388
+1293	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.412483
+1309	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.524858
+1313	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.624037
+1328	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.724623
+1333	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.81615
+1347	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.928857
+1354	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.01891
+1367	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.123518
+1374	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.222575
+1387	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.325663
+1397	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.463094
+1108	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.489738
+1113	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.576374
+1129	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.705409
+1132	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.816193
+1146	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.933517
+1154	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.99994
+1167	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.133379
+1168	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.174263
+1173	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.211876
+1188	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.317465
+1193	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.410698
+1209	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.523436
+1212	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.613117
+1226	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.718373
+1235	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.812741
+1246	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.916273
+1255	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.015525
+1266	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.137566
+1269	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.184511
+1272	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.210974
+1289	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.327298
+1292	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.411294
+1303	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.526834
+1318	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.63905
+1322	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.713771
+1339	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.82636
+1342	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.916322
+1357	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.024055
+1364	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.119026
+1377	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.228235
+1384	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.321204
+1111	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.57186
+1130	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.713685
+1131	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.812253
+1149	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.943003
+1152	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.996968
+1179	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.221706
+1183	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.309756
+1198	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.419907
+1203	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.511581
+1218	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.62097
+1223	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.713674
+1239	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.819268
+1244	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.912957
+1257	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.018661
+1264	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.129391
+1274	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.215279
+1287	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.323584
+1294	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.413706
+1305	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.523329
+1314	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.629309
+1326	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.721311
+1337	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.823098
+1344	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.920889
+1358	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.02549
+1363	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.117762
+1378	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.230141
+1383	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.319498
+1393	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.461054
+1408	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.528388
+1412	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.620502
+1427	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.73056
+1112	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.574666
+1128	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.703284
+1133	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.821654
+1148	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.939377
+1153	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.998561
+1178	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.220249
+1182	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.308062
+1199	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.422113
+1202	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.509828
+1219	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.623312
+1222	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.712068
+1238	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.817713
+1245	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.914723
+1256	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.016974
+1265	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.133411
+1270	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.186184
+1271	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.20892
+1290	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.334637
+1291	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.410182
+1310	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.538602
+1311	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.615898
+1329	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.726041
+1332	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.814744
+1348	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.930566
+1353	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.017344
+1369	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.126508
+1372	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.219038
+1389	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.328542
+1399	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.465222
+1402	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.517848
+1419	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.643566
+1117	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.581174
+1127	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.701482
+1134	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.825999
+1150	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.953471
+1151	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.995008
+1180	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.229085
+1181	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.306632
+1200	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.433757
+1201	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.508112
+1220	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.631697
+1221	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.710461
+1240	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.827548
+1241	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.908144
+1260	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.031259
+1261	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.115984
+1277	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.219533
+1284	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.319645
+1297	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.418552
+1304	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.51777
+1317	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.637393
+1323	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.716331
+1334	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.817956
+1346	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.926601
+1355	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.020444
+1366	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.12225
+1375	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.224059
+1386	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.324165
+1396	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.462651
+1405	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.523593
+1416	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.637933
+1425	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.72677
+1122	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.692373
+1139	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.846752
+1143	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.920817
+1158	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.008858
+1163	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.117297
+1176	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.217099
+1187	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.315708
+1194	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.412232
+1210	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.533602
+1211	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.612163
+1230	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.731445
+1231	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.806214
+1250	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.931063
+1251	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.009193
+1280	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.232824
+1281	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.315248
+1300	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.431293
+1301	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.512792
+1319	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.640914
+1320	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.685993
+1321	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.711526
+1340	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.836347
+1341	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.914618
+1360	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.035796
+1361	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.114946
+1380	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.240125
+1381	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.315372
+1391	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.46006
+1410	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.537783
+1411	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.618449
+1430	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.742148
+1126	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.699691
+1135	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.830457
+1145	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.930037
+1156	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.003845
+1165	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.126836
+1170	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.178711
+1171	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.20852
+1189	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.319325
+1192	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.408957
+1207	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.518681
+1214	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.615874
+1227	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.720007
+1234	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.811117
+1243	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:03.911256
+1258	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.020817
+1263	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 296}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.124071
+1275	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.216829
+1286	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.322365
+1295	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.415422
+1307	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.521564
+1316	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.635038
+1324	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.717938
+1335	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.819824
+1349	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.924218
+1352	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.015577
+1368	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.12502
+1373	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.220827
+1388	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.326929
+1398	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.463393
+1403	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.519921
+1418	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.641865
+1312	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.619736
+1327	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.722924
+1336	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.821252
+1345	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:04.922774
+1356	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.022308
+1365	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 295}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.120447
+1376	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.226019
+1385	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.322797
+1394	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.461599
+1407	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.526656
+1415	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.635245
+1426	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.728232
+1434	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.821717
+1444	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.0249
+1451	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.077736
+1458	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.246651
+1468	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.297708
+1478	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.333258
+1486	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.381585
+1495	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.42832
+1506	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.529615
+1518	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.634444
+1523	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.731266
+1534	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.831739
+1547	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.939107
+1556	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.040497
+1565	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.14022
+1580	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.257614
+1581	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.330135
+1599	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.445991
+1602	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.533521
+1395	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.462213
+1406	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.525067
+1413	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.62304
+1428	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.732515
+1433	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.820048
+1443	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.02348
+1452	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.081996
+1463	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.256521
+1473	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.303248
+1483	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.369234
+1498	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.432114
+1503	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.525424
+1515	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.630573
+1527	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.738378
+1533	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.830316
+1548	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.941973
+1552	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.032307
+1569	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.15004
+1573	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.234288
+1588	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.34064
+1594	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.436275
+1607	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.540144
+1614	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.651565
+1624	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.738013
+1637	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.848897
+1644	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.937662
+1657	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.043643
+1668	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.142869
+1673	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.24781
+1689	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.353497
+1692	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.437007
+1404	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.521919
+1417	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.639785
+1424	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.724548
+1437	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.829651
+1445	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.031751
+1455	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.244612
+1465	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.293288
+1475	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.328235
+1485	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.377012
+1496	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.429643
+1505	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.52821
+1519	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.63624
+1522	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.729726
+1537	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.836161
+1544	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.93206
+1554	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.036269
+1567	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.145548
+1579	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.248845
+1582	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.331481
+1600	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.456328
+1604	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.536801
+1617	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.666971
+1618	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.714291
+1623	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.736381
+1638	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.850582
+1643	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.936047
+1658	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.045351
+1662	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.135767
+1674	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.273577
+1683	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.341408
+1697	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.457821
+1414	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.627356
+1429	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.735062
+1432	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.818226
+1442	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.022912
+1450	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.075661
+1461	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.250614
+1471	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.302394
+1481	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.33963
+1487	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.386976
+1493	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.42556
+1508	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.532714
+1512	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.625722
+1529	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.742486
+1532	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.82866
+1549	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.944723
+1553	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.034288
+1568	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.14929
+1574	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.237557
+1587	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.338749
+1593	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.434337
+1608	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.541846
+1612	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.642038
+1626	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.740879
+1635	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.844845
+1646	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.940632
+1655	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.040806
+1665	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.13953
+1677	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.259189
+1685	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.346343
+1695	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.451086
+1708	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.551722
+1422	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.721175
+1440	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.955542
+1453	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.056489
+1462	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.254917
+1472	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.302922
+1484	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.372098
+1497	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.430731
+1504	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.526789
+1516	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.63186
+1525	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.734433
+1536	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.834743
+1545	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.934508
+1555	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.038556
+1566	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.142775
+1575	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.242562
+1586	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.337297
+1596	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.439595
+1605	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.537897
+1616	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.661998
+1619	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.716272
+1622	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.735041
+1639	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.852308
+1642	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.934952
+1659	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.046997
+1663	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.136899
+1679	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.271051
+1682	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.3398
+1699	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.459467
+1701	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.537145
+1423	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.722602
+1438	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.864841
+1447	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.04385
+1459	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.247233
+1469	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.300192
+1479	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.333749
+1489	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.390124
+1492	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.424055
+1509	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.534223
+1513	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.627328
+1528	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.740309
+1538	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.837985
+1543	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.930583
+1558	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.045551
+1563	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.135957
+1578	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.247189
+1583	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.33293
+1598	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.4443
+1601	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.532139
+1630	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.761094
+1631	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.83539
+1650	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.952223
+1651	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.034857
+1670	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.150295
+1671	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.239816
+1690	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.361324
+1691	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.435659
+1709	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.556169
+1431	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.816779
+1441	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.020838
+1454	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.223307
+1464	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.264637
+1474	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.308682
+1482	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.35716
+1499	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.433674
+1502	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.524076
+1517	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.633104
+1524	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.732662
+1539	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.839563
+1542	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.929088
+1560	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.063339
+1561	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.131082
+1577	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.245445
+1584	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.334517
+1597	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.442308
+1603	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.535094
+1628	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.744898
+1633	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.839956
+1648	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.943355
+1653	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.037351
+1667	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.141799
+1678	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.251586
+1688	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.351484
+1693	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.439258
+1704	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.543856
+1435	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.824153
+1449	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.0536
+1460	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.247865
+1470	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.301418
+1480	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.338304
+1488	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.388667
+1494	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.426936
+1507	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.531017
+1514	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.629135
+1526	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.736082
+1535	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.833212
+1546	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.936199
+1559	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.050138
+1562	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.13301
+1576	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.242653
+1585	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.336009
+1595	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.438141
+1606	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.53906
+1613	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.647231
+1625	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.739591
+1636	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.846765
+1645	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.939452
+1656	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.042036
+1666	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.140764
+1675	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.255701
+1686	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.34799
+1696	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.453415
+1706	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.548022
+1436	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.82661
+1448	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.048895
+1456	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.2449
+1466	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.294226
+1476	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.330626
+1500	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.443455
+1501	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.522818
+1520	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.644635
+1521	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.728415
+1540	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.850104
+1541	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.927468
+1557	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.042913
+1564	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.137784
+1572	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.235763
+1589	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.342667
+1592	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.432759
+1609	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.543329
+1615	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.656587
+1620	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.717683
+1621	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.733568
+1640	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.865046
+1641	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.933688
+1660	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.061472
+1661	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.134758
+1680	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.300864
+1681	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.337993
+1700	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.469558
+1702	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.540242
+1439	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:05.931274
+1446	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.039919
+1457	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.245635
+1467	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 294}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.296004
+1477	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.331702
+1490	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.39157
+1491	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.422628
+1510	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.543851
+1511	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.624429
+1530	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.753009
+1531	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.827265
+1550	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:06.975157
+1551	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.030152
+1570	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 293}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.184136
+1571	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.233144
+1590	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.349923
+1591	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.431206
+1610	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.549056
+1611	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.637334
+1627	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.742748
+1634	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.842849
+1647	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.941665
+1654	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.039108
+1669	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.144634
+1672	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.243183
+1687	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.349907
+1694	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.444324
+1707	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.550138
+1629	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.747167
+1632	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.837188
+1649	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:07.9449
+1652	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.036106
+1664	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 292}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.138022
+1676	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.266225
+1684	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.34394
+1698	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.454812
+1703	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.541422
+1705	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.546834
+1710	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 291}	::ffff:127.0.0.1	\N	2026-06-04 11:02:08.567629
+1711	\N	RATE_LIMIT_EXCEEDED	dos_defense	\N	\N	{"path": "/", "limit": 60, "method": "POST", "violation": 2, "autoBlocked": false, "maxViolations": 3, "requestsInWindow": 60}	::ffff:127.0.0.1	\N	2026-06-04 11:21:28.228565
+1719	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "Cloudflare Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \\nde hemoglobina y hematocrito en estudiantes universitarios", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 5, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": true, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": true, "isIndigenousPopulation": false, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-07 19:45:27.742557
+1727	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "ceish-espoch-frontendceish-espoch-frontend  p1", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": true, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": true, "isIndigenousPopulation": false, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-08 03:38:36.261551
+1712	\N	IP_AUTO_BLOCKED	dos_defense	\N	\N	{"path": "/", "reason": "Superó 3 infracciones de rate limiting", "violations": 3, "blockedUntil": "2026-06-04T11:26:28.160Z", "durationMinutes": 5}	::ffff:127.0.0.1	\N	2026-06-04 11:21:28.229544
+1720	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "Claudflare Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles de hemoglobina y hematocrito en estudiantes universitarios", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": true, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": false, "isIndigenousPopulation": true, "isVulnerablePopulation": true, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-07 19:47:48.974297
+1728	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": false, "isIndigenousPopulation": true, "isVulnerablePopulation": true, "sponsorExecutingAgency": null, "hasExternalInstitutions": true, "principalInvestigatorId": 34}	::1	\N	2026-06-08 03:46:24.484725
+1713	\N	RATE_LIMIT_EXCEEDED	dos_defense	\N	\N	{"path": "/", "limit": 60, "method": "POST", "violation": 3, "autoBlocked": true, "maxViolations": 3, "requestsInWindow": 60}	::ffff:127.0.0.1	\N	2026-06-04 11:21:28.230409
+1721	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "Clould Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles de hemoglobina y hematocrito en estudiantes universitarios", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": true, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": false, "isIndigenousPopulation": true, "isVulnerablePopulation": true, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-07 19:53:22.790723
+1729	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "06060973350606097335 km", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": true, "isIndigenousPopulation": true, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-08 04:11:51.146518
+1714	\N	RATE_LIMIT_EXCEEDED	dos_defense	\N	\N	{"path": "/", "limit": 60, "method": "POST", "violation": 1, "autoBlocked": false, "maxViolations": 3, "requestsInWindow": 60}	::ffff:127.0.0.1	\N	2026-06-04 11:21:28.237475
+1722	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "Clould Factores sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \\nde hemoglobina y hematocrito en estudiantes universitarios", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 5, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": true, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": false, "isIndigenousPopulation": true, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": true, "principalInvestigatorId": 34}	::1	\N	2026-06-07 19:58:03.920302
+1730	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "sssssssssssssssssssssssssssssssssssssssssssssssssss", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": true, "isIndigenousPopulation": false, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": true, "principalInvestigatorId": 34}	::1	\N	2026-06-08 04:34:56.736556
+1715	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:26:28.160Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:21:28.26469
+1723	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "Error al subir documento técnico.", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": true, "isIndigenousPopulation": true, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": true, "principalInvestigatorId": 34}	::1	\N	2026-06-07 20:12:27.645671
+1731	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "la hipótesis del checksum es la más fuerte de todas las que hemos visto hasta ahora.", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": true, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": false, "isIndigenousPopulation": false, "isVulnerablePopulation": true, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-08 05:20:44.003916
+1717	\N	RATE_LIMIT_EXCEEDED	dos_defense	\N	\N	{"path": "/", "limit": 60, "method": "POST", "violation": 4, "autoBlocked": true, "maxViolations": 3, "requestsInWindow": 60}	::ffff:127.0.0.1	\N	2026-06-04 11:31:30.422254
+1724	34	PROTOCOL_CREATED	\N	\N	\N	{"title": " sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \\nde hemoglobina y hematocrito en estudiantes universitarios", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": true, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": true, "isIndigenousPopulation": false, "isVulnerablePopulation": true, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-07 20:16:43.445692
+1732	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "y_eliminado_en\\", \\"StudyTypeOrmEntity\\".\\"", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": true, "isIndigenousPopulation": false, "isVulnerablePopulation": true, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-08 05:38:42.523819
+1716	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:36:30.249Z", "totalViolations": 4, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:31:30.423147
+1725	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "sociodemográficos, nutricionales y de estilo de vida asociados a los niveles \\nde hemoglobina y hematocrito en estudiantes universitarios", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": true, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": false, "isIndigenousPopulation": true, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-07 20:37:45.269465
+1733	34	PROTOCOL_CREATED	\N	\N	\N	{"title": " Para solucionar esto, necesitas actualizar las llaves de la   \\n  API de R2:", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": false, "isIndigenousPopulation": true, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": true, "principalInvestigatorId": 34}	::1	\N	2026-06-08 05:45:41.05839
+1718	\N	IP_AUTO_BLOCKED	dos_defense	\N	\N	{"path": "/", "reason": "Superó 3 infracciones de rate limiting", "violations": 4, "blockedUntil": "2026-06-04T11:36:30.249Z", "durationMinutes": 5}	::ffff:127.0.0.1	\N	2026-06-04 11:31:30.430269
+1726	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "Error al subir documento técnico.jjjjjjjjjjjj", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": true, "isIndigenousPopulation": false, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": true, "principalInvestigatorId": 34}	::1	\N	2026-06-07 20:41:08.517872
+1734	34	PROTOCOL_CREATED	\N	\N	\N	{"title": " Para solucionar esto, necesitas actualizar las llaves de la   \\n  API de R2:", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": false, "isIndigenousPopulation": true, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-08 05:49:22.496785
+1735	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "Utiliza endpoints específicos de la jurisdicción para clientes S3:\\nDefaultUnión Europea (UE)", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": true, "isIndigenousPopulation": false, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-08 05:56:37.102388
+1736	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "p1 de la muestra y la carga en la nube", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": false, "isIndigenousPopulation": true, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": true, "principalInvestigatorId": 34}	::1	\N	2026-06-08 06:04:58.942005
+1737	34	PROTOCOL_CREATED	\N	\N	\N	{"title": "Nuevo Protocolo\\nComplete la información básica y cargue la documentación requerida por el CEISH.\\n\\n1\\nInforma", "sponsorRuc": null, "sponsorWeb": "", "riskLevelId": null, "studyTypeId": 6, "institutions": [], "sponsorPhone": null, "investigators": [], "isMulticentric": false, "sponsorAddress": null, "financingAmount": 0, "geographicCoverage": null, "isAffidavitAccepted": true, "studyDurationMonths": null, "usesBiologicalSamples": false, "isIndigenousPopulation": true, "isVulnerablePopulation": false, "sponsorExecutingAgency": null, "hasExternalInstitutions": false, "principalInvestigatorId": 34}	::1	\N	2026-06-08 06:13:35.821116
+1738	34	DOCUMENT_UPLOADED	\N	\N	\N	{"path": "protocols/146/requirements/1257/Datap1.pdf", "fileName": "Datap1.pdf", "sizeBytes": 75024, "requirementId": 1257}	::1	\N	2026-06-08 06:13:51.250069
+1739	34	DOCUMENT_UPLOADED	\N	\N	\N	{"path": "protocols/146/requirements/1265/Datap1.pdf", "fileName": "Datap1.pdf", "sizeBytes": 75024, "requirementId": 1265}	::1	\N	2026-06-08 06:14:06.667614
+1741	34	DOCUMENT_UPLOADED	\N	\N	\N	{"path": "protocols/146/requirements/1258/Datap1.pdf", "fileName": "Datap1.pdf", "sizeBytes": 75024, "requirementId": 1258}	::1	\N	2026-06-08 06:14:18.403945
+1742	34	DOCUMENT_UPLOADED	\N	\N	\N	{"path": "protocols/146/requirements/1259/Datap1.pdf", "fileName": "Datap1.pdf", "sizeBytes": 75024, "requirementId": 1259}	::1	\N	2026-06-08 06:14:23.480857
+1743	34	DOCUMENT_UPLOADED	\N	\N	\N	{"path": "protocols/146/requirements/1261/Datap1.pdf", "fileName": "Datap1.pdf", "sizeBytes": 75024, "requirementId": 1261}	::1	\N	2026-06-08 06:14:29.408383
+1740	34	DOCUMENT_UPLOADED	\N	\N	\N	{"path": "protocols/146/requirements/1264/Ejercicios_Propuestos_Simulacion.pdf", "fileName": "Ejercicios_Propuestos_Simulacion.pdf", "sizeBytes": 331804, "requirementId": 1264}	::1	\N	2026-06-08 06:14:12.363167
+1744	34	DOCUMENT_UPLOADED	\N	\N	\N	{"path": "protocols/146/requirements/1260/Datap1.pdf", "fileName": "Datap1.pdf", "sizeBytes": 75024, "requirementId": 1260}	::1	\N	2026-06-08 06:14:47.935131
+1745	34	DOCUMENT_UPLOADED	\N	\N	\N	{"path": "protocols/146/requirements/1262/Ejercicios_Propuestos_Simulacion.pdf", "fileName": "Ejercicios_Propuestos_Simulacion.pdf", "sizeBytes": 331804, "requirementId": 1262}	::1	\N	2026-06-08 06:14:54.497316
+1746	34	DOCUMENT_UPLOADED	\N	\N	\N	{"path": "protocols/146/requirements/1263/Datap1.pdf", "fileName": "Datap1.pdf", "sizeBytes": 75024, "requirementId": 1263}	::1	\N	2026-06-08 06:14:59.65759
+1747	34	PROTOCOL_SUBMITTED	\N	\N	\N	{}	::1	\N	2026-06-08 06:15:06.579105
+1748	30	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:18:10.597053
+1749	30	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:18:17.480128
+1750	30	DOCUMENT_VALIDATED	\N	\N	\N	{"statusId": 1, "pageCount": 1, "observations": ""}	::1	\N	2026-06-08 06:18:27.650139
+1751	30	DOCUMENT_VALIDATED	\N	\N	\N	{"statusId": 1, "pageCount": 1, "observations": ""}	::1	\N	2026-06-08 06:18:29.640245
+1752	30	DOCUMENT_VALIDATED	\N	\N	\N	{"statusId": 1, "pageCount": 1, "observations": ""}	::1	\N	2026-06-08 06:18:31.266759
+1753	30	DOCUMENT_VALIDATED	\N	\N	\N	{"statusId": 1, "pageCount": 1, "observations": ""}	::1	\N	2026-06-08 06:18:33.134991
+1754	30	DOCUMENT_VALIDATED	\N	\N	\N	{"statusId": 1, "pageCount": 1, "observations": ""}	::1	\N	2026-06-08 06:18:36.674845
+1755	30	DOCUMENT_VALIDATED	\N	\N	\N	{"statusId": 1, "pageCount": 1, "observations": ""}	::1	\N	2026-06-08 06:18:38.859315
+1756	30	DOCUMENT_VALIDATED	\N	\N	\N	{"statusId": 1, "pageCount": 1, "observations": ""}	::1	\N	2026-06-08 06:18:40.436133
+1757	30	DOCUMENT_VALIDATED	\N	\N	\N	{"statusId": 1, "pageCount": 1, "observations": ""}	::1	\N	2026-06-08 06:18:43.389362
+1758	30	DOCUMENT_VALIDATED	\N	\N	\N	{"statusId": 1, "pageCount": 1, "observations": ""}	::1	\N	2026-06-08 06:18:46.50908
+1759	30	REQUIREMENTS_VERIFIED	\N	\N	\N	{"isComplete": true, "missingItemsList": "p1"}	::1	\N	2026-06-08 06:18:53.266341
+1760	30	RECEPTION_FINALIZED	\N	\N	\N	{}	::1	\N	2026-06-08 06:18:58.105601
+1761	34	PROTOCOL_TIMELINE_ACCEPTED	\N	\N	\N	{}	::1	\N	2026-06-08 06:20:37.565244
+1762	30	PEER_EVALUATORS_ASSIGNED	\N	\N	\N	{"evaluatorIds": [37, 40, 8, 41]}	::1	\N	2026-06-08 06:21:37.887132
+1763	40	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:24:23.25646
+1764	40	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:24:28.705769
+1765	40	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:24:42.22708
+1766	40	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:24:46.577568
+1767	40	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:26:53.691667
+1768	40	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:27:00.948443
+1769	40	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:29:08.567169
+1770	32	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:36:34.638712
+1771	32	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:36:34.970762
+1772	32	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 06:37:10.512117
+1775	\N	RATE_LIMIT_EXCEEDED	dos_defense	\N	\N	{"path": "/", "limit": 60, "method": "GET", "violation": 2, "autoBlocked": false, "maxViolations": 3, "requestsInWindow": 60}	::1	\N	2026-06-08 15:35:41.092053
+1776	\N	RATE_LIMIT_EXCEEDED	dos_defense	\N	\N	{"path": "/", "limit": 60, "method": "GET", "violation": 3, "autoBlocked": true, "maxViolations": 3, "requestsInWindow": 60}	::1	\N	2026-06-08 15:35:41.135224
+1774	\N	IP_AUTO_BLOCKED	dos_defense	\N	\N	{"path": "/", "reason": "Superó 3 infracciones de rate limiting", "violations": 3, "blockedUntil": "2026-06-08T15:40:41.042Z", "durationMinutes": 5}	::1	\N	2026-06-08 15:35:41.094435
+1773	\N	RATE_LIMIT_EXCEEDED	dos_defense	\N	\N	{"path": "/", "limit": 60, "method": "GET", "violation": 1, "autoBlocked": false, "maxViolations": 3, "requestsInWindow": 60}	::1	\N	2026-06-08 15:35:41.093021
+1777	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "GET", "blockedUntil": "2026-06-08T15:40:41.042Z", "totalViolations": 3, "secondsRemaining": 300}	::1	\N	2026-06-08 15:35:41.160349
+1778	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-08T15:40:41.042Z", "totalViolations": 3, "secondsRemaining": 205}	::1	\N	2026-06-08 15:37:16.757804
+1779	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-08T15:40:41.042Z", "totalViolations": 3, "secondsRemaining": 173}	::1	\N	2026-06-08 15:37:48.798952
+1780	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-08T15:40:41.042Z", "totalViolations": 3, "secondsRemaining": 115}	::1	\N	2026-06-08 15:38:46.625653
+1781	40	DOCUMENT_DOWNLOAD_URL_GENERATED	\N	\N	\N	\N	::1	\N	2026-06-08 16:23:51.836611
+790	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.161805
+810	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.415075
+818	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.502947
+828	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.529753
+838	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.567239
+848	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.600801
+858	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.637191
+868	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 300}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.670168
+878	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.713848
+888	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.743398
+908	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.822156
+918	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.876976
+928	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.917958
+938	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:00.958852
+948	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.00072
+967	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 299}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.091684
+977	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.281698
+987	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.340731
+992	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.397626
+1009	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.484811
+1012	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.572497
+1029	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.690029
+1032	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.773605
+1041	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.922295
+1060	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:01.995132
+1062	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 298}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.072997
+1079	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.191535
+1082	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.297317
+1099	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.382282
+1102	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.477314
+1119	\N	IP_BLOCKED_ACCESS_ATTEMPT	dos_defense	\N	\N	{"path": "/", "method": "POST", "blockedUntil": "2026-06-04T11:06:59.183Z", "totalViolations": 3, "secondsRemaining": 297}	::ffff:127.0.0.1	\N	2026-06-04 11:02:02.584623
 \.
 
 
 --
--- TOC entry 4258 (class 0 OID 24642)
+-- TOC entry 4249 (class 0 OID 24642)
 -- Dependencies: 302
 -- Data for Name: declaracion_confidencialidad; Type: TABLE DATA; Schema: sistema; Owner: ceish_user
 --
@@ -7120,7 +8468,7 @@ COPY sistema.declaracion_confidencialidad (id, protocolo_id, investigador_id, fe
 
 
 --
--- TOC entry 4260 (class 0 OID 24661)
+-- TOC entry 4251 (class 0 OID 24661)
 -- Dependencies: 304
 -- Data for Name: declaracion_conflicto_interes; Type: TABLE DATA; Schema: sistema; Owner: ceish_user
 --
@@ -7130,7 +8478,7 @@ COPY sistema.declaracion_conflicto_interes (id, protocolo_id, investigador_id, t
 
 
 --
--- TOC entry 4252 (class 0 OID 24584)
+-- TOC entry 4243 (class 0 OID 24584)
 -- Dependencies: 296
 -- Data for Name: notificaciones; Type: TABLE DATA; Schema: sistema; Owner: ceish_user
 --
@@ -7140,7 +8488,7 @@ COPY sistema.notificaciones (id, usuario_id, plantilla_id, asunto, cuerpo_mensaj
 
 
 --
--- TOC entry 4254 (class 0 OID 24610)
+-- TOC entry 4245 (class 0 OID 24610)
 -- Dependencies: 298
 -- Data for Name: parametros_sistema; Type: TABLE DATA; Schema: sistema; Owner: ceish_user
 --
@@ -7150,7 +8498,7 @@ COPY sistema.parametros_sistema (id, clave, valor, tipo_dato, descripcion, actua
 
 
 --
--- TOC entry 4250 (class 0 OID 24572)
+-- TOC entry 4241 (class 0 OID 24572)
 -- Dependencies: 294
 -- Data for Name: plantillas_comunicacion; Type: TABLE DATA; Schema: sistema; Owner: ceish_user
 --
@@ -7160,7 +8508,7 @@ COPY sistema.plantillas_comunicacion (id, codigo, asunto, cuerpo_html, variables
 
 
 --
--- TOC entry 4360 (class 0 OID 0)
+-- TOC entry 4351 (class 0 OID 0)
 -- Dependencies: 250
 -- Name: causales_suspension_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7169,7 +8517,7 @@ SELECT pg_catalog.setval('catalogos.causales_suspension_id_seq', 1, false);
 
 
 --
--- TOC entry 4361 (class 0 OID 0)
+-- TOC entry 4352 (class 0 OID 0)
 -- Dependencies: 248
 -- Name: criterios_evaluacion_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7178,7 +8526,7 @@ SELECT pg_catalog.setval('catalogos.criterios_evaluacion_id_seq', 1, false);
 
 
 --
--- TOC entry 4362 (class 0 OID 0)
+-- TOC entry 4353 (class 0 OID 0)
 -- Dependencies: 234
 -- Name: estados_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7187,7 +8535,7 @@ SELECT pg_catalog.setval('catalogos.estados_id_seq', 14, true);
 
 
 --
--- TOC entry 4363 (class 0 OID 0)
+-- TOC entry 4354 (class 0 OID 0)
 -- Dependencies: 242
 -- Name: modalidades_revision_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7196,7 +8544,7 @@ SELECT pg_catalog.setval('catalogos.modalidades_revision_id_seq', 3, true);
 
 
 --
--- TOC entry 4364 (class 0 OID 0)
+-- TOC entry 4355 (class 0 OID 0)
 -- Dependencies: 333
 -- Name: modulos_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7205,7 +8553,7 @@ SELECT pg_catalog.setval('catalogos.modulos_id_seq', 15, true);
 
 
 --
--- TOC entry 4365 (class 0 OID 0)
+-- TOC entry 4356 (class 0 OID 0)
 -- Dependencies: 232
 -- Name: niveles_riesgo_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7214,7 +8562,7 @@ SELECT pg_catalog.setval('catalogos.niveles_riesgo_id_seq', 8, true);
 
 
 --
--- TOC entry 4366 (class 0 OID 0)
+-- TOC entry 4357 (class 0 OID 0)
 -- Dependencies: 239
 -- Name: perfiles_evaluador_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7223,7 +8571,7 @@ SELECT pg_catalog.setval('catalogos.perfiles_evaluador_id_seq', 15, true);
 
 
 --
--- TOC entry 4367 (class 0 OID 0)
+-- TOC entry 4358 (class 0 OID 0)
 -- Dependencies: 331
 -- Name: perfiles_investigador_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7232,7 +8580,7 @@ SELECT pg_catalog.setval('catalogos.perfiles_investigador_id_seq', 11, true);
 
 
 --
--- TOC entry 4368 (class 0 OID 0)
+-- TOC entry 4359 (class 0 OID 0)
 -- Dependencies: 227
 -- Name: permisos_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7241,7 +8589,7 @@ SELECT pg_catalog.setval('catalogos.permisos_id_seq', 42, true);
 
 
 --
--- TOC entry 4369 (class 0 OID 0)
+-- TOC entry 4360 (class 0 OID 0)
 -- Dependencies: 222
 -- Name: roles_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7250,7 +8598,7 @@ SELECT pg_catalog.setval('catalogos.roles_id_seq', 15, true);
 
 
 --
--- TOC entry 4370 (class 0 OID 0)
+-- TOC entry 4361 (class 0 OID 0)
 -- Dependencies: 236
 -- Name: tipos_documento_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7259,7 +8607,7 @@ SELECT pg_catalog.setval('catalogos.tipos_documento_id_seq', 45, true);
 
 
 --
--- TOC entry 4371 (class 0 OID 0)
+-- TOC entry 4362 (class 0 OID 0)
 -- Dependencies: 230
 -- Name: tipos_estudio_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7268,16 +8616,16 @@ SELECT pg_catalog.setval('catalogos.tipos_estudio_id_seq', 8, true);
 
 
 --
--- TOC entry 4372 (class 0 OID 0)
+-- TOC entry 4363 (class 0 OID 0)
 -- Dependencies: 246
 -- Name: tipos_resolucion_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('catalogos.tipos_resolucion_id_seq', 1, false);
+SELECT pg_catalog.setval('catalogos.tipos_resolucion_id_seq', 4, true);
 
 
 --
--- TOC entry 4373 (class 0 OID 0)
+-- TOC entry 4364 (class 0 OID 0)
 -- Dependencies: 244
 -- Name: tipos_seguimiento_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7286,7 +8634,7 @@ SELECT pg_catalog.setval('catalogos.tipos_seguimiento_id_seq', 1, false);
 
 
 --
--- TOC entry 4374 (class 0 OID 0)
+-- TOC entry 4365 (class 0 OID 0)
 -- Dependencies: 224
 -- Name: usuarios_id_seq; Type: SEQUENCE SET; Schema: catalogos; Owner: ceish_user
 --
@@ -7295,7 +8643,7 @@ SELECT pg_catalog.setval('catalogos.usuarios_id_seq', 100, true);
 
 
 --
--- TOC entry 4375 (class 0 OID 0)
+-- TOC entry 4366 (class 0 OID 0)
 -- Dependencies: 269
 -- Name: actas_id_seq; Type: SEQUENCE SET; Schema: evaluacion; Owner: ceish_user
 --
@@ -7304,25 +8652,25 @@ SELECT pg_catalog.setval('evaluacion.actas_id_seq', 1, false);
 
 
 --
--- TOC entry 4376 (class 0 OID 0)
+-- TOC entry 4367 (class 0 OID 0)
 -- Dependencies: 262
 -- Name: asignaciones_evaluacion_id_seq; Type: SEQUENCE SET; Schema: evaluacion; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('evaluacion.asignaciones_evaluacion_id_seq', 10, true);
+SELECT pg_catalog.setval('evaluacion.asignaciones_evaluacion_id_seq', 14, true);
 
 
 --
--- TOC entry 4377 (class 0 OID 0)
+-- TOC entry 4368 (class 0 OID 0)
 -- Dependencies: 335
 -- Name: asignaciones_pares_riesgo_id_seq; Type: SEQUENCE SET; Schema: evaluacion; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('evaluacion.asignaciones_pares_riesgo_id_seq', 16, true);
+SELECT pg_catalog.setval('evaluacion.asignaciones_pares_riesgo_id_seq', 18, true);
 
 
 --
--- TOC entry 4378 (class 0 OID 0)
+-- TOC entry 4369 (class 0 OID 0)
 -- Dependencies: 273
 -- Name: asistencia_sesiones_id_seq; Type: SEQUENCE SET; Schema: evaluacion; Owner: ceish_user
 --
@@ -7331,7 +8679,7 @@ SELECT pg_catalog.setval('evaluacion.asistencia_sesiones_id_seq', 1, false);
 
 
 --
--- TOC entry 4379 (class 0 OID 0)
+-- TOC entry 4370 (class 0 OID 0)
 -- Dependencies: 264
 -- Name: evaluaciones_id_seq; Type: SEQUENCE SET; Schema: evaluacion; Owner: ceish_user
 --
@@ -7340,7 +8688,7 @@ SELECT pg_catalog.setval('evaluacion.evaluaciones_id_seq', 1, false);
 
 
 --
--- TOC entry 4380 (class 0 OID 0)
+-- TOC entry 4371 (class 0 OID 0)
 -- Dependencies: 267
 -- Name: sesiones_id_seq; Type: SEQUENCE SET; Schema: evaluacion; Owner: ceish_user
 --
@@ -7349,7 +8697,7 @@ SELECT pg_catalog.setval('evaluacion.sesiones_id_seq', 1, false);
 
 
 --
--- TOC entry 4381 (class 0 OID 0)
+-- TOC entry 4372 (class 0 OID 0)
 -- Dependencies: 286
 -- Name: enmiendas_id_seq; Type: SEQUENCE SET; Schema: gestion; Owner: ceish_user
 --
@@ -7358,7 +8706,7 @@ SELECT pg_catalog.setval('gestion.enmiendas_id_seq', 1, false);
 
 
 --
--- TOC entry 4382 (class 0 OID 0)
+-- TOC entry 4373 (class 0 OID 0)
 -- Dependencies: 288
 -- Name: renovaciones_id_seq; Type: SEQUENCE SET; Schema: gestion; Owner: ceish_user
 --
@@ -7367,7 +8715,7 @@ SELECT pg_catalog.setval('gestion.renovaciones_id_seq', 1, false);
 
 
 --
--- TOC entry 4383 (class 0 OID 0)
+-- TOC entry 4374 (class 0 OID 0)
 -- Dependencies: 290
 -- Name: suspensiones_id_seq; Type: SEQUENCE SET; Schema: gestion; Owner: ceish_user
 --
@@ -7376,7 +8724,7 @@ SELECT pg_catalog.setval('gestion.suspensiones_id_seq', 1, false);
 
 
 --
--- TOC entry 4384 (class 0 OID 0)
+-- TOC entry 4375 (class 0 OID 0)
 -- Dependencies: 312
 -- Name: analisis_documentos_id_seq; Type: SEQUENCE SET; Schema: ml_features; Owner: ceish_user
 --
@@ -7385,7 +8733,7 @@ SELECT pg_catalog.setval('ml_features.analisis_documentos_id_seq', 1, false);
 
 
 --
--- TOC entry 4385 (class 0 OID 0)
+-- TOC entry 4376 (class 0 OID 0)
 -- Dependencies: 314
 -- Name: balanceo_evaluadores_id_seq; Type: SEQUENCE SET; Schema: ml_features; Owner: ceish_user
 --
@@ -7394,7 +8742,7 @@ SELECT pg_catalog.setval('ml_features.balanceo_evaluadores_id_seq', 1, false);
 
 
 --
--- TOC entry 4386 (class 0 OID 0)
+-- TOC entry 4377 (class 0 OID 0)
 -- Dependencies: 318
 -- Name: chatbot_conversaciones_id_seq; Type: SEQUENCE SET; Schema: ml_features; Owner: ceish_user
 --
@@ -7403,7 +8751,7 @@ SELECT pg_catalog.setval('ml_features.chatbot_conversaciones_id_seq', 1, false);
 
 
 --
--- TOC entry 4387 (class 0 OID 0)
+-- TOC entry 4378 (class 0 OID 0)
 -- Dependencies: 309
 -- Name: modelos_versiones_id_seq; Type: SEQUENCE SET; Schema: ml_features; Owner: ceish_user
 --
@@ -7412,7 +8760,7 @@ SELECT pg_catalog.setval('ml_features.modelos_versiones_id_seq', 1, false);
 
 
 --
--- TOC entry 4388 (class 0 OID 0)
+-- TOC entry 4379 (class 0 OID 0)
 -- Dependencies: 316
 -- Name: prediccion_incumplimientos_id_seq; Type: SEQUENCE SET; Schema: ml_features; Owner: ceish_user
 --
@@ -7421,7 +8769,7 @@ SELECT pg_catalog.setval('ml_features.prediccion_incumplimientos_id_seq', 1, fal
 
 
 --
--- TOC entry 4389 (class 0 OID 0)
+-- TOC entry 4380 (class 0 OID 0)
 -- Dependencies: 307
 -- Name: predicciones_log_id_seq; Type: SEQUENCE SET; Schema: ml_features; Owner: ceish_user
 --
@@ -7430,7 +8778,7 @@ SELECT pg_catalog.setval('ml_features.predicciones_log_id_seq', 1, false);
 
 
 --
--- TOC entry 4390 (class 0 OID 0)
+-- TOC entry 4381 (class 0 OID 0)
 -- Dependencies: 305
 -- Name: protocolo_features_id_seq; Type: SEQUENCE SET; Schema: ml_features; Owner: ceish_user
 --
@@ -7439,7 +8787,7 @@ SELECT pg_catalog.setval('ml_features.protocolo_features_id_seq', 1, false);
 
 
 --
--- TOC entry 4391 (class 0 OID 0)
+-- TOC entry 4382 (class 0 OID 0)
 -- Dependencies: 320
 -- Name: reportes_msp_id_seq; Type: SEQUENCE SET; Schema: ml_features; Owner: ceish_user
 --
@@ -7448,16 +8796,16 @@ SELECT pg_catalog.setval('ml_features.reportes_msp_id_seq', 1, false);
 
 
 --
--- TOC entry 4392 (class 0 OID 0)
+-- TOC entry 4383 (class 0 OID 0)
 -- Dependencies: 329
 -- Name: migrations_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('public.migrations_id_seq', 33, true);
+SELECT pg_catalog.setval('public.migrations_id_seq', 39, true);
 
 
 --
--- TOC entry 4393 (class 0 OID 0)
+-- TOC entry 4384 (class 0 OID 0)
 -- Dependencies: 322
 -- Name: protocolo_instituciones_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ceish_user
 --
@@ -7466,70 +8814,70 @@ SELECT pg_catalog.setval('public.protocolo_instituciones_id_seq', 111, true);
 
 
 --
--- TOC entry 4394 (class 0 OID 0)
+-- TOC entry 4385 (class 0 OID 0)
 -- Dependencies: 326
 -- Name: protocolo_investigadores_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('public.protocolo_investigadores_id_seq', 125, true);
+SELECT pg_catalog.setval('public.protocolo_investigadores_id_seq', 144, true);
 
 
 --
--- TOC entry 4395 (class 0 OID 0)
+-- TOC entry 4386 (class 0 OID 0)
 -- Dependencies: 324
 -- Name: protocolo_requisitos_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('public.protocolo_requisitos_id_seq', 1079, true);
+SELECT pg_catalog.setval('public.protocolo_requisitos_id_seq', 1265, true);
 
 
 --
--- TOC entry 4396 (class 0 OID 0)
+-- TOC entry 4387 (class 0 OID 0)
 -- Dependencies: 252
 -- Name: protocolos_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('public.protocolos_id_seq', 127, true);
+SELECT pg_catalog.setval('public.protocolos_id_seq', 146, true);
 
 
 --
--- TOC entry 4397 (class 0 OID 0)
+-- TOC entry 4388 (class 0 OID 0)
 -- Dependencies: 254
 -- Name: versiones_protocolo_id_seq; Type: SEQUENCE SET; Schema: public; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('public.versiones_protocolo_id_seq', 5, true);
+SELECT pg_catalog.setval('public.versiones_protocolo_id_seq', 95, true);
 
 
 --
--- TOC entry 4398 (class 0 OID 0)
+-- TOC entry 4389 (class 0 OID 0)
 -- Dependencies: 256
 -- Name: documentos_id_seq; Type: SEQUENCE SET; Schema: recepcion; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('recepcion.documentos_id_seq', 317, true);
+SELECT pg_catalog.setval('recepcion.documentos_id_seq', 326, true);
 
 
 --
--- TOC entry 4399 (class 0 OID 0)
+-- TOC entry 4390 (class 0 OID 0)
 -- Dependencies: 260
 -- Name: recepciones_id_seq; Type: SEQUENCE SET; Schema: recepcion; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('recepcion.recepciones_id_seq', 129, true);
+SELECT pg_catalog.setval('recepcion.recepciones_id_seq', 148, true);
 
 
 --
--- TOC entry 4400 (class 0 OID 0)
+-- TOC entry 4391 (class 0 OID 0)
 -- Dependencies: 258
 -- Name: validaciones_documento_id_seq; Type: SEQUENCE SET; Schema: recepcion; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('recepcion.validaciones_documento_id_seq', 325, true);
+SELECT pg_catalog.setval('recepcion.validaciones_documento_id_seq', 335, true);
 
 
 --
--- TOC entry 4401 (class 0 OID 0)
+-- TOC entry 4392 (class 0 OID 0)
 -- Dependencies: 277
 -- Name: notificaciones_resolucion_id_seq; Type: SEQUENCE SET; Schema: resolucion; Owner: ceish_user
 --
@@ -7538,7 +8886,7 @@ SELECT pg_catalog.setval('resolucion.notificaciones_resolucion_id_seq', 1, false
 
 
 --
--- TOC entry 4402 (class 0 OID 0)
+-- TOC entry 4393 (class 0 OID 0)
 -- Dependencies: 275
 -- Name: resoluciones_id_seq; Type: SEQUENCE SET; Schema: resolucion; Owner: ceish_user
 --
@@ -7547,7 +8895,7 @@ SELECT pg_catalog.setval('resolucion.resoluciones_id_seq', 1, false);
 
 
 --
--- TOC entry 4403 (class 0 OID 0)
+-- TOC entry 4394 (class 0 OID 0)
 -- Dependencies: 284
 -- Name: eventos_adversos_id_seq; Type: SEQUENCE SET; Schema: seguimiento; Owner: ceish_user
 --
@@ -7556,7 +8904,7 @@ SELECT pg_catalog.setval('seguimiento.eventos_adversos_id_seq', 1, false);
 
 
 --
--- TOC entry 4404 (class 0 OID 0)
+-- TOC entry 4395 (class 0 OID 0)
 -- Dependencies: 281
 -- Name: informes_seguimiento_id_seq; Type: SEQUENCE SET; Schema: seguimiento; Owner: ceish_user
 --
@@ -7565,7 +8913,7 @@ SELECT pg_catalog.setval('seguimiento.informes_seguimiento_id_seq', 1, false);
 
 
 --
--- TOC entry 4405 (class 0 OID 0)
+-- TOC entry 4396 (class 0 OID 0)
 -- Dependencies: 279
 -- Name: seguimientos_id_seq; Type: SEQUENCE SET; Schema: seguimiento; Owner: ceish_user
 --
@@ -7574,16 +8922,16 @@ SELECT pg_catalog.setval('seguimiento.seguimientos_id_seq', 1, false);
 
 
 --
--- TOC entry 4406 (class 0 OID 0)
+-- TOC entry 4397 (class 0 OID 0)
 -- Dependencies: 299
 -- Name: audit_log_id_seq; Type: SEQUENCE SET; Schema: sistema; Owner: ceish_user
 --
 
-SELECT pg_catalog.setval('sistema.audit_log_id_seq', 769, true);
+SELECT pg_catalog.setval('sistema.audit_log_id_seq', 1781, true);
 
 
 --
--- TOC entry 4407 (class 0 OID 0)
+-- TOC entry 4398 (class 0 OID 0)
 -- Dependencies: 301
 -- Name: declaracion_confidencialidad_id_seq; Type: SEQUENCE SET; Schema: sistema; Owner: ceish_user
 --
@@ -7592,7 +8940,7 @@ SELECT pg_catalog.setval('sistema.declaracion_confidencialidad_id_seq', 1, false
 
 
 --
--- TOC entry 4408 (class 0 OID 0)
+-- TOC entry 4399 (class 0 OID 0)
 -- Dependencies: 303
 -- Name: declaracion_conflicto_interes_id_seq; Type: SEQUENCE SET; Schema: sistema; Owner: ceish_user
 --
@@ -7601,7 +8949,7 @@ SELECT pg_catalog.setval('sistema.declaracion_conflicto_interes_id_seq', 1, fals
 
 
 --
--- TOC entry 4409 (class 0 OID 0)
+-- TOC entry 4400 (class 0 OID 0)
 -- Dependencies: 295
 -- Name: notificaciones_id_seq; Type: SEQUENCE SET; Schema: sistema; Owner: ceish_user
 --
@@ -7610,7 +8958,7 @@ SELECT pg_catalog.setval('sistema.notificaciones_id_seq', 1, false);
 
 
 --
--- TOC entry 4410 (class 0 OID 0)
+-- TOC entry 4401 (class 0 OID 0)
 -- Dependencies: 297
 -- Name: parametros_sistema_id_seq; Type: SEQUENCE SET; Schema: sistema; Owner: ceish_user
 --
@@ -7619,7 +8967,7 @@ SELECT pg_catalog.setval('sistema.parametros_sistema_id_seq', 1, false);
 
 
 --
--- TOC entry 4411 (class 0 OID 0)
+-- TOC entry 4402 (class 0 OID 0)
 -- Dependencies: 293
 -- Name: plantillas_comunicacion_id_seq; Type: SEQUENCE SET; Schema: sistema; Owner: ceish_user
 --
@@ -7628,7 +8976,7 @@ SELECT pg_catalog.setval('sistema.plantillas_comunicacion_id_seq', 1, false);
 
 
 --
--- TOC entry 3783 (class 2606 OID 45030)
+-- TOC entry 3776 (class 2606 OID 45030)
 -- Name: tipos_estudio UQ_3e2048c9190821eb0c00d6a18fd; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7637,7 +8985,7 @@ ALTER TABLE ONLY catalogos.tipos_estudio
 
 
 --
--- TOC entry 3775 (class 2606 OID 57487)
+-- TOC entry 3768 (class 2606 OID 57487)
 -- Name: permisos UQ_40d964f2742b2f4e3f379d3f460; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7646,7 +8994,7 @@ ALTER TABLE ONLY catalogos.permisos
 
 
 --
--- TOC entry 3761 (class 2606 OID 57489)
+-- TOC entry 3754 (class 2606 OID 57489)
 -- Name: roles UQ_5def9cb8b6a53b45e58ab82e37e; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7655,7 +9003,7 @@ ALTER TABLE ONLY catalogos.roles
 
 
 --
--- TOC entry 3823 (class 2606 OID 23989)
+-- TOC entry 3812 (class 2606 OID 23989)
 -- Name: causales_suspension causales_suspension_nombre_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7664,7 +9012,7 @@ ALTER TABLE ONLY catalogos.causales_suspension
 
 
 --
--- TOC entry 3825 (class 2606 OID 23987)
+-- TOC entry 3814 (class 2606 OID 23987)
 -- Name: causales_suspension causales_suspension_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7673,7 +9021,7 @@ ALTER TABLE ONLY catalogos.causales_suspension
 
 
 --
--- TOC entry 3819 (class 2606 OID 23978)
+-- TOC entry 3808 (class 2606 OID 23978)
 -- Name: criterios_evaluacion criterios_evaluacion_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7682,7 +9030,7 @@ ALTER TABLE ONLY catalogos.criterios_evaluacion
 
 
 --
--- TOC entry 3821 (class 2606 OID 23980)
+-- TOC entry 3810 (class 2606 OID 23980)
 -- Name: criterios_evaluacion criterios_evaluacion_tipo_descripcion_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7691,7 +9039,7 @@ ALTER TABLE ONLY catalogos.criterios_evaluacion
 
 
 --
--- TOC entry 3791 (class 2606 OID 65615)
+-- TOC entry 3784 (class 2606 OID 65615)
 -- Name: estados estados_codigo_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7700,7 +9048,7 @@ ALTER TABLE ONLY catalogos.estados
 
 
 --
--- TOC entry 3793 (class 2606 OID 23882)
+-- TOC entry 3786 (class 2606 OID 23882)
 -- Name: estados estados_nombre_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7709,7 +9057,7 @@ ALTER TABLE ONLY catalogos.estados
 
 
 --
--- TOC entry 3795 (class 2606 OID 23880)
+-- TOC entry 3788 (class 2606 OID 23880)
 -- Name: estados estados_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7718,7 +9066,7 @@ ALTER TABLE ONLY catalogos.estados
 
 
 --
--- TOC entry 3805 (class 2606 OID 23930)
+-- TOC entry 3798 (class 2606 OID 23930)
 -- Name: evaluadores_perfil evaluadores_perfil_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7727,16 +9075,7 @@ ALTER TABLE ONLY catalogos.evaluadores_perfil
 
 
 --
--- TOC entry 3807 (class 2606 OID 23949)
--- Name: modalidades_revision modalidades_revision_nombre_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
---
-
-ALTER TABLE ONLY catalogos.modalidades_revision
-    ADD CONSTRAINT modalidades_revision_nombre_key UNIQUE (nombre);
-
-
---
--- TOC entry 3809 (class 2606 OID 23947)
+-- TOC entry 3800 (class 2606 OID 23947)
 -- Name: modalidades_revision modalidades_revision_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7745,7 +9084,7 @@ ALTER TABLE ONLY catalogos.modalidades_revision
 
 
 --
--- TOC entry 3934 (class 2606 OID 65628)
+-- TOC entry 3923 (class 2606 OID 65628)
 -- Name: modulos modulos_codigo_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7754,7 +9093,7 @@ ALTER TABLE ONLY catalogos.modulos
 
 
 --
--- TOC entry 3936 (class 2606 OID 65626)
+-- TOC entry 3925 (class 2606 OID 65626)
 -- Name: modulos modulos_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7763,7 +9102,7 @@ ALTER TABLE ONLY catalogos.modulos
 
 
 --
--- TOC entry 3787 (class 2606 OID 23873)
+-- TOC entry 3780 (class 2606 OID 23873)
 -- Name: niveles_riesgo niveles_riesgo_codigo_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7772,7 +9111,7 @@ ALTER TABLE ONLY catalogos.niveles_riesgo
 
 
 --
--- TOC entry 3789 (class 2606 OID 23871)
+-- TOC entry 3782 (class 2606 OID 23871)
 -- Name: niveles_riesgo niveles_riesgo_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7781,7 +9120,7 @@ ALTER TABLE ONLY catalogos.niveles_riesgo
 
 
 --
--- TOC entry 3801 (class 2606 OID 23923)
+-- TOC entry 3794 (class 2606 OID 23923)
 -- Name: perfiles_evaluador perfiles_evaluador_nombre_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7790,7 +9129,7 @@ ALTER TABLE ONLY catalogos.perfiles_evaluador
 
 
 --
--- TOC entry 3803 (class 2606 OID 23921)
+-- TOC entry 3796 (class 2606 OID 23921)
 -- Name: perfiles_evaluador perfiles_evaluador_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7799,7 +9138,7 @@ ALTER TABLE ONLY catalogos.perfiles_evaluador
 
 
 --
--- TOC entry 3930 (class 2606 OID 49255)
+-- TOC entry 3919 (class 2606 OID 49255)
 -- Name: perfiles_investigador perfiles_investigador_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7808,7 +9147,7 @@ ALTER TABLE ONLY catalogos.perfiles_investigador
 
 
 --
--- TOC entry 3932 (class 2606 OID 49257)
+-- TOC entry 3921 (class 2606 OID 49257)
 -- Name: perfiles_investigador perfiles_investigador_usuario_id_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7817,7 +9156,7 @@ ALTER TABLE ONLY catalogos.perfiles_investigador
 
 
 --
--- TOC entry 3777 (class 2606 OID 23836)
+-- TOC entry 3770 (class 2606 OID 23836)
 -- Name: permisos permisos_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7826,7 +9165,7 @@ ALTER TABLE ONLY catalogos.permisos
 
 
 --
--- TOC entry 3781 (class 2606 OID 23843)
+-- TOC entry 3774 (class 2606 OID 23843)
 -- Name: rol_permisos rol_permisos_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7835,7 +9174,7 @@ ALTER TABLE ONLY catalogos.rol_permisos
 
 
 --
--- TOC entry 3763 (class 2606 OID 23791)
+-- TOC entry 3756 (class 2606 OID 23791)
 -- Name: roles roles_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7844,7 +9183,7 @@ ALTER TABLE ONLY catalogos.roles
 
 
 --
--- TOC entry 3799 (class 2606 OID 23900)
+-- TOC entry 3792 (class 2606 OID 23900)
 -- Name: tipo_documento_estudio tipo_documento_estudio_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7853,7 +9192,7 @@ ALTER TABLE ONLY catalogos.tipo_documento_estudio
 
 
 --
--- TOC entry 3797 (class 2606 OID 23893)
+-- TOC entry 3790 (class 2606 OID 23893)
 -- Name: tipos_documento tipos_documento_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7862,7 +9201,7 @@ ALTER TABLE ONLY catalogos.tipos_documento
 
 
 --
--- TOC entry 3785 (class 2606 OID 23861)
+-- TOC entry 3778 (class 2606 OID 23861)
 -- Name: tipos_estudio tipos_estudio_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7871,16 +9210,7 @@ ALTER TABLE ONLY catalogos.tipos_estudio
 
 
 --
--- TOC entry 3815 (class 2606 OID 23969)
--- Name: tipos_resolucion tipos_resolucion_nombre_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
---
-
-ALTER TABLE ONLY catalogos.tipos_resolucion
-    ADD CONSTRAINT tipos_resolucion_nombre_key UNIQUE (nombre);
-
-
---
--- TOC entry 3817 (class 2606 OID 23967)
+-- TOC entry 3806 (class 2606 OID 23967)
 -- Name: tipos_resolucion tipos_resolucion_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7889,7 +9219,7 @@ ALTER TABLE ONLY catalogos.tipos_resolucion
 
 
 --
--- TOC entry 3811 (class 2606 OID 23960)
+-- TOC entry 3802 (class 2606 OID 23960)
 -- Name: tipos_seguimiento tipos_seguimiento_codigo_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7898,7 +9228,7 @@ ALTER TABLE ONLY catalogos.tipos_seguimiento
 
 
 --
--- TOC entry 3813 (class 2606 OID 23958)
+-- TOC entry 3804 (class 2606 OID 23958)
 -- Name: tipos_seguimiento tipos_seguimiento_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7907,7 +9237,7 @@ ALTER TABLE ONLY catalogos.tipos_seguimiento
 
 
 --
--- TOC entry 3765 (class 2606 OID 23806)
+-- TOC entry 3758 (class 2606 OID 23806)
 -- Name: usuarios usuarios_cedula_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7916,7 +9246,7 @@ ALTER TABLE ONLY catalogos.usuarios
 
 
 --
--- TOC entry 3767 (class 2606 OID 23808)
+-- TOC entry 3760 (class 2606 OID 23808)
 -- Name: usuarios usuarios_email_institucional_key; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7925,7 +9255,7 @@ ALTER TABLE ONLY catalogos.usuarios
 
 
 --
--- TOC entry 3769 (class 2606 OID 23804)
+-- TOC entry 3762 (class 2606 OID 23804)
 -- Name: usuarios usuarios_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7934,7 +9264,7 @@ ALTER TABLE ONLY catalogos.usuarios
 
 
 --
--- TOC entry 3773 (class 2606 OID 23814)
+-- TOC entry 3766 (class 2606 OID 23814)
 -- Name: usuarios_roles usuarios_roles_pkey; Type: CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -7943,7 +9273,7 @@ ALTER TABLE ONLY catalogos.usuarios_roles
 
 
 --
--- TOC entry 3855 (class 2606 OID 24286)
+-- TOC entry 3844 (class 2606 OID 24286)
 -- Name: acta_asistente acta_asistente_pkey; Type: CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -7952,7 +9282,7 @@ ALTER TABLE ONLY evaluacion.acta_asistente
 
 
 --
--- TOC entry 3853 (class 2606 OID 24271)
+-- TOC entry 3842 (class 2606 OID 24271)
 -- Name: acta_protocolo acta_protocolo_pkey; Type: CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -7961,7 +9291,7 @@ ALTER TABLE ONLY evaluacion.acta_protocolo
 
 
 --
--- TOC entry 3851 (class 2606 OID 24256)
+-- TOC entry 3840 (class 2606 OID 24256)
 -- Name: actas actas_pkey; Type: CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -7970,7 +9300,7 @@ ALTER TABLE ONLY evaluacion.actas
 
 
 --
--- TOC entry 3843 (class 2606 OID 24157)
+-- TOC entry 3832 (class 2606 OID 24157)
 -- Name: asignaciones_evaluacion asignaciones_evaluacion_pkey; Type: CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -7979,7 +9309,7 @@ ALTER TABLE ONLY evaluacion.asignaciones_evaluacion
 
 
 --
--- TOC entry 3938 (class 2606 OID 139793)
+-- TOC entry 3927 (class 2606 OID 139793)
 -- Name: asignaciones_pares_riesgo asignaciones_pares_riesgo_pkey; Type: CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -7988,7 +9318,7 @@ ALTER TABLE ONLY evaluacion.asignaciones_pares_riesgo
 
 
 --
--- TOC entry 3857 (class 2606 OID 24306)
+-- TOC entry 3846 (class 2606 OID 24306)
 -- Name: asistencia_sesiones asistencia_sesiones_pkey; Type: CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -7997,7 +9327,7 @@ ALTER TABLE ONLY evaluacion.asistencia_sesiones
 
 
 --
--- TOC entry 3847 (class 2606 OID 24217)
+-- TOC entry 3836 (class 2606 OID 24217)
 -- Name: evaluacion_criterio evaluacion_criterio_pkey; Type: CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8006,7 +9336,7 @@ ALTER TABLE ONLY evaluacion.evaluacion_criterio
 
 
 --
--- TOC entry 3845 (class 2606 OID 24202)
+-- TOC entry 3834 (class 2606 OID 24202)
 -- Name: evaluaciones evaluaciones_pkey; Type: CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8015,7 +9345,7 @@ ALTER TABLE ONLY evaluacion.evaluaciones
 
 
 --
--- TOC entry 3849 (class 2606 OID 24234)
+-- TOC entry 3838 (class 2606 OID 24234)
 -- Name: sesiones sesiones_pkey; Type: CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8024,7 +9354,7 @@ ALTER TABLE ONLY evaluacion.sesiones
 
 
 --
--- TOC entry 3872 (class 2606 OID 24474)
+-- TOC entry 3861 (class 2606 OID 24474)
 -- Name: enmiendas enmiendas_pkey; Type: CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8033,7 +9363,7 @@ ALTER TABLE ONLY gestion.enmiendas
 
 
 --
--- TOC entry 3874 (class 2606 OID 24511)
+-- TOC entry 3863 (class 2606 OID 24511)
 -- Name: renovaciones renovaciones_pkey; Type: CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8042,7 +9372,7 @@ ALTER TABLE ONLY gestion.renovaciones
 
 
 --
--- TOC entry 3878 (class 2606 OID 24560)
+-- TOC entry 3867 (class 2606 OID 24560)
 -- Name: suspension_causal suspension_causal_pkey; Type: CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8051,7 +9381,7 @@ ALTER TABLE ONLY gestion.suspension_causal
 
 
 --
--- TOC entry 3876 (class 2606 OID 24545)
+-- TOC entry 3865 (class 2606 OID 24545)
 -- Name: suspensiones suspensiones_pkey; Type: CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8060,7 +9390,7 @@ ALTER TABLE ONLY gestion.suspensiones
 
 
 --
--- TOC entry 3908 (class 2606 OID 24750)
+-- TOC entry 3897 (class 2606 OID 24750)
 -- Name: analisis_documentos analisis_documentos_documento_id_key; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8069,7 +9399,7 @@ ALTER TABLE ONLY ml_features.analisis_documentos
 
 
 --
--- TOC entry 3910 (class 2606 OID 24748)
+-- TOC entry 3899 (class 2606 OID 24748)
 -- Name: analisis_documentos analisis_documentos_pkey; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8078,7 +9408,7 @@ ALTER TABLE ONLY ml_features.analisis_documentos
 
 
 --
--- TOC entry 3913 (class 2606 OID 24765)
+-- TOC entry 3902 (class 2606 OID 24765)
 -- Name: balanceo_evaluadores balanceo_evaluadores_pkey; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8087,7 +9417,7 @@ ALTER TABLE ONLY ml_features.balanceo_evaluadores
 
 
 --
--- TOC entry 3918 (class 2606 OID 24800)
+-- TOC entry 3907 (class 2606 OID 24800)
 -- Name: chatbot_conversaciones chatbot_conversaciones_pkey; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8096,7 +9426,7 @@ ALTER TABLE ONLY ml_features.chatbot_conversaciones
 
 
 --
--- TOC entry 3906 (class 2606 OID 24733)
+-- TOC entry 3895 (class 2606 OID 24733)
 -- Name: configuracion_ml configuracion_ml_pkey; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8105,7 +9435,7 @@ ALTER TABLE ONLY ml_features.configuracion_ml
 
 
 --
--- TOC entry 3904 (class 2606 OID 24720)
+-- TOC entry 3893 (class 2606 OID 24720)
 -- Name: modelos_versiones modelos_versiones_pkey; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8114,7 +9444,7 @@ ALTER TABLE ONLY ml_features.modelos_versiones
 
 
 --
--- TOC entry 3916 (class 2606 OID 24780)
+-- TOC entry 3905 (class 2606 OID 24780)
 -- Name: prediccion_incumplimientos prediccion_incumplimientos_pkey; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8123,7 +9453,7 @@ ALTER TABLE ONLY ml_features.prediccion_incumplimientos
 
 
 --
--- TOC entry 3902 (class 2606 OID 24705)
+-- TOC entry 3891 (class 2606 OID 24705)
 -- Name: predicciones_log predicciones_log_pkey; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8132,7 +9462,7 @@ ALTER TABLE ONLY ml_features.predicciones_log
 
 
 --
--- TOC entry 3897 (class 2606 OID 24688)
+-- TOC entry 3886 (class 2606 OID 24688)
 -- Name: protocolo_features protocolo_features_pkey; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8141,7 +9471,7 @@ ALTER TABLE ONLY ml_features.protocolo_features
 
 
 --
--- TOC entry 3899 (class 2606 OID 24690)
+-- TOC entry 3888 (class 2606 OID 24690)
 -- Name: protocolo_features protocolo_features_protocolo_id_key; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8150,7 +9480,7 @@ ALTER TABLE ONLY ml_features.protocolo_features
 
 
 --
--- TOC entry 3920 (class 2606 OID 24815)
+-- TOC entry 3909 (class 2606 OID 24815)
 -- Name: reportes_msp reportes_msp_pkey; Type: CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8159,7 +9489,7 @@ ALTER TABLE ONLY ml_features.reportes_msp
 
 
 --
--- TOC entry 3922 (class 2606 OID 44938)
+-- TOC entry 3911 (class 2606 OID 44938)
 -- Name: protocolo_instituciones PK_3bbe389f2dcf25d26449613ee0c; Type: CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -8168,7 +9498,7 @@ ALTER TABLE ONLY public.protocolo_instituciones
 
 
 --
--- TOC entry 3924 (class 2606 OID 44959)
+-- TOC entry 3913 (class 2606 OID 44959)
 -- Name: protocolo_requisitos PK_5ee791cce168ec54a4ab0f1fa73; Type: CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -8177,7 +9507,7 @@ ALTER TABLE ONLY public.protocolo_requisitos
 
 
 --
--- TOC entry 3928 (class 2606 OID 45072)
+-- TOC entry 3917 (class 2606 OID 45072)
 -- Name: migrations PK_8c82d7f526340ab734260ea46be; Type: CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -8186,7 +9516,7 @@ ALTER TABLE ONLY public.migrations
 
 
 --
--- TOC entry 3926 (class 2606 OID 44978)
+-- TOC entry 3915 (class 2606 OID 44978)
 -- Name: protocolo_investigadores PK_c1cacd7fbc19ea445f3a9fa8fcc; Type: CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -8195,7 +9525,7 @@ ALTER TABLE ONLY public.protocolo_investigadores
 
 
 --
--- TOC entry 3827 (class 2606 OID 45033)
+-- TOC entry 3816 (class 2606 OID 156235)
 -- Name: protocolos UQ_195f6a548c5943a7fa3940ce41c; Type: CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -8204,7 +9534,7 @@ ALTER TABLE ONLY public.protocolos
 
 
 --
--- TOC entry 3829 (class 2606 OID 24004)
+-- TOC entry 3818 (class 2606 OID 24004)
 -- Name: protocolos protocolos_pkey; Type: CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -8213,7 +9543,7 @@ ALTER TABLE ONLY public.protocolos
 
 
 --
--- TOC entry 3831 (class 2606 OID 24036)
+-- TOC entry 3820 (class 2606 OID 24036)
 -- Name: versiones_protocolo versiones_protocolo_pkey; Type: CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -8222,7 +9552,7 @@ ALTER TABLE ONLY public.versiones_protocolo
 
 
 --
--- TOC entry 3833 (class 2606 OID 24065)
+-- TOC entry 3822 (class 2606 OID 24065)
 -- Name: documentos documentos_pkey; Type: CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -8231,7 +9561,7 @@ ALTER TABLE ONLY recepcion.documentos
 
 
 --
--- TOC entry 3837 (class 2606 OID 24130)
+-- TOC entry 3826 (class 2606 OID 24130)
 -- Name: recepciones recepciones_pkey; Type: CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -8240,7 +9570,7 @@ ALTER TABLE ONLY recepcion.recepciones
 
 
 --
--- TOC entry 3839 (class 2606 OID 24132)
+-- TOC entry 3828 (class 2606 OID 24132)
 -- Name: recepciones recepciones_protocolo_id_key; Type: CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -8249,7 +9579,7 @@ ALTER TABLE ONLY recepcion.recepciones
 
 
 --
--- TOC entry 3841 (class 2606 OID 45074)
+-- TOC entry 3830 (class 2606 OID 45074)
 -- Name: recepciones unique_protocolo_id; Type: CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -8258,7 +9588,7 @@ ALTER TABLE ONLY recepcion.recepciones
 
 
 --
--- TOC entry 3835 (class 2606 OID 24100)
+-- TOC entry 3824 (class 2606 OID 24100)
 -- Name: validaciones_documento validaciones_documento_pkey; Type: CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -8267,7 +9597,7 @@ ALTER TABLE ONLY recepcion.validaciones_documento
 
 
 --
--- TOC entry 3861 (class 2606 OID 24365)
+-- TOC entry 3850 (class 2606 OID 24365)
 -- Name: notificaciones_resolucion notificaciones_resolucion_pkey; Type: CONSTRAINT; Schema: resolucion; Owner: ceish_user
 --
 
@@ -8276,7 +9606,7 @@ ALTER TABLE ONLY resolucion.notificaciones_resolucion
 
 
 --
--- TOC entry 3859 (class 2606 OID 24335)
+-- TOC entry 3848 (class 2606 OID 24335)
 -- Name: resoluciones resoluciones_pkey; Type: CONSTRAINT; Schema: resolucion; Owner: ceish_user
 --
 
@@ -8285,7 +9615,7 @@ ALTER TABLE ONLY resolucion.resoluciones
 
 
 --
--- TOC entry 3870 (class 2606 OID 24453)
+-- TOC entry 3859 (class 2606 OID 24453)
 -- Name: eventos_adversos eventos_adversos_pkey; Type: CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -8294,7 +9624,7 @@ ALTER TABLE ONLY seguimiento.eventos_adversos
 
 
 --
--- TOC entry 3868 (class 2606 OID 24430)
+-- TOC entry 3857 (class 2606 OID 24430)
 -- Name: informe_documento informe_documento_pkey; Type: CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -8303,7 +9633,7 @@ ALTER TABLE ONLY seguimiento.informe_documento
 
 
 --
--- TOC entry 3866 (class 2606 OID 24415)
+-- TOC entry 3855 (class 2606 OID 24415)
 -- Name: informes_seguimiento informes_seguimiento_pkey; Type: CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -8312,7 +9642,7 @@ ALTER TABLE ONLY seguimiento.informes_seguimiento
 
 
 --
--- TOC entry 3864 (class 2606 OID 24386)
+-- TOC entry 3853 (class 2606 OID 24386)
 -- Name: seguimientos seguimientos_pkey; Type: CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -8321,7 +9651,7 @@ ALTER TABLE ONLY seguimiento.seguimientos
 
 
 --
--- TOC entry 3890 (class 2606 OID 24635)
+-- TOC entry 3879 (class 2606 OID 24635)
 -- Name: audit_log audit_log_pkey; Type: CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -8330,7 +9660,7 @@ ALTER TABLE ONLY sistema.audit_log
 
 
 --
--- TOC entry 3892 (class 2606 OID 24649)
+-- TOC entry 3881 (class 2606 OID 24649)
 -- Name: declaracion_confidencialidad declaracion_confidencialidad_pkey; Type: CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -8339,7 +9669,7 @@ ALTER TABLE ONLY sistema.declaracion_confidencialidad
 
 
 --
--- TOC entry 3894 (class 2606 OID 24668)
+-- TOC entry 3883 (class 2606 OID 24668)
 -- Name: declaracion_conflicto_interes declaracion_conflicto_interes_pkey; Type: CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -8348,7 +9678,7 @@ ALTER TABLE ONLY sistema.declaracion_conflicto_interes
 
 
 --
--- TOC entry 3884 (class 2606 OID 24593)
+-- TOC entry 3873 (class 2606 OID 24593)
 -- Name: notificaciones notificaciones_pkey; Type: CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -8357,7 +9687,7 @@ ALTER TABLE ONLY sistema.notificaciones
 
 
 --
--- TOC entry 3886 (class 2606 OID 24620)
+-- TOC entry 3875 (class 2606 OID 24620)
 -- Name: parametros_sistema parametros_sistema_clave_key; Type: CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -8366,7 +9696,7 @@ ALTER TABLE ONLY sistema.parametros_sistema
 
 
 --
--- TOC entry 3888 (class 2606 OID 24618)
+-- TOC entry 3877 (class 2606 OID 24618)
 -- Name: parametros_sistema parametros_sistema_pkey; Type: CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -8375,7 +9705,7 @@ ALTER TABLE ONLY sistema.parametros_sistema
 
 
 --
--- TOC entry 3880 (class 2606 OID 24582)
+-- TOC entry 3869 (class 2606 OID 24582)
 -- Name: plantillas_comunicacion plantillas_comunicacion_codigo_key; Type: CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -8384,7 +9714,7 @@ ALTER TABLE ONLY sistema.plantillas_comunicacion
 
 
 --
--- TOC entry 3882 (class 2606 OID 24580)
+-- TOC entry 3871 (class 2606 OID 24580)
 -- Name: plantillas_comunicacion plantillas_comunicacion_pkey; Type: CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -8393,7 +9723,7 @@ ALTER TABLE ONLY sistema.plantillas_comunicacion
 
 
 --
--- TOC entry 3778 (class 1259 OID 57511)
+-- TOC entry 3771 (class 1259 OID 57511)
 -- Name: IDX_25e38115872406619b03e46cce; Type: INDEX; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8401,7 +9731,7 @@ CREATE INDEX "IDX_25e38115872406619b03e46cce" ON catalogos.rol_permisos USING bt
 
 
 --
--- TOC entry 3770 (class 1259 OID 24838)
+-- TOC entry 3763 (class 1259 OID 24838)
 -- Name: IDX_2c14b9e5e2d0cf077fa4dd3350; Type: INDEX; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8409,7 +9739,7 @@ CREATE INDEX "IDX_2c14b9e5e2d0cf077fa4dd3350" ON catalogos.usuarios_roles USING 
 
 
 --
--- TOC entry 3771 (class 1259 OID 24839)
+-- TOC entry 3764 (class 1259 OID 24839)
 -- Name: IDX_425dfd009aeeee0c08af9a67a3; Type: INDEX; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8417,7 +9747,7 @@ CREATE INDEX "IDX_425dfd009aeeee0c08af9a67a3" ON catalogos.usuarios_roles USING 
 
 
 --
--- TOC entry 3779 (class 1259 OID 57510)
+-- TOC entry 3772 (class 1259 OID 57510)
 -- Name: IDX_4d6354d8c6fecd074abd3183f4; Type: INDEX; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8425,7 +9755,7 @@ CREATE INDEX "IDX_4d6354d8c6fecd074abd3183f4" ON catalogos.rol_permisos USING bt
 
 
 --
--- TOC entry 3911 (class 1259 OID 24830)
+-- TOC entry 3900 (class 1259 OID 24830)
 -- Name: idx_analisis_documentos_documento; Type: INDEX; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8433,7 +9763,7 @@ CREATE INDEX idx_analisis_documentos_documento ON ml_features.analisis_documento
 
 
 --
--- TOC entry 3914 (class 1259 OID 24831)
+-- TOC entry 3903 (class 1259 OID 24831)
 -- Name: idx_prediccion_incumplimientos_probabilidad; Type: INDEX; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8441,7 +9771,7 @@ CREATE INDEX idx_prediccion_incumplimientos_probabilidad ON ml_features.predicci
 
 
 --
--- TOC entry 3900 (class 1259 OID 24829)
+-- TOC entry 3889 (class 1259 OID 24829)
 -- Name: idx_predicciones_log_fecha; Type: INDEX; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8449,7 +9779,7 @@ CREATE INDEX idx_predicciones_log_fecha ON ml_features.predicciones_log USING bt
 
 
 --
--- TOC entry 3895 (class 1259 OID 24828)
+-- TOC entry 3884 (class 1259 OID 24828)
 -- Name: idx_protocolo_features_protocolo; Type: INDEX; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8457,7 +9787,7 @@ CREATE INDEX idx_protocolo_features_protocolo ON ml_features.protocolo_features 
 
 
 --
--- TOC entry 3862 (class 1259 OID 24825)
+-- TOC entry 3851 (class 1259 OID 24825)
 -- Name: idx_seguimientos_vencimiento; Type: INDEX; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -8465,15 +9795,7 @@ CREATE INDEX idx_seguimientos_vencimiento ON seguimiento.seguimientos USING btre
 
 
 --
--- TOC entry 4035 (class 2620 OID 57368)
--- Name: protocolos trigger_generate_ceish_code; Type: TRIGGER; Schema: public; Owner: ceish_user
---
-
-CREATE TRIGGER trigger_generate_ceish_code BEFORE UPDATE ON public.protocolos FOR EACH ROW EXECUTE FUNCTION public.trg_assign_ceish_code();
-
-
---
--- TOC entry 3942 (class 2606 OID 57532)
+-- TOC entry 3931 (class 2606 OID 57532)
 -- Name: rol_permisos FK_25e38115872406619b03e46cced; Type: FK CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8482,7 +9804,7 @@ ALTER TABLE ONLY catalogos.rol_permisos
 
 
 --
--- TOC entry 3939 (class 2606 OID 24855)
+-- TOC entry 3928 (class 2606 OID 24855)
 -- Name: usuarios_roles FK_2c14b9e5e2d0cf077fa4dd33502; Type: FK CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8491,7 +9813,7 @@ ALTER TABLE ONLY catalogos.usuarios_roles
 
 
 --
--- TOC entry 4031 (class 2606 OID 49267)
+-- TOC entry 4023 (class 2606 OID 49267)
 -- Name: perfiles_investigador FK_3b775261e8d57dad23a3579efbc; Type: FK CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8500,7 +9822,7 @@ ALTER TABLE ONLY catalogos.perfiles_investigador
 
 
 --
--- TOC entry 3940 (class 2606 OID 24860)
+-- TOC entry 3929 (class 2606 OID 24860)
 -- Name: usuarios_roles FK_425dfd009aeeee0c08af9a67a37; Type: FK CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8509,7 +9831,7 @@ ALTER TABLE ONLY catalogos.usuarios_roles
 
 
 --
--- TOC entry 3941 (class 2606 OID 65634)
+-- TOC entry 3930 (class 2606 OID 65634)
 -- Name: permisos FK_440171be66cfbd4eb361436fb83; Type: FK CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8518,7 +9840,7 @@ ALTER TABLE ONLY catalogos.permisos
 
 
 --
--- TOC entry 3944 (class 2606 OID 57512)
+-- TOC entry 3933 (class 2606 OID 57512)
 -- Name: tipo_documento_estudio FK_4c1919729b2b113198ffe6ee25b; Type: FK CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8527,7 +9849,7 @@ ALTER TABLE ONLY catalogos.tipo_documento_estudio
 
 
 --
--- TOC entry 3943 (class 2606 OID 57527)
+-- TOC entry 3932 (class 2606 OID 57527)
 -- Name: rol_permisos FK_4d6354d8c6fecd074abd3183f40; Type: FK CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8536,7 +9858,7 @@ ALTER TABLE ONLY catalogos.rol_permisos
 
 
 --
--- TOC entry 3945 (class 2606 OID 57517)
+-- TOC entry 3934 (class 2606 OID 57517)
 -- Name: tipo_documento_estudio FK_72c5ad48d848ba3a52381548ca5; Type: FK CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8545,7 +9867,7 @@ ALTER TABLE ONLY catalogos.tipo_documento_estudio
 
 
 --
--- TOC entry 3946 (class 2606 OID 49195)
+-- TOC entry 3935 (class 2606 OID 49195)
 -- Name: evaluadores_perfil FK_8ce5bd513b3ebee9e913a3d7dbb; Type: FK CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8554,7 +9876,7 @@ ALTER TABLE ONLY catalogos.evaluadores_perfil
 
 
 --
--- TOC entry 3947 (class 2606 OID 49200)
+-- TOC entry 3936 (class 2606 OID 49200)
 -- Name: evaluadores_perfil FK_f30f34ae8003b33bac053ba487b; Type: FK CONSTRAINT; Schema: catalogos; Owner: ceish_user
 --
 
@@ -8563,7 +9885,16 @@ ALTER TABLE ONLY catalogos.evaluadores_perfil
 
 
 --
--- TOC entry 3967 (class 2606 OID 49205)
+-- TOC entry 3951 (class 2606 OID 156246)
+-- Name: asignaciones_evaluacion FK_0ab58095ca0c95e49d6b79971f3; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
+--
+
+ALTER TABLE ONLY evaluacion.asignaciones_evaluacion
+    ADD CONSTRAINT "FK_0ab58095ca0c95e49d6b79971f3" FOREIGN KEY (asignado_por) REFERENCES catalogos.usuarios(id);
+
+
+--
+-- TOC entry 3959 (class 2606 OID 49205)
 -- Name: evaluaciones FK_133a4e799f9d8dbca43a919c4a5; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8572,7 +9903,7 @@ ALTER TABLE ONLY evaluacion.evaluaciones
 
 
 --
--- TOC entry 3962 (class 2606 OID 49175)
+-- TOC entry 3952 (class 2606 OID 49175)
 -- Name: asignaciones_evaluacion FK_18535309d04cd138b5501e78243; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8581,7 +9912,7 @@ ALTER TABLE ONLY evaluacion.asignaciones_evaluacion
 
 
 --
--- TOC entry 4032 (class 2606 OID 139818)
+-- TOC entry 4024 (class 2606 OID 139818)
 -- Name: asignaciones_pares_riesgo FK_2466c48d4a9253e97949320c64c; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8590,7 +9921,7 @@ ALTER TABLE ONLY evaluacion.asignaciones_pares_riesgo
 
 
 --
--- TOC entry 4033 (class 2606 OID 139813)
+-- TOC entry 4025 (class 2606 OID 139813)
 -- Name: asignaciones_pares_riesgo FK_376ba22fc806eacd71f18280e9c; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8599,7 +9930,7 @@ ALTER TABLE ONLY evaluacion.asignaciones_pares_riesgo
 
 
 --
--- TOC entry 3971 (class 2606 OID 49215)
+-- TOC entry 3963 (class 2606 OID 49215)
 -- Name: sesiones FK_37fa2cf4b2c57abf908d3379568; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8608,7 +9939,7 @@ ALTER TABLE ONLY evaluacion.sesiones
 
 
 --
--- TOC entry 4034 (class 2606 OID 139823)
+-- TOC entry 4026 (class 2606 OID 139823)
 -- Name: asignaciones_pares_riesgo FK_40721c38a287b4e3917cc4aa3cc; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8617,7 +9948,16 @@ ALTER TABLE ONLY evaluacion.asignaciones_pares_riesgo
 
 
 --
--- TOC entry 3963 (class 2606 OID 49170)
+-- TOC entry 3953 (class 2606 OID 156241)
+-- Name: asignaciones_evaluacion FK_5764e2c83a3b9a40020313a60ac; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
+--
+
+ALTER TABLE ONLY evaluacion.asignaciones_evaluacion
+    ADD CONSTRAINT "FK_5764e2c83a3b9a40020313a60ac" FOREIGN KEY (modalidad_id) REFERENCES catalogos.modalidades_revision(id);
+
+
+--
+-- TOC entry 3954 (class 2606 OID 49170)
 -- Name: asignaciones_evaluacion FK_5a2560dbca3bf36c2553c241fe6; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8626,7 +9966,7 @@ ALTER TABLE ONLY evaluacion.asignaciones_evaluacion
 
 
 --
--- TOC entry 3964 (class 2606 OID 57407)
+-- TOC entry 3955 (class 2606 OID 57407)
 -- Name: asignaciones_evaluacion FK_5ff86cf6dca0a440b2046e0cb78; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8635,7 +9975,16 @@ ALTER TABLE ONLY evaluacion.asignaciones_evaluacion
 
 
 --
--- TOC entry 3965 (class 2606 OID 49180)
+-- TOC entry 3956 (class 2606 OID 156251)
+-- Name: asignaciones_evaluacion FK_8251b0bd0639f69aabb482f339d; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
+--
+
+ALTER TABLE ONLY evaluacion.asignaciones_evaluacion
+    ADD CONSTRAINT "FK_8251b0bd0639f69aabb482f339d" FOREIGN KEY (aprobado_asignacion_por) REFERENCES catalogos.usuarios(id);
+
+
+--
+-- TOC entry 3957 (class 2606 OID 49180)
 -- Name: asignaciones_evaluacion FK_8955594d470d5b496fbf0afae95; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8644,7 +9993,7 @@ ALTER TABLE ONLY evaluacion.asignaciones_evaluacion
 
 
 --
--- TOC entry 3968 (class 2606 OID 49210)
+-- TOC entry 3960 (class 2606 OID 49210)
 -- Name: evaluaciones FK_9a302b75f1a992bffa998909da0; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8653,7 +10002,7 @@ ALTER TABLE ONLY evaluacion.evaluaciones
 
 
 --
--- TOC entry 3966 (class 2606 OID 57402)
+-- TOC entry 3958 (class 2606 OID 57402)
 -- Name: asignaciones_evaluacion FK_b84c1f3d4245bd6aa14e3f5e4e6; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8662,7 +10011,7 @@ ALTER TABLE ONLY evaluacion.asignaciones_evaluacion
 
 
 --
--- TOC entry 3972 (class 2606 OID 49220)
+-- TOC entry 3964 (class 2606 OID 49220)
 -- Name: actas FK_e58a7a9ca03d52092b653d47c32; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8671,7 +10020,7 @@ ALTER TABLE ONLY evaluacion.actas
 
 
 --
--- TOC entry 3973 (class 2606 OID 49225)
+-- TOC entry 3965 (class 2606 OID 49225)
 -- Name: actas FK_f112db31c9b8f864dcb4498a99a; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8680,7 +10029,7 @@ ALTER TABLE ONLY evaluacion.actas
 
 
 --
--- TOC entry 3976 (class 2606 OID 24287)
+-- TOC entry 3968 (class 2606 OID 24287)
 -- Name: acta_asistente acta_asistente_acta_id_fkey; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8689,7 +10038,7 @@ ALTER TABLE ONLY evaluacion.acta_asistente
 
 
 --
--- TOC entry 3977 (class 2606 OID 24292)
+-- TOC entry 3969 (class 2606 OID 24292)
 -- Name: acta_asistente acta_asistente_usuario_id_fkey; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8698,7 +10047,7 @@ ALTER TABLE ONLY evaluacion.acta_asistente
 
 
 --
--- TOC entry 3974 (class 2606 OID 24272)
+-- TOC entry 3966 (class 2606 OID 24272)
 -- Name: acta_protocolo acta_protocolo_acta_id_fkey; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8707,7 +10056,7 @@ ALTER TABLE ONLY evaluacion.acta_protocolo
 
 
 --
--- TOC entry 3975 (class 2606 OID 24277)
+-- TOC entry 3967 (class 2606 OID 24277)
 -- Name: acta_protocolo acta_protocolo_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8716,7 +10065,7 @@ ALTER TABLE ONLY evaluacion.acta_protocolo
 
 
 --
--- TOC entry 3978 (class 2606 OID 24317)
+-- TOC entry 3970 (class 2606 OID 24317)
 -- Name: asistencia_sesiones asistencia_sesiones_registro_por_fkey; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8725,7 +10074,7 @@ ALTER TABLE ONLY evaluacion.asistencia_sesiones
 
 
 --
--- TOC entry 3979 (class 2606 OID 24307)
+-- TOC entry 3971 (class 2606 OID 24307)
 -- Name: asistencia_sesiones asistencia_sesiones_sesion_id_fkey; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8734,7 +10083,7 @@ ALTER TABLE ONLY evaluacion.asistencia_sesiones
 
 
 --
--- TOC entry 3980 (class 2606 OID 24312)
+-- TOC entry 3972 (class 2606 OID 24312)
 -- Name: asistencia_sesiones asistencia_sesiones_usuario_id_fkey; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8743,7 +10092,7 @@ ALTER TABLE ONLY evaluacion.asistencia_sesiones
 
 
 --
--- TOC entry 3969 (class 2606 OID 24223)
+-- TOC entry 3961 (class 2606 OID 24223)
 -- Name: evaluacion_criterio evaluacion_criterio_criterio_id_fkey; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8752,7 +10101,7 @@ ALTER TABLE ONLY evaluacion.evaluacion_criterio
 
 
 --
--- TOC entry 3970 (class 2606 OID 24218)
+-- TOC entry 3962 (class 2606 OID 24218)
 -- Name: evaluacion_criterio evaluacion_criterio_evaluacion_id_fkey; Type: FK CONSTRAINT; Schema: evaluacion; Owner: ceish_user
 --
 
@@ -8761,7 +10110,7 @@ ALTER TABLE ONLY evaluacion.evaluacion_criterio
 
 
 --
--- TOC entry 3996 (class 2606 OID 24485)
+-- TOC entry 3988 (class 2606 OID 24485)
 -- Name: enmiendas enmiendas_estado_id_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8770,7 +10119,7 @@ ALTER TABLE ONLY gestion.enmiendas
 
 
 --
--- TOC entry 3997 (class 2606 OID 24490)
+-- TOC entry 3989 (class 2606 OID 24490)
 -- Name: enmiendas enmiendas_evaluado_por_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8779,7 +10128,7 @@ ALTER TABLE ONLY gestion.enmiendas
 
 
 --
--- TOC entry 3998 (class 2606 OID 24475)
+-- TOC entry 3990 (class 2606 OID 24475)
 -- Name: enmiendas enmiendas_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8788,7 +10137,7 @@ ALTER TABLE ONLY gestion.enmiendas
 
 
 --
--- TOC entry 3999 (class 2606 OID 24495)
+-- TOC entry 3991 (class 2606 OID 24495)
 -- Name: enmiendas enmiendas_solicitado_por_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8797,7 +10146,7 @@ ALTER TABLE ONLY gestion.enmiendas
 
 
 --
--- TOC entry 4000 (class 2606 OID 24480)
+-- TOC entry 3992 (class 2606 OID 24480)
 -- Name: enmiendas enmiendas_version_anterior_id_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8806,7 +10155,7 @@ ALTER TABLE ONLY gestion.enmiendas
 
 
 --
--- TOC entry 4001 (class 2606 OID 24517)
+-- TOC entry 3993 (class 2606 OID 24517)
 -- Name: renovaciones renovaciones_estado_id_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8815,7 +10164,7 @@ ALTER TABLE ONLY gestion.renovaciones
 
 
 --
--- TOC entry 4002 (class 2606 OID 24522)
+-- TOC entry 3994 (class 2606 OID 24522)
 -- Name: renovaciones renovaciones_evaluado_por_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8824,7 +10173,7 @@ ALTER TABLE ONLY gestion.renovaciones
 
 
 --
--- TOC entry 4003 (class 2606 OID 24512)
+-- TOC entry 3995 (class 2606 OID 24512)
 -- Name: renovaciones renovaciones_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8833,7 +10182,7 @@ ALTER TABLE ONLY gestion.renovaciones
 
 
 --
--- TOC entry 4004 (class 2606 OID 24527)
+-- TOC entry 3996 (class 2606 OID 24527)
 -- Name: renovaciones renovaciones_solicitado_por_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8842,7 +10191,7 @@ ALTER TABLE ONLY gestion.renovaciones
 
 
 --
--- TOC entry 4007 (class 2606 OID 24566)
+-- TOC entry 3999 (class 2606 OID 24566)
 -- Name: suspension_causal suspension_causal_causal_id_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8851,7 +10200,7 @@ ALTER TABLE ONLY gestion.suspension_causal
 
 
 --
--- TOC entry 4008 (class 2606 OID 24561)
+-- TOC entry 4000 (class 2606 OID 24561)
 -- Name: suspension_causal suspension_causal_suspension_id_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8860,7 +10209,7 @@ ALTER TABLE ONLY gestion.suspension_causal
 
 
 --
--- TOC entry 4005 (class 2606 OID 24551)
+-- TOC entry 3997 (class 2606 OID 24551)
 -- Name: suspensiones suspensiones_creado_por_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8869,7 +10218,7 @@ ALTER TABLE ONLY gestion.suspensiones
 
 
 --
--- TOC entry 4006 (class 2606 OID 24546)
+-- TOC entry 3998 (class 2606 OID 24546)
 -- Name: suspensiones suspensiones_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: gestion; Owner: ceish_user
 --
 
@@ -8878,7 +10227,7 @@ ALTER TABLE ONLY gestion.suspensiones
 
 
 --
--- TOC entry 4021 (class 2606 OID 24751)
+-- TOC entry 4013 (class 2606 OID 24751)
 -- Name: analisis_documentos analisis_documentos_documento_id_fkey; Type: FK CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8887,7 +10236,7 @@ ALTER TABLE ONLY ml_features.analisis_documentos
 
 
 --
--- TOC entry 4022 (class 2606 OID 24766)
+-- TOC entry 4014 (class 2606 OID 24766)
 -- Name: balanceo_evaluadores balanceo_evaluadores_evaluador_id_fkey; Type: FK CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8896,7 +10245,7 @@ ALTER TABLE ONLY ml_features.balanceo_evaluadores
 
 
 --
--- TOC entry 4025 (class 2606 OID 24801)
+-- TOC entry 4017 (class 2606 OID 24801)
 -- Name: chatbot_conversaciones chatbot_conversaciones_usuario_id_fkey; Type: FK CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8905,7 +10254,7 @@ ALTER TABLE ONLY ml_features.chatbot_conversaciones
 
 
 --
--- TOC entry 4020 (class 2606 OID 24734)
+-- TOC entry 4012 (class 2606 OID 24734)
 -- Name: configuracion_ml configuracion_ml_actualizado_por_fkey; Type: FK CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8914,7 +10263,7 @@ ALTER TABLE ONLY ml_features.configuracion_ml
 
 
 --
--- TOC entry 4019 (class 2606 OID 24721)
+-- TOC entry 4011 (class 2606 OID 24721)
 -- Name: modelos_versiones modelos_versiones_creado_por_fkey; Type: FK CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8923,7 +10272,7 @@ ALTER TABLE ONLY ml_features.modelos_versiones
 
 
 --
--- TOC entry 4023 (class 2606 OID 24781)
+-- TOC entry 4015 (class 2606 OID 24781)
 -- Name: prediccion_incumplimientos prediccion_incumplimientos_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8932,7 +10281,7 @@ ALTER TABLE ONLY ml_features.prediccion_incumplimientos
 
 
 --
--- TOC entry 4024 (class 2606 OID 24786)
+-- TOC entry 4016 (class 2606 OID 24786)
 -- Name: prediccion_incumplimientos prediccion_incumplimientos_seguimiento_id_fkey; Type: FK CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8941,7 +10290,7 @@ ALTER TABLE ONLY ml_features.prediccion_incumplimientos
 
 
 --
--- TOC entry 4018 (class 2606 OID 24706)
+-- TOC entry 4010 (class 2606 OID 24706)
 -- Name: predicciones_log predicciones_log_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8950,7 +10299,7 @@ ALTER TABLE ONLY ml_features.predicciones_log
 
 
 --
--- TOC entry 4017 (class 2606 OID 24691)
+-- TOC entry 4009 (class 2606 OID 24691)
 -- Name: protocolo_features protocolo_features_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8959,7 +10308,7 @@ ALTER TABLE ONLY ml_features.protocolo_features
 
 
 --
--- TOC entry 4026 (class 2606 OID 24816)
+-- TOC entry 4018 (class 2606 OID 24816)
 -- Name: reportes_msp reportes_msp_generado_por_fkey; Type: FK CONSTRAINT; Schema: ml_features; Owner: ceish_user
 --
 
@@ -8968,7 +10317,7 @@ ALTER TABLE ONLY ml_features.reportes_msp
 
 
 --
--- TOC entry 3952 (class 2606 OID 49160)
+-- TOC entry 3940 (class 2606 OID 49160)
 -- Name: versiones_protocolo FK_2afb08e18286c5a2d7744813255; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -8977,7 +10326,7 @@ ALTER TABLE ONLY public.versiones_protocolo
 
 
 --
--- TOC entry 4027 (class 2606 OID 45034)
+-- TOC entry 4019 (class 2606 OID 45034)
 -- Name: protocolo_instituciones FK_4d7a047ee28f29b123bf18ba518; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -8986,7 +10335,16 @@ ALTER TABLE ONLY public.protocolo_instituciones
 
 
 --
--- TOC entry 3948 (class 2606 OID 24845)
+-- TOC entry 3941 (class 2606 OID 156236)
+-- Name: versiones_protocolo FK_56973aae770f80239084f2b0c02; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
+--
+
+ALTER TABLE ONLY public.versiones_protocolo
+    ADD CONSTRAINT "FK_56973aae770f80239084f2b0c02" FOREIGN KEY (tipo_resolucion_id) REFERENCES catalogos.tipos_resolucion(id);
+
+
+--
+-- TOC entry 3937 (class 2606 OID 24845)
 -- Name: protocolos FK_5f8112d76d3a04d6bcac104fdde; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -8995,7 +10353,7 @@ ALTER TABLE ONLY public.protocolos
 
 
 --
--- TOC entry 4029 (class 2606 OID 45049)
+-- TOC entry 4021 (class 2606 OID 45049)
 -- Name: protocolo_investigadores FK_6c174cf47ac6cf520c870fa238e; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -9004,7 +10362,7 @@ ALTER TABLE ONLY public.protocolo_investigadores
 
 
 --
--- TOC entry 3949 (class 2606 OID 24840)
+-- TOC entry 3938 (class 2606 OID 24840)
 -- Name: protocolos FK_6cb010d7990210b182f002450d5; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -9013,7 +10371,7 @@ ALTER TABLE ONLY public.protocolos
 
 
 --
--- TOC entry 3950 (class 2606 OID 57379)
+-- TOC entry 3939 (class 2606 OID 57379)
 -- Name: protocolos FK_7c47b6e2c72c21288ba5b0ce6f2; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -9022,7 +10380,7 @@ ALTER TABLE ONLY public.protocolos
 
 
 --
--- TOC entry 4028 (class 2606 OID 45039)
+-- TOC entry 4020 (class 2606 OID 45039)
 -- Name: protocolo_requisitos FK_a16dd59dc278c9f98f3206b3975; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -9031,7 +10389,7 @@ ALTER TABLE ONLY public.protocolo_requisitos
 
 
 --
--- TOC entry 3953 (class 2606 OID 49165)
+-- TOC entry 3942 (class 2606 OID 49165)
 -- Name: versiones_protocolo FK_b0ee4dfcf52464b61cdc42ed4d2; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -9040,16 +10398,7 @@ ALTER TABLE ONLY public.versiones_protocolo
 
 
 --
--- TOC entry 3951 (class 2606 OID 57384)
--- Name: protocolos FK_be4479657b5156e8d8412f7b21d; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
---
-
-ALTER TABLE ONLY public.protocolos
-    ADD CONSTRAINT "FK_be4479657b5156e8d8412f7b21d" FOREIGN KEY (investigador_principal_inv_id) REFERENCES public.protocolo_investigadores(id);
-
-
---
--- TOC entry 4030 (class 2606 OID 45044)
+-- TOC entry 4022 (class 2606 OID 45044)
 -- Name: protocolo_investigadores FK_c878b23f7bce56a39665a94ab22; Type: FK CONSTRAINT; Schema: public; Owner: ceish_user
 --
 
@@ -9058,7 +10407,7 @@ ALTER TABLE ONLY public.protocolo_investigadores
 
 
 --
--- TOC entry 3954 (class 2606 OID 139759)
+-- TOC entry 3943 (class 2606 OID 139759)
 -- Name: documentos FK_1691686ad166886050c720cb896; Type: FK CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -9067,7 +10416,7 @@ ALTER TABLE ONLY recepcion.documentos
 
 
 --
--- TOC entry 3955 (class 2606 OID 24866)
+-- TOC entry 3944 (class 2606 OID 24866)
 -- Name: documentos FK_4c1d2b8ccaac28917c6f974055c; Type: FK CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -9076,7 +10425,7 @@ ALTER TABLE ONLY recepcion.documentos
 
 
 --
--- TOC entry 3960 (class 2606 OID 45106)
+-- TOC entry 3949 (class 2606 OID 45106)
 -- Name: recepciones FK_706472f437ab9bf2faea360fede; Type: FK CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -9085,7 +10434,7 @@ ALTER TABLE ONLY recepcion.recepciones
 
 
 --
--- TOC entry 3961 (class 2606 OID 45101)
+-- TOC entry 3950 (class 2606 OID 45101)
 -- Name: recepciones FK_a12c8f8360913923c95ebe93209; Type: FK CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -9094,7 +10443,7 @@ ALTER TABLE ONLY recepcion.recepciones
 
 
 --
--- TOC entry 3958 (class 2606 OID 45111)
+-- TOC entry 3947 (class 2606 OID 45111)
 -- Name: validaciones_documento FK_a8b1ca6c01f13f54dc8106c7fd8; Type: FK CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -9103,7 +10452,7 @@ ALTER TABLE ONLY recepcion.validaciones_documento
 
 
 --
--- TOC entry 3956 (class 2606 OID 24871)
+-- TOC entry 3945 (class 2606 OID 24871)
 -- Name: documentos FK_ac6d3b5b23c5e2a9464af46dcf0; Type: FK CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -9112,7 +10461,7 @@ ALTER TABLE ONLY recepcion.documentos
 
 
 --
--- TOC entry 3959 (class 2606 OID 45116)
+-- TOC entry 3948 (class 2606 OID 45116)
 -- Name: validaciones_documento FK_d056bd38aa4d07c2ed716f174f1; Type: FK CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -9121,7 +10470,7 @@ ALTER TABLE ONLY recepcion.validaciones_documento
 
 
 --
--- TOC entry 3957 (class 2606 OID 139764)
+-- TOC entry 3946 (class 2606 OID 139764)
 -- Name: documentos FK_f7a68903c28bc63dc0e0858f04f; Type: FK CONSTRAINT; Schema: recepcion; Owner: ceish_user
 --
 
@@ -9130,7 +10479,7 @@ ALTER TABLE ONLY recepcion.documentos
 
 
 --
--- TOC entry 3981 (class 2606 OID 49230)
+-- TOC entry 3973 (class 2606 OID 49230)
 -- Name: resoluciones FK_2939194e945edc98b240f88cf5f; Type: FK CONSTRAINT; Schema: resolucion; Owner: ceish_user
 --
 
@@ -9139,7 +10488,7 @@ ALTER TABLE ONLY resolucion.resoluciones
 
 
 --
--- TOC entry 3982 (class 2606 OID 49235)
+-- TOC entry 3974 (class 2606 OID 49235)
 -- Name: resoluciones FK_33ca0391923f19f3edfef9b652d; Type: FK CONSTRAINT; Schema: resolucion; Owner: ceish_user
 --
 
@@ -9148,7 +10497,7 @@ ALTER TABLE ONLY resolucion.resoluciones
 
 
 --
--- TOC entry 3983 (class 2606 OID 49240)
+-- TOC entry 3975 (class 2606 OID 49240)
 -- Name: resoluciones FK_efa65b7a0ecf240579c6e95bc0d; Type: FK CONSTRAINT; Schema: resolucion; Owner: ceish_user
 --
 
@@ -9157,7 +10506,7 @@ ALTER TABLE ONLY resolucion.resoluciones
 
 
 --
--- TOC entry 3984 (class 2606 OID 24371)
+-- TOC entry 3976 (class 2606 OID 24371)
 -- Name: notificaciones_resolucion notificaciones_resolucion_destinatario_id_fkey; Type: FK CONSTRAINT; Schema: resolucion; Owner: ceish_user
 --
 
@@ -9166,7 +10515,7 @@ ALTER TABLE ONLY resolucion.notificaciones_resolucion
 
 
 --
--- TOC entry 3985 (class 2606 OID 24366)
+-- TOC entry 3977 (class 2606 OID 24366)
 -- Name: notificaciones_resolucion notificaciones_resolucion_resolucion_id_fkey; Type: FK CONSTRAINT; Schema: resolucion; Owner: ceish_user
 --
 
@@ -9175,7 +10524,7 @@ ALTER TABLE ONLY resolucion.notificaciones_resolucion
 
 
 --
--- TOC entry 3994 (class 2606 OID 24454)
+-- TOC entry 3986 (class 2606 OID 24454)
 -- Name: eventos_adversos eventos_adversos_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -9184,7 +10533,7 @@ ALTER TABLE ONLY seguimiento.eventos_adversos
 
 
 --
--- TOC entry 3995 (class 2606 OID 24459)
+-- TOC entry 3987 (class 2606 OID 24459)
 -- Name: eventos_adversos eventos_adversos_reportado_por_fkey; Type: FK CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -9193,7 +10542,7 @@ ALTER TABLE ONLY seguimiento.eventos_adversos
 
 
 --
--- TOC entry 3992 (class 2606 OID 24436)
+-- TOC entry 3984 (class 2606 OID 24436)
 -- Name: informe_documento informe_documento_documento_id_fkey; Type: FK CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -9202,7 +10551,7 @@ ALTER TABLE ONLY seguimiento.informe_documento
 
 
 --
--- TOC entry 3993 (class 2606 OID 24431)
+-- TOC entry 3985 (class 2606 OID 24431)
 -- Name: informe_documento informe_documento_informe_id_fkey; Type: FK CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -9211,7 +10560,7 @@ ALTER TABLE ONLY seguimiento.informe_documento
 
 
 --
--- TOC entry 3990 (class 2606 OID 24421)
+-- TOC entry 3982 (class 2606 OID 24421)
 -- Name: informes_seguimiento informes_seguimiento_enviado_por_fkey; Type: FK CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -9220,7 +10569,7 @@ ALTER TABLE ONLY seguimiento.informes_seguimiento
 
 
 --
--- TOC entry 3991 (class 2606 OID 24416)
+-- TOC entry 3983 (class 2606 OID 24416)
 -- Name: informes_seguimiento informes_seguimiento_seguimiento_id_fkey; Type: FK CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -9229,7 +10578,7 @@ ALTER TABLE ONLY seguimiento.informes_seguimiento
 
 
 --
--- TOC entry 3986 (class 2606 OID 24397)
+-- TOC entry 3978 (class 2606 OID 24397)
 -- Name: seguimientos seguimientos_estado_id_fkey; Type: FK CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -9238,7 +10587,7 @@ ALTER TABLE ONLY seguimiento.seguimientos
 
 
 --
--- TOC entry 3987 (class 2606 OID 24402)
+-- TOC entry 3979 (class 2606 OID 24402)
 -- Name: seguimientos seguimientos_evaluado_por_fkey; Type: FK CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -9247,7 +10596,7 @@ ALTER TABLE ONLY seguimiento.seguimientos
 
 
 --
--- TOC entry 3988 (class 2606 OID 24387)
+-- TOC entry 3980 (class 2606 OID 24387)
 -- Name: seguimientos seguimientos_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -9256,7 +10605,7 @@ ALTER TABLE ONLY seguimiento.seguimientos
 
 
 --
--- TOC entry 3989 (class 2606 OID 24392)
+-- TOC entry 3981 (class 2606 OID 24392)
 -- Name: seguimientos seguimientos_tipo_seguimiento_id_fkey; Type: FK CONSTRAINT; Schema: seguimiento; Owner: ceish_user
 --
 
@@ -9265,7 +10614,7 @@ ALTER TABLE ONLY seguimiento.seguimientos
 
 
 --
--- TOC entry 4013 (class 2606 OID 24655)
+-- TOC entry 4005 (class 2606 OID 24655)
 -- Name: declaracion_confidencialidad declaracion_confidencialidad_investigador_id_fkey; Type: FK CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -9274,7 +10623,7 @@ ALTER TABLE ONLY sistema.declaracion_confidencialidad
 
 
 --
--- TOC entry 4014 (class 2606 OID 24650)
+-- TOC entry 4006 (class 2606 OID 24650)
 -- Name: declaracion_confidencialidad declaracion_confidencialidad_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -9283,7 +10632,7 @@ ALTER TABLE ONLY sistema.declaracion_confidencialidad
 
 
 --
--- TOC entry 4015 (class 2606 OID 24674)
+-- TOC entry 4007 (class 2606 OID 24674)
 -- Name: declaracion_conflicto_interes declaracion_conflicto_interes_investigador_id_fkey; Type: FK CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -9292,7 +10641,7 @@ ALTER TABLE ONLY sistema.declaracion_conflicto_interes
 
 
 --
--- TOC entry 4016 (class 2606 OID 24669)
+-- TOC entry 4008 (class 2606 OID 24669)
 -- Name: declaracion_conflicto_interes declaracion_conflicto_interes_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -9301,7 +10650,7 @@ ALTER TABLE ONLY sistema.declaracion_conflicto_interes
 
 
 --
--- TOC entry 4009 (class 2606 OID 24599)
+-- TOC entry 4001 (class 2606 OID 24599)
 -- Name: notificaciones notificaciones_plantilla_id_fkey; Type: FK CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -9310,7 +10659,7 @@ ALTER TABLE ONLY sistema.notificaciones
 
 
 --
--- TOC entry 4010 (class 2606 OID 24604)
+-- TOC entry 4002 (class 2606 OID 24604)
 -- Name: notificaciones notificaciones_protocolo_id_fkey; Type: FK CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -9319,7 +10668,7 @@ ALTER TABLE ONLY sistema.notificaciones
 
 
 --
--- TOC entry 4011 (class 2606 OID 24594)
+-- TOC entry 4003 (class 2606 OID 24594)
 -- Name: notificaciones notificaciones_usuario_id_fkey; Type: FK CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -9328,7 +10677,7 @@ ALTER TABLE ONLY sistema.notificaciones
 
 
 --
--- TOC entry 4012 (class 2606 OID 24621)
+-- TOC entry 4004 (class 2606 OID 24621)
 -- Name: parametros_sistema parametros_sistema_actualizado_por_fkey; Type: FK CONSTRAINT; Schema: sistema; Owner: ceish_user
 --
 
@@ -9337,7 +10686,7 @@ ALTER TABLE ONLY sistema.parametros_sistema
 
 
 --
--- TOC entry 4303 (class 0 OID 0)
+-- TOC entry 4294 (class 0 OID 0)
 -- Dependencies: 13
 -- Name: SCHEMA public; Type: ACL; Schema: -; Owner: ceish_user
 --
@@ -9345,7 +10694,7 @@ ALTER TABLE ONLY sistema.parametros_sistema
 REVOKE USAGE ON SCHEMA public FROM PUBLIC;
 
 
--- Completed on 2026-06-02 23:50:18
+-- Completed on 2026-06-09 02:55:03
 
 --
 -- PostgreSQL database dump complete

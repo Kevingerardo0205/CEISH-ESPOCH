@@ -1,4 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { ProtocolOrmEntity } from './protocol.entity.orm';
 import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
 
@@ -27,7 +28,7 @@ export class ParticipatingInstitutionOrmEntity extends BaseOrmEntity {
 
   @ManyToOne(() => ProtocolOrmEntity, (protocol) => protocol.institutions)
   @JoinColumn({ name: 'protocolo_id' })
-  protocol!: ProtocolOrmEntity;
+  protocol!: Relation<ProtocolOrmEntity>;
 
   @Column({ name: 'protocolo_id' })
   protocolId!: number;

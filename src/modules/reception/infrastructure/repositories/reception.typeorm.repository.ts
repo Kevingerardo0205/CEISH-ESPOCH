@@ -6,6 +6,7 @@ import { ReceptionOrmEntity } from '../database/reception.entity.orm';
 import { DocumentOrmEntity } from '../../../documents/infrastructure/database/document.entity.orm';
 import { DocumentValidationOrmEntity } from '../database/document-validation.entity.orm';
 import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
+import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 
 @Injectable()
 export class ReceptionTypeOrmRepository
@@ -23,10 +24,30 @@ export class ReceptionTypeOrmRepository
     super(receptionRepo);
   }
 
+  override async findById(id: number): Promise<ReceptionOrmEntity | null> {
+    return this.receptionRepo.findOne({
+      where: { id },
+      relations: ['version', 'version.protocol'],
+    });
+  }
+
   async findByProtocolId(
     protocolId: number,
   ): Promise<ReceptionOrmEntity | null> {
-    return this.receptionRepo.findOne({ where: { protocolId } });
+    return this.receptionRepo
+      .createQueryBuilder('r')
+      .innerJoinAndSelect('r.version', 'version')
+      .innerJoinAndSelect('version.protocol', 'protocol')
+      .where('protocol.id = :protocolId', { protocolId })
+      .andWhere('version.id = protocol.versionActualId')
+      .getOne();
+  }
+
+  async findByVersionId(versionId: number): Promise<ReceptionOrmEntity | null> {
+    return this.receptionRepo.findOne({
+      where: { versionId },
+      relations: ['version', 'version.protocol'],
+    });
   }
 
   async saveDocument(
@@ -42,10 +63,26 @@ export class ReceptionTypeOrmRepository
   async findDocumentsByProtocolId(
     protocolId: number,
   ): Promise<DocumentOrmEntity[]> {
-    return this.documentRepo.find({
-      where: { protocolId },
-      relations: ['requirement', 'tipoDocumento'],
-    });
+    const docs = await this.documentRepo
+      .createQueryBuilder('d')
+      .innerJoin(ProtocolOrmEntity, 'p', 'd.protocolo_id = p.id')
+      .where('p.id = :protocolId', { protocolId })
+      .andWhere('d.version_id = p.version_actual_id')
+      .leftJoinAndSelect('d.requirement', 'requirement')
+      .leftJoinAndSelect('d.tipoDocumento', 'tipoDocumento')
+      .orderBy('d.id', 'ASC')
+      .getMany();
+
+    const uniqueDocsMap = new Map<string, DocumentOrmEntity>();
+    for (const doc of docs) {
+      const key = doc.requirementId
+        ? `req-${doc.requirementId}`
+        : doc.tipoDocumentoId
+          ? `type-${doc.tipoDocumentoId}`
+          : `doc-${doc.id}`;
+      uniqueDocsMap.set(key, doc);
+    }
+    return Array.from(uniqueDocsMap.values());
   }
 
   async saveValidation(
@@ -63,14 +100,12 @@ export class ReceptionTypeOrmRepository
   async findLatestValidationsByProtocolId(
     protocolId: number,
   ): Promise<DocumentValidationOrmEntity[]> {
-    // Subquery para obtener la última validación de cada documento
     return this.validationRepo
       .createQueryBuilder('v')
       .innerJoin(DocumentOrmEntity, 'd', 'v.documento_id = d.id')
-      .where('d.protocolo_id = :protocolId', { protocolId })
-      .andWhere(
-        'v.id IN (SELECT MAX(id) FROM recepcion.validaciones_documento GROUP BY documento_id)',
-      )
+      .innerJoin(ProtocolOrmEntity, 'p', 'd.protocolo_id = p.id')
+      .where('p.id = :protocolId', { protocolId })
+      .andWhere('d.version_id = p.version_actual_id')
       .getMany();
   }
 
@@ -80,7 +115,8 @@ export class ReceptionTypeOrmRepository
   ): Promise<number> {
     const qb = this.receptionRepo
       .createQueryBuilder('r')
-      .leftJoin('protocolos', 'p', 'r.protocolo_id = p.id')
+      .leftJoin('public.versiones_protocolo', 'vp', 'r.version_id = vp.id')
+      .leftJoin('public.protocolos', 'p', 'vp.protocolo_id = p.id')
       .leftJoin('catalogos.tipos_estudio', 'te', 'p.tipo_estudio_id = te.id')
       .where('EXTRACT(YEAR FROM r.fecha_recepcion) = :year', { year })
       .andWhere('te.codigo = :studyTypeCode', { studyTypeCode });

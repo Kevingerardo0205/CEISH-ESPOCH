@@ -7,14 +7,8 @@ import {
   Query,
   UseGuards,
   Request,
-  ParseBoolPipe,
   BadRequestException,
-  UseInterceptors,
-  UploadedFile,
 } from '@nestjs/common';
-import { FileInterceptor } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { extname } from 'path';
 import { ProtocolsService } from '../../application/services/protocols.service';
 import { RequirementsService } from '../../application/services/requirements.service';
 import { CreateProtocolDto } from '../../application/dtos/create-protocol.dto';
@@ -27,10 +21,14 @@ import {
   ApiOperation,
   ApiBearerAuth,
   ApiQuery,
-  ApiConsumes,
 } from '@nestjs/swagger';
 import { StudyTypeCode } from '../../domain/enums/study-type.enum';
+import { ReceptionStatus } from '../../domain/enums/reception-status.enum';
 import { UploadDocumentDto } from '../../../reception/application/dtos/upload-document.dto';
+import {
+  isValidPdfExtension,
+  sanitizeFilenameBackend,
+} from '../../../../shared/utils/validation';
 
 @ApiTags('protocols')
 @ApiBearerAuth()
@@ -68,6 +66,20 @@ export class ProtocolController {
     return this.protocolsService.findAll(query);
   }
 
+  @Get('mis-subsanaciones')
+  @ApiOperation({
+    summary:
+      'Listar los protocolos en fase de subsanación de observaciones del investigador logueado',
+  })
+  async findMySubsanaciones(@Request() req: any) {
+    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
+    const investigatorId = req.user?.id as number;
+    return this.protocolsService.findAll({
+      investigatorId,
+      receptionStatus: ReceptionStatus.EVALUACION_SUBSANACIONES,
+    });
+  }
+
   @Get('checklist/:id')
   @ApiOperation({
     summary: 'Obtener el checklist de requisitos de un protocolo',
@@ -93,48 +105,34 @@ export class ProtocolController {
 
   @Post(':id/upload-document')
   @ApiOperation({
-    summary: 'Subir un documento asociado a un requisito (Investigador)',
+    summary:
+      'Registrar un documento asociado a un requisito en la DB (Investigador)',
   })
-  @ApiConsumes('multipart/form-data')
-  @UseInterceptors(
-    FileInterceptor('file', {
-      storage: diskStorage({
-        destination: './uploads',
-        filename: (req, file, cb) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          cb(null, `${uniqueSuffix}${extname(file.originalname)}`);
-        },
-      }),
-      fileFilter: (req, file, cb) => {
-        if (!file.originalname.match(/\.(pdf)$/)) {
-          return cb(
-            new BadRequestException('Solo se permiten archivos PDF'),
-            false,
-          );
-        }
-        cb(null, true);
-      },
-    }),
-  )
   @Audit('DOCUMENT_UPLOADED')
   async uploadDocument(
     @Param('id') id: string,
     @Body() dto: UploadDocumentDto,
-    @UploadedFile() file: Express.Multer.File,
     @Request() req,
   ) {
-    if (!file) {
-      throw new BadRequestException('El archivo PDF es obligatorio');
+    if (!dto.path) {
+      throw new BadRequestException(
+        'La ruta/clave (path) del archivo es obligatoria',
+      );
     }
+    if (!dto.fileName) {
+      throw new BadRequestException(
+        'El nombre del archivo (fileName) es obligatorio',
+      );
+    }
+
+    if (!isValidPdfExtension(dto.fileName)) {
+      throw new BadRequestException('El archivo debe tener formato PDF');
+    }
+
+    dto.fileName = sanitizeFilenameBackend(dto.fileName);
 
     const protocolId = parseInt(id, 10);
     dto.protocolId = protocolId;
-
-    // El 'path' en la DB guardará el nombre del archivo en disco
-    dto.path = file.filename;
-    dto.fileName = file.originalname;
-    dto.sizeBytes = file.size.toString();
 
     const protocol = await this.protocolsService.findOne(protocolId);
 
@@ -164,7 +162,7 @@ export class ProtocolController {
   @ApiQuery({ name: 'riesgoMayor', type: Boolean, required: false })
   @ApiQuery({ name: 'institucionesPublicas', type: Boolean, required: false })
   async getRequirements(
-    @Query('tipo') tipo: StudyTypeCode,
+    @Query('tipo') tipo: string,
     @Query('muestras') muestras?: string,
     @Query('vulnerable') vulnerable?: string,
     @Query('multicentrico') multicentrico?: string,

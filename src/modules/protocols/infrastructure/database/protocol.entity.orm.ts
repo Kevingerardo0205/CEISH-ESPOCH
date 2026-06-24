@@ -6,6 +6,7 @@ import {
   OneToMany,
   OneToOne,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { StudyTypeOrmEntity } from './study-type.entity.orm';
 import { RiskLevelOrmEntity } from './risk-level.entity.orm';
@@ -21,8 +22,16 @@ import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/da
 
 @Entity({ name: 'protocolos', schema: 'public' })
 export class ProtocolOrmEntity extends BaseOrmEntity {
-  @OneToOne(() => ReceptionOrmEntity, (reception) => reception.protocol)
-  reception?: ReceptionOrmEntity;
+  @Column({ name: 'version_actual_id', nullable: true })
+  versionActualId?: number;
+
+  @ManyToOne(() => ProtocolVersionOrmEntity)
+  @JoinColumn({ name: 'version_actual_id' })
+  activeVersion?: Relation<ProtocolVersionOrmEntity>;
+
+  get reception(): ReceptionOrmEntity | undefined {
+    return this.activeVersion?.reception;
+  }
 
   @Column({ name: 'codigo_ceish', length: 50, nullable: true, unique: true })
   ceishCode?: string;
@@ -139,10 +148,16 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
 
   get receptionStatus(): ReceptionStatus {
     const sId = this.reception?.statusId;
-    if (sId === 2) return ReceptionStatus.COMPLETO;
-    if (sId === 3) return ReceptionStatus.INCOMPLETO;
-    if (sId === 5) return ReceptionStatus.EN_REVISION_SECRETARIA;
-    if (sId === 4) return 'ARCHIVADO' as any;
+    if (sId === 10) return ReceptionStatus.COMPLETO;
+    if (sId === 11) return ReceptionStatus.INCOMPLETO;
+    if (sId === 15) return ReceptionStatus.EN_REVISION_SECRETARIA;
+    if (sId === 12) return 'ARCHIVADO' as any;
+
+    const currentVerNumber = this.activeVersion?.versionNumber || 1;
+    if (currentVerNumber > 1) {
+      return ReceptionStatus.EVALUACION_SUBSANACIONES;
+    }
+
     return ReceptionStatus.PENDIENTE_SUBSANACION;
   }
 
@@ -239,7 +254,7 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @OneToMany(() => ProtocolVersionOrmEntity, (version) => version.protocol, {
     cascade: true,
   })
-  versions!: ProtocolVersionOrmEntity[];
+  versions!: Relation<ProtocolVersionOrmEntity>[];
 
   get currentVersion(): number {
     if (this.versions && this.versions.length > 0) {
@@ -256,19 +271,19 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
     (investigator) => investigator.protocol,
     { cascade: true },
   )
-  investigators!: InvestigatorOrmEntity[];
+  investigators!: Relation<InvestigatorOrmEntity>[];
 
   @OneToMany(
     () => ParticipatingInstitutionOrmEntity,
     (institution) => institution.protocol,
     { cascade: true },
   )
-  institutions!: ParticipatingInstitutionOrmEntity[];
+  institutions!: Relation<ParticipatingInstitutionOrmEntity>[];
 
   @OneToMany(
     () => ProtocolRequirementOrmEntity,
     (requirement) => requirement.protocol,
     { cascade: true },
   )
-  checklist!: ProtocolRequirementOrmEntity[];
+  checklist!: Relation<ProtocolRequirementOrmEntity>[];
 }

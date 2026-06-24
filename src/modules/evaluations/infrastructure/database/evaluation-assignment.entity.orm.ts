@@ -74,8 +74,8 @@ export class EvaluationAssignmentOrmEntity {
   @Column({ name: 'informe_evaluacion', type: 'text', nullable: true })
   evaluationReport?: string;
 
-  @Column({ name: 'recomendacion', length: 50, nullable: true })
-  recommendation?: string;
+  @Column({ name: 'recomendacion_id', nullable: true })
+  recommendation?: number;
 
   @Column({ name: 'ruta_informe_pdf', length: 500, nullable: true })
   reportPath?: string;

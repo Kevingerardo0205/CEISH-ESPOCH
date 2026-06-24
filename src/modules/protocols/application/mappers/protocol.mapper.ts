@@ -16,6 +16,7 @@ export class ProtocolMapper {
       riskLevel: orm.riskLevel?.name,
       receptionStatus: orm.receptionStatus,
       reviewType: orm.reviewType,
+      statusId: orm.statusId,
 
       // Dates
       receptionDate: orm.receptionDate,
