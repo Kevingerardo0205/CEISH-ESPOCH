@@ -58,4 +58,20 @@ export class StorageController {
     const url = await this.storageService.getDownloadUrl(key);
     return { downloadUrl: url };
   }
+
+  @Post('download-url')
+  @ApiOperation({
+    summary:
+      'Generar URL prefirmada para descargar/visualizar un archivo (método POST)',
+  })
+  async getDownloadUrlPost(@Body('key') key: string) {
+    if (!key) {
+      throw new BadRequestException(
+        'La clave (key) del archivo es obligatoria en el body',
+      );
+    }
+
+    const url = await this.storageService.getDownloadUrl(key);
+    return { downloadUrl: url };
+  }
 }

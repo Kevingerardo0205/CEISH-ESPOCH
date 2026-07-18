@@ -13,15 +13,23 @@ export class GeminiService {
   private readonly modelName: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey = this.configService.get<string>('GEMINI_API_KEY') || process.env.GEMINI_API_KEY || '';
-    let model = this.configService.get<string>('GEMINI_MODEL') || process.env.GEMINI_MODEL || 'gemini-2.5-flash';
+    this.apiKey =
+      this.configService.get<string>('GEMINI_API_KEY') ||
+      process.env.GEMINI_API_KEY ||
+      '';
+    let model =
+      this.configService.get<string>('GEMINI_MODEL') ||
+      process.env.GEMINI_MODEL ||
+      'gemini-2.5-flash';
     if (model === 'gemini-2.5-flash-lite') {
       model = 'gemini-2.5-flash';
     }
     this.modelName = model;
 
     if (!this.apiKey || this.apiKey === 'CLAVEAPI') {
-      this.logger.warn('La clave GEMINI_API_KEY no está configurada o es la de ejemplo. El asistente de IA fallará al realizar llamadas reales.');
+      this.logger.warn(
+        'La clave GEMINI_API_KEY no está configurada o es la de ejemplo. El asistente de IA fallará al realizar llamadas reales.',
+      );
     }
   }
 
@@ -47,7 +55,7 @@ export class GeminiService {
 
     try {
       // 1. Preparar las instrucciones del sistema (System Prompt)
-      const systemInstruction = 
+      const systemInstruction =
         `Eres el Asistente de IA de CEISH-ESPOCH (Comité de Ética de Investigación en Seres Humanos de la Escuela Superior Politécnica de Chimborazo).\n` +
         `Tu rol es asistir a Evaluadores del Comité, Secretaría, Presidente y usuarios autorizados respondiendo consultas en base a la normativa activa y el contexto provisto.\n\n` +
         `=== INSTRUCCIONES CLAVE ===\n` +
@@ -63,7 +71,7 @@ export class GeminiService {
         `${protocolContext || 'El usuario no está visualizando ningún protocolo específico en este momento.'}`;
 
       // 2. Mapear el historial al formato oficial de la API de Gemini
-      const contents = history.map(item => ({
+      const contents = history.map((item) => ({
         role: item.role === 'assistant' ? 'model' : 'user',
         parts: [{ text: item.content }],
       }));
@@ -106,7 +114,9 @@ export class GeminiService {
             },
           };
 
-          this.logger.log(`Iniciando llamada a la API de Gemini con modelo: ${model}...`);
+          this.logger.log(
+            `Iniciando llamada a la API de Gemini con modelo: ${model}...`,
+          );
 
           const response = await fetch(url, {
             method: 'POST',
@@ -118,8 +128,10 @@ export class GeminiService {
 
           if (!response.ok) {
             const errorText = await response.text();
-            this.logger.warn(`Error de la API de Gemini con modelo ${model} (${response.status}): ${errorText}`);
-            
+            this.logger.warn(
+              `Error de la API de Gemini con modelo ${model} (${response.status}): ${errorText}`,
+            );
+
             let parsedError: any;
             try {
               parsedError = JSON.parse(errorText);
@@ -128,7 +140,10 @@ export class GeminiService {
             }
 
             const status = response.status;
-            const errorMsg = parsedError?.error?.message || response.statusText || 'Error desconocido';
+            const errorMsg =
+              parsedError?.error?.message ||
+              response.statusText ||
+              'Error desconocido';
 
             if (status === 429) {
               lastError = new HttpException(
@@ -146,19 +161,26 @@ export class GeminiService {
           }
 
           const json: any = await response.json();
-          
+
           // Extraer texto retornado por el modelo
           const candidate = json.candidates?.[0];
           const responseText = candidate?.content?.parts?.[0]?.text;
 
           if (!responseText) {
-            this.logger.warn(`La respuesta de Gemini para ${model} no contiene partes de texto estructuradas.`, json);
-            lastError = new Error(`Respuesta vacía o inválida del modelo ${model}`);
+            this.logger.warn(
+              `La respuesta de Gemini para ${model} no contiene partes de texto estructuradas.`,
+              json,
+            );
+            lastError = new Error(
+              `Respuesta vacía o inválida del modelo ${model}`,
+            );
             continue;
           }
 
           if (model !== this.modelName) {
-            this.logger.log(`Llamada exitosa usando el modelo de respaldo alternativo: ${model} (el original ${this.modelName} falló/excedió cuota)`);
+            this.logger.log(
+              `Llamada exitosa usando el modelo de respaldo alternativo: ${model} (el original ${this.modelName} falló/excedió cuota)`,
+            );
           }
 
           return responseText;
@@ -181,7 +203,10 @@ export class GeminiService {
       if (err instanceof HttpException) {
         throw err;
       }
-      this.logger.error('Error no controlado al invocar la API de Gemini:', err);
+      this.logger.error(
+        'Error no controlado al invocar la API de Gemini:',
+        err,
+      );
       throw new HttpException(
         'Ocurrió un error en el servidor de IA al procesar su solicitud.',
         HttpStatus.INTERNAL_SERVER_ERROR,

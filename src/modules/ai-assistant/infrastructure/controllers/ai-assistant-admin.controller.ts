@@ -37,7 +37,9 @@ export class AiAssistantAdminController {
     }
 
     if (file.mimetype !== 'application/pdf') {
-      throw new BadRequestException('El archivo cargado debe ser un documento PDF.');
+      throw new BadRequestException(
+        'El archivo cargado debe ser un documento PDF.',
+      );
     }
 
     try {
@@ -58,7 +60,8 @@ export class AiAssistantAdminController {
       await this.ragService.reloadRegulations(extractedText, file.originalname);
 
       return {
-        message: 'Normativa PET actualizada y recargada correctamente en el asistente de IA.',
+        message:
+          'Normativa PET actualizada y recargada correctamente en el asistente de IA.',
         petFileName: file.originalname,
         characterCount: extractedText.length,
       };
@@ -97,7 +100,8 @@ export class AiAssistantAdminController {
     await this.ragService.updateAllowedRoles(allowedRoles);
 
     return {
-      message: 'Permisos de roles actualizados correctamente para el asistente de IA.',
+      message:
+        'Permisos de roles actualizados correctamente para el asistente de IA.',
       allowedRoles,
     };
   }

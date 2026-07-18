@@ -5,9 +5,7 @@ import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.re
 export class ContextService {
   private readonly logger = new Logger(ContextService.name);
 
-  constructor(
-    private readonly protocolRepository: IProtocolRepository,
-  ) {}
+  constructor(private readonly protocolRepository: IProtocolRepository) {}
 
   /**
    * Obtiene la metadata estructurada del protocolo, sus versiones e items presentados
@@ -35,7 +33,7 @@ export class ContextService {
       // Versiones del Protocolo
       contextStr += `--- HISTORIAL DE VERSIONES DEL PROTOCOLO ---\n`;
       if (protocol.versions && protocol.versions.length > 0) {
-        protocol.versions.forEach(v => {
+        protocol.versions.forEach((v) => {
           contextStr += `- Versión ${v.versionNumber || 1}.0 | Fecha Envío: ${v.submissionDate || 'N/A'} | Estado ID: ${v.statusId || 'N/A'} | Observaciones: ${v.observations || 'Ninguna'}\n`;
         });
       } else {
@@ -46,7 +44,7 @@ export class ContextService {
       // Requisitos del Checklist (Recepción)
       contextStr += `--- CHECKLIST DE REQUISITOS (RECEPCIÓN DIGITAL) ---\n`;
       if (protocol.checklist && protocol.checklist.length > 0) {
-        protocol.checklist.forEach(req => {
+        protocol.checklist.forEach((req) => {
           contextStr += `- [${req.status}] Código: ${req.requirementCode} | Nombre: ${req.requirementName} | Páginas: ${req.pageCount} | Obs: ${req.observations || 'Ninguna'}\n`;
         });
       } else {
@@ -55,7 +53,10 @@ export class ContextService {
 
       return contextStr;
     } catch (err) {
-      this.logger.error(`Error al recuperar contexto para el protocolo ${protocolId}:`, err);
+      this.logger.error(
+        `Error al recuperar contexto para el protocolo ${protocolId}:`,
+        err,
+      );
       return 'Error de Contexto: No se pudo obtener la información detallada del protocolo debido a un error del sistema.';
     }
   }

@@ -15,20 +15,8 @@ import { AiAssistantConfigOrmEntity } from './infrastructure/database/ai-assista
     ProtocolsModule,
     TypeOrmModule.forFeature([AiAssistantConfigOrmEntity]),
   ],
-  controllers: [
-    AiAssistantController,
-    AiAssistantAdminController,
-  ],
-  providers: [
-    GeminiService,
-    RagService,
-    ContextService,
-  ],
-  exports: [
-    GeminiService,
-    RagService,
-    ContextService,
-    TypeOrmModule,
-  ],
+  controllers: [AiAssistantController, AiAssistantAdminController],
+  providers: [GeminiService, RagService, ContextService],
+  exports: [GeminiService, RagService, ContextService, TypeOrmModule],
 })
 export class AiAssistantModule {}

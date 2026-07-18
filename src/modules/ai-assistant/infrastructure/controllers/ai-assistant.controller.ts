@@ -1,4 +1,12 @@
-import { Controller, Post, Get, Body, Req, UseGuards, ForbiddenException } from '@nestjs/common';
+import {
+  Controller,
+  Post,
+  Get,
+  Body,
+  Req,
+  UseGuards,
+  ForbiddenException,
+} from '@nestjs/common';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { ChatRequestDto } from '../../application/dtos/chat-request.dto';
 import { GeminiService } from '../../application/services/gemini.service';
@@ -23,13 +31,16 @@ export class AiAssistantController {
     const allowedRoles = await this.ragService.getAllowedRoles();
     const hasAccess = allowedRoles.some((role) =>
       user.roles?.some((userRole: any) => {
-        const roleName = typeof userRole === 'string' ? userRole : userRole.name;
+        const roleName =
+          typeof userRole === 'string' ? userRole : userRole.name;
         return roleName?.toUpperCase() === role.toUpperCase();
-      })
+      }),
     );
 
     if (!hasAccess) {
-      throw new ForbiddenException('No tiene permisos para utilizar el asistente de IA.');
+      throw new ForbiddenException(
+        'No tiene permisos para utilizar el asistente de IA.',
+      );
     }
 
     // 2. Obtener fragmentos relevantes de la normativa PET
@@ -39,7 +50,8 @@ export class AiAssistantController {
     // 3. Obtener información de contexto del protocolo si se suministra su ID
     let protocolContext = '';
     if (protocolId) {
-      protocolContext = await this.contextService.getProtocolContext(protocolId);
+      protocolContext =
+        await this.contextService.getProtocolContext(protocolId);
     }
 
     // 4. Generar respuesta usando Gemini
