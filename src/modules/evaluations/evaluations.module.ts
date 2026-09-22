@@ -7,13 +7,18 @@ import { ProtocolVersionOrmEntity } from './infrastructure/database/protocol-ver
 import { EvaluationOrmEntity } from './infrastructure/database/evaluation.entity.orm';
 import { EvaluationResponseDetailOrmEntity } from './infrastructure/database/evaluation-response-detail.entity.orm';
 import { SessionOrmEntity } from './infrastructure/database/session.entity.orm';
+import { PlaceOrmEntity } from './infrastructure/database/place.entity.orm';
+import { CallOrmEntity } from './infrastructure/database/call.entity.orm';
+import { CallProtocolOrmEntity } from './infrastructure/database/call-protocol.entity.orm';
 
 import { MinutesOrmEntity } from './infrastructure/database/minutes.entity.orm';
 import { UserOrmEntity } from '../auth/infrastructure/database/user.entity.orm';
 import { EvaluationsService } from './application/services/evaluations.service';
 import { ConflictOfInterestService } from './application/services/conflict-of-interest.service';
 import { EvaluationConsolidationService } from './application/services/evaluation-consolidation.service';
+import { CallsService } from './application/services/calls.service';
 import { EvaluationsController } from './infrastructure/controllers/evaluations.controller';
+import { CallsController } from './infrastructure/controllers/calls.controller';
 import { IEvaluationRepository } from './domain/ports/evaluation.repository.port';
 import { EvaluationTypeOrmRepository } from './infrastructure/repositories/evaluation.typeorm.repository';
 import { ProtocolsModule } from '../protocols/protocols.module';
@@ -27,6 +32,9 @@ import { RevisionModalityOrmEntity } from './infrastructure/database/revision-mo
 import { ResolutionTypeOrmEntity } from '../resolutions/infrastructure/database/resolution-type.entity.orm';
 import { PdfGeneratorService } from '../../shared/utils/pdf-generator.service';
 import { DocxGeneratorService } from '../../shared/utils/docx-generator.service';
+import { ProtocolDeadlineService } from '../protocols/application/services/protocol-deadline.service';
+import { ReceptionOrmEntity } from '../reception/infrastructure/database/reception.entity.orm';
+import { ProtocolRequirementOrmEntity } from '../protocols/infrastructure/database/protocol-requirement.entity.orm';
 
 @Module({
   imports: [
@@ -38,6 +46,9 @@ import { DocxGeneratorService } from '../../shared/utils/docx-generator.service'
       EvaluationOrmEntity,
       EvaluationResponseDetailOrmEntity,
       SessionOrmEntity,
+      PlaceOrmEntity,
+      CallOrmEntity,
+      CallProtocolOrmEntity,
 
       MinutesOrmEntity,
       UserOrmEntity,
@@ -48,17 +59,21 @@ import { DocxGeneratorService } from '../../shared/utils/docx-generator.service'
       RiskLevelOrmEntity,
       RevisionModalityOrmEntity,
       ResolutionTypeOrmEntity,
+      ReceptionOrmEntity,
+      ProtocolRequirementOrmEntity,
     ]),
 
     forwardRef(() => ProtocolsModule),
   ],
-  controllers: [EvaluationsController],
+  controllers: [EvaluationsController, CallsController],
   providers: [
     EvaluationsService,
     ConflictOfInterestService,
     EvaluationConsolidationService,
+    CallsService,
     PdfGeneratorService,
     DocxGeneratorService,
+    ProtocolDeadlineService,
     {
       provide: IEvaluationRepository,
       useClass: EvaluationTypeOrmRepository,
@@ -68,6 +83,7 @@ import { DocxGeneratorService } from '../../shared/utils/docx-generator.service'
     EvaluationsService,
     ConflictOfInterestService,
     EvaluationConsolidationService,
+    CallsService,
     IEvaluationRepository,
   ],
 })

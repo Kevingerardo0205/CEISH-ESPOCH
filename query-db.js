@@ -12,25 +12,13 @@ async function main() {
   try {
     await client.connect();
     
-    console.log('--- PROTOCOLO 153 ---');
-    const p = await client.query('SELECT * FROM public.protocolos WHERE id = 153');
-    console.log(JSON.stringify(p.rows, null, 2));
-
-    console.log('--- VERSIONES PROTOCOLO 153 ---');
-    const v = await client.query('SELECT * FROM public.versiones_protocolo WHERE protocolo_id = 153');
-    console.log(JSON.stringify(v.rows, null, 2));
-
-    console.log('--- RECEPCIONES PROTOCOLO 153 ---');
-    const r = await client.query('SELECT * FROM recepcion.recepciones WHERE version_id IN (121, 122)');
-    console.log(JSON.stringify(r.rows, null, 2));
-
-    console.log('--- REQUISITOS PROTOCOLO 153 ---');
-    const req = await client.query('SELECT * FROM public.protocolo_requisitos WHERE protocolo_id = 153');
-    console.log(JSON.stringify(req.rows, null, 2));
-
-    console.log('--- VALIDACIONES DOCUMENTO ---');
-    const val = await client.query('SELECT * FROM recepcion.validaciones_documento WHERE recepcion_id IN (SELECT id FROM recepcion.recepciones WHERE version_id IN (121, 122))');
-    console.log(JSON.stringify(val.rows, null, 2));
+    console.log('--- COLUMNS OF RECEPCIONES ---');
+    const res = await client.query(`
+      SELECT column_name, data_type 
+      FROM information_schema.columns 
+      WHERE table_schema = 'recepcion' AND table_name = 'recepciones';
+    `);
+    console.log(JSON.stringify(res.rows, null, 2));
 
   } catch (err) {
     console.error('Error executing query:', err);

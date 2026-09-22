@@ -60,4 +60,14 @@ export abstract class IEmailServicePort {
     evaluatorName: string,
     protocolCode: string,
   ): Promise<void>;
+
+  abstract sendCallNotification(
+    email: string,
+    name: string,
+    callCode: string,
+    meetingDate: Date,
+    meetingTime: string,
+    placeName: string,
+    pdfBuffer: Buffer,
+  ): Promise<void>;
 }

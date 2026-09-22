@@ -2,7 +2,6 @@ import { Entity, Column, ManyToMany, JoinTable, OneToOne } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { RoleOrmEntity } from './role.entity.orm';
 import { InvestigatorProfileOrmEntity } from './investigator-profile.entity.orm';
-import { EncryptionTransformer } from '../../../../shared/encryption/encryption.transformer';
 import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
 
 @Entity({ name: 'usuarios', schema: 'catalogos' })

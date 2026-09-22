@@ -22,13 +22,13 @@ export class EvaluationOrmEntity {
   assignment!: EvaluationAssignmentOrmEntity;
 
   @Column({ name: 'aspectos_eticos', type: 'jsonb', nullable: true })
-  ethicalAspects?: any;
+  ethicalAspects?: Record<string, unknown> | null;
 
   @Column({ name: 'aspectos_metodologicos', type: 'jsonb', nullable: true })
-  methodologicalAspects?: any;
+  methodologicalAspects?: Record<string, unknown> | null;
 
   @Column({ name: 'aspectos_juridicos', type: 'jsonb', nullable: true })
-  legalAspects?: any;
+  legalAspects?: Record<string, unknown> | null;
 
   @Column({ name: 'resultado_id', nullable: true })
   result?: number;

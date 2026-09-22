@@ -65,12 +65,12 @@ export class AiAssistantAdminController {
         petFileName: file.originalname,
         characterCount: extractedText.length,
       };
-    } catch (err: any) {
+    } catch (err) {
       if (err instanceof BadRequestException) {
         throw err;
       }
       throw new BadRequestException(
-        `Error al procesar el archivo PDF: ${err.message || err}`,
+        `Error al procesar el archivo PDF: ${err instanceof Error ? err.message : String(err)}`,
       );
     }
   }

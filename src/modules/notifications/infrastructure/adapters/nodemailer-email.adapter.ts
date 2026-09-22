@@ -62,7 +62,7 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     otp: string,
     name: string,
   ): Promise<void> {
-    const setupUrl = `${this.configService.get('FRONTEND_URL', 'http://localhost:4200')}/auth/setup-account?email=${email}`;
+    const setupUrl = `${this.configService.get('FRONTEND_URL', 'https://localhost:4200')}/auth/setup-account?email=${email}`;
     await this.sendMailWithRetry({
       to: email,
       subject: 'Invitación al Sistema - CEISH-ESPOCH',
@@ -193,8 +193,42 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     });
   }
 
+  async sendCallNotification(
+    email: string,
+    name: string,
+    callCode: string,
+    meetingDate: Date,
+    meetingTime: string,
+    placeName: string,
+    pdfBuffer: Buffer,
+  ): Promise<void> {
+    const formattedDate = meetingDate.toLocaleDateString('es-EC', {
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+    });
+
+    await this.sendMailWithRetry({
+      to: email,
+      subject: `Convocatoria a Sesión de Comité Nro. ${callCode}`,
+      html: templates.getCallNotificationTemplate(
+        name,
+        callCode,
+        formattedDate,
+        meetingTime,
+        placeName,
+      ),
+      attachments: [
+        {
+          filename: `Convocatoria_${callCode}.pdf`,
+          content: pdfBuffer,
+        },
+      ],
+    });
+  }
+
   private async sendMailWithRetry(
-    mailOptions: any,
+    mailOptions: Record<string, unknown>,
     retries = 3,
   ): Promise<void> {
     for (let i = 0; i < retries; i++) {
@@ -210,7 +244,7 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
         console.warn(
           `Fallo envío de email, reintentando (${i + 1}/${retries})...`,
         );
-        await new Promise((res) => setTimeout((resolve) => res(true), 1000));
+        await new Promise((_) => setTimeout(_, 1000));
       }
     }
   }

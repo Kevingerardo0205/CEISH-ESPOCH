@@ -78,7 +78,7 @@ export class PdfGeneratorService {
       });
     }
 
-    const docDefinition: TDocumentDefinitions = {
+    const docDefinition = {
       pageSize: 'A4',
       pageMargins: [40, 110, 40, 85],
       background: (_, pageSize) => {
@@ -430,7 +430,7 @@ export class PdfGeneratorService {
       };
     };
 
-    const docDefinition: TDocumentDefinitions = {
+    const docDefinition = {
       pageSize: 'A4',
       pageMargins: [40, 110, 40, 85],
       background: (_, pageSize) => {
@@ -887,6 +887,344 @@ export class PdfGeneratorService {
           fillColor: '#fffbeb',
         },
         noteText: { fontSize: 8, color: '#64748b', italics: true },
+      },
+    };
+
+    const pdfDoc = this.pdfmake.createPdf(docDefinition);
+    return await pdfDoc.getBuffer();
+  }
+
+  async generateCallPdf(data: {
+    code: string;
+    date: Date;
+    time: string;
+    placeName: string;
+    sessionType: string;
+    agendaSummary?: string;
+    protocols: Array<{
+      ceishCode: string;
+      title: string;
+      investigatorName: string;
+    }>;
+  }): Promise<Buffer> {
+    const formattedDate = data.date.toLocaleDateString('es-ES', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+    });
+
+    const protocolTableBody = [
+      [
+        { text: 'Código CEISH', style: 'tableHeaderCentred' },
+        { text: 'Título del Protocolo', style: 'tableHeader' },
+        { text: 'Investigador Principal', style: 'tableHeader' },
+      ],
+    ];
+
+    if (data.protocols && data.protocols.length > 0) {
+      data.protocols.forEach((p) => {
+        protocolTableBody.push([
+          {
+            text: p.ceishCode || 'S/C',
+            style: 'tableValueCode',
+            alignment: 'center',
+          } as any,
+          { text: p.title || 'Sin Título', style: 'tableValueText' },
+          {
+            text: p.investigatorName || 'No asignado',
+            style: 'tableValueText',
+          },
+        ]);
+      });
+    } else {
+      protocolTableBody.push([
+        {
+          text: 'No se programaron protocolos para esta sesión.',
+          colSpan: 3,
+          style: 'tableValueCentred',
+          alignment: 'center',
+        } as any,
+        {} as any,
+        {} as any,
+      ]);
+    }
+
+    const docDefinition = {
+      pageSize: 'A4',
+      pageMargins: [40, 110, 40, 85],
+      background: (_, pageSize) => {
+        return {
+          image: PDF_LOGOS.BACKGROUND,
+          width: pageSize.width,
+          height: pageSize.height,
+        };
+      },
+      header: () => {
+        return {
+          stack: [
+            {
+              columns: [
+                {
+                  image: PDF_LOGOS.LOGO_HEADER_2,
+                  width: 50,
+                  margin: [40, 20, 0, 0],
+                },
+                {
+                  stack: [
+                    {
+                      text: 'COMITÉ DE ÉTICA EN INVESTIGACIÓN EN SERES HUMANOS DE LA',
+                      fontSize: 8,
+                      bold: true,
+                      color: '#1e3a8a',
+                      alignment: 'center',
+                    },
+                    {
+                      text: 'ESCUELA SUPERIOR POLITÉCNICA DE CHIMBORAZO (CEISH-ESPOCH)',
+                      fontSize: 8.5,
+                      bold: true,
+                      color: '#475569',
+                      alignment: 'center',
+                      margin: [0, 2, 0, 0],
+                    },
+                  ],
+                  margin: [0, 25, 0, 0],
+                  width: '*',
+                },
+                {
+                  image: PDF_LOGOS.LOGO_HEADER_1,
+                  width: 45,
+                  alignment: 'right',
+                  margin: [0, 20, 40, 0],
+                },
+              ],
+            },
+            {
+              canvas: [
+                {
+                  type: 'line',
+                  x1: 40,
+                  y1: 10,
+                  x2: 555,
+                  y2: 10,
+                  lineWidth: 1.5,
+                  lineColor: '#b91c1c',
+                },
+              ],
+            },
+          ],
+        };
+      },
+      footer: (currentPage, pageCount) => {
+        return {
+          stack: [
+            {
+              canvas: [
+                {
+                  type: 'line',
+                  x1: 40,
+                  y1: 0,
+                  x2: 555,
+                  y2: 0,
+                  lineWidth: 0.5,
+                  lineColor: '#cbd5e1',
+                },
+              ],
+            },
+            {
+              columns: [
+                {
+                  text: 'Riobamba - Ecuador',
+                  fontSize: 7.5,
+                  color: '#64748b',
+                  margin: [40, 10, 0, 0],
+                },
+                {
+                  text: `Página ${currentPage} de ${pageCount}`,
+                  fontSize: 7.5,
+                  color: '#64748b',
+                  alignment: 'right',
+                  margin: [0, 10, 40, 0],
+                },
+              ],
+            },
+          ],
+        };
+      },
+      content: [
+        {
+          text: `CONVOCATORIA Nro. ${data.code}`,
+          style: 'docTitle',
+          alignment: 'center',
+          margin: [0, 0, 0, 15],
+        },
+        {
+          text: `Por la presente se convoca a los miembros del Comité de Ética en Investigación en Seres Humanos a la sesión ${data.sessionType.toLowerCase()} programada bajo los siguientes detalles:`,
+          style: 'bodyText',
+          margin: [0, 0, 0, 15],
+        },
+        {
+          table: {
+            widths: ['30%', '70%'],
+            body: [
+              [
+                {
+                  text: 'Fecha de la Reunión:',
+                  bold: true,
+                  style: 'tableValueText',
+                },
+                { text: formattedDate, style: 'tableValueText' },
+              ],
+              [
+                {
+                  text: 'Hora de Inicio:',
+                  bold: true,
+                  style: 'tableValueText',
+                },
+                { text: data.time, style: 'tableValueText' },
+              ],
+              [
+                {
+                  text: 'Lugar / Enlace:',
+                  bold: true,
+                  style: 'tableValueText',
+                },
+                { text: data.placeName, style: 'tableValueText' },
+              ],
+              [
+                {
+                  text: 'Tipo de Sesión:',
+                  bold: true,
+                  style: 'tableValueText',
+                },
+                { text: data.sessionType, style: 'tableValueText' },
+              ],
+            ],
+          },
+          margin: [0, 0, 0, 20],
+        },
+        {
+          text: 'ORDEN DEL DÍA SUGERIDO:',
+          fontSize: 10,
+          bold: true,
+          color: '#1e3a8a',
+          margin: [0, 0, 0, 10],
+        },
+        {
+          ol: [
+            'Lectura y aprobación del orden del día.',
+            'Lectura y aprobación del acta de la sesión anterior.',
+            'Evaluación y dictamen de protocolos de investigación programados.',
+            'Análisis de comunicaciones recibidas y seguimiento.',
+            'Cierre de la sesión y firma del acta.',
+          ],
+          style: 'bodyText',
+          margin: [0, 0, 0, 20],
+        },
+        data.agendaSummary
+          ? {
+              stack: [
+                {
+                  text: 'OBSERVACIONES / DETALLES DE LA AGENDA:',
+                  bold: true,
+                  fontSize: 9.5,
+                  margin: [0, 0, 0, 5],
+                },
+                {
+                  text: data.agendaSummary,
+                  style: 'bodyText',
+                  margin: [0, 0, 0, 15],
+                },
+              ],
+            }
+          : ({} as any),
+        {
+          text: 'PROTOCOLOS PROGRAMADOS PARA EVALUACIÓN:',
+          fontSize: 10,
+          bold: true,
+          color: '#1e3a8a',
+          margin: [0, 10, 0, 10],
+        },
+        {
+          style: 'tableContainer',
+          table: {
+            headerRows: 1,
+            widths: ['25%', '50%', '25%'],
+            body: protocolTableBody,
+          },
+        },
+        {
+          text: 'Atentamente,',
+          style: 'bodyText',
+          margin: [0, 30, 0, 40],
+        },
+        {
+          columns: [
+            {
+              stack: [
+                {
+                  text: '_______________________________',
+                  alignment: 'center',
+                },
+                {
+                  text: 'Presidenta del CEISH-ESPOCH',
+                  bold: true,
+                  alignment: 'center',
+                  fontSize: 9,
+                },
+              ],
+              width: '50%',
+            },
+            {
+              stack: [
+                {
+                  text: '_______________________________',
+                  alignment: 'center',
+                },
+                {
+                  text: 'Secretario(a) del CEISH-ESPOCH',
+                  bold: true,
+                  alignment: 'center',
+                  fontSize: 9,
+                },
+              ],
+              width: '50%',
+            },
+          ],
+        },
+      ],
+      defaultStyle: {
+        font: 'Helvetica',
+        fontSize: 10,
+        color: '#334155',
+      },
+      styles: {
+        docTitle: {
+          fontSize: 12,
+          bold: true,
+          color: '#1e3a8a',
+        },
+        bodyText: { fontSize: 9.5, lineHeight: 1.4, alignment: 'justify' },
+        tableContainer: { margin: [0, 5, 0, 10] },
+        tableHeader: {
+          fontSize: 8.5,
+          bold: true,
+          color: '#0f172a',
+          fillColor: '#f8fafc',
+        },
+        tableHeaderCentred: {
+          fontSize: 8.5,
+          bold: true,
+          color: '#0f172a',
+          fillColor: '#f8fafc',
+          alignment: 'center',
+        },
+        tableValueText: { fontSize: 8.5, color: '#334155' },
+        tableValueCentred: {
+          fontSize: 8.5,
+          color: '#334155',
+          alignment: 'center',
+        },
+        tableValueCode: { fontSize: 8.5, bold: true, color: '#b91c1c' },
       },
     };
 

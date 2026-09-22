@@ -3,7 +3,7 @@ import { InvestigatorProfileOrmEntity } from '../../infrastructure/database/inve
 export abstract class IInvestigatorProfileRepository {
   abstract save(
     profile: Partial<InvestigatorProfileOrmEntity>,
-    manager?: any,
+    manager?: Record<string, unknown>,
   ): Promise<InvestigatorProfileOrmEntity>;
   abstract findByUserId(
     userId: number,

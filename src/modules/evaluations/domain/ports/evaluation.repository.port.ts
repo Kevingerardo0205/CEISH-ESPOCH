@@ -22,7 +22,9 @@ export abstract class IEvaluationRepository {
   abstract deleteAssignment(id: number): Promise<void>;
 
   // Evaluators & Profiles
-  abstract findEvaluatorsWithWorkload(profileId?: number): Promise<any[]>;
+  abstract findEvaluatorsWithWorkload(
+    profileId?: number,
+  ): Promise<Record<string, unknown>[]>;
   abstract findProfiles(): Promise<EvaluatorProfileOrmEntity[]>;
   abstract findProfileById(
     id: number,

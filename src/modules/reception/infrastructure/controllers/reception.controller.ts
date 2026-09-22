@@ -29,6 +29,7 @@ import { Permission } from '../../../../shared/enums/permission.enum';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { RequirementStatus } from '../../../protocols/domain/enums/requirement-status.enum';
 import { DocumentMapper } from '../../application/mappers/document.mapper';
+import { JwtPayload } from '../../../../modules/auth/infrastructure/strategies/jwt.strategy';
 
 import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import {
@@ -47,7 +48,7 @@ export class ReceptionController {
   @Get('protocol/:protocolId/validation-detail')
   async getValidationDetail(
     @Param('protocolId') protocolId: string,
-    @Request() req,
+    @Request() req: Request & { user: JwtPayload },
   ) {
     return this.receptionService.getValidationDetail(
       +protocolId,
@@ -67,7 +68,7 @@ export class ReceptionController {
   @Audit('RECEPTION_STARTED')
   async iniciarRecepcion(
     @Param('protocolId') protocolId: string,
-    @Request() req,
+    @Request() req: Request & { user: JwtPayload },
   ) {
     return this.receptionService.iniciarRecepcion(+protocolId, req.user.id);
   }
@@ -106,7 +107,10 @@ export class ReceptionController {
   @Permissions(Permission.RECEPTION_UPLOAD)
   @Post('protocol/:protocolId/document')
   @Audit('DOCUMENT_UPLOADED')
-  async uploadDocument(@Request() req, @Body() dto: UploadDocumentDto) {
+  async uploadDocument(
+    @Request() req: Request & { user: JwtPayload },
+    @Body() dto: UploadDocumentDto,
+  ) {
     if (!dto.fileName) {
       throw new BadRequestException('El nombre del archivo es obligatorio');
     }
@@ -126,7 +130,7 @@ export class ReceptionController {
   @Post('protocol/:protocolId/documents/bulk')
   @Audit('DOCUMENTS_BULK_UPLOADED')
   async uploadMultipleDocuments(
-    @Request() req,
+    @Request() req: Request & { user: JwtPayload },
     @Body() dto: UploadMultipleDocumentsDto,
   ) {
     const documents = await this.receptionService.uploadMultipleDocuments(
@@ -155,7 +159,7 @@ export class ReceptionController {
   @Audit('DOCUMENT_VALIDATED')
   async validateDocument(
     @Param('documentId') documentId: string,
-    @Request() req,
+    @Request() req: Request & { user: JwtPayload },
     @Body() dto: ValidateDocumentDto,
   ) {
     return this.receptionService.validateDocument(
@@ -202,7 +206,8 @@ export class ReceptionController {
           document.path,
         );
         return res.redirect(downloadUrl);
-      } catch (error) {
+      } catch {}
+      {
         // Fallback a archivo local si no existe en storage o si la key no corresponde
         const filePath = join(process.cwd(), 'uploads', document.path);
 
@@ -229,7 +234,8 @@ export class ReceptionController {
         document.path,
       );
       return res.redirect(downloadUrl);
-    } catch (error) {
+    } catch {}
+    {
       throw new NotFoundException(
         'El archivo no pudo ser descargado desde el storage',
       );
@@ -252,7 +258,8 @@ export class ReceptionController {
       // Es un archivo heredado (legacy). Verificamos si ya está en S3
       try {
         await this.storageService.getMetadata(document.path);
-      } catch (error) {
+      } catch {}
+      {
         // No está en S3, intentamos migrarlo sobre la marcha si existe localmente
         const filePath = join(process.cwd(), 'uploads', document.path);
         if (existsSync(filePath)) {
@@ -263,7 +270,8 @@ export class ReceptionController {
               buffer,
               'application/pdf',
             );
-          } catch (uploadErr) {
+          } catch {}
+          {
             throw new NotFoundException(
               'El archivo no existe en el storage y falló la migración automática',
             );
@@ -281,7 +289,8 @@ export class ReceptionController {
         document.path,
       );
       return { downloadUrl };
-    } catch (error) {
+    } catch {}
+    {
       throw new NotFoundException(
         'El archivo no pudo ser localizado en el storage',
       );

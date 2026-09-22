@@ -94,7 +94,7 @@ export class AuthService {
     }
   }
 
-  async validateUser(email: string, pass: string): Promise<any> {
+  async validateUser(email: string, pass: string): Promise<unknown> {
     const user = await this.userRepository.findByEmail(email);
 
     if (!user || !user.passwordHash) {
@@ -150,56 +150,86 @@ export class AuthService {
     await this.userRepository.update(user.id, updateData);
   }
 
-  async login(user: any) {
-    const permissions = new Set<any>();
-    user.roles?.forEach((role: any) => {
+  async login(user: unknown) {
+    const u = user as UserOrmEntity;
+    const permissionsMap = new Map<
+      string,
+      {
+        code: string;
+        module: {
+          code: string;
+          name: string;
+          icon?: string;
+          order: number;
+        } | null;
+      }
+    >();
+
+    u.roles?.forEach((role: any) => {
       role.permissions?.forEach((p: any) => {
-        permissions.add({
-          code: p.code,
-          module: p.module
-            ? {
-                code: p.module.code,
-                name: p.module.name,
-                icon: p.module.icon,
-                order: p.module.order,
-              }
-            : null,
-        });
+        if (!permissionsMap.has(p.code)) {
+          permissionsMap.set(p.code, {
+            code: p.code,
+            module: p.module
+              ? {
+                  code: p.module.code,
+                  name: p.module.name,
+                  icon: p.module.icon,
+                  order: p.module.order,
+                }
+              : null,
+          });
+        }
       });
     });
 
-    const permissionArray = Array.from(permissions);
+    const permissionArray = Array.from(permissionsMap.values());
+
+    const temporalRolesRaw = await this.dataSource.query(
+      `SELECT r.codigo as code, ur.fecha_inicio as valid_from, ur.fecha_fin as valid_until,
+              (CASE WHEN ur.fecha_fin IS NOT NULL AND ur.fecha_fin < NOW() THEN true ELSE false END) as is_expired
+       FROM catalogos.usuarios_roles ur
+       JOIN catalogos.roles r ON ur.rol_id = r.id
+       WHERE ur.usuario_id = $1`,
+      [u.id],
+    );
+
     const payload = {
-      email: user.institutionalEmail,
-      sub: user.id,
-      roles: user.roles.map((r: any) => r.code),
+      email: u.institutionalEmail,
+      sub: u.id,
+      roles: u.roles.map((r: any) => r.code),
       permissions: permissionArray.map((p) => p.code),
+      temporalRoles: temporalRolesRaw.map((tr: any) => ({
+        code: tr.code,
+        validFrom: tr.valid_from,
+        validUntil: tr.valid_until,
+        isExpired: tr.is_expired,
+      })),
     };
 
     const tokens = await this.generateTokens(payload);
-    await this.updateRefreshToken(user.id, tokens.refresh_token);
+    await this.updateRefreshToken(u.id, tokens.refresh_token);
 
     return {
       access_token: tokens.access_token,
       refresh_token: tokens.refresh_token,
       user: {
-        id: user.id,
-        fullName: user.fullName,
-        email: user.institutionalEmail,
+        id: u.id,
+        fullName: u.fullName,
+        email: u.institutionalEmail,
         roles: payload.roles,
         permissions: permissionArray,
-        isEmailVerified: user.isEmailVerified,
-        investigatorProfile: user.investigatorProfile
+        isEmailVerified: u.isEmailVerified,
+        investigatorProfile: u.investigatorProfile
           ? {
-              documentType: user.investigatorProfile.documentType,
-              firstName: user.investigatorProfile.firstName,
-              lastName: user.investigatorProfile.firstLastName,
-              phone: user.investigatorProfile.phone,
-              nationality: user.investigatorProfile.nationality,
-              position: user.investigatorProfile.position,
-              institution: user.investigatorProfile.institution,
-              senescytRegistration:
-                user.investigatorProfile.senescytRegistration,
+              documentType: u.investigatorProfile.documentType,
+              firstName: u.investigatorProfile.firstName,
+              lastName: u.investigatorProfile.firstLastName,
+              phone: u.investigatorProfile.phone,
+              nationality: u.investigatorProfile.nationality,
+              position: u.investigatorProfile.position,
+              institution: u.investigatorProfile.institution,
+              senescytRegistration: u.investigatorProfile.senescytRegistration,
             }
           : null,
       },
@@ -209,53 +239,74 @@ export class AuthService {
   async getMe(userId: number) {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('Usuario no encontrado');
+    const u = user;
+    const permissionsMap = new Map<
+      string,
+      {
+        code: string;
+        module: {
+          code: string;
+          name: string;
+          icon?: string;
+          order: number;
+        } | null;
+      }
+    >();
 
-    const permissions = new Set<any>();
-    user.roles?.forEach((role: any) => {
+    u.roles?.forEach((role: any) => {
       role.permissions?.forEach((p: any) => {
-        permissions.add({
-          code: p.code,
-          module: p.module
-            ? {
-                code: p.module.code,
-                name: p.module.name,
-                icon: p.module.icon,
-                order: p.module.order,
-              }
-            : null,
-        });
+        if (!permissionsMap.has(p.code)) {
+          permissionsMap.set(p.code, {
+            code: p.code,
+            module: p.module
+              ? {
+                  code: p.module.code,
+                  name: p.module.name,
+                  icon: p.module.icon,
+                  order: p.module.order,
+                }
+              : null,
+          });
+        }
       });
     });
 
+    const permissionArray = Array.from(permissionsMap.values());
+
     return {
-      id: user.id,
-      nationalId: user.nationalId,
-      fullName: user.fullName,
-      email: user.institutionalEmail,
-      isEmailVerified: user.isEmailVerified,
-      isActive: user.isActive,
-      roles: user.roles.map((r: any) => r.code),
-      permissions: Array.from(permissions),
-      investigatorProfile: user.investigatorProfile
+      id: u.id,
+      nationalId: u.nationalId,
+      fullName: u.fullName,
+      email: u.institutionalEmail,
+      isEmailVerified: u.isEmailVerified,
+      isActive: u.isActive,
+      roles: u.roles.map((r: any) => r.code),
+      permissions: permissionArray,
+      investigatorProfile: u.investigatorProfile
         ? {
-            documentType: user.investigatorProfile.documentType,
-            firstName: user.investigatorProfile.firstName,
-            lastName: user.investigatorProfile.firstLastName,
-            phone: user.investigatorProfile.phone,
-            nationality: user.investigatorProfile.nationality,
-            position: user.investigatorProfile.position,
-            institution: user.investigatorProfile.institution,
-            senescytRegistration: user.investigatorProfile.senescytRegistration,
+            documentType: u.investigatorProfile.documentType,
+            firstName: u.investigatorProfile.firstName,
+            lastName: u.investigatorProfile.firstLastName,
+            phone: u.investigatorProfile.phone,
+            nationality: u.investigatorProfile.nationality,
+            position: u.investigatorProfile.position,
+            institution: u.investigatorProfile.institution,
+            senescytRegistration: u.investigatorProfile.senescytRegistration,
           }
         : null,
     };
   }
 
   async refreshTokens(userId: number, refreshToken: string) {
-    const user = await this.dataSource.getRepository(UserOrmEntity).findOne({
-      where: { id: userId },
-      relations: ['roles', 'roles.permissions', 'roles.permissions.module'],
-    });
+    const user = await this.dataSource
+      .getRepository(UserOrmEntity)
+      .createQueryBuilder('user')
+      .addSelect('user.refreshTokenHash')
+      .leftJoinAndSelect('user.roles', 'roles')
+      .leftJoinAndSelect('roles.permissions', 'permissions')
+      .leftJoinAndSelect('permissions.module', 'module')
+      .where('user.id = :userId', { userId })
+      .getOne();
 
     if (!user || !user.refreshTokenHash) {
       throw new UnauthorizedException('Access Denied');
@@ -264,37 +315,52 @@ export class AuthService {
     const isMatch = await bcrypt.compare(refreshToken, user.refreshTokenHash);
     if (!isMatch) throw new UnauthorizedException('Access Denied');
 
-    const permissions = new Set<any>();
-    user.roles?.forEach((role: any) => {
+    const u = user;
+    const permissionsMap = new Map<
+      string,
+      {
+        code: string;
+        module: {
+          code: string;
+          name: string;
+          icon?: string;
+          order: number;
+        } | null;
+      }
+    >();
+
+    u.roles?.forEach((role: any) => {
       role.permissions?.forEach((p: any) => {
-        permissions.add({
-          code: p.code,
-          module: p.module
-            ? {
-                code: p.module.code,
-                name: p.module.name,
-                icon: p.module.icon,
-                order: p.module.order,
-              }
-            : null,
-        });
+        if (!permissionsMap.has(p.code)) {
+          permissionsMap.set(p.code, {
+            code: p.code,
+            module: p.module
+              ? {
+                  code: p.module.code,
+                  name: p.module.name,
+                  icon: p.module.icon,
+                  order: p.module.order,
+                }
+              : null,
+          });
+        }
       });
     });
 
-    const permissionArray = Array.from(permissions);
+    const permissionArray = Array.from(permissionsMap.values());
     const payload = {
-      email: user.institutionalEmail,
-      sub: user.id,
-      roles: user.roles.map((r: any) => r.code),
-      permissions: permissionArray.map((p: any) => p.code),
+      email: u.institutionalEmail,
+      sub: u.id,
+      roles: u.roles.map((r: any) => r.code),
+      permissions: permissionArray.map((p) => p.code),
     };
     const tokens = await this.generateTokens(payload);
-    await this.updateRefreshToken(user.id, tokens.refresh_token);
+    await this.updateRefreshToken(u.id, tokens.refresh_token);
 
     return tokens;
   }
 
-  private async generateTokens(payload: any) {
+  private async generateTokens(payload: Record<string, unknown>) {
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(payload, {
         expiresIn: '15m',
@@ -491,11 +557,19 @@ export class AuthService {
       confirmationTokenHash: codeHash,
     });
 
-    await this.emailService.sendEmailConfirmation(
-      user.institutionalEmail,
-      code,
-      user.fullName,
-    );
+    if (!user.passwordHash) {
+      await this.emailService.sendAccountInvitation(
+        user.institutionalEmail,
+        code,
+        user.fullName,
+      );
+    } else {
+      await this.emailService.sendEmailConfirmation(
+        user.institutionalEmail,
+        code,
+        user.fullName,
+      );
+    }
   }
 
   async forgotPassword(email: string): Promise<void> {

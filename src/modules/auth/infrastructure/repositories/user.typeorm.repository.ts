@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { Repository, FindOptionsWhere } from 'typeorm';
 import { IUserRepository } from '../../domain/ports/user.repository.port';
 import { UserOrmEntity } from '../database/user.entity.orm';
 import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
@@ -38,18 +38,22 @@ export class UserTypeOrmRepository
 
   async save(
     user: Partial<UserOrmEntity>,
-    manager?: any,
+    manager?: Record<string, unknown>,
   ): Promise<UserOrmEntity> {
-    const repo = manager ? manager.getRepository(UserOrmEntity) : this.userRepo;
+    const repo = manager
+      ? (manager as any).getRepository(UserOrmEntity)
+      : this.userRepo;
     return repo.save(user);
   }
 
   async update(
     id: number,
     data: Partial<UserOrmEntity>,
-    manager?: any,
+    manager?: Record<string, unknown>,
   ): Promise<void> {
-    const repo = manager ? manager.getRepository(UserOrmEntity) : this.userRepo;
+    const repo = manager
+      ? (manager as any).getRepository(UserOrmEntity)
+      : this.userRepo;
     await repo.update(id, data);
   }
 
@@ -80,7 +84,9 @@ export class UserTypeOrmRepository
     });
   }
 
-  async findWithToken(where: any): Promise<UserOrmEntity[]> {
+  async findWithToken(
+    where: FindOptionsWhere<UserOrmEntity>,
+  ): Promise<UserOrmEntity[]> {
     return this.userRepo.find({
       where,
       select: [

@@ -7,6 +7,7 @@ import {
   MinLength,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { RoleAssignmentItemDto } from './assign-user-roles.dto';
 
 export class CreateUserDto {
   @ApiProperty({ example: '0601234567' })
@@ -35,8 +36,7 @@ export class CreateUserDto {
 
   @ApiProperty({ example: ['admin_ti'], isArray: true })
   @IsArray()
-  @IsString({ each: true })
-  roles!: string[];
+  roles!: (string | RoleAssignmentItemDto)[];
 
   @ApiProperty({ example: true, required: false })
   @IsOptional()

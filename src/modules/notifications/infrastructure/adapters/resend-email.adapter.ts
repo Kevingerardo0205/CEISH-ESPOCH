@@ -19,7 +19,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
     );
     this.baseUrl = this.configService.get<string>(
       'FRONTEND_URL',
-      'http://localhost:4200',
+      'https://localhost:4200',
     );
   }
 
@@ -68,11 +68,12 @@ export class ResendEmailAdapter implements IEmailServicePort {
       console.log(`[AUTH] Código de verificación para ${email}: ${code}`);
       console.log('-----------------------------------------');
 
+      const confirmUrl = `${this.baseUrl}/auth/confirm-email?email=${encodeURIComponent(email)}`;
       const data = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
         subject: 'Código de confirmación - CEISH-ESPOCH',
-        html: templates.getEmailConfirmationTemplate(name, code),
+        html: templates.getEmailConfirmationTemplate(name, code, confirmUrl),
       });
       console.log('Código de confirmación enviado:', data);
     } catch (error) {
@@ -277,6 +278,47 @@ export class ResendEmailAdapter implements IEmailServicePort {
       console.log('Email de evaluación finalizada enviado:', data);
     } catch (error) {
       console.error('Error enviando email de evaluación finalizada:', error);
+      throw error;
+    }
+  }
+
+  async sendCallNotification(
+    email: string,
+    name: string,
+    callCode: string,
+    meetingDate: Date,
+    meetingTime: string,
+    placeName: string,
+    pdfBuffer: Buffer,
+  ): Promise<void> {
+    try {
+      const formattedDate = meetingDate.toLocaleDateString('es-EC', {
+        year: 'numeric',
+        month: 'long',
+        day: 'numeric',
+      });
+
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: `Convocatoria a Sesión de Comité Nro. ${callCode}`,
+        html: templates.getCallNotificationTemplate(
+          name,
+          callCode,
+          formattedDate,
+          meetingTime,
+          placeName,
+        ),
+        attachments: [
+          {
+            filename: `Convocatoria_${callCode}.pdf`,
+            content: pdfBuffer.toString('base64'),
+          },
+        ],
+      });
+      console.log(`Convocatoria enviada a ${email}:`, data);
+    } catch (error) {
+      console.error(`Error enviando convocatoria a ${email}:`, error);
       throw error;
     }
   }

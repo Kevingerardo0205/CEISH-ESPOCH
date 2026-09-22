@@ -19,6 +19,7 @@ import { Permission } from '../../../../shared/enums/permission.enum';
 
 export interface CreateResolutionPayload {
   protocolId: number;
+  versionLock?: number;
   validityYears?: number;
   followUpPeriodDays?: number;
   observations?: string;
@@ -51,7 +52,7 @@ export class ResolutionsController {
       dto,
       req.user.id,
       dto.pdfBuffer,
-    ) as Promise<unknown>;
+    );
   }
 
   @Get('templates/observations-response')

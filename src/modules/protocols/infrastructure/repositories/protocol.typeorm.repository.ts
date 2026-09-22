@@ -20,7 +20,10 @@ export class ProtocolTypeOrmRepository
     super(protocolsRepo);
   }
 
-  async findById(id: number, options?: any): Promise<ProtocolOrmEntity | null> {
+  async findById(
+    id: number,
+    options?: Record<string, unknown>,
+  ): Promise<ProtocolOrmEntity | null> {
     return this.repo.findOne({
       where: { id },
       relations: [
@@ -90,7 +93,7 @@ export class ProtocolTypeOrmRepository
         qb.andWhere('p.statusId = :statusId', { statusId: statusParam });
       }
     }
-    if (query.subsanar === 'true' || (query.subsanar as any) === true) {
+    if (query.subsanar === 'true') {
       qb.andWhere(
         '(reception.statusId = 9 OR reception.statusId IS NULL OR reception.id IS NULL OR reception.statusId = 11)',
       );
@@ -109,7 +112,7 @@ export class ProtocolTypeOrmRepository
         else if (receptionStatus === ReceptionStatus.INCOMPLETO) statusId = 11;
         else if (receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA)
           statusId = 15;
-        else if (receptionStatus === ('ARCHIVADO' as any)) statusId = 12;
+        else if (receptionStatus === 'ARCHIVADO') statusId = 12;
         qb.andWhere('reception.statusId = :statusId', { statusId });
       }
     }

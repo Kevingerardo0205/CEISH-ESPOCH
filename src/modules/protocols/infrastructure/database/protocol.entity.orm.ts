@@ -4,7 +4,7 @@ import {
   ManyToOne,
   JoinColumn,
   OneToMany,
-  OneToOne,
+  VersionColumn,
 } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
@@ -22,6 +22,9 @@ import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/da
 
 @Entity({ name: 'protocolos', schema: 'public' })
 export class ProtocolOrmEntity extends BaseOrmEntity {
+  @VersionColumn({ name: 'version', default: 1 })
+  versionLock!: number;
+
   @Column({ name: 'version_actual_id', nullable: true })
   versionActualId?: number;
 
@@ -151,7 +154,7 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
     if (sId === 10) return ReceptionStatus.COMPLETO;
     if (sId === 11) return ReceptionStatus.INCOMPLETO;
     if (sId === 15) return ReceptionStatus.EN_REVISION_SECRETARIA;
-    if (sId === 12) return 'ARCHIVADO' as any;
+    if (sId === 12) return 'ARCHIVADO' as ReceptionStatus;
 
     const currentVerNumber = this.activeVersion?.versionNumber || 1;
     if (currentVerNumber > 1) {

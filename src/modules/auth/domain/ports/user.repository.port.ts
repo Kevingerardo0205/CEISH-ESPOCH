@@ -6,12 +6,14 @@ export abstract class IUserRepository {
   abstract findAll(): Promise<UserOrmEntity[]>;
   abstract save(
     user: Partial<UserOrmEntity>,
-    manager?: any,
+    manager?: Record<string, unknown>,
   ): Promise<UserOrmEntity>;
   abstract update(
     id: number,
     data: Partial<UserOrmEntity>,
-    manager?: any,
+    manager?: Record<string, unknown>,
   ): Promise<void>;
-  abstract findWithToken(where: any): Promise<UserOrmEntity[]>;
+  abstract findWithToken(
+    where: Record<string, unknown>,
+  ): Promise<UserOrmEntity[]>;
 }

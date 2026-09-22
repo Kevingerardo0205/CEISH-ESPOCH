@@ -57,6 +57,9 @@ CREATE TABLE catalogos.usuarios_roles (
     usuario_id INT REFERENCES catalogos.usuarios(id) ON DELETE CASCADE,
     rol_id INT REFERENCES catalogos.roles(id) ON DELETE CASCADE,
     fecha_asignacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    fecha_inicio TIMESTAMPTZ DEFAULT CURRENT_TIMESTAMP,
+    fecha_fin TIMESTAMPTZ,
+    motivo_delegacion VARCHAR(255),
     asignado_por INT REFERENCES catalogos.usuarios(id),
     PRIMARY KEY (usuario_id, rol_id)
 );

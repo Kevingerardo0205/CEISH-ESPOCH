@@ -1,7 +1,7 @@
 const { Client } = require('pg');
 const fs = require('fs');
 
-const envPath = 'D:\\CEISH\\BACKEND\\CEISH-ESPOCH\\.env';
+const envPath = '.env';
 const envContent = fs.readFileSync(envPath, 'utf8');
 const env = {};
 envContent.split('\n').forEach(line => {
@@ -133,7 +133,7 @@ function debugRetrieve(chunks, query) {
 async function run() {
   await client.connect();
   try {
-    const res = await client.query('SELECT pet_text FROM public.ai_assistant_config WHERE id = 1');
+    const res = await client.query('SELECT pet_text FROM catalogos.ai_assistant_config WHERE id = 1');
     if (res.rows.length > 0) {
       const text = res.rows[0].pet_text || '';
       const chunks = chunkText(text);

@@ -86,7 +86,7 @@ export class S3StorageAdapter implements IStorageService {
     await this.s3Client.send(command);
   }
 
-  async getMetadata(key: string): Promise<any> {
+  async getMetadata(key: string): Promise<Record<string, unknown>> {
     const command = new HeadObjectCommand({
       Bucket: this.bucketName,
       Key: key,

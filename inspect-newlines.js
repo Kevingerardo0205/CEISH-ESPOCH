@@ -1,7 +1,7 @@
 const { Client } = require('pg');
 const fs = require('fs');
 
-const envPath = 'D:\\CEISH\\BACKEND\\CEISH-ESPOCH\\.env';
+const envPath = '.env';
 const envContent = fs.readFileSync(envPath, 'utf8');
 const env = {};
 envContent.split('\n').forEach(line => {

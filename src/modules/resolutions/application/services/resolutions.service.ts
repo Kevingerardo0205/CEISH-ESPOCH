@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 import {
   Injectable,
   NotFoundException,
@@ -62,7 +62,7 @@ export class ResolutionsService {
   async createResolution(dto: any, userId: number, pdfBuffer?: Buffer) {
     const protocol = await this.protocolRepository.findById(dto.protocolId, {
       relations: ['principalInvestigator', 'studyType'],
-    } as any);
+    });
     if (!protocol)
       throw new NotFoundException(`Protocol ${dto.protocolId} not found`);
 
@@ -88,7 +88,7 @@ export class ResolutionsService {
       );
     }
 
-    const evaluations: any[] = [];
+    const evaluations: unknown[] = [];
     const additionalAttachments: Array<{ filename: string; content: Buffer }> =
       [];
 
@@ -142,9 +142,24 @@ export class ResolutionsService {
     await queryRunner.connect();
     await queryRunner.startTransaction();
 
-    let saved: any;
+    let saved: unknown;
 
     try {
+      const protocolOrm = await queryRunner.manager.findOne(ProtocolOrmEntity, {
+        where: { id: dto.protocolId },
+      });
+      if (!protocolOrm)
+        throw new NotFoundException(`Protocol ${dto.protocolId} not found`);
+
+      if (
+        dto.versionLock !== undefined &&
+        protocolOrm.versionLock !== dto.versionLock
+      ) {
+        throw new ConflictException(
+          'El expediente de este protocolo ha sido modificado por otro usuario de forma concurrente.',
+        );
+      }
+
       const resolution = queryRunner.manager.create(ResolutionOrmEntity, {
         protocolId: dto.protocolId,
         versionId: version.id,
@@ -170,10 +185,9 @@ export class ResolutionsService {
         });
 
         // - Protocolo -> 17 (ProtocolStatus.APROBADO)
-        await queryRunner.manager.update(ProtocolOrmEntity, dto.protocolId, {
-          statusId: ProtocolStatus.APROBADO,
-          approvalDate: new Date(),
-        });
+        protocolOrm.statusId = ProtocolStatus.APROBADO;
+        protocolOrm.approvalDate = new Date();
+        await queryRunner.manager.save(ProtocolOrmEntity, protocolOrm);
       } else if (resolutionTypeId === 3) {
         // RECHAZADO:
         // - Versión actual -> 18 (ProtocolStatus.RECHAZADO)
@@ -184,9 +198,8 @@ export class ResolutionsService {
         });
 
         // - Protocolo -> 18 (ProtocolStatus.RECHAZADO)
-        await queryRunner.manager.update(ProtocolOrmEntity, dto.protocolId, {
-          statusId: ProtocolStatus.RECHAZADO,
-        });
+        protocolOrm.statusId = ProtocolStatus.RECHAZADO;
+        await queryRunner.manager.save(ProtocolOrmEntity, protocolOrm);
       } else if (resolutionTypeId === 2) {
         // APROBADO CON OBSERVACIONES:
         // - Versión actual (V1) -> 19 (ProtocolStatus.REQUIERE_SUBSANACION_VERSION)
@@ -219,11 +232,10 @@ export class ResolutionsService {
           newVersion,
         );
 
-        // 2. Asociar el protocolo a la nueva versión y sincronizar su estado a 21 (EN_CONTROL_DOCUMENTAL)
-        await queryRunner.manager.update(ProtocolOrmEntity, dto.protocolId, {
-          versionActualId: savedVersion.id,
-          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
-        });
+        // 2. Asociar el protocolo a la nueva versión (V2, V3, etc.) y sincronizar su estado a 21 (EN_CONTROL_DOCUMENTAL)
+        protocolOrm.versionActualId = savedVersion.id;
+        protocolOrm.statusId = ProtocolStatus.EN_CONTROL_DOCUMENTAL;
+        await queryRunner.manager.save(ProtocolOrmEntity, protocolOrm);
 
         // 3. Crear una nueva recepción para esta versión para recibir los archivos corregidos (inicia en INICIADO 9)
         const newReception = queryRunner.manager.create(ReceptionOrmEntity, {
@@ -236,6 +248,8 @@ export class ResolutionsService {
         await queryRunner.manager.save(ReceptionOrmEntity, newReception);
 
         // 4. Resetear los checklist items del protocolo para la nueva versión de subsanación
+        // Los aprobados (APROBADO) y no aplicables (NO_APLICA) quedan bloqueados e inmutables.
+        // El resto (RECHAZADO, PRESENTADO, NO_PRESENTADO, PENDIENTE) se resetean a NO_PRESENTADO.
         const checklistItems = await queryRunner.manager.find(
           ProtocolRequirementOrmEntity,
           {
@@ -243,17 +257,10 @@ export class ResolutionsService {
           },
         );
         for (const item of checklistItems) {
-          if (item.status === RequirementStatus.APROBADO) {
-            // Los aprobados en V1 pasan a PRESENTADO en V2 para que puedan ser corregidos/reemplazados,
-            // pero sin perder el archivo previo si no requiere cambio.
-            await queryRunner.manager.update(
-              ProtocolRequirementOrmEntity,
-              item.id,
-              {
-                status: RequirementStatus.PRESENTADO,
-              },
-            );
-          } else if (item.status !== RequirementStatus.NO_APLICA) {
+          if (
+            item.status !== RequirementStatus.APROBADO &&
+            item.status !== RequirementStatus.NO_APLICA
+          ) {
             await queryRunner.manager.update(
               ProtocolRequirementOrmEntity,
               item.id,
@@ -268,7 +275,10 @@ export class ResolutionsService {
       await queryRunner.commitTransaction();
     } catch (err: any) {
       await queryRunner.rollbackTransaction();
-      if (err.code === '23505') {
+      if (
+        err.code === '23505' ||
+        err.name === 'OptimisticLockVersionMismatchError'
+      ) {
         throw new ConflictException(
           'La versión de este protocolo ya ha sido creada o modificada por otra transacción concurrente.',
         );
@@ -290,7 +300,7 @@ export class ResolutionsService {
           const arrayBuffer = await response.arrayBuffer();
           resolutionPdfBuffer = Buffer.from(arrayBuffer);
         }
-      } catch (e) {
+      } catch (e: any) {
         console.error(`Error downloading consolidated resolution file:`, e);
       }
     }

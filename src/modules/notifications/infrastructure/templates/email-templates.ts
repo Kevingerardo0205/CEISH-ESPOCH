@@ -41,13 +41,27 @@ export const getPasswordResetTemplate = (name: string, code: string) =>
   <p>Si no has solicitado este cambio, puedes ignorar este correo de forma segura.</p>
 `);
 
-export const getEmailConfirmationTemplate = (name: string, code: string) =>
-  getBaseTemplate(`
+export const getEmailConfirmationTemplate = (
+  name: string,
+  code: string,
+  confirmUrl?: string,
+) => {
+  const url =
+    confirmUrl ||
+    `https://localhost:4200/auth/confirm-email?email=${encodeURIComponent(name)}`;
+  return getBaseTemplate(`
   <h2>Bienvenido/a a CEISH-ESPOCH, ${name}</h2>
   <p>Gracias por registrarte en nuestra plataforma. Para activar tu cuenta, por favor ingresa el siguiente código de verificación en el sistema:</p>
   <div class="otp-code">${code}</div>
-  <p>Si no has creado una cuenta, por favor ignora este mensaje.</p>
+  <p>Puedes validar este código y activar tu cuenta directamente haciendo clic en el siguiente botón:</p>
+  <div style="text-align: center; margin: 25px 0;">
+    <a href="${url}" class="button" style="background-color: #003366; color: white; text-decoration: none; padding: 12px 25px; border-radius: 5px; font-weight: bold; display: inline-block;">Validar Código y Activar Cuenta</a>
+  </div>
+  <p style="margin-top: 20px; font-size: 12px; color: #777;">Si el botón no funciona, copie y pegue la siguiente dirección en su navegador:</p>
+  <p style="font-size: 12px; color: #777; word-break: break-all;">${url}</p>
+  <p style="margin-top: 15px;">Si no has creado una cuenta, por favor ignora este mensaje.</p>
 `);
+};
 
 export const getWelcomeTemplate = (name: string) =>
   getBaseTemplate(`
@@ -173,4 +187,26 @@ export const getResolutionEmailTemplate = (
     <li><strong>Resultado:</strong> <b style="color: #2e7d32;">${decision}</b></li>
   </ul>
   <p>Adjunto a este correo encontrará la carta de resolución oficial en formato PDF.</p>
+  `);
+
+export const getCallNotificationTemplate = (
+  name: string,
+  callCode: string,
+  meetingDate: string,
+  meetingTime: string,
+  placeName: string,
+) =>
+  getBaseTemplate(`
+  <h2>Convocatoria a Sesión de Comité Nro. ${callCode}</h2>
+  <p>Estimado(a) miembro del comité <strong>${name}</strong>,</p>
+  <p>Por la presente se le convoca a la próxima sesión oficial del Comité de Ética en Investigación en Seres Humanos (CEISH-ESPOCH), programada bajo los siguientes detalles:</p>
+  <ul>
+    <li><strong>Código de Convocatoria:</strong> ${callCode}</li>
+    <li><strong>Fecha:</strong> ${meetingDate}</li>
+    <li><strong>Hora:</strong> ${meetingTime}</li>
+    <li><strong>Lugar:</strong> ${placeName}</li>
+  </ul>
+  <p>Adjunto a este correo encontrará el documento PDF de la convocatoria oficial y el orden del día.</p>
+  <p>Por favor, ingrese al sistema para revisar los protocolos programados y preparar sus evaluaciones.</p>
+  <a href="https://ceish-espoch.edu.ec/dashboard" class="button">Acceder al Sistema</a>
 `);

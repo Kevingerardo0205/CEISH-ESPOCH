@@ -10,7 +10,7 @@ export abstract class IProtocolRepository {
   ): Promise<ProtocolOrmEntity[]>;
   abstract findById(
     id: number,
-    options?: any,
+    options?: Record<string, unknown>,
   ): Promise<ProtocolOrmEntity | null>;
   abstract save(entity: Partial<ProtocolOrmEntity>): Promise<ProtocolOrmEntity>;
   abstract update(id: number, data: Partial<ProtocolOrmEntity>): Promise<void>;

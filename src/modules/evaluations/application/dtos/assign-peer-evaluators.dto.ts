@@ -1,4 +1,5 @@
 import { IsArray, IsInt, ArrayMinSize } from 'class-validator';
+import { Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 
 export class AssignPeerEvaluatorsDto {
@@ -8,6 +9,7 @@ export class AssignPeerEvaluatorsDto {
     example: [3, 4, 7, 12],
   })
   @IsArray()
+  @Type(() => Number)
   @IsInt({ each: true })
   @ArrayMinSize(4)
   evaluatorIds!: number[];

@@ -98,7 +98,7 @@ export class GeminiService {
 
       // Eliminar duplicados manteniendo el orden
       const modelsToTry = Array.from(new Set(fallbackModels));
-      let lastError: any = null;
+      let lastError: unknown = null;
 
       for (const model of modelsToTry) {
         try {
@@ -132,7 +132,7 @@ export class GeminiService {
               `Error de la API de Gemini con modelo ${model} (${response.status}): ${errorText}`,
             );
 
-            let parsedError: any;
+            let parsedError: unknown;
             try {
               parsedError = JSON.parse(errorText);
             } catch {
@@ -141,7 +141,12 @@ export class GeminiService {
 
             const status = response.status;
             const errorMsg =
-              parsedError?.error?.message ||
+              ((
+                (parsedError as Record<string, unknown>)?.error as Record<
+                  string,
+                  unknown
+                >
+              )?.message as string) ||
               response.statusText ||
               'Error desconocido';
 
@@ -160,7 +165,7 @@ export class GeminiService {
             continue;
           }
 
-          const json: any = await response.json();
+          const json = (await response.json()) as Record<string, unknown>;
 
           // Extraer texto retornado por el modelo
           const candidate = json.candidates?.[0];
@@ -196,7 +201,7 @@ export class GeminiService {
         throw lastError;
       }
       throw new HttpException(
-        `Todos los modelos de Gemini fallaron o tienen su cuota agotada. Último error: ${lastError?.message || lastError}`,
+        `Todos los modelos de Gemini fallaron o tienen su cuota agotada. Último error: ${(lastError as any)?.message || lastError}`,
         HttpStatus.BAD_GATEWAY,
       );
     } catch (err) {

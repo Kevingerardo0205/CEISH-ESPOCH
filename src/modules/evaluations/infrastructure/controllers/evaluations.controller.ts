@@ -11,6 +11,7 @@ import {
   Param,
   Delete,
 } from '@nestjs/common';
+import { JwtPayload } from '../../../../modules/auth/infrastructure/strategies/jwt.strategy';
 import { EvaluationsService } from '../../application/services/evaluations.service';
 import { EvaluationConsolidationService } from '../../application/services/evaluation-consolidation.service';
 import { SubmitEvaluationDto } from '../../application/dtos/submit-evaluation.dto';
@@ -23,7 +24,6 @@ import { SubmitPeerRiskDto } from '../../application/dtos/submit-peer-risk.dto';
 
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
-import { Roles } from '../../../../shared/decorators/roles.decorator';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
 import { Permissions } from '../../../../shared/decorators/permissions.decorator';
@@ -75,7 +75,7 @@ export class EvaluationsController {
   @ApiOperation({
     summary: 'Listar protocolos asignados oficialmente al evaluador logueado',
   })
-  async getMyAssignments(@Request() req) {
+  async getMyAssignments(@Request() req: Request & { user: JwtPayload }) {
     return this.evaluationsService.getMyAssignments(req.user.id);
   }
 
@@ -83,7 +83,10 @@ export class EvaluationsController {
   @Permissions(Permission.EVALUATION_FILL)
   @Audit('EVALUATION_SUBMITTED')
   @ApiOperation({ summary: 'Evaluador envía dictamen final de evaluación' })
-  async submit(@Body() dto: SubmitEvaluationDto, @Request() req) {
+  async submit(
+    @Body() dto: SubmitEvaluationDto,
+    @Request() req: Request & { user: JwtPayload },
+  ) {
     return this.evaluationsService.submitEvaluation(dto, req.user.id);
   }
 
@@ -137,7 +140,7 @@ export class EvaluationsController {
   async assignPeerEvaluators(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AssignPeerEvaluatorsDto,
-    @Request() req,
+    @Request() req: Request & { user: JwtPayload },
   ) {
     return this.evaluationsService.assignPeerEvaluators(id, dto, req.user.id);
   }
@@ -148,7 +151,9 @@ export class EvaluationsController {
     summary:
       'Listar asignaciones de riesgo pendientes para el evaluador par logueado',
   })
-  async getMyPendingPeerAssignments(@Request() req) {
+  async getMyPendingPeerAssignments(
+    @Request() req: Request & { user: JwtPayload },
+  ) {
     return this.evaluationsService.getMyPendingPeerAssignments(req.user.id);
   }
 
@@ -162,7 +167,7 @@ export class EvaluationsController {
   async submitPeerRiskLevel(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: SubmitPeerRiskDto,
-    @Request() req,
+    @Request() req: Request & { user: JwtPayload },
   ) {
     return this.evaluationsService.submitPeerRiskLevel(id, req.user.id, dto);
   }
@@ -183,7 +188,7 @@ export class EvaluationsController {
   })
   async getSubmitProtocolInfo(
     @Param('protocolId', ParseIntPipe) protocolId: number,
-    @Request() req,
+    @Request() req: Request & { user: JwtPayload },
   ) {
     return this.evaluationsService.getSubmitProtocolInfo(
       protocolId,
@@ -232,7 +237,7 @@ export class EvaluationsController {
   })
   async getProtocolObservationsForInvestigator(
     @Param('protocolId', ParseIntPipe) protocolId: number,
-    @Request() req,
+    @Request() req: Request & { user: JwtPayload },
   ) {
     return this.evaluationsService.getObservationsForInvestigator(
       protocolId,

@@ -26,7 +26,7 @@ const client = new Client({
 async function runSearch() {
   await client.connect();
   try {
-    const res = await client.query('SELECT pet_text FROM public.ai_assistant_config WHERE id = 1');
+    const res = await client.query('SELECT pet_text FROM catalogos.ai_assistant_config WHERE id = 1');
     if (res.rows.length > 0) {
       const text = res.rows[0].pet_text || '';
       console.log('Raw text length:', text.length);

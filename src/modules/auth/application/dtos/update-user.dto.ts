@@ -4,8 +4,10 @@ import {
   IsOptional,
   MinLength,
   IsBoolean,
+  IsArray,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { RoleAssignmentItemDto } from './assign-user-roles.dto';
 
 export class UpdateUserDto {
   @ApiProperty({ example: '0601234567', required: false })
@@ -38,6 +40,17 @@ export class UpdateUserDto {
   @IsOptional()
   @IsBoolean()
   isEmailVerified?: boolean;
+
+  @ApiProperty({
+    example: [
+      'SECRETARIA',
+      { roleCode: 'EVALUADOR', validUntil: '2026-09-15T23:59:59.000Z' },
+    ],
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  roles?: (string | RoleAssignmentItemDto)[];
 
   @ApiProperty({ example: '0998887776', required: false })
   @IsOptional()

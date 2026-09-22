@@ -163,6 +163,7 @@ export class ReceptionService {
       globalStatus: {
         isComplete: protocol.receptionStatus === ReceptionStatus.COMPLETO,
         status: protocol.receptionStatus,
+        version: protocol.version || 1,
         hasMissingItems: reception?.hasMissingItems || false,
         missingItemsList:
           reception?.missingItemsList || protocol.missingRequirements,
@@ -203,7 +204,7 @@ export class ReceptionService {
 
     const protocol = await this.protocolRepository.findById(protocolId, {
       relations: ['principalInvestigator', 'studyType', 'checklist'],
-    } as any);
+    });
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
     const investigator = protocol.principalInvestigator;
@@ -456,13 +457,57 @@ export class ReceptionService {
     const protocol = await this.protocolRepository.findById(dto.protocolId);
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
+    // Para las subsanaciones de versión (V2, V3, etc.), la subida debe estar abierta si la versión actual es mayor a 1
+    // o si el estado del protocolo es REQUIERE_SUBSANACION (19, 20) o EN_CONTROL_DOCUMENTAL (21).
+    const isVersionSubsanacionActive =
+      (protocol.currentVersion && protocol.currentVersion > 1) ||
+      (protocol.activeVersion && protocol.activeVersion.versionNumber > 1) ||
+      protocol.statusId === 19 ||
+      protocol.statusId === 20 ||
+      protocol.statusId === 21;
+
     if (
-      protocol.receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA ||
-      protocol.receptionStatus === ReceptionStatus.COMPLETO
+      !isVersionSubsanacionActive &&
+      protocol.receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA
     ) {
       throw new BadRequestException(
-        'No puede subir documentos mientras el protocolo está en revisión o ya está completo.',
+        'No puede subir documentos mientras el protocolo está en revisión estricta de secretaría.',
       );
+    }
+
+    // Validar inmutabilidad de requisitos aprobados o no aplicables
+    let requirement: ProtocolRequirementOrmEntity | null = null;
+    if (dto.requirementId) {
+      requirement = await this.requirementRepository.findOne({
+        where: { id: dto.requirementId },
+      });
+    } else if (dto.requirementCode) {
+      requirement = await this.requirementRepository.findOne({
+        where: {
+          protocolId: dto.protocolId,
+          requirementCode: dto.requirementCode,
+        },
+      });
+    }
+
+    // Para la Versión 1, los requisitos aprobados o no aplicables son inmutables.
+    // Para la Versión 2 o superior (subsanación de versión), el investigador puede reemplazar los archivos del checklist para armar el nuevo expediente V2.
+    const isMultiversion =
+      (protocol.currentVersion && protocol.currentVersion > 1) ||
+      (protocol.activeVersion && protocol.activeVersion.versionNumber > 1) ||
+      protocol.statusId === 19 ||
+      protocol.statusId === 20 ||
+      protocol.statusId === 21;
+
+    if (requirement && !isMultiversion) {
+      if (
+        requirement.status === RequirementStatus.APROBADO ||
+        requirement.status === RequirementStatus.NO_APLICA
+      ) {
+        throw new BadRequestException(
+          `El requisito '${requirement.requirementName || requirement.requirementCode}' ya se encuentra aprobado o no aplica en la versión previa y no se puede volver a subir.`,
+        );
+      }
     }
 
     const document = await this.receptionRepository.saveDocument({
@@ -510,9 +555,17 @@ export class ReceptionService {
     const protocol = await this.protocolRepository.findById(dto.protocolId);
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
+    const isVersionSubsanacionActive =
+      (protocol.currentVersion && protocol.currentVersion > 1) ||
+      (protocol.activeVersion && protocol.activeVersion.versionNumber > 1) ||
+      protocol.statusId === 19 ||
+      protocol.statusId === 20 ||
+      protocol.statusId === 21;
+
     if (
-      protocol.receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA ||
-      protocol.receptionStatus === ReceptionStatus.COMPLETO
+      !isVersionSubsanacionActive &&
+      (protocol.receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA ||
+        protocol.receptionStatus === ReceptionStatus.COMPLETO)
     ) {
       throw new BadRequestException(
         'No puede subir documentos mientras el protocolo está en revisión.',
@@ -554,7 +607,7 @@ export class ReceptionService {
     if (isComplete) {
       const protocol = await this.protocolRepository.findById(protocolId, {
         relations: ['studyType', 'checklist'],
-      } as any);
+      });
       if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
       const studyTypeCode =
@@ -582,6 +635,7 @@ export class ReceptionService {
         if (
           checklistItem &&
           (checklistItem.status === RequirementStatus.APROBADO ||
+            checklistItem.status === RequirementStatus.PRESENTADO ||
             checklistItem.status === RequirementStatus.NO_APLICA)
         ) {
           continue;
@@ -732,7 +786,7 @@ export class ReceptionService {
   async emitirConstancia(protocolId: number) {
     const protocol = await this.protocolRepository.findById(protocolId, {
       relations: ['principalInvestigator', 'studyType', 'checklist'],
-    } as any);
+    });
     if (!protocol) throw new NotFoundException('Protocolo no encontrado');
 
     const investigator = protocol.principalInvestigator;

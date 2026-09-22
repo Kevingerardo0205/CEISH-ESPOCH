@@ -7,6 +7,7 @@ import {
   UseGuards,
   ForbiddenException,
 } from '@nestjs/common';
+import { Request as ExpressRequest } from 'express';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { ChatRequestDto } from '../../application/dtos/chat-request.dto';
 import { GeminiService } from '../../application/services/gemini.service';
@@ -23,17 +24,18 @@ export class AiAssistantController {
   ) {}
 
   @Post('chat')
-  async chat(@Body() body: ChatRequestDto, @Req() req: any) {
+  async chat(
+    @Body() body: ChatRequestDto,
+    @Req() req: ExpressRequest & { user: { id: number; roles: string[] } },
+  ) {
     const { message, protocolId, history } = body;
     const user = req.user;
 
     // 1. Validar dinámicamente los roles permitidos en base de datos
     const allowedRoles = await this.ragService.getAllowedRoles();
     const hasAccess = allowedRoles.some((role) =>
-      user.roles?.some((userRole: any) => {
-        const roleName =
-          typeof userRole === 'string' ? userRole : userRole.name;
-        return roleName?.toUpperCase() === role.toUpperCase();
+      user.roles?.some((userRole: string) => {
+        return userRole.toUpperCase() === role.toUpperCase();
       }),
     );
 

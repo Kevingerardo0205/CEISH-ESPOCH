@@ -1,5 +1,23 @@
 # CEISH-ESPOCH Backend — AGENTS.md
 
+## Reglas
+- Lee `docs/doc_base/constitution.md` y la spec activa antes de tocar código.
+- Límites: No modificar esquemas de base de datos ni firmas de endpoints sin consulta previa. Respetar la arquitectura hexagonal (`domain`, `application`, `infrastructure`). No añadir dependencias o bibliotecas externas sin autorización.
+
+## Al terminar cualquier tarea
+- Verificación obligatoria: Ejecutar `npm run lint` y la suite de pruebas unitarias/e2e (`npm test`, `npm run test:e2e`).
+- Formatear el código con `npm run format`.
+
+## Estilo
+- TypeScript (Node.js 20+), strict type hints en todas las funciones y clases públicas.
+- Minimizar dependencias de terceros; preferir bibliotecas nativas y del ecosistema NestJS autorizado (Jest únicamente para tests).
+- Identificadores en inglés; mensajes de usuario, errores y respuestas en español.
+
+## Project Context
+
+## Project Overview
+The **CEISH-ESPOCH** backend is a robust system built with **NestJS** designed to manage the workflow of the Committee of Ethics in Research on Human Beings (CEISH) at ESPOCH. It handles ethical protocols, documents, evaluations, and follow-ups, ensuring data privacy and integrity.
+
 ## Commands
 
 ```bash

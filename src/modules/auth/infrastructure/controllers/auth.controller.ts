@@ -11,6 +11,7 @@ import {
   Param,
   ParseIntPipe,
 } from '@nestjs/common';
+import { Request as ExpressRequest } from 'express';
 import { AuthService } from '../../application/services/auth.service';
 import { UsersService } from '../../application/services/users.service';
 import { LocalAuthGuard } from '../guards/local-auth.guard';
@@ -29,9 +30,11 @@ import { RegisterInvestigatorDto } from '../../application/dtos/register-investi
 import { CreateUserDto } from '../../application/dtos/create-user.dto';
 import { UpdateUserDto } from '../../application/dtos/update-user.dto';
 import { SetupAccountDto } from '../../application/dtos/setup-account.dto';
+import { RoleAssignmentItemDto } from '../../application/dtos/assign-user-roles.dto';
 
 import { RoleCode } from '../../domain/enums/role.enum';
 
+import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
 import { Permissions } from '../../../../shared/decorators/permissions.decorator';
 import { Permission } from '../../../../shared/enums/permission.enum';
@@ -56,7 +59,7 @@ export class AuthController {
   @UseGuards(LocalAuthGuard)
   // ... existing methods ...
   @Post('login')
-  async login(@Request() req) {
+  async login(@Request() req: ExpressRequest & { user: { id: number } }) {
     return this.authService.login(req.user);
   }
 
@@ -155,32 +158,63 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @Roles(RoleCode.ADMIN_TI, RoleCode.PRESIDENTE)
-  @Get('roles')
-  async getRoles() {
-    return this.usersService.getRoles();
-  }
-
-  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
   @Permissions(Permission.ROLES_ASSIGN)
   @Audit('USER_ROLES_ASSIGNED')
   @Patch('users/:id/roles')
   async updateUserRoles(
     @Param('id', ParseIntPipe) id: number,
-    @Body('roles') roles: string[],
+    @Body('roles') roles: (string | RoleAssignmentItemDto)[],
+    @Request() req: ExpressRequest & { user?: { id: number } },
   ) {
-    return this.usersService.updateUserRoles(id, roles);
+    return this.usersService.updateUserRoles(id, roles || [], req.user?.id);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 900000 } })
+  @Permissions(Permission.ROLES_ASSIGN)
+  @Audit('USER_ROLE_SUSPENDED')
+  @Post('users/:id/roles/:roleCode/suspend')
+  async suspendTemporaryRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('roleCode') roleCode: string,
+    @Body('reason') reason?: string,
+  ) {
+    return this.usersService.suspendTemporaryRole(id, roleCode, reason);
+  }
+
+  @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard, ThrottlerGuard)
+  @Throttle({ default: { limit: 10, ttl: 900000 } })
+  @Permissions(Permission.ROLES_ASSIGN)
+  @Audit('USER_ROLE_EXTENDED')
+  @Patch('users/:id/roles/:roleCode/extend')
+  async extendTemporaryRole(
+    @Param('id', ParseIntPipe) id: number,
+    @Param('roleCode') roleCode: string,
+    @Body('validUntil') validUntil: string,
+    @Body('reason') reason?: string,
+  ) {
+    if (!validUntil || isNaN(Date.parse(validUntil))) {
+      throw new BadRequestException(
+        'El campo validUntil es obligatorio y debe ser un formato de fecha ISO 8601 válido (ej: 2026-12-31T23:59:59.000Z).',
+      );
+    }
+    return this.usersService.extendTemporaryRole(
+      id,
+      roleCode,
+      new Date(validUntil),
+      reason,
+    );
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('profile')
-  getProfile(@Request() req) {
+  getProfile(@Request() req: ExpressRequest & { user: { id: number } }) {
     return req.user;
   }
 
   @UseGuards(JwtAuthGuard)
   @Get('me')
-  async getMe(@Request() req) {
+  async getMe(@Request() req: ExpressRequest & { user: { id: number } }) {
     return this.authService.getMe(req.user.id);
   }
 

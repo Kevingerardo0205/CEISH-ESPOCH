@@ -134,7 +134,7 @@ export class EvaluationsService {
         id: number;
         fullName: string;
         currentLoad: number;
-        [key: string]: any;
+        [key: string]: unknown;
       }>;
 
     // Solo se listan en el dashboard de la Presidenta si la recepción está COMPLETA y el nivel de riesgo ha sido consolidado
@@ -1159,10 +1159,14 @@ export class EvaluationsService {
         await this.evaluationRepository.findEvaluationByAssignmentId(id);
     }
 
+    // Si no se encuentra evaluación o detalles (formulario nuevo sin borrador), retornar objeto estructurado con hasDraft: false
     if (!evaluation) {
-      throw new NotFoundException(
-        `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
-      );
+      return {
+        hasDraft: false,
+        evaluacionId: null,
+        items: [],
+        stats: {},
+      };
     }
 
     const details =
@@ -1171,9 +1175,12 @@ export class EvaluationsService {
       );
 
     if (!details || details.length === 0) {
-      throw new NotFoundException(
-        `No se encontraron detalles de checklist para la evaluación con ID ${evaluation.id}. Solo las revisiones de tipo EXPEDITA persisten el checklist relacional.`,
-      );
+      return {
+        hasDraft: false,
+        evaluacionId: evaluation.id,
+        items: [],
+        stats: {},
+      };
     }
 
     // Enriquecer con descripción canónica
@@ -1213,6 +1220,7 @@ export class EvaluationsService {
     );
 
     return {
+      hasDraft: true,
       evaluacionId: evaluation.id,
       totalItems: enrichedItems.length,
       estadisticas: stats,
@@ -1339,8 +1347,8 @@ export class EvaluationsService {
         Permission.EVALUACION_INFORMES,
         Permission.RESOLUCION_CREAR,
         Permission.RESOLUCION_FIRMAR,
-        Permission.RECEPCION_VIEW,
-      ].includes(p),
+        Permission.RECEPTION_VIEW,
+      ].includes(p as Permission),
     );
 
     if (!isOwner && !isCoInvestigator && !hasOfficialPermission) {
@@ -1367,7 +1375,11 @@ export class EvaluationsService {
       (a) => a.statusId === +AssignmentStatus.COMPLETED,
     );
 
-    const observations = [];
+    const observations: Array<{
+      evaluatorProfile: string;
+      result: number | undefined;
+      reportPath: string | undefined;
+    }> = [];
     for (const assignment of completedAssignments) {
       const evaluation =
         await this.evaluationRepository.findEvaluationByAssignmentId(

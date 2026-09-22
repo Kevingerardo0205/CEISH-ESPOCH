@@ -17,7 +17,7 @@ export class AuditInterceptor implements NestInterceptor {
     private auditService: AuditService,
   ) {}
 
-  intercept(context: ExecutionContext, next: CallHandler): Observable<any> {
+  intercept(context: ExecutionContext, next: CallHandler): Observable<unknown> {
     const action = this.reflector.get<string>(AUDIT_KEY, context.getHandler());
     if (!action) {
       return next.handle();
@@ -26,6 +26,7 @@ export class AuditInterceptor implements NestInterceptor {
     const request = context.switchToHttp().getRequest();
     const user = request.user;
     const ipAddress = request.ip;
+    const paramsId = request.params?.id ? parseInt(request.params.id, 10) : NaN;
 
     return next.handle().pipe(
       tap(async (data) => {
@@ -34,8 +35,11 @@ export class AuditInterceptor implements NestInterceptor {
             userId: user?.id,
             action,
             ipAddress,
-            newData: request.method !== 'GET' ? request.body : null,
-            recordId: data?.id,
+            newData:
+              request.method !== 'GET'
+                ? request.auditDetails || request.body
+                : null,
+            recordId: data?.id || (!isNaN(paramsId) ? paramsId : undefined),
             // Podríamos inferir la tabla o código de protocolo si es necesario
           });
         } catch (error) {

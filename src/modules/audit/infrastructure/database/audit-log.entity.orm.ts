@@ -23,10 +23,10 @@ export class AuditLogOrmEntity {
   recordId?: number;
 
   @Column({ name: 'datos_anteriores', type: 'jsonb', nullable: true })
-  oldData?: any;
+  oldData?: Record<string, unknown> | null;
 
   @Column({ name: 'datos_nuevos', type: 'jsonb', nullable: true })
-  newData?: any;
+  newData?: Record<string, unknown> | null;
 
   @Column({ name: 'ip_origen', length: 50, nullable: true })
   ipAddress?: string;

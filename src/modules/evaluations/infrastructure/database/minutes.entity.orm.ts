@@ -34,23 +34,23 @@ export class MinutesOrmEntity {
   deliberations?: string;
 
   @Column({ name: 'decisiones_tomadas', type: 'jsonb', nullable: true })
-  decisionsTaken?: any;
+  decisionsTaken?: Record<string, unknown> | null;
 
   @Column({ type: 'jsonb', nullable: true })
-  voting?: any;
+  voting?: Record<string, unknown> | null;
 
   @Column({ name: 'lista_asistentes', type: 'jsonb', nullable: true })
-  attendeesList?: any;
+  attendeesList?: Record<string, unknown> | null;
 
   @Column({
     name: 'conflictos_interes_registrados',
     type: 'jsonb',
     nullable: true,
   })
-  conflictsOfInterest?: any;
+  conflictsOfInterest?: Record<string, unknown> | null;
 
   @Column({ name: 'consultores_externos', type: 'jsonb', nullable: true })
-  externalConsultants?: any;
+  externalConsultants?: Record<string, unknown> | null;
 
   @Column({ name: 'archivo_acta_pdf', length: 500, nullable: true })
   minutesFilePath?: string;

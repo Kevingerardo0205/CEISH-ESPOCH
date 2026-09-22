@@ -29,7 +29,7 @@ export abstract class IStorageService {
   /**
    * Obtener metadatos básicos de un objeto (ContentType, ContentLength, etc.)
    */
-  abstract getMetadata(key: string): Promise<any>;
+  abstract getMetadata(key: string): Promise<Record<string, unknown>>;
 
   /**
    * Subir un archivo en buffer directamente desde el backend

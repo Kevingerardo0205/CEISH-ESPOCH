@@ -16,7 +16,7 @@ export class EvaluatorProfileOrmEntity {
     type: 'jsonb',
     nullable: true,
   })
-  mandatoryForStudyTypes?: any;
+  mandatoryForStudyTypes?: Record<string, unknown> | null;
 
   @Column({ name: 'orden_prioridad', default: 0 })
   priorityOrder!: number;

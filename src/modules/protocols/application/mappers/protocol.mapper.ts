@@ -17,6 +17,7 @@ export class ProtocolMapper {
       receptionStatus: orm.receptionStatus,
       reviewType: orm.reviewType,
       statusId: orm.statusId,
+      versionLock: orm.versionLock,
 
       // Dates
       receptionDate: orm.receptionDate,

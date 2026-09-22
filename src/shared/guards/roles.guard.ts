@@ -21,11 +21,14 @@ export class RolesGuard implements CanActivate {
     }
     const { user } = context.switchToHttp().getRequest();
 
+    const activeUserRoles: string[] = (user?.temporalRoles || [])
+      .filter((tr: { code: string; isExpired?: boolean }) => !tr.isExpired)
+      .map((tr: { code: string }) => tr.code)
+      .concat(user?.roles || []);
+
     const hasRole = requiredRoles.some((role) =>
-      user.roles?.some((userRole: any) => {
-        const roleName =
-          typeof userRole === 'string' ? userRole : userRole.name;
-        return roleName?.toLowerCase() === role.toLowerCase();
+      activeUserRoles.some((userRole: string) => {
+        return userRole.toLowerCase() === role.toLowerCase();
       }),
     );
 

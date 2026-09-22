@@ -7,7 +7,6 @@ import {
   OneToOne,
 } from 'typeorm';
 import type { Relation } from 'typeorm';
-import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 

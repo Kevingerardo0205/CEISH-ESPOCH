@@ -9,6 +9,7 @@ import {
   Request,
   BadRequestException,
 } from '@nestjs/common';
+import { Request as ExpressRequest } from 'express';
 import { ProtocolsService } from '../../application/services/protocols.service';
 import { RequirementsService } from '../../application/services/requirements.service';
 import { CreateProtocolDto } from '../../application/dtos/create-protocol.dto';
@@ -61,7 +62,13 @@ export class ProtocolController {
 
   @Get('mis-protocolos')
   @ApiOperation({ summary: 'Listar los protocolos del investigador logueado' })
-  async findMyProtocols(@Query() query: QueryProtocolDto, @Request() req) {
+  async findMyProtocols(
+    @Query() query: QueryProtocolDto,
+    @Request()
+    req: ExpressRequest & {
+      user: { id: number; roles: string[]; permissions: string[] };
+    },
+  ) {
     query.investigatorId = req.user.id;
     return this.protocolsService.findAll(query);
   }
@@ -71,9 +78,13 @@ export class ProtocolController {
     summary:
       'Listar los protocolos en fase de subsanación de observaciones del investigador logueado',
   })
-  async findMySubsanaciones(@Request() req: any) {
-    // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
-    const investigatorId = req.user?.id as number;
+  async findMySubsanaciones(
+    @Request()
+    req: ExpressRequest & {
+      user: { id: number; roles: string[]; permissions: string[] };
+    },
+  ) {
+    const investigatorId = req.user.id;
     return this.protocolsService.findAll({
       investigatorId,
       receptionStatus: ReceptionStatus.EVALUACION_SUBSANACIONES,
@@ -84,7 +95,13 @@ export class ProtocolController {
   @ApiOperation({
     summary: 'Obtener el checklist de requisitos de un protocolo',
   })
-  async getChecklist(@Param('id') id: string, @Request() req) {
+  async getChecklist(
+    @Param('id') id: string,
+    @Request()
+    req: ExpressRequest & {
+      user: { id: number; roles: string[]; permissions: string[] };
+    },
+  ) {
     const protocolId = parseInt(id, 10);
     const protocol = await this.protocolsService.findOne(protocolId);
 
@@ -112,7 +129,10 @@ export class ProtocolController {
   async uploadDocument(
     @Param('id') id: string,
     @Body() dto: UploadDocumentDto,
-    @Request() req,
+    @Request()
+    req: ExpressRequest & {
+      user: { id: number; roles: string[]; permissions: string[] };
+    },
   ) {
     if (!dto.path) {
       throw new BadRequestException(
@@ -169,7 +189,7 @@ export class ProtocolController {
     @Query('riesgoMayor') riesgoMayor?: string,
     @Query('institucionesPublicas') institucionesPublicas?: string,
   ) {
-    return this.requirementsService.calcularRequeridos(tipo, {
+    return this.requirementsService.calcularRequeridos(tipo as any, {
       muestras: muestras === 'true',
       vulnerable: vulnerable === 'true',
       multicentrico: multicentrico === 'true',
@@ -202,7 +222,13 @@ export class ProtocolController {
     summary: 'Enviar el protocolo para revisión técnica (Investigador)',
   })
   @Audit('PROTOCOL_SUBMITTED')
-  async submit(@Param('id') id: string, @Request() req) {
+  async submit(
+    @Param('id') id: string,
+    @Request()
+    req: ExpressRequest & {
+      user: { id: number; roles: string[]; permissions: string[] };
+    },
+  ) {
     const protocolId = parseInt(id, 10);
     const protocol = await this.protocolsService.findOne(protocolId);
 
@@ -223,7 +249,13 @@ export class ProtocolController {
       'Aceptar el sometimiento a los tiempos y reglamentos del comité (Investigador)',
   })
   @Audit('PROTOCOL_TIMELINE_ACCEPTED')
-  async acceptTimeline(@Param('id') id: string, @Request() req) {
+  async acceptTimeline(
+    @Param('id') id: string,
+    @Request()
+    req: ExpressRequest & {
+      user: { id: number; roles: string[]; permissions: string[] };
+    },
+  ) {
     const protocolId = parseInt(id, 10);
     const ipAddress = req.ip || req.connection.remoteAddress || 'unknown';
     return this.protocolsService.acceptTimeline(
@@ -236,8 +268,14 @@ export class ProtocolController {
   @Post()
   @ApiOperation({ summary: 'Crear un nuevo protocolo' })
   @Audit('PROTOCOL_CREATED')
-  async create(@Body() dto: CreateProtocolDto, @Request() req) {
-    const ipAddress = req.ip || req.connection.remoteAddress;
+  async create(
+    @Body() dto: CreateProtocolDto,
+    @Request()
+    req: ExpressRequest & {
+      user: { id: number; roles: string[]; permissions: string[] };
+    },
+  ) {
+    const ipAddress = req.ip || req.connection.remoteAddress || '';
     const protocol = await this.protocolsService.create(
       dto,
       req.user.id,

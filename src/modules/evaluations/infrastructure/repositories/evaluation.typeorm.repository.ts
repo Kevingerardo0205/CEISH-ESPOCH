@@ -74,7 +74,9 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     await this.assignmentRepo.delete(id);
   }
 
-  async findEvaluatorsWithWorkload(profileId?: number): Promise<any[]> {
+  async findEvaluatorsWithWorkload(
+    profileId?: number,
+  ): Promise<Record<string, unknown>[]> {
     const firstDayOfMonth = new Date();
     firstDayOfMonth.setDate(1);
     firstDayOfMonth.setHours(0, 0, 0, 0);
@@ -118,7 +120,13 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
 
     const rawData = await qb.getRawMany();
 
-    const evaluatorsMap = new Map<number, any>();
+    interface EvaluatorData {
+      profiles: Map<number, string>;
+      activeAssignments: Set<number>;
+      completedThisMonth: Set<number>;
+      [key: string]: unknown;
+    }
+    const evaluatorsMap = new Map<number, EvaluatorData>();
     rawData.forEach((row) => {
       let evaluator = evaluatorsMap.get(row.u_id);
       if (!evaluator) {
@@ -168,7 +176,7 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     id: number,
     entity: Partial<EvaluatorProfileOrmEntity>,
   ): Promise<void> {
-    await this.profileRepo.update(id, entity);
+    await this.profileRepo.update(id, entity as any);
   }
 
   async deleteProfile(id: number): Promise<void> {

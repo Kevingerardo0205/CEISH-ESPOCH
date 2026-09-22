@@ -19,10 +19,10 @@ export class InvestigatorProfileTypeOrmRepository
 
   async save(
     profile: Partial<InvestigatorProfileOrmEntity>,
-    manager?: any,
+    manager?: Record<string, unknown>,
   ): Promise<InvestigatorProfileOrmEntity> {
     const repo = manager
-      ? manager.getRepository(InvestigatorProfileOrmEntity)
+      ? (manager as any).getRepository(InvestigatorProfileOrmEntity)
       : this.profileRepo;
     return repo.save(profile);
   }

@@ -17,7 +17,7 @@ export class TipoDocumentoOrmEntity extends BaseOrmEntity {
   esCondicional!: boolean;
 
   @Column({ name: 'condicion_json', type: 'jsonb', nullable: true })
-  condicionJson?: any;
+  condicionJson?: Record<string, unknown> | null;
 
   @Column({ name: 'tipo_estudio_aplica', type: 'jsonb', nullable: true })
   tipoEstudioAplica?: string[];
