@@ -3,6 +3,7 @@ import { EvaluatorProfileOrmEntity } from '../../infrastructure/database/evaluat
 import { ProtocolVersionOrmEntity } from '../../infrastructure/database/protocol-version.entity.orm';
 import { EvaluationOrmEntity } from '../../infrastructure/database/evaluation.entity.orm';
 import { EvaluationResponseDetailOrmEntity } from '../../infrastructure/database/evaluation-response-detail.entity.orm';
+import { AssignmentHistoryOrmEntity } from '../../infrastructure/database/entities/assignment-history.orm-entity';
 
 export abstract class IEvaluationRepository {
   // Assignments
@@ -15,11 +16,29 @@ export abstract class IEvaluationRepository {
   abstract findAssignmentsByVersionId(
     versionId: number,
   ): Promise<EvaluationAssignmentOrmEntity[]>;
+  abstract findActiveAssignmentsByVersionId(
+    versionId: number,
+  ): Promise<EvaluationAssignmentOrmEntity[]>;
   abstract findAssignmentsByEvaluatorId(
     evaluatorId: number,
   ): Promise<EvaluationAssignmentOrmEntity[]>;
   abstract findPendingSuggestions(): Promise<EvaluationAssignmentOrmEntity[]>;
   abstract deleteAssignment(id: number): Promise<void>;
+
+  // Transactional Assignments & Reassignments [RF-12.1, RF-12.3]
+  abstract saveAssignmentsTransaction(
+    assignments: Partial<EvaluationAssignmentOrmEntity>[],
+  ): Promise<EvaluationAssignmentOrmEntity[]>;
+  abstract executeReassignmentTransaction(params: {
+    outgoingAssignmentId: number;
+    outgoingStatusId: number;
+    newAssignment: Partial<EvaluationAssignmentOrmEntity>;
+    auditHistory: Partial<AssignmentHistoryOrmEntity>;
+  }): Promise<{
+    outgoingAssignment: EvaluationAssignmentOrmEntity;
+    newAssignment: EvaluationAssignmentOrmEntity;
+    auditHistory: AssignmentHistoryOrmEntity;
+  }>;
 
   // Evaluators & Profiles
   abstract findEvaluatorsWithWorkload(

@@ -6,7 +6,7 @@ import {
   JoinColumn,
 } from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
-import { CallOrmEntity } from './call.entity.orm';
+import { ConvocatoriaOrmEntity } from './entities/convocatoria.orm-entity';
 
 @Entity({ name: 'sesiones', schema: 'evaluacion' })
 export class SessionOrmEntity {
@@ -28,12 +28,12 @@ export class SessionOrmEntity {
   @Column({ name: 'estado_id', nullable: true })
   statusId?: number;
 
-  @Column({ name: 'convocatoria_id', nullable: true })
-  callId?: number;
+  @Column({ name: 'convocatoria_id', type: 'uuid', nullable: true })
+  convocatoriaId?: string;
 
-  @ManyToOne(() => CallOrmEntity, { nullable: true, onDelete: 'SET NULL' })
+  @ManyToOne(() => ConvocatoriaOrmEntity, { nullable: true })
   @JoinColumn({ name: 'convocatoria_id' })
-  call?: CallOrmEntity;
+  convocatoria?: ConvocatoriaOrmEntity;
 
   @Column({ name: 'creado_por', nullable: true })
   createdByUserId?: number;

@@ -3,14 +3,17 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
-  Inject,
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between, DataSource, In, Not } from 'typeorm';
-import { CallOrmEntity } from '../../infrastructure/database/call.entity.orm';
-import { CallProtocolOrmEntity } from '../../infrastructure/database/call-protocol.entity.orm';
-import { PlaceOrmEntity } from '../../infrastructure/database/place.entity.orm';
+import { Repository, DataSource } from 'typeorm';
+import {
+  ConvocatoriaOrmEntity,
+  SessionType,
+  ConvocatoriaStatus,
+} from '../../infrastructure/database/entities/convocatoria.orm-entity';
+import { ConvocatoriaProtocoloOrmEntity } from '../../infrastructure/database/entities/convocatoria-protocolo.orm-entity';
+import { LugarOrmEntity } from '../../infrastructure/database/entities/lugar.orm-entity';
 import { SessionOrmEntity } from '../../infrastructure/database/session.entity.orm';
 import { MinutesOrmEntity } from '../../infrastructure/database/minutes.entity.orm';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
@@ -24,22 +27,26 @@ import { RequirementStatus } from '../../../protocols/domain/enums/requirement-s
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { PdfGeneratorService } from '../../../../shared/utils/pdf-generator.service';
 import { CreateCallDto } from '../dtos/create-call.dto';
-import { AddProtocolToCallDto } from '../dtos/add-protocol-to-call.dto';
 import { CreatePlaceDto, UpdatePlaceDto } from '../dtos/create-place.dto';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
 import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
 
+/**
+ * @deprecated CallsService queda deprecado según RF-09 / TSK-009-000.
+ * El agendamiento y persistencia canónica de Convocatorias se gestiona mediante
+ * CreateMeetingUseCase y MeetingTypeOrmRepository.
+ */
 @Injectable()
 export class CallsService {
   private readonly logger = new Logger(CallsService.name);
 
   constructor(
-    @InjectRepository(CallOrmEntity)
-    private readonly callRepository: Repository<CallOrmEntity>,
-    @InjectRepository(CallProtocolOrmEntity)
-    private readonly callProtocolRepository: Repository<CallProtocolOrmEntity>,
-    @InjectRepository(PlaceOrmEntity)
-    private readonly placeRepository: Repository<PlaceOrmEntity>,
+    @InjectRepository(ConvocatoriaOrmEntity)
+    private readonly convocatoriaRepository: Repository<ConvocatoriaOrmEntity>,
+    @InjectRepository(ConvocatoriaProtocoloOrmEntity)
+    private readonly convocatoriaProtocoloRepository: Repository<ConvocatoriaProtocoloOrmEntity>,
+    @InjectRepository(LugarOrmEntity)
+    private readonly lugarRepository: Repository<LugarOrmEntity>,
     @InjectRepository(SessionOrmEntity)
     private readonly sessionRepository: Repository<SessionOrmEntity>,
     @InjectRepository(MinutesOrmEntity)
@@ -62,58 +69,73 @@ export class CallsService {
   // LUGAR (PLACES) CRUD
   // ==========================================
 
-  async createPlace(dto: CreatePlaceDto): Promise<PlaceOrmEntity> {
-    const existing = await this.placeRepository.findOne({
-      where: { name: dto.name },
+  async createPlace(dto: CreatePlaceDto): Promise<LugarOrmEntity> {
+    const placeName = dto.name || dto.nombre;
+    const existing = await this.lugarRepository.findOne({
+      where: { nombre: placeName },
     });
     if (existing) {
       throw new ConflictException(
-        `Lugar con el nombre '${dto.name}' ya existe.`,
+        `Lugar con el nombre '${placeName}' ya existe.`,
       );
     }
-    const place = this.placeRepository.create({
-      name: dto.name,
-      location: dto.location,
-      isActive: dto.isActive ?? true,
+    const place = this.lugarRepository.create({
+      nombre: placeName,
+      direccion: dto.location || dto.direccion,
+      activo: dto.isActive ?? dto.activo ?? true,
+      esVirtual: dto.esVirtual ?? false,
+      enlaceReunion: dto.enlaceReunion,
     });
-    return this.placeRepository.save(place);
+    return this.lugarRepository.save(place);
   }
 
-  async findAllPlaces(): Promise<PlaceOrmEntity[]> {
-    return this.placeRepository.find({
-      order: { name: 'ASC' },
+  async findAllPlaces(): Promise<LugarOrmEntity[]> {
+    return this.lugarRepository.find({
+      order: { nombre: 'ASC' },
     });
   }
 
-  async findPlaceById(id: number): Promise<PlaceOrmEntity> {
-    const place = await this.placeRepository.findOne({ where: { id } });
+  async findPlaceById(id: string): Promise<LugarOrmEntity> {
+    const place = await this.lugarRepository.findOne({ where: { id } });
     if (!place) {
       throw new NotFoundException(`Lugar con ID ${id} no encontrado.`);
     }
     return place;
   }
 
-  async updatePlace(id: number, dto: UpdatePlaceDto): Promise<PlaceOrmEntity> {
+  async updatePlace(id: string, dto: UpdatePlaceDto): Promise<LugarOrmEntity> {
     const place = await this.findPlaceById(id);
-    if (dto.name && dto.name !== place.name) {
-      const existing = await this.placeRepository.findOne({
-        where: { name: dto.name },
+    const newName = dto.name || dto.nombre;
+    if (newName && newName !== place.nombre) {
+      const existing = await this.lugarRepository.findOne({
+        where: { nombre: newName },
       });
       if (existing) {
         throw new ConflictException(
-          `Lugar con el nombre '${dto.name}' ya existe.`,
+          `Lugar con el nombre '${newName}' ya existe.`,
         );
       }
+      place.nombre = newName;
     }
-    Object.assign(place, dto);
-    return this.placeRepository.save(place);
+    if (dto.location !== undefined || dto.direccion !== undefined) {
+      place.direccion = dto.location || dto.direccion;
+    }
+    if (dto.isActive !== undefined || dto.activo !== undefined) {
+      place.activo = dto.isActive ?? dto.activo ?? true;
+    }
+    if (dto.esVirtual !== undefined) {
+      place.esVirtual = dto.esVirtual;
+    }
+    if (dto.enlaceReunion !== undefined) {
+      place.enlaceReunion = dto.enlaceReunion;
+    }
+    return this.lugarRepository.save(place);
   }
 
-  async deletePlace(id: number): Promise<void> {
+  async deletePlace(id: string): Promise<void> {
     const place = await this.findPlaceById(id);
-    // Realizamos Soft Delete desactivando el lugar
-    place.isActive = false;
-    await this.placeRepository.save(place);
+    place.activo = false;
+    await this.lugarRepository.save(place);
   }
 
   // ==========================================
@@ -123,7 +145,7 @@ export class CallsService {
   /**
    * Priorización de Protocolos Pendientes
    * Busca protocolos cuya recepción esté COMPLETA (10) y no estén resueltos (APROBADO/RECHAZADO).
-   * Ordena de forma ascendente por el plazo normativo (los plazos más cercanos al vencimiento aparecen primero).
+   * Ordena de forma ascendente por el plazo normativo.
    */
   async getPendingProtocolsForCall(): Promise<ProtocolOrmEntity[]> {
     const protocols = await this.protocolRepository
@@ -141,7 +163,6 @@ export class CallsService {
       )
       .getMany();
 
-    // Ordenar en memoria por plazo normativo (responseDeadline) de forma ascendente
     protocols.sort((a, b) => {
       const deadlineA = a.responseDeadline || a.receptionDate || a.createdAt;
       const deadlineB = b.responseDeadline || b.receptionDate || b.createdAt;
@@ -157,9 +178,7 @@ export class CallsService {
    */
   private calculateEvaluationDeadline(callDate: Date): Date {
     const deadline = new Date(callDate);
-    // Restamos al menos un día para asegurar que no cae en la misma fecha de la reunión
     deadline.setDate(deadline.getDate() - 1);
-    // Retrocedemos hasta encontrar el día Jueves (4 en JS: 0=Domingo, 1=Lunes, ..., 4=Jueves)
     while (deadline.getDay() !== 4) {
       deadline.setDate(deadline.getDate() - 1);
     }
@@ -171,7 +190,7 @@ export class CallsService {
    * Crea una Convocatoria y asocia los protocolos con sus plazos y orden.
    * Envía la notificación en PDF a los miembros activos del comité.
    */
-  async createCall(dto: CreateCallDto, userId: number): Promise<CallOrmEntity> {
+  async createCall(dto: CreateCallDto): Promise<ConvocatoriaOrmEntity> {
     const rawDate = dto.date || dto.meetingDate || new Date().toISOString();
     const callDate = new Date(rawDate);
     const year = isNaN(callDate.getFullYear())
@@ -180,26 +199,23 @@ export class CallsService {
     const callTime = dto.time || '09:00';
     const agendaSummary = dto.agendaSummary || dto.agenda;
 
-    // 1. Cálculo de Código Correlativo Anual:
-    const startOfYear = new Date(year, 0, 1);
-    const endOfYear = new Date(year, 11, 31, 23, 59, 59);
-    const count = await this.callRepository.count({
-      where: {
-        date: Between(startOfYear, endOfYear),
-      },
+    // 1. Cálculo de Código Correlativo Anual
+    const count = await this.convocatoriaRepository.count({
+      where: { anioLectivo: year },
     });
-    const code = dto.callNumber || `${count + 1}-${year}`;
+    const code =
+      dto.callNumber || `${String(count + 1).padStart(3, '0')}-${year}`;
 
     // 2. Resolver lugar
     let placeName = 'Lugar no especificado';
     if (dto.placeId) {
-      const place = await this.placeRepository.findOne({
+      const place = await this.lugarRepository.findOne({
         where: { id: dto.placeId },
       });
       if (place) {
-        placeName = place.location
-          ? `${place.name} (${place.location})`
-          : place.name;
+        placeName = place.direccion
+          ? `${place.nombre} (${place.direccion})`
+          : place.nombre;
       }
     }
 
@@ -208,19 +224,23 @@ export class CallsService {
     await queryRunner.startTransaction();
 
     try {
-      // 3. Crear y guardar la convocatoria
-      const call = queryRunner.manager.create(CallOrmEntity, {
-        code,
-        date: callDate,
-        time: callTime,
-        placeId: dto.placeId,
-        sessionType: dto.sessionType,
-        statusId: 22, // 22 = CREADA (Estado inicial de Convocatoria)
-        agendaSummary: agendaSummary,
-        createdByUserId: userId,
+      const evaluationDeadline = this.calculateEvaluationDeadline(callDate);
+
+      // 3. Crear y guardar la convocatoria oficial
+      const convocatoria = queryRunner.manager.create(ConvocatoriaOrmEntity, {
+        numeroConvocatoria: code,
+        anioLectivo: year,
+        tipoSession: (dto.sessionType as SessionType) || SessionType.ORDINARIA,
+        fechaReunion: callDate,
+        fechaEntregaEvaluacion: evaluationDeadline,
+        lugarId: dto.placeId,
+        estado: ConvocatoriaStatus.PROGRAMADA,
       });
 
-      const savedCall = await queryRunner.manager.save(CallOrmEntity, call);
+      const savedConvocatoria = await queryRunner.manager.save(
+        ConvocatoriaOrmEntity,
+        convocatoria,
+      );
 
       const protocolDataForPdf: Array<{
         ceishCode: string;
@@ -229,11 +249,10 @@ export class CallsService {
       }> = [];
 
       // 4. Calcular plazo y asociar protocolos
-      if (dto.protocolIds && dto.protocolIds.length > 0) {
-        const evaluationDeadline = this.calculateEvaluationDeadline(callDate);
-
-        for (let i = 0; i < dto.protocolIds.length; i++) {
-          const protocolId = dto.protocolIds[i];
+      const protocolIds = dto.protocolIds || [];
+      if (protocolIds.length > 0) {
+        for (let i = 0; i < protocolIds.length; i++) {
+          const protocolId = protocolIds[i];
           const protocol = await queryRunner.manager.findOne(
             ProtocolOrmEntity,
             {
@@ -256,17 +275,20 @@ export class CallsService {
           }
 
           // Crear relación en convocatoria_protocolos
-          const callProtocol = queryRunner.manager.create(
-            CallProtocolOrmEntity,
+          const cp = queryRunner.manager.create(
+            ConvocatoriaProtocoloOrmEntity,
             {
-              callId: savedCall.id,
-              protocolVersionId: version.id,
-              order: i + 1,
-              meetingDate: callDate,
-              evaluationDeadline,
+              convocatoriaId: savedConvocatoria.id,
+              protocoloId: protocol.id,
+              versionId: version.id,
+              orden: i + 1,
+              fechaPlazoNormativo:
+                protocol.responseDeadline ||
+                protocol.receptionDate ||
+                new Date(),
             },
           );
-          await queryRunner.manager.save(CallProtocolOrmEntity, callProtocol);
+          await queryRunner.manager.save(ConvocatoriaProtocoloOrmEntity, cp);
 
           // Actualizar plazos en las asignaciones de evaluación de esa versión
           const assignments = await queryRunner.manager.find(
@@ -298,12 +320,12 @@ export class CallsService {
       // 5. Generar PDF de la convocatoria
       const pdfBuffer = await this.pdfGeneratorService
         .generateCallPdf({
-          code: savedCall.code,
-          date: savedCall.date,
-          time: savedCall.time,
+          code: savedConvocatoria.numeroConvocatoria,
+          date: savedConvocatoria.fechaReunion,
+          time: callTime,
           placeName,
-          sessionType: savedCall.sessionType,
-          agendaSummary: savedCall.agendaSummary,
+          sessionType: savedConvocatoria.tipoSession,
+          agendaSummary,
           protocols: protocolDataForPdf,
         })
         .catch((e) => {
@@ -313,7 +335,6 @@ export class CallsService {
 
       // 6. Notificación automática por correo a los miembros activos del comité
       if (pdfBuffer) {
-        // Consultar evaluadores y presidentes activos
         const activeMembers = await this.userRepository
           .createQueryBuilder('u')
           .innerJoin('u.roles', 'r')
@@ -323,15 +344,14 @@ export class CallsService {
           .andWhere('u.isActive = :isActive', { isActive: true })
           .getMany();
 
-        // Enviar correos de forma asíncrona pero resiliente (allSettled)
         const emailPromises = activeMembers.map((member) =>
           this.emailService
             .sendCallNotification(
               member.institutionalEmail,
               member.fullName,
-              savedCall.code,
-              savedCall.date,
-              savedCall.time,
+              savedConvocatoria.numeroConvocatoria,
+              savedConvocatoria.fechaReunion,
+              callTime,
               placeName,
               pdfBuffer,
             )
@@ -342,18 +362,14 @@ export class CallsService {
               ),
             ),
         );
-        Promise.allSettled(emailPromises).then(() => {
+        void Promise.allSettled(emailPromises).then(() => {
           this.logger.log(
             'Envío masivo de notificaciones de convocatoria finalizado.',
           );
         });
       }
 
-      // Actualizar estado de convocatoria a ENVIADA (23) una vez notificada
-      savedCall.statusId = 23; // ENVIADA
-      await this.callRepository.save(savedCall);
-
-      return savedCall;
+      return savedConvocatoria;
     } catch (error) {
       await queryRunner.rollbackTransaction();
       throw error;
@@ -362,17 +378,17 @@ export class CallsService {
     }
   }
 
-  async findAllCalls(): Promise<CallOrmEntity[]> {
-    return this.callRepository.find({
-      relations: ['place'],
-      order: { date: 'DESC', time: 'DESC' },
+  async findAllCalls(): Promise<ConvocatoriaOrmEntity[]> {
+    return this.convocatoriaRepository.find({
+      relations: ['lugar'],
+      order: { fechaReunion: 'DESC' },
     });
   }
 
-  async findCallById(id: number): Promise<CallOrmEntity> {
-    const call = await this.callRepository.findOne({
+  async findCallById(id: string): Promise<ConvocatoriaOrmEntity> {
+    const call = await this.convocatoriaRepository.findOne({
       where: { id },
-      relations: ['place'],
+      relations: ['lugar'],
     });
     if (!call) {
       throw new NotFoundException(`Convocatoria con ID ${id} no encontrada.`);
@@ -384,16 +400,12 @@ export class CallsService {
    * Obtiene los protocolos agendados en una convocatoria.
    */
   async findProtocolsByCallId(
-    callId: number,
-  ): Promise<CallProtocolOrmEntity[]> {
-    return this.callProtocolRepository.find({
-      where: { callId },
-      relations: [
-        'protocolVersion',
-        'protocolVersion.protocol',
-        'protocolVersion.protocol.principalInvestigator',
-      ],
-      order: { order: 'ASC' },
+    convocatoriaId: string,
+  ): Promise<ConvocatoriaProtocoloOrmEntity[]> {
+    return this.convocatoriaProtocoloRepository.find({
+      where: { convocatoriaId },
+      relations: ['version', 'protocolo', 'protocolo.principalInvestigator'],
+      order: { orden: 'ASC' },
     });
   }
 
@@ -404,7 +416,7 @@ export class CallsService {
   /**
    * Registra y firma el acta de la sesión.
    * Al completarse la firma de Presidente y Secretario, recorre los protocolos.
-   * Si el resultado consolidado es APROBADO_CON_CONDICION (25), inicia automáticamente la carga de V2.0+
+   * Si el resultado consolidado es APROBADO_CON_CONDICION, inicia automáticamente la carga de V2.0+
    */
   async signMinutes(
     minutesId: number,
@@ -413,7 +425,7 @@ export class CallsService {
   ): Promise<MinutesOrmEntity> {
     const minutes = await this.minutesRepository.findOne({
       where: { id: minutesId },
-      relations: ['session', 'session.call'],
+      relations: ['session', 'session.convocatoria'],
     });
     if (!minutes) {
       throw new NotFoundException(`Acta con ID ${minutesId} no encontrada.`);
@@ -431,7 +443,6 @@ export class CallsService {
 
     const savedMinutes = await this.minutesRepository.save(minutes);
 
-    // Si ambas firmas están completas, procedemos a finalizar la sesión y disparar flujos de versión
     if (savedMinutes.signedByPresident && savedMinutes.signedBySecretary) {
       await this.finalizeSessionAndProtocols(savedMinutes.sessionId, userId);
     }
@@ -448,25 +459,27 @@ export class CallsService {
     });
     if (!session) return;
 
-    // Finalizar sesión en la DB
     session.statusId = 24; // FINALIZADA
     await this.sessionRepository.save(session);
 
-    if (!session.callId) return;
+    if (!session.convocatoriaId) return;
 
-    // Cambiar estado de la convocatoria a FINALIZADA (24)
-    await this.callRepository.update(session.callId, { statusId: 24 });
+    await this.convocatoriaRepository.update(session.convocatoriaId, {
+      estado: ConvocatoriaStatus.CONCLUIDA,
+    });
 
-    // Obtener los protocolos agendados
-    const callProtocols = await this.callProtocolRepository.find({
-      where: { callId: session.callId },
-      relations: ['protocolVersion', 'protocolVersion.protocol'],
+    const callProtocols = await this.convocatoriaProtocoloRepository.find({
+      where: { convocatoriaId: session.convocatoriaId },
+      relations: ['version', 'protocolo'],
     });
 
     for (const cp of callProtocols) {
-      // Si el resultado consolidado en la sesión es APROBADO_CON_CONDICION (ID 25)
-      if (cp.resultId === 25) {
-        await this.triggerCorrectionFlow(cp.protocolVersion.protocolId, userId);
+      if (
+        cp.protocoloId &&
+        (cp.dictamenResultado === 'APROBADO_CON_CONDICIONES' ||
+          cp.dictamenResultado === '25')
+      ) {
+        await this.triggerCorrectionFlow(cp.protocoloId, userId);
       }
     }
   }
@@ -491,7 +504,6 @@ export class CallsService {
     await queryRunner.startTransaction();
 
     try {
-      // 1. Modificar estado de la versión actual a REQUIERE_SUBSANACION_VERSION (19)
       await queryRunner.manager.update(
         ProtocolVersionOrmEntity,
         currentVersion.id,
@@ -506,37 +518,32 @@ export class CallsService {
         new Date(),
       );
 
-      // 2. Crear nueva versión (V + 1)
       const newVersion = queryRunner.manager.create(ProtocolVersionOrmEntity, {
         protocolId,
         versionNumber: nextVersionNumber,
         submissionDate: new Date(),
-        statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL, // Inicia en EN_CONTROL_DOCUMENTAL (21)
+        statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
         correctionDeadlineDays: 30,
         correctionDeadlineDate: deadlineDate,
-      } as any);
+      });
       const savedVersion = await queryRunner.manager.save(
         ProtocolVersionOrmEntity,
         newVersion,
       );
 
-      // 3. Actualizar expediente principal a EN_CONTROL_DOCUMENTAL (21) y apuntar a la nueva versión
       await queryRunner.manager.update(ProtocolOrmEntity, protocolId, {
         versionActualId: savedVersion.id,
         statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
       });
 
-      // 4. Crear una nueva recepción para esta versión (inicia en INICIADO 9)
       const newReception = queryRunner.manager.create(ReceptionOrmEntity, {
-        protocolId,
         versionId: savedVersion.id,
         statusId: ProtocolStatus.INICIADO,
         createdByUserId: userId,
         hasMissingItems: false,
-      } as any);
+      });
       await queryRunner.manager.save(ReceptionOrmEntity, newReception);
 
-      // 5. Inmutabilidad y Habilitación de requisitos en el checklist
       const checklistItems = await queryRunner.manager.find(
         ProtocolRequirementOrmEntity,
         {
@@ -545,8 +552,6 @@ export class CallsService {
       );
 
       for (const item of checklistItems) {
-        // APROBADO y NO_APLICA quedan bloqueados e inmutables (se conservan como están)
-        // El resto (RECHAZADO, PRESENTADO, NO_PRESENTADO, PENDIENTE) se resetea a NO_PRESENTADO
         if (
           item.status !== RequirementStatus.APROBADO &&
           item.status !== RequirementStatus.NO_APLICA

@@ -9,6 +9,6 @@ export default registerAs('database', (): TypeOrmModuleOptions => ({
   password: process.env.DB_PASSWORD || 'ceish_password',
   database: process.env.DB_NAME || 'ceish_db',
   autoLoadEntities: true,
-  synchronize: process.env.NODE_ENV !== 'production', // ¡Cuidado en prod!
+  synchronize: false,
   logging: process.env.DB_LOG_QUERIES === 'true' ? true : ['error'],
 }));
