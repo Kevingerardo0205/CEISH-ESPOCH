@@ -96,6 +96,7 @@ import { DocxGeneratorService } from '../../../../shared/utils/docx-generator.se
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
 import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
+import { BusinessDayCalculator } from '../../../../shared/services/deadline-calculator.service';
 
 @Injectable()
 export class EvaluationsService {
@@ -1160,9 +1161,13 @@ export class EvaluationsService {
                   protocol.statusId = 13; // EN EVALUACIÓN
                   await protocolOrmRepo.save(protocol);
 
-                  // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion
-                  const newDeadline =
-                    this.deadlineService.calculateEvaluatorDeadline(reviewType);
+                  // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion usando BusinessDayCalculator
+                  const daysToAdd = reviewType === ReviewType.EXPEDITA ? 8 : 15;
+                  const newDeadline = BusinessDayCalculator.calculateDeadline({
+                    startDate: new Date(),
+                    businessDaysToAdd: daysToAdd,
+                    holidays: [],
+                  });
                   const allVersionAssignments = await evalAssignmentRepo.find({
                     where: { versionId: canonicalAssignment.versionId },
                   });
