@@ -47,6 +47,12 @@ export class AssignEvaluatorsUseCase {
       RandomRiskSelectorService.selectAnnex10Evaluators(dto.evaluators);
     const annex10Set = new Set(annex10EvaluatorIds);
 
+    // NOTA NORMATIVA: Según el PET (líneas 726, 819) y la normativa CEISH, una revisión EXPEDITA
+    // requiere únicamente 1 o 2 miembros evaluadores (habitualmente perfil metodológico y salud/ético).
+    // Actualmente, la interfaz del frontend envía y requiere la selección de los 4 evaluadores
+    // obligatorios para todos los flujos. Por compatibilidad con la interfaz, hoy se asignan los 4
+    // evaluadores con el plazo normativo reducido (8 días hábiles), quedando pendiente la decisión
+    // del comité para un eventual flujo de asignación parcial de 1-2 miembros en revisiones expeditas.
     // 3. Determinar días hábiles según reviewType (8 para EXPEDITA, 15 para PLENO / por defecto)
     const daysToAdd =
       standardFullDays ?? (dto.reviewType === ReviewType.EXPEDITA ? 8 : 15);

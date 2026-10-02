@@ -361,4 +361,89 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
     });
     expect(mockPeerRiskRepo.save).toHaveBeenCalled();
   });
+
+  it('debe procesar dos envíos simultáneos en paralelo (Promise.all) y consolidar el acuerdo exactamente una vez', async () => {
+    const asg1: Partial<EvaluationAssignmentOrmEntity> = {
+      id: 1,
+      evaluatorId: 10,
+      versionId: 100,
+      isAssignedForAnnex10: true,
+      version: { id: 100, protocolId: 50 } as any,
+    };
+    const asg2: Partial<EvaluationAssignmentOrmEntity> = {
+      id: 2,
+      evaluatorId: 20,
+      versionId: 100,
+      isAssignedForAnnex10: true,
+      version: { id: 100, protocolId: 50 } as any,
+    };
+
+    mockEvalAssignmentRepo.findOne.mockImplementation(({ where: { id } }) => {
+      if (id === 1) return Promise.resolve(asg1);
+      if (id === 2) return Promise.resolve(asg2);
+      return Promise.resolve(null);
+    });
+
+    mockRiskLevelRepo.findOne.mockResolvedValue({
+      id: 2,
+      name: 'Riesgo Mínimo',
+      reviewType: 'EXPEDITA',
+      isActive: true,
+    });
+
+    const mockProtocol: Partial<ProtocolOrmEntity> = {
+      id: 50,
+      statusId: 12,
+      isRiskLevelDesignated: false,
+    };
+    mockProtocolOrmRepo.findOne.mockResolvedValue(mockProtocol);
+
+    const savedProposals: Record<number, any> = {};
+    mockRiskProposalRepo.findOne.mockImplementation(
+      ({ where: { assignmentId, isCurrent } }) => {
+        if (isCurrent && savedProposals[assignmentId]) {
+          return Promise.resolve(savedProposals[assignmentId]);
+        }
+        return Promise.resolve(null);
+      },
+    );
+
+    mockRiskProposalRepo.save.mockImplementation((entity) => {
+      if (entity.assignmentId) {
+        savedProposals[entity.assignmentId] = entity;
+      }
+      return Promise.resolve(entity);
+    });
+
+    mockEvalAssignmentRepo.find.mockResolvedValue([
+      {
+        id: 1,
+        versionId: 100,
+        isAssignedForAnnex10: true,
+        statusId: AssignmentStatus.ASSIGNED,
+      },
+      {
+        id: 2,
+        versionId: 100,
+        isAssignedForAnnex10: true,
+        statusId: AssignmentStatus.ASSIGNED,
+      },
+    ]);
+
+    // Ejecutar ambos envíos en paralelo
+    const [res1, res2] = await Promise.all([
+      service.submitPeerRiskLevel(1, 10, { riskLevelId: 2 }),
+      service.submitPeerRiskLevel(2, 20, { riskLevelId: 2 }),
+    ]);
+
+    expect(res1.message).toBe(
+      'Propuesta de nivel de riesgo enviada exitosamente.',
+    );
+    expect(res2.message).toBe(
+      'Propuesta de nivel de riesgo enviada exitosamente.',
+    );
+    expect(mockQueryBuilder.setLock).toHaveBeenCalledWith('pessimistic_write');
+    expect(mockProtocol.isRiskLevelDesignated).toBe(true);
+    expect(mockProtocol.statusId).toBe(13);
+  });
 });
