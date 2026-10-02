@@ -35,7 +35,9 @@ export class CalculateMeetingDatesService {
       daysToSubtract = dayOfWeek + 3;
     }
 
-    const targetThursday = new Date(Date.UTC(year, month, day - daysToSubtract));
+    const targetThursday = new Date(
+      Date.UTC(year, month, day - daysToSubtract),
+    );
     const thYear = targetThursday.getUTCFullYear();
     const thMonth = targetThursday.getUTCMonth();
     const thDay = targetThursday.getUTCDate();
