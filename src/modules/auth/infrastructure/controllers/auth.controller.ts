@@ -10,6 +10,7 @@ import {
   Patch,
   Param,
   ParseIntPipe,
+  BadRequestException,
 } from '@nestjs/common';
 import { Request as ExpressRequest } from 'express';
 import { AuthService } from '../../application/services/auth.service';
@@ -33,8 +34,6 @@ import { SetupAccountDto } from '../../application/dtos/setup-account.dto';
 import { RoleAssignmentItemDto } from '../../application/dtos/assign-user-roles.dto';
 
 import { RoleCode } from '../../domain/enums/role.enum';
-
-import { ThrottlerGuard, Throttle } from '@nestjs/throttler';
 import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
 import { Permissions } from '../../../../shared/decorators/permissions.decorator';
 import { Permission } from '../../../../shared/enums/permission.enum';

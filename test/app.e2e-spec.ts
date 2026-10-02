@@ -8,14 +8,13 @@ describe('AppController (e2e)', () => {
   let app: INestApplication<App>;
 
   beforeEach(async () => {
-    jest.setTimeout(60000);
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     }).compile();
 
     app = moduleFixture.createNestApplication();
     await app.init();
-  });
+  }, 60000);
 
   it('/ (GET) - No route registered should return 404', () => {
     return request(app.getHttpServer()).get('/').expect(404);

@@ -150,7 +150,9 @@ describe('UsersService - Temporal Roles (Phase 1)', () => {
         roles: ['EVALUADOR'],
       });
 
-      expect(mockEmailService.sendAccountInvitation).toHaveBeenCalledWith(
+      expect(
+        (mockEmailService as any).sendAccountInvitation,
+      ).toHaveBeenCalledWith(
         'nuevo.usuario@espoch.edu.ec',
         expect.any(String),
         'Nuevo Usuario Test',

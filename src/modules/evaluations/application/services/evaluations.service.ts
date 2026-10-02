@@ -5,9 +5,11 @@ import {
   ConflictException,
   Inject,
   ForbiddenException,
+  Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, IsNull } from 'typeorm';
+import { Permission } from '../../../../shared/enums/permission.enum';
 
 /**
  * Catálogo canónico de ítems del Anexo 9 (Guía de Evaluación Técnica).
@@ -91,8 +93,8 @@ import { EvaluatorProfileOrmEntity } from '../../infrastructure/database/evaluat
 import { PdfGeneratorService } from '../../../../shared/utils/pdf-generator.service';
 import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import { DocxGeneratorService } from '../../../../shared/utils/docx-generator.service';
-import { Logger } from '@nestjs/common';
-import { Permission } from '../../../../shared/enums/permission.enum';
+import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
+import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
 
 @Injectable()
 export class EvaluationsService {
@@ -848,10 +850,41 @@ export class EvaluationsService {
     }
 
     // ──────────────────────────────────────────────────────────────────
-    // PASO 3: Seleccionar ALEATORIAMENTE 2 evaluadores para riesgo
+    // PASO 3: Resolver perfiles y seleccionar ALEATORIAMENTE 2 evaluadores
+    //         para riesgo excluyendo estrictamente e innegociablemente a
+    //         SOCIEDAD_CIVIL [RF-12.2]
     // ──────────────────────────────────────────────────────────────────
-    const shuffled = [...evaluatorIds].sort(() => Math.random() - 0.5);
-    const riskEvaluatorIds = shuffled.slice(0, 2);
+    const evaluatorCandidates = await Promise.all(
+      evaluatorIds.map(async (evalId) => {
+        const userProfile = await this.evaluatorProfileUserRepo.findOne({
+          where: { userId: evalId, isActive: true },
+          relations: ['profile'],
+        });
+        const rawName = userProfile?.profile?.name?.toUpperCase() || '';
+        let profileEnum = EvaluatorProfile.SALUD;
+        if (rawName.includes('SOCIEDAD')) {
+          profileEnum = EvaluatorProfile.SOCIEDAD_CIVIL;
+        } else if (rawName.includes('JURIDIC')) {
+          profileEnum = EvaluatorProfile.JURIDICO;
+        } else if (rawName.includes('METODOL')) {
+          profileEnum = EvaluatorProfile.METODOLOGICO;
+        }
+        return {
+          evaluatorId: evalId,
+          profile: profileEnum,
+          profileId: userProfile?.profileId,
+        };
+      }),
+    );
+
+    const riskEvaluatorIdsStr =
+      RandomRiskSelectorService.selectAnnex10Evaluators(
+        evaluatorCandidates.map((c) => ({
+          evaluatorId: String(c.evaluatorId),
+          profile: c.profile,
+        })),
+      );
+    const riskEvaluatorIds = riskEvaluatorIdsStr.map((id) => Number(id));
 
     const riskAssignments = riskEvaluatorIds.map((evaluatorId) => {
       const assignment = new PeerRiskAssignmentOrmEntity();
@@ -872,16 +905,17 @@ export class EvaluationsService {
       this.deadlineService.calculateEvaluatorDeadline(reviewType);
 
     const createdAssignments: EvaluationAssignmentOrmEntity[] = [];
-    for (const evalId of evaluatorIds) {
-      const evaluatorProfileUser = await this.evaluatorProfileUserRepo.findOne({
-        where: { userId: evalId, isActive: true },
-      });
+    for (const candidate of evaluatorCandidates) {
+      const isAssignedForAnnex10 = riskEvaluatorIds.includes(
+        candidate.evaluatorId,
+      );
 
       const evalAssignment = await this.evaluationRepository.saveAssignment({
         versionId: version.id,
-        evaluatorId: evalId,
-        profileId: evaluatorProfileUser?.profileId,
+        evaluatorId: candidate.evaluatorId,
+        profileId: candidate.profileId,
         statusId: AssignmentStatus.ASSIGNED,
+        isAssignedForAnnex10,
         deadline,
         assignedByUserId: assignedBy,
       });

@@ -11,7 +11,7 @@ import {
   UseGuards,
   Req,
 } from '@nestjs/common';
-import { Request } from 'express';
+import type { Request } from 'express';
 import { RolesService } from '../../application/services/roles.service';
 import { AssignPermissionsDto } from '../../application/dtos/assign-permissions.dto';
 import { RemovePermissionsDto } from '../../application/dtos/remove-permissions.dto';

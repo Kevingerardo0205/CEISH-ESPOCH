@@ -16,6 +16,8 @@ export default new DataSource({
 
   // ⚠️ Para CLI: rutas relativas al CWD o imports explícitos
   entities: [
+    'src/modules/**/infrastructure/database/**/*.entity.orm.ts',
+    'src/modules/**/infrastructure/database/**/*.orm-entity.ts',
     'src/modules/**/infrastructure/database/*.entity.orm.ts',
     'src/modules/**/domain/entities/*.entity.ts',
   ],

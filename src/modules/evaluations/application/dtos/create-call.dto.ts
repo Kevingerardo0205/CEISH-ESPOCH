@@ -1,57 +1,78 @@
-import {
-  IsString,
-  IsNotEmpty,
-  IsOptional,
-  IsInt,
-  IsArray,
-} from 'class-validator';
+import { IsString, IsNotEmpty, IsOptional, IsArray } from 'class-validator';
 import { Transform } from 'class-transformer';
 
 export class CreateCallDto {
   @IsString()
   @IsOptional()
-  @Transform(({ value, obj }) => {
-    if (value) return value;
-    if (obj.meetingDate) {
-      const d = new Date(obj.meetingDate);
-      if (!isNaN(d.getTime())) {
-        return d.toISOString().split('T')[0];
+  @Transform(
+    ({
+      value,
+      obj,
+    }: {
+      value?: string;
+      obj?: Record<string, unknown>;
+    }): string | undefined => {
+      if (typeof value === 'string') return value;
+      if (typeof obj?.meetingDate === 'string') {
+        const d = new Date(obj.meetingDate);
+        if (!isNaN(d.getTime())) {
+          return d.toISOString().split('T')[0];
+        }
+        const str = obj.meetingDate;
+        return str.split('T')[0] || str.split(' ')[0];
       }
-      return obj.meetingDate.split('T')[0] || obj.meetingDate.split(' ')[0];
-    }
-    return undefined;
-  })
+      return undefined;
+    },
+  )
   date?: string; // Format: 'YYYY-MM-DD'
 
   @IsString()
   @IsOptional()
-  @Transform(({ value, obj }) => {
-    if (value) return value;
-    if (obj.meetingDate) {
-      const d = new Date(obj.meetingDate);
-      if (!isNaN(d.getTime())) {
-        const hours = String(d.getHours()).padStart(2, '0');
-        const minutes = String(d.getMinutes()).padStart(2, '0');
-        return `${hours}:${minutes}`;
+  @Transform(
+    ({
+      value,
+      obj,
+    }: {
+      value?: string;
+      obj?: Record<string, unknown>;
+    }): string => {
+      if (typeof value === 'string') return value;
+      if (typeof obj?.meetingDate === 'string') {
+        const d = new Date(obj.meetingDate);
+        if (!isNaN(d.getTime())) {
+          const hours = String(d.getHours()).padStart(2, '0');
+          const minutes = String(d.getMinutes()).padStart(2, '0');
+          return `${hours}:${minutes}`;
+        }
+        if (obj.meetingDate.includes('T')) {
+          return obj.meetingDate.split('T')[1].substring(0, 5);
+        }
       }
-      if (obj.meetingDate.includes('T')) {
-        return obj.meetingDate.split('T')[1].substring(0, 5);
-      }
-    }
-    return '09:00';
-  })
+      return '09:00';
+    },
+  )
   time?: string; // Format: 'HH:MM'
 
-  @IsInt()
+  @IsString()
   @IsOptional()
-  @Transform(({ value, obj }) => {
-    if (value !== undefined && value !== null) return Number(value);
-    if (typeof obj.meetingPlace === 'number') return obj.meetingPlace;
-    if (obj.meetingPlace && !isNaN(Number(obj.meetingPlace)))
-      return Number(obj.meetingPlace);
-    return undefined;
-  })
-  placeId?: number;
+  @Transform(
+    ({
+      value,
+      obj,
+    }: {
+      value?: unknown;
+      obj?: Record<string, unknown>;
+    }): string | undefined => {
+      if (typeof value === 'string') return value;
+      if (typeof value === 'number') return String(value);
+      if (typeof obj?.meetingPlace === 'string') return obj.meetingPlace;
+      if (typeof obj?.meetingPlace === 'number')
+        return String(obj.meetingPlace);
+      if (typeof obj?.locationId === 'string') return obj.locationId;
+      return undefined;
+    },
+  )
+  placeId?: string;
 
   @IsString()
   @IsNotEmpty()
@@ -59,20 +80,40 @@ export class CreateCallDto {
 
   @IsString()
   @IsOptional()
-  @Transform(({ value, obj }) => value || obj.agenda)
+  @Transform(
+    ({
+      value,
+      obj,
+    }: {
+      value?: string;
+      obj?: Record<string, unknown>;
+    }): string | undefined => {
+      if (typeof value === 'string') return value;
+      if (typeof obj?.agenda === 'string') return obj.agenda;
+      return undefined;
+    },
+  )
   agendaSummary?: string;
 
   @IsArray()
   @IsOptional()
-  @Transform(({ value, obj }) => {
-    const list = value || obj.protocolVersionIds || obj.protocolIds;
-    if (Array.isArray(list)) {
-      return list
-        .map((item: any) => Number(item))
-        .filter((n: number) => !isNaN(n));
-    }
-    return undefined;
-  })
+  @Transform(
+    ({
+      value,
+      obj,
+    }: {
+      value?: unknown;
+      obj?: Record<string, unknown>;
+    }): number[] | undefined => {
+      const list = value || obj?.protocolVersionIds || obj?.protocolIds;
+      if (Array.isArray(list)) {
+        return list
+          .map((item: unknown) => Number(item))
+          .filter((n: number) => !isNaN(n));
+      }
+      return undefined;
+    },
+  )
   protocolIds?: number[];
 
   // Propiedades alternativas del frontend para evitar que class-validator dé error con whitelist
@@ -85,7 +126,7 @@ export class CreateCallDto {
   meetingDate?: string;
 
   @IsOptional()
-  meetingPlace?: any;
+  meetingPlace?: unknown;
 
   @IsString()
   @IsOptional()
@@ -93,5 +134,5 @@ export class CreateCallDto {
 
   @IsArray()
   @IsOptional()
-  protocolVersionIds?: any[];
+  protocolVersionIds?: unknown[];
 }
