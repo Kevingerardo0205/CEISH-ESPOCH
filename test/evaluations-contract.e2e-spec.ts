@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe } from '@nestjs/common';
+import { INestApplication, ValidationPipe, UnauthorizedException, ForbiddenException } from '@nestjs/common';
 import request from 'supertest';
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/shared/guards/roles.guard';
@@ -19,7 +19,7 @@ import { CalculateMeetingDatesService } from '../src/modules/evaluations/applica
 import { EvaluatorProfile, ReassignmentReason } from '../src/shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../src/modules/evaluations/domain/enums/assignment-status.enum';
 
-describe('Phase 0 Safety Net: Evaluations Contract Tests (e2e)', () => {
+describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)', () => {
   let app: INestApplication;
 
   const mockAssignEvaluatorsUseCase = {
@@ -151,25 +151,51 @@ describe('Phase 0 Safety Net: Evaluations Contract Tests (e2e)', () => {
       .useValue({
         canActivate: (context: any) => {
           const req = context.switchToHttp().getRequest();
+          const authHeader = req.headers['authorization'];
+          if (!authHeader || authHeader === 'Bearer invalid') {
+            throw new UnauthorizedException('Token de autenticación inválido o ausente');
+          }
+          const roleHeader = req.headers['x-test-role'] || 'SECRETARIA';
           req.user = {
             id: 1,
             email: 'admin@ceish.com',
-            roles: ['SECRETARIA', 'PRESIDENTE', 'ADMIN_TI', 'ADMIN'],
-            permissions: [
-              'evaluators:assign',
-              'evaluation:view_mine',
-              'permissions:manage',
-              'reception:view',
-            ],
+            roles: [roleHeader],
+            permissions:
+              roleHeader === 'INVESTIGADOR'
+                ? []
+                : [
+                    'evaluators:assign',
+                    'evaluation:view_mine',
+                    'permissions:manage',
+                    'reception:view',
+                  ],
             temporalRoles: [],
           };
           return true;
         },
       })
       .overrideGuard(RolesGuard)
-      .useValue({ canActivate: () => true })
+      .useValue({
+        canActivate: (context: any) => {
+          const req = context.switchToHttp().getRequest();
+          const roleHeader = req.headers['x-test-role'];
+          if (roleHeader === 'INVESTIGADOR') {
+            throw new ForbiddenException('Rol no autorizado');
+          }
+          return true;
+        },
+      })
       .overrideGuard(PermissionsGuard)
-      .useValue({ canActivate: () => true })
+      .useValue({
+        canActivate: (context: any) => {
+          const req = context.switchToHttp().getRequest();
+          const roleHeader = req.headers['x-test-role'];
+          if (roleHeader === 'INVESTIGADOR') {
+            throw new ForbiddenException('Permisos insuficientes');
+          }
+          return true;
+        },
+      })
       .compile();
 
     app = moduleFixture.createNestApplication();
@@ -191,21 +217,39 @@ describe('Phase 0 Safety Net: Evaluations Contract Tests (e2e)', () => {
     }
   });
 
-  describe('Contract 1: POST /api/evaluations/assign', () => {
-    it('debe responder HTTP 201 y asignar evaluadores mediante AssignEvaluatorsUseCase', async () => {
-      const payload = {
-        protocolId: 100,
-        evaluators: [
-          { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
-          { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
-          { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
-          { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
-        ],
-      };
+  describe('Contract 1: POST /api/evaluations/assign (Authorization & Functionality)', () => {
+    const validPayload = {
+      protocolId: 100,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
 
+    it('debe rechazar con HTTP 401 si no se envía token de autenticación', async () => {
+      await request(app.getHttpServer())
+        .post('/api/evaluations/assign')
+        .send(validPayload)
+        .expect(401);
+    });
+
+    it('debe rechazar con HTTP 403 si el usuario tiene rol INVESTIGADOR sin permisos de asignación', async () => {
+      await request(app.getHttpServer())
+        .post('/api/evaluations/assign')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'INVESTIGADOR')
+        .send(validPayload)
+        .expect(403);
+    });
+
+    it('debe responder HTTP 201 y asignar evaluadores cuando el rol es SECRETARIA o PRESIDENTE', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/assign')
-        .send(payload)
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'SECRETARIA')
+        .send(validPayload)
         .expect(201);
 
       const data = res.body.data || res.body;
@@ -215,19 +259,37 @@ describe('Phase 0 Safety Net: Evaluations Contract Tests (e2e)', () => {
     });
   });
 
-  describe('Contract 2: POST /api/evaluations/reassign', () => {
-    it('debe responder HTTP 201 y reasignar evaluador mediante ReassignEvaluatorUseCase', async () => {
-      const payload = {
-        currentAssignmentId: 1,
-        replacementEvaluatorId: 5,
-        replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
-        reason: ReassignmentReason.CONFLICTO_INTERES,
-        reasonDescription: 'Conflicto de interés declarado',
-      };
+  describe('Contract 2: POST /api/evaluations/reassign (Authorization & Functionality)', () => {
+    const validPayload = {
+      currentAssignmentId: 1,
+      replacementEvaluatorId: 5,
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.CONFLICTO_INTERES,
+      reasonDescription: 'Conflicto de interés declarado',
+    };
 
+    it('debe rechazar con HTTP 401 si no se envía token de autenticación', async () => {
+      await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .send(validPayload)
+        .expect(401);
+    });
+
+    it('debe rechazar con HTTP 403 si el rol no tiene permisos (INVESTIGADOR)', async () => {
+      await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'INVESTIGADOR')
+        .send(validPayload)
+        .expect(403);
+    });
+
+    it('debe responder HTTP 201 y reasignar evaluador cuando el rol es SECRETARIA', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/reassign')
-        .send(payload)
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'SECRETARIA')
+        .send(validPayload)
         .expect(201);
 
       const data = res.body.data || res.body;
@@ -238,9 +300,16 @@ describe('Phase 0 Safety Net: Evaluations Contract Tests (e2e)', () => {
   });
 
   describe('Contract 3: GET /api/evaluations/completion-status/:protocolId', () => {
-    it('debe responder HTTP 200 con el estado de completitud booleano', async () => {
+    it('debe rechazar con HTTP 401 sin autenticación', async () => {
+      await request(app.getHttpServer())
+        .get('/api/evaluations/completion-status/100')
+        .expect(401);
+    });
+
+    it('debe responder HTTP 200 con el estado de completitud booleano para usuario autenticado', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/evaluations/completion-status/100')
+        .set('Authorization', 'Bearer valid-token')
         .expect(200);
 
       const data = res.body.data || res.body;
@@ -264,6 +333,7 @@ describe('Phase 0 Safety Net: Evaluations Contract Tests (e2e)', () => {
 
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/100/assign-peer-evaluators')
+        .set('Authorization', 'Bearer valid-token')
         .send(payload)
         .expect(201);
 
@@ -277,6 +347,7 @@ describe('Phase 0 Safety Net: Evaluations Contract Tests (e2e)', () => {
     it('debe responder HTTP 200 en GET /api/evaluations/calls', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/evaluations/calls')
+        .set('Authorization', 'Bearer valid-token')
         .expect(200);
 
       const data = res.body.data || res.body;
@@ -287,6 +358,7 @@ describe('Phase 0 Safety Net: Evaluations Contract Tests (e2e)', () => {
     it('debe responder HTTP 200 en GET /api/evaluations/calls/places', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/evaluations/calls/places')
+        .set('Authorization', 'Bearer valid-token')
         .expect(200);
 
       const data = res.body.data || res.body;
@@ -306,6 +378,7 @@ describe('Phase 0 Safety Net: Evaluations Contract Tests (e2e)', () => {
 
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/meetings')
+        .set('Authorization', 'Bearer valid-token')
         .send(payload)
         .expect(201);
 
@@ -318,6 +391,7 @@ describe('Phase 0 Safety Net: Evaluations Contract Tests (e2e)', () => {
     it('debe responder HTTP 200 en GET /api/evaluations/meetings/:id', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/evaluations/meetings/meeting-uuid-1')
+        .set('Authorization', 'Bearer valid-token')
         .expect(200);
 
       const data = res.body.data || res.body;
