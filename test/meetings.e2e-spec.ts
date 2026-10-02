@@ -42,6 +42,26 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
     findById: jest.fn().mockImplementation((id: string) => {
       return Promise.resolve(mockMeetingsMap.get(id) || null);
     }),
+    findAll: jest.fn().mockResolvedValue({
+      items: [],
+      total: 0,
+      page: 1,
+      limit: 10,
+    }),
+    findPendingProtocols: jest.fn().mockResolvedValue([]),
+    findAllPlaces: jest.fn().mockResolvedValue([]),
+    findPlaceById: jest.fn().mockResolvedValue(null),
+    createPlace: jest
+      .fn()
+      .mockImplementation((data: any) =>
+        Promise.resolve({ id: 'place-uuid-1', ...data }),
+      ),
+    updatePlace: jest
+      .fn()
+      .mockImplementation((id: string, data: any) =>
+        Promise.resolve({ id, ...data }),
+      ),
+    deletePlace: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockPdfGenerator = {

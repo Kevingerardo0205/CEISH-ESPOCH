@@ -5,9 +5,11 @@ import {
   CreateDateColumn,
   UpdateDateColumn,
   ManyToOne,
+  OneToMany,
   JoinColumn,
 } from 'typeorm';
 import { LugarOrmEntity } from './lugar.orm-entity';
+import { ConvocatoriaProtocoloOrmEntity } from './convocatoria-protocolo.orm-entity';
 
 export enum SessionType {
   ORDINARIA = 'ORDINARIA',
@@ -73,6 +75,9 @@ export class ConvocatoriaOrmEntity {
 
   @Column({ name: 'orden_dia_pdf_path', type: 'varchar', nullable: true })
   ordenDiaPdfPath?: string;
+
+  @OneToMany(() => ConvocatoriaProtocoloOrmEntity, (cp) => cp.convocatoria)
+  convocatoriaProtocolos?: ConvocatoriaProtocoloOrmEntity[];
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

@@ -19,6 +19,13 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     repositoryMock = {
       saveMeetingWithAtomicNumber: jest.fn(),
       findById: jest.fn(),
+      findAll: jest.fn(),
+      findPendingProtocols: jest.fn(),
+      findAllPlaces: jest.fn(),
+      findPlaceById: jest.fn(),
+      createPlace: jest.fn(),
+      updatePlace: jest.fn(),
+      deletePlace: jest.fn(),
     };
     pdfGeneratorMock = {
       generateAgendaPdf: jest.fn(),

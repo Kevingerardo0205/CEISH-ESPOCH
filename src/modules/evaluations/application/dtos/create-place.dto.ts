@@ -60,9 +60,17 @@ export class CreatePlaceDto {
   @IsOptional()
   esVirtual?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  isVirtual?: boolean;
+
   @IsString()
   @IsOptional()
   enlaceReunion?: string;
+
+  @IsString()
+  @IsOptional()
+  meetingUrl?: string;
 
   @IsString()
   @IsOptional()
@@ -136,9 +144,17 @@ export class UpdatePlaceDto {
   @IsOptional()
   esVirtual?: boolean;
 
+  @IsBoolean()
+  @IsOptional()
+  isVirtual?: boolean;
+
   @IsString()
   @IsOptional()
   enlaceReunion?: string;
+
+  @IsString()
+  @IsOptional()
+  meetingUrl?: string;
 
   @IsString()
   @IsOptional()

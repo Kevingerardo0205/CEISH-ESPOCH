@@ -177,6 +177,41 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
         estado: 'PROGRAMADA',
       });
     }),
+    findAll: jest.fn().mockResolvedValue({
+      items: [{ id: 'meeting-uuid-1', numeroConvocatoria: '010-2026' }],
+      total: 1,
+      page: 1,
+      limit: 10,
+    }),
+    findPendingProtocols: jest
+      .fn()
+      .mockResolvedValue([
+        { id: 100, ceishCode: 'CEISH-2026-001', title: 'Protocolo de Prueba' },
+      ]),
+    findAllPlaces: jest.fn().mockResolvedValue([
+      {
+        id: '11111111-1111-1111-1111-111111111111',
+        nombre: 'Sala de Consejo',
+        esVirtual: false,
+      },
+    ]),
+    findPlaceById: jest
+      .fn()
+      .mockImplementation((id: string) =>
+        Promise.resolve({ id, nombre: 'Sala de Consejo', esVirtual: false }),
+      ),
+    createPlace: jest.fn().mockImplementation((data: any) =>
+      Promise.resolve({
+        id: '11111111-1111-1111-1111-111111111111',
+        ...data,
+      }),
+    ),
+    updatePlace: jest
+      .fn()
+      .mockImplementation((id: string, data: any) =>
+        Promise.resolve({ id, ...data }),
+      ),
+    deletePlace: jest.fn().mockResolvedValue(undefined),
   };
 
   const mockPdfGenerator = {
@@ -504,6 +539,37 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       expect(data.meetingNumber).toMatch(/^\d{3}-2026$/);
     });
 
+    it('debe responder HTTP 200 en GET /api/evaluations/meetings (listado paginado)', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/evaluations/meetings?page=1&limit=10')
+        .set('Authorization', 'Bearer valid-token')
+        .expect(200);
+
+      const data = res.body.data || res.body;
+      expect(Array.isArray(data)).toBe(true);
+      expect(mockMeetingRepo.findAll).toHaveBeenCalled();
+    });
+
+    it('debe responder HTTP 200 en GET /api/evaluations/meetings/pending-protocols', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/evaluations/meetings/pending-protocols')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'SECRETARIA')
+        .expect(200);
+
+      const data = res.body.data || res.body;
+      expect(Array.isArray(data)).toBe(true);
+      expect(mockMeetingRepo.findPendingProtocols).toHaveBeenCalled();
+    });
+
+    it('debe rechazar GET /api/evaluations/meetings/pending-protocols con 403 para INVESTIGADOR', async () => {
+      await request(app.getHttpServer())
+        .get('/api/evaluations/meetings/pending-protocols')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'INVESTIGADOR')
+        .expect(403);
+    });
+
     it('debe responder HTTP 200 en GET /api/evaluations/meetings/:id', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/evaluations/meetings/meeting-uuid-1')
@@ -513,6 +579,71 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       const data = res.body.data || res.body;
       expect(data).toHaveProperty('id', 'meeting-uuid-1');
       expect(data).toHaveProperty('numeroConvocatoria', '010-2026');
+    });
+
+    it('debe responder HTTP 200 en GET /api/evaluations/meetings/places', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/evaluations/meetings/places')
+        .set('Authorization', 'Bearer valid-token')
+        .expect(200);
+
+      const data = res.body.data || res.body;
+      expect(Array.isArray(data)).toBe(true);
+      expect(mockMeetingRepo.findAllPlaces).toHaveBeenCalled();
+    });
+
+    it('debe responder HTTP 201 en POST /api/evaluations/meetings/places', async () => {
+      const payload = {
+        name: 'Sala de Consejo Politécnico',
+        location: 'Edificio Central, 2do Piso',
+        isVirtual: false,
+      };
+
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/meetings/places')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'SECRETARIA')
+        .send(payload)
+        .expect(201);
+
+      expect(res.body).toHaveProperty('nombre', 'Sala de Consejo Politécnico');
+      expect(mockMeetingRepo.createPlace).toHaveBeenCalled();
+    });
+
+    it('debe rechazar POST /api/evaluations/meetings/places con 403 para INVESTIGADOR', async () => {
+      await request(app.getHttpServer())
+        .post('/api/evaluations/meetings/places')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'INVESTIGADOR')
+        .send({ name: 'Sala' })
+        .expect(403);
+    });
+
+    it('debe responder HTTP 200 en PATCH /api/evaluations/meetings/places/:id', async () => {
+      const res = await request(app.getHttpServer())
+        .patch(
+          '/api/evaluations/meetings/places/11111111-1111-1111-1111-111111111111',
+        )
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'SECRETARIA')
+        .send({ name: 'Sala Actualizada' })
+        .expect(200);
+
+      expect(res.body).toHaveProperty('nombre', 'Sala Actualizada');
+    });
+
+    it('debe responder HTTP 200 en DELETE /api/evaluations/meetings/places/:id', async () => {
+      const res = await request(app.getHttpServer())
+        .delete(
+          '/api/evaluations/meetings/places/11111111-1111-1111-1111-111111111111',
+        )
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'SECRETARIA')
+        .expect(200);
+
+      expect(res.body).toEqual({
+        message: 'Lugar de reunión desactivado exitosamente.',
+      });
     });
   });
 });
