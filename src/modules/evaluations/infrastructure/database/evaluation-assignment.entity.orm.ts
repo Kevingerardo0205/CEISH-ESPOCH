@@ -52,11 +52,38 @@ export class EvaluationAssignmentOrmEntity {
   })
   statusId!: number;
 
-  @Column({ name: 'es_asignado_anexo_10', type: 'boolean', default: false })
+  @Column({
+    name: 'es_asignado_anexo_10',
+    type: 'boolean',
+    nullable: true,
+    default: false,
+  })
   isAssignedForAnnex10!: boolean;
 
-  @Column({ name: 'fecha_limite', type: 'date', nullable: true })
-  deadline?: Date | string;
+  @Column({
+    name: 'fecha_limite',
+    type: 'date',
+    nullable: true,
+    transformer: {
+      to: (value?: Date | string | null) => {
+        if (!value) return value;
+        if (typeof value === 'string') return value;
+        if (value instanceof Date) {
+          // Convertir usando la fecha de calendario de Ecuador (America/Guayaquil, UTC-5), nunca con UTC
+          const ectFormatter = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Guayaquil',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          });
+          return ectFormatter.format(value);
+        }
+        return value;
+      },
+      from: (value?: string | null) => value,
+    },
+  })
+  deadline?: string | null;
 
   @CreateDateColumn({ name: 'fecha_asignacion', type: 'timestamp' })
   assignedAt!: Date;

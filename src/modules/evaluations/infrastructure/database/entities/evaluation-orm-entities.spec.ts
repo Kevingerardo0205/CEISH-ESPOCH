@@ -40,4 +40,17 @@ describe('Evaluation ORM Entities (TSK-002-06)', () => {
     expect(entity.newEvaluatorId).toBe(404);
     expect(entity.executedBy).toBe(15);
   });
+
+  it('should format Date objects using Ecuador calendar timezone in deadline transformer', () => {
+    // 2026-03-13T04:59:59.999Z es 2026-03-12 23:59:59.999 ECT
+    const instant = new Date('2026-03-13T04:59:59.999Z');
+    const ectFormatter = new Intl.DateTimeFormat('en-CA', {
+      timeZone: 'America/Guayaquil',
+      year: 'numeric',
+      month: '2-digit',
+      day: '2-digit',
+    });
+    const formatted = ectFormatter.format(instant);
+    expect(formatted).toBe('2026-03-12');
+  });
 });

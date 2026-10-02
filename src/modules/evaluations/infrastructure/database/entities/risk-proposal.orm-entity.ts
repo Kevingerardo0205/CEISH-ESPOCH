@@ -24,14 +24,14 @@ export class RiskProposalOrmEntity {
   @Column({ name: 'asignacion_id', type: 'integer' })
   assignmentId!: number;
 
-  @ManyToOne(() => EvaluationAssignmentOrmEntity)
+  @ManyToOne(() => EvaluationAssignmentOrmEntity, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'asignacion_id' })
   assignment?: EvaluationAssignmentOrmEntity;
 
   @Column({ name: 'nivel_riesgo_id', type: 'integer' })
   riskLevelId!: number;
 
-  @ManyToOne(() => RiskLevelOrmEntity)
+  @ManyToOne(() => RiskLevelOrmEntity, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'nivel_riesgo_id' })
   riskLevel?: RiskLevelOrmEntity;
 

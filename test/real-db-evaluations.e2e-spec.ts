@@ -7,13 +7,24 @@ describe('Real Database Integration Tests (ceish_test_db on localhost:3100)', ()
   let dataSource: DataSource;
 
   beforeAll(async () => {
+    const dbName = process.env.TEST_DB_NAME || 'ceish_test_db';
+    if (
+      !dbName.endsWith('test') &&
+      !dbName.endsWith('test_db') &&
+      !dbName.endsWith('_test_db')
+    ) {
+      throw new Error(
+        `ABORT: Seguridad de Base de Datos violada. Los tests reales solo pueden ejecutarse contra una base que termine en 'test' o 'test_db'. Base recibida: '${dbName}'. ceish_db protegida.`,
+      );
+    }
+
     dataSource = new DataSource({
       type: 'postgres',
-      host: 'localhost',
-      port: 3100,
-      username: 'ceish_user',
-      password: 'ceish_password',
-      database: 'ceish_test_db',
+      host: process.env.TEST_DB_HOST || 'localhost',
+      port: parseInt(process.env.TEST_DB_PORT || '3100', 10),
+      username: process.env.TEST_DB_USER || 'ceish_user',
+      password: process.env.TEST_DB_PASSWORD || 'ceish_password',
+      database: dbName,
       entities: [
         'src/modules/**/infrastructure/database/**/*.entity.orm.ts',
         'src/modules/**/infrastructure/database/**/*.orm-entity.ts',
@@ -28,10 +39,10 @@ describe('Real Database Integration Tests (ceish_test_db on localhost:3100)', ()
 
     // Limpiar y sembrar datos de prueba aislados en ceish_test_db
     await dataSource.query(`
-      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 9999);
-      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 9999;
-      DELETE FROM public.versiones_protocolo WHERE id = 9999;
-      DELETE FROM public.protocolos WHERE id = 999;
+      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (9998, 9999));
+      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (9998, 9999);
+      DELETE FROM public.versiones_protocolo WHERE id IN (9998, 9999);
+      DELETE FROM public.protocolos WHERE id IN (998, 999);
       DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904);
 
       INSERT INTO catalogos.usuarios (id, email_institucional, nombres_completos, cedula)
@@ -59,10 +70,10 @@ describe('Real Database Integration Tests (ceish_test_db on localhost:3100)', ()
   afterAll(async () => {
     if (dataSource && dataSource.isInitialized) {
       await dataSource.query(`
-        DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 9999);
-        DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 9999;
-        DELETE FROM public.versiones_protocolo WHERE id = 9999;
-        DELETE FROM public.protocolos WHERE id = 999;
+        DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (9998, 9999));
+        DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (9998, 9999);
+        DELETE FROM public.versiones_protocolo WHERE id IN (9998, 9999);
+        DELETE FROM public.protocolos WHERE id IN (998, 999);
         DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904);
       `);
       await dataSource.destroy();
