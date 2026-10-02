@@ -49,6 +49,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
     setLock: jest.Mock;
     where: jest.Mock;
     andWhere: jest.Mock;
+    orderBy: jest.Mock;
     getMany: jest.Mock;
   };
   let mockDataSource: {
