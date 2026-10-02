@@ -49,7 +49,7 @@ export class EvaluatorReassignmentService {
 
     currentAssignment.markAsReassigned(outgoingStatus);
 
-    const newDeadline = BusinessDayCalculator.calculateDeadline({
+    const newDeadline = BusinessDayCalculator.calculateDeadlineDateString({
       startDate: new Date(),
       businessDaysToAdd: params.standardFullDays,
       holidays: params.holidays,

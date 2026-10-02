@@ -58,7 +58,7 @@ export class InheritEvaluatorsUseCase {
       );
     }
 
-    const newDeadline = BusinessDayCalculator.calculateDeadline({
+    const newDeadline = BusinessDayCalculator.calculateDeadlineDateString({
       startDate: new Date(),
       businessDaysToAdd: standardFullDays,
       holidays,
