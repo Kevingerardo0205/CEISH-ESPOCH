@@ -191,7 +191,11 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
   });
 
   describe('Scenario 2: Paridad de plazos reales en POST /protocols/:id/assign-peer-evaluators', () => {
-    it('debe calcular 8 días hábiles para protocolo EXPEDITA y 15 días hábiles para protocolo PLENO', async () => {
+    it('debe calcular exactamente 8 días hábiles para EXPEDITA y 15 días hábiles para PLENO con reloj fijo', async () => {
+      jest.useFakeTimers();
+      // Lunes 2 de marzo de 2026 10:00:00 UTC (05:00 ECT)
+      jest.setSystemTime(new Date('2026-03-02T10:00:00.000Z'));
+
       // 1. Protocolo Expedita (ID 10)
       const resExpedita = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/10/assign-peer-evaluators')
@@ -201,13 +205,9 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
 
       const expeditaData = resExpedita.body.data || resExpedita.body;
       expect(expeditaData).toHaveLength(4);
-      const expeditaDeadline = new Date(expeditaData[0].deadlineDate);
-      const now = new Date();
-      const diffExpDays = Math.ceil(
-        (expeditaDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      expect(new Date(expeditaData[0].deadlineDate).toISOString()).toBe(
+        '2026-03-13T04:59:59.999Z',
       );
-      expect(diffExpDays).toBeGreaterThanOrEqual(8);
-      expect(diffExpDays).toBeLessThanOrEqual(14);
 
       // 2. Protocolo Pleno (ID 20)
       const resPleno = await request(app.getHttpServer())
@@ -218,12 +218,32 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
 
       const plenoData = resPleno.body.data || resPleno.body;
       expect(plenoData).toHaveLength(4);
-      const plenoDeadline = new Date(plenoData[0].deadlineDate);
-      const diffPlenoDays = Math.ceil(
-        (plenoDeadline.getTime() - now.getTime()) / (1000 * 60 * 60 * 24),
+      expect(new Date(plenoData[0].deadlineDate).toISOString()).toBe(
+        '2026-03-24T04:59:59.999Z',
       );
-      expect(diffPlenoDays).toBeGreaterThanOrEqual(15);
-      expect(diffPlenoDays).toBeLessThanOrEqual(23);
+
+      jest.useRealTimers();
+    });
+
+    it('debe calcular fecha exacta cruzando fin de semana cuando la asignación ocurre en jueves a las 20:00 ECT', async () => {
+      jest.useFakeTimers();
+      // Jueves 5 de marzo de 2026 a las 20:00 ECT (UTC-5)
+      jest.setSystemTime(new Date('2026-03-05T20:00:00-05:00'));
+
+      const resExpedita = await request(app.getHttpServer())
+        .post('/api/evaluations/protocols/10/assign-peer-evaluators')
+        .set('Authorization', 'Bearer valid-token')
+        .send({ evaluatorIds: [10, 20, 30, 40] })
+        .expect(201);
+
+      const expeditaData = resExpedita.body.data || resExpedita.body;
+      expect(expeditaData).toHaveLength(4);
+      // 8 días hábiles desde jueves 5 -> martes 17 a las 23:59:59.999 ECT (2026-03-18T04:59:59.999Z UTC)
+      expect(new Date(expeditaData[0].deadlineDate).toISOString()).toBe(
+        '2026-03-18T04:59:59.999Z',
+      );
+
+      jest.useRealTimers();
     });
   });
 });

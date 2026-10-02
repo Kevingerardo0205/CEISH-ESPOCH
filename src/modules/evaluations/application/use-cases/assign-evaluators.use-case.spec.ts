@@ -113,7 +113,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
   it('should calculate exactly 8 business days deadline when reviewType is EXPEDITA (crossing weekend)', async () => {
     jest.useFakeTimers();
-    // Lunes 2 de marzo de 2026 10:00:00 UTC
+    // Lunes 2 de marzo de 2026 10:00:00 UTC (05:00 ECT)
     jest.setSystemTime(new Date('2026-03-02T10:00:00.000Z'));
 
     const dto: AssignEvaluatorsDto = {
@@ -130,14 +130,16 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
-    // 8 días hábiles desde Mar 2 -> Jueves 12 de marzo a las 23:59:59.999 UTC
-    expect(result[0].deadlineDate.toISOString()).toBe('2026-03-12T23:59:59.999Z');
+    // 8 días hábiles desde Mar 2 -> Jueves 12 de marzo a las 23:59:59.999 ECT (Mar 13 04:59:59.999 UTC)
+    expect(result[0].deadlineDate.toISOString()).toBe(
+      '2026-03-13T04:59:59.999Z',
+    );
     jest.useRealTimers();
   });
 
   it('should calculate exactly 15 business days deadline when reviewType is PLENO or omitted', async () => {
     jest.useFakeTimers();
-    // Lunes 2 de marzo de 2026 10:00:00 UTC
+    // Lunes 2 de marzo de 2026 10:00:00 UTC (05:00 ECT)
     jest.setSystemTime(new Date('2026-03-02T10:00:00.000Z'));
 
     const dto: AssignEvaluatorsDto = {
@@ -153,15 +155,17 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
-    // 15 días hábiles desde Mar 2 -> Lunes 23 de marzo a las 23:59:59.999 UTC
-    expect(result[0].deadlineDate.toISOString()).toBe('2026-03-23T23:59:59.999Z');
+    // 15 días hábiles desde Mar 2 -> Lunes 23 de marzo a las 23:59:59.999 ECT (Mar 24 04:59:59.999 UTC)
+    expect(result[0].deadlineDate.toISOString()).toBe(
+      '2026-03-24T04:59:59.999Z',
+    );
     jest.useRealTimers();
   });
 
-  it('should calculate exact deadline when executed on Friday at 20:00 Ecuador time (America/Guayaquil UTC-5)', async () => {
+  it('should calculate exact deadline when executed on Thursday at 20:00 Ecuador time (America/Guayaquil UTC-5)', async () => {
     jest.useFakeTimers();
-    // Viernes 6 de marzo de 2026 a las 20:00:00 Ecuador (UTC-5) = Sábado 7 de marzo 01:00:00 UTC
-    jest.setSystemTime(new Date('2026-03-06T20:00:00-05:00'));
+    // Jueves 5 de marzo de 2026 a las 20:00:00 Ecuador (UTC-5)
+    jest.setSystemTime(new Date('2026-03-05T20:00:00-05:00'));
 
     const dto: AssignEvaluatorsDto = {
       protocolId: 52,
@@ -177,8 +181,36 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
-    // Debido a setUTCHours, al ejecutarse a las 20:00 ECT (01:00 UTC del sábado 7), el contador inicia el lunes 9 y suma 8 días hábiles -> Miércoles 18 de marzo 23:59:59.999 UTC
-    expect(result[0].deadlineDate.toISOString()).toBe('2026-03-18T23:59:59.999Z');
+    // 8 días hábiles desde Jueves 5 -> Martes 17 de marzo a las 23:59:59.999 ECT (Mar 18 04:59:59.999 UTC)
+    expect(result[0].deadlineDate.toISOString()).toBe(
+      '2026-03-18T04:59:59.999Z',
+    );
+    jest.useRealTimers();
+  });
+
+  it('should calculate exact deadline when executed on Friday at 20:00 Ecuador time (America/Guayaquil UTC-5)', async () => {
+    jest.useFakeTimers();
+    // Viernes 6 de marzo de 2026 a las 20:00:00 Ecuador (UTC-5)
+    jest.setSystemTime(new Date('2026-03-06T20:00:00-05:00'));
+
+    const dto: AssignEvaluatorsDto = {
+      protocolId: 53,
+      versionId: 1,
+      reviewType: 'EXPEDITA' as any,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    const result = await useCase.execute(dto);
+    expect(result).toHaveLength(4);
+    // 8 días hábiles desde Viernes 6 -> Miércoles 18 de marzo a las 23:59:59.999 ECT (Mar 19 04:59:59.999 UTC)
+    expect(result[0].deadlineDate.toISOString()).toBe(
+      '2026-03-19T04:59:59.999Z',
+    );
     jest.useRealTimers();
   });
 });

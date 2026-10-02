@@ -60,6 +60,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       setLock: jest.fn().mockReturnThis(),
       where: jest.fn().mockReturnThis(),
       andWhere: jest.fn().mockReturnThis(),
+      orderBy: jest.fn().mockReturnThis(),
       getMany: jest.fn().mockResolvedValue([
         { id: 1, versionId: 100, isAssignedForAnnex10: true },
         { id: 2, versionId: 100, isAssignedForAnnex10: true },

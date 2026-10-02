@@ -1083,6 +1083,7 @@ export class EvaluationsService {
             versionId: canonicalAssignment.versionId,
           })
           .andWhere('asg.isAssignedForAnnex10 = true')
+          .orderBy('asg.id', 'ASC')
           .getMany();
 
         const existingProposal = await riskProposalRepo.findOne({
