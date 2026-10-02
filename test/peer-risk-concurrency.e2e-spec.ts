@@ -206,7 +206,7 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
       const expeditaData = resExpedita.body.data || resExpedita.body;
       expect(expeditaData).toHaveLength(4);
       expect(new Date(expeditaData[0].deadlineDate).toISOString()).toBe(
-        '2026-03-13T04:59:59.999Z',
+        '2026-03-12T00:00:00.000Z',
       );
 
       // 2. Protocolo Pleno (ID 20)
@@ -219,7 +219,7 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
       const plenoData = resPleno.body.data || resPleno.body;
       expect(plenoData).toHaveLength(4);
       expect(new Date(plenoData[0].deadlineDate).toISOString()).toBe(
-        '2026-03-24T04:59:59.999Z',
+        '2026-03-23T00:00:00.000Z',
       );
 
       jest.useRealTimers();
@@ -238,9 +238,9 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
 
       const expeditaData = resExpedita.body.data || resExpedita.body;
       expect(expeditaData).toHaveLength(4);
-      // 8 días hábiles desde jueves 5 -> martes 17 a las 23:59:59.999 ECT (2026-03-18T04:59:59.999Z UTC)
+      // 8 días hábiles desde jueves 5 -> martes 17 de marzo (2026-03-17)
       expect(new Date(expeditaData[0].deadlineDate).toISOString()).toBe(
-        '2026-03-18T04:59:59.999Z',
+        '2026-03-17T00:00:00.000Z',
       );
 
       jest.useRealTimers();

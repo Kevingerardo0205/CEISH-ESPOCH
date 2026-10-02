@@ -4,11 +4,29 @@ export interface CalculateDeadlineInput {
   holidays: string[];
 }
 
+export interface DeadlineCalculationResult {
+  /**
+   * Instante exacto de fin de día en hora de Ecuador (23:59:59.999 ECT = 04:59:59.999Z día siguiente)
+   */
+  deadlineInstant: Date;
+  /**
+   * Fecha de calendario en Ecuador formateada como YYYY-MM-DD (apropiada para columnas tipo 'date')
+   */
+  deadlineDateString: string;
+  /**
+   * Objeto Date en UTC medianoche correspondiente a la fecha de calendario de Ecuador (YYYY-MM-DD 00:00:00.000Z)
+   * que garantiza que al persistir en TypeORM/PostgreSQL en columnas 'date' se guarde el día local exacto.
+   */
+  deadlineDate: Date;
+}
+
 export class BusinessDayCalculator {
   // Offset fijo de Ecuador (America/Guayaquil): UTC-5 horas sin horario de verano
   private static readonly ECUADOR_OFFSET_HOURS = -5;
 
-  public static calculateDeadline(input: CalculateDeadlineInput): Date {
+  public static calculateDetailedDeadline(
+    input: CalculateDeadlineInput,
+  ): DeadlineCalculationResult {
     const { startDate, businessDaysToAdd, holidays } = input;
     const holidaySet = new Set(holidays);
 
@@ -40,9 +58,47 @@ export class BusinessDayCalculator {
       }
     }
 
+    const monthStr = String(month + 1).padStart(2, '0');
+    const dayStr = String(day).padStart(2, '0');
+    const deadlineDateString = `${year}-${monthStr}-${dayStr}`;
+
+    // Fecha UTC a medianoche para columnas PostgreSQL 'date'
+    const deadlineDate = new Date(Date.UTC(year, month, day, 0, 0, 0, 0));
+
     // 23:59:59.999 en hora de Ecuador (UTC-5) = 04:59:59.999 UTC del día siguiente
-    const deadlineUtcMs =
+    const deadlineInstantMs =
       Date.UTC(year, month, day, 23, 59, 59, 999) - ecuadorShiftMs;
-    return new Date(deadlineUtcMs);
+    const deadlineInstant = new Date(deadlineInstantMs);
+
+    return {
+      deadlineInstant,
+      deadlineDateString,
+      deadlineDate,
+    };
+  }
+
+  /**
+   * Retorna la fecha para columnas de tipo 'date' (alineada a medianoche UTC con la fecha local de Ecuador).
+   */
+  public static calculateDeadline(input: CalculateDeadlineInput): Date {
+    return this.calculateDetailedDeadline(input).deadlineDate;
+  }
+
+  /**
+   * Retorna la fecha local en formato string 'YYYY-MM-DD'.
+   */
+  public static calculateDeadlineDateString(
+    input: CalculateDeadlineInput,
+  ): string {
+    return this.calculateDetailedDeadline(input).deadlineDateString;
+  }
+
+  /**
+   * Retorna el instante exacto de fin de día (23:59:59.999 ECT = 04:59:59.999Z).
+   */
+  public static calculateDeadlineInstant(
+    input: CalculateDeadlineInput,
+  ): Date {
+    return this.calculateDetailedDeadline(input).deadlineInstant;
   }
 }

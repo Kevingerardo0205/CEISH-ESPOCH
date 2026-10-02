@@ -130,9 +130,9 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
-    // 8 días hábiles desde Mar 2 -> Jueves 12 de marzo a las 23:59:59.999 ECT (Mar 13 04:59:59.999 UTC)
+    // 8 días hábiles desde Mar 2 -> Jueves 12 de marzo (2026-03-12)
     expect(result[0].deadlineDate.toISOString()).toBe(
-      '2026-03-13T04:59:59.999Z',
+      '2026-03-12T00:00:00.000Z',
     );
     jest.useRealTimers();
   });
@@ -155,9 +155,9 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
-    // 15 días hábiles desde Mar 2 -> Lunes 23 de marzo a las 23:59:59.999 ECT (Mar 24 04:59:59.999 UTC)
+    // 15 días hábiles desde Mar 2 -> Lunes 23 de marzo (2026-03-23)
     expect(result[0].deadlineDate.toISOString()).toBe(
-      '2026-03-24T04:59:59.999Z',
+      '2026-03-23T00:00:00.000Z',
     );
     jest.useRealTimers();
   });
@@ -181,9 +181,9 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
-    // 8 días hábiles desde Jueves 5 -> Martes 17 de marzo a las 23:59:59.999 ECT (Mar 18 04:59:59.999 UTC)
+    // 8 días hábiles desde Jueves 5 -> Martes 17 de marzo (2026-03-17)
     expect(result[0].deadlineDate.toISOString()).toBe(
-      '2026-03-18T04:59:59.999Z',
+      '2026-03-17T00:00:00.000Z',
     );
     jest.useRealTimers();
   });
@@ -207,9 +207,9 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
-    // 8 días hábiles desde Viernes 6 -> Miércoles 18 de marzo a las 23:59:59.999 ECT (Mar 19 04:59:59.999 UTC)
+    // 8 días hábiles desde Viernes 6 -> Miércoles 18 de marzo (2026-03-18)
     expect(result[0].deadlineDate.toISOString()).toBe(
-      '2026-03-19T04:59:59.999Z',
+      '2026-03-18T00:00:00.000Z',
     );
     jest.useRealTimers();
   });
