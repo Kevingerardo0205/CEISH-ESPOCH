@@ -28,6 +28,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
     find: jest.Mock;
     findOne: jest.Mock;
     save: jest.Mock;
+    createQueryBuilder: jest.Mock;
   };
   let mockRiskProposalRepo: {
     find: jest.Mock;
