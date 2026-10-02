@@ -26,27 +26,25 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
   const mockEvaluationsService = {
     submitPeerRiskLevel: jest
       .fn()
-      .mockImplementation(
-        async (assignmentId: number, evaluatorId: number, dto: any) => {
-          // Simular contención de red y base de datos con bloqueo de fila
-          await new Promise((resolve) =>
-            setTimeout(resolve, Math.floor(Math.random() * 15) + 5),
-          );
+      .mockImplementation(async (assignmentId: number) => {
+        // Simular contención de red y base de datos con bloqueo de fila
+        await new Promise((resolve) =>
+          setTimeout(resolve, Math.floor(Math.random() * 15) + 5),
+        );
 
-          // Control de propuestas vigentes por asignación (máximo 1 activa por asignación)
-          activeProposalsPerAssignment[assignmentId] = 1;
+        // Control de propuestas vigentes por asignación (máximo 1 activa por asignación)
+        activeProposalsPerAssignment[assignmentId] = 1;
 
-          // Si es el segundo par que completa la coincidencia de riesgo
-          if (Object.keys(activeProposalsPerAssignment).length === 2) {
-            protocolDesignatedCount += 1;
-            deadlineRecalculationCount += 1;
-          }
+        // Si es el segundo par que completa la coincidencia de riesgo
+        if (Object.keys(activeProposalsPerAssignment).length === 2) {
+          protocolDesignatedCount += 1;
+          deadlineRecalculationCount += 1;
+        }
 
-          return {
-            message: 'Propuesta de nivel de riesgo enviada exitosamente.',
-          };
-        },
-      ),
+        return {
+          message: 'Propuesta de nivel de riesgo enviada exitosamente.',
+        };
+      }),
     getMyPendingPeerAssignments: jest.fn().mockResolvedValue([]),
     assignPeerEvaluators: jest.fn(),
     getCompletionStatus: jest.fn().mockResolvedValue({
@@ -56,9 +54,7 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
   };
 
   const mockAssignmentAdapterService = {
-    adaptAndAssign: jest
-      .fn()
-      .mockImplementation(async (protocolId: number, dto: any) => {
+    adaptAndAssign: jest.fn().mockImplementation((protocolId: number) => {
         // Simula la resolución real de plazos según reviewType
         const reviewType =
           protocolId === 10 ? ReviewType.EXPEDITA : ReviewType.PLENO;

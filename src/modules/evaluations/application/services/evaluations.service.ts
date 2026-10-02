@@ -921,8 +921,11 @@ export class EvaluationsService {
     //          de dictámenes éticos, my-assignments, submit, etc.)
     // ──────────────────────────────────────────────────────────────────
     const reviewType = protocol.reviewType || ReviewType.PLENO;
-    const deadline =
-      this.deadlineService.calculateEvaluatorDeadline(reviewType);
+    const deadline = BusinessDayCalculator.calculateDeadlineDateString({
+      startDate: new Date(),
+      businessDaysToAdd: reviewType === ReviewType.EXPEDITA ? 8 : 15,
+      holidays: [],
+    });
 
     const createdAssignments: EvaluationAssignmentOrmEntity[] = [];
     for (const candidate of evaluatorCandidates) {
@@ -953,7 +956,7 @@ export class EvaluationsService {
             evaluator.institutionalEmail,
             evaluator.fullName,
             protocol.ceishCode || `PROTOCOLO-${protocolId}`,
-            deadline,
+            new Date(deadline),
           )
           .catch((e) =>
             console.error(
@@ -1302,7 +1305,12 @@ export class EvaluationsService {
               );
             if (version) {
               const newDeadline =
-                this.deadlineService.calculateEvaluatorDeadline(reviewType);
+                BusinessDayCalculator.calculateDeadlineDateString({
+                  startDate: new Date(),
+                  businessDaysToAdd:
+                    reviewType === ReviewType.EXPEDITA ? 8 : 15,
+                  holidays: [],
+                });
               const assignmentsToUpdate =
                 await this.evaluationRepository.findAssignmentsByVersionId(
                   version.id,

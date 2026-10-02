@@ -12,7 +12,7 @@ describe('Evaluation ORM Entities (TSK-002-06)', () => {
     entity.evaluatorId = 303;
     entity.isAssignedForAnnex10 = true;
     entity.statusId = AssignmentStatus.REASIGNED_COI;
-    entity.deadline = new Date();
+    entity.deadline = '2026-03-12';
 
     expect(entity.id).toBe(101);
     expect(entity.versionId).toBe(202);
