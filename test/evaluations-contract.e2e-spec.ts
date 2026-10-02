@@ -116,6 +116,32 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       .mockResolvedValue({ message: 'Evaluación enviada' }),
     getMyAssignments: jest.fn().mockResolvedValue([]),
     getEvaluatorsDashboard: jest.fn().mockResolvedValue([]),
+    getMyPendingPeerAssignments: jest
+      .fn()
+      .mockImplementation((evaluatorId: number) =>
+        Promise.resolve([
+          {
+            id: 42,
+            evaluatorId,
+            protocolId: 10,
+            assignedAt: new Date('2026-03-01'),
+            deadline: new Date('2026-03-15'),
+            submittedAt: null,
+            proposedRiskLevelId: null,
+            observations: null,
+            reportPath: null,
+            protocol: {
+              id: 10,
+              code: 'CEISH-2026-001',
+              studyType: { name: 'Observacional' },
+              principalInvestigator: { fullName: 'Dr. Investigador' },
+            },
+          },
+        ]),
+      ),
+    submitPeerRiskLevel: jest.fn().mockResolvedValue({
+      message: 'Propuesta de nivel de riesgo enviada exitosamente.',
+    }),
   };
 
   const mockConsolidationService = {
@@ -644,6 +670,63 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       expect(res.body).toEqual({
         message: 'Lugar de reunión desactivado exitosamente.',
       });
+    });
+  });
+
+  describe('Contract 7: Peer Risk Assignment & Submission Flow (Annex 10 Safety Net)', () => {
+    it('debe rechazar GET /api/evaluations/peer-assignments/my-pending sin autenticación con 401', async () => {
+      await request(app.getHttpServer())
+        .get('/api/evaluations/peer-assignments/my-pending')
+        .expect(401);
+    });
+
+    it('debe responder HTTP 200 con asignaciones pendientes para el evaluador', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/evaluations/peer-assignments/my-pending')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'EVALUADOR')
+        .expect(200);
+
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body[0]).toHaveProperty('id', 42);
+      expect(res.body[0]).toHaveProperty('protocol');
+      expect(
+        mockEvaluationsService.getMyPendingPeerAssignments,
+      ).toHaveBeenCalled();
+    });
+
+    it('debe rechazar POST /api/evaluations/peer-assignments/:id/submit-risk sin autenticación con 401', async () => {
+      await request(app.getHttpServer())
+        .post('/api/evaluations/peer-assignments/42/submit-risk')
+        .send({
+          riskLevelId: 2,
+          observations: 'Riesgo medio observado',
+          reportPath: 'protocols/10/docEvaluacion/informe.pdf',
+        })
+        .expect(401);
+    });
+
+    it('debe responder HTTP 201 y procesar propuesta de riesgo cuando el evaluador envía datos válidos', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/peer-assignments/42/submit-risk')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'EVALUADOR')
+        .send({
+          riskLevelId: 2,
+          observations: 'Riesgo medio observado',
+          reportPath: 'protocols/10/docEvaluacion/informe.pdf',
+        })
+        .expect(201);
+
+      expect(res.body).toHaveProperty(
+        'message',
+        'Propuesta de nivel de riesgo enviada exitosamente.',
+      );
+      expect(mockEvaluationsService.submitPeerRiskLevel).toHaveBeenCalledWith(
+        42,
+        1,
+        expect.objectContaining({ riskLevelId: 2 }),
+      );
     });
   });
 });

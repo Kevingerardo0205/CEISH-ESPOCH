@@ -8,7 +8,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull } from 'typeorm';
+import { Repository, IsNull, DataSource } from 'typeorm';
 import { Permission } from '../../../../shared/enums/permission.enum';
 
 /**
@@ -95,6 +95,7 @@ import { IStorageService } from '../../../../shared/storage/domain/ports/storage
 import { DocxGeneratorService } from '../../../../shared/utils/docx-generator.service';
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
+import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
 
 @Injectable()
 export class EvaluationsService {
@@ -105,6 +106,10 @@ export class EvaluationsService {
     private readonly deadlineService: ProtocolDeadlineService,
     private readonly emailService: IEmailServicePort,
     private readonly conflictService: ConflictOfInterestService,
+    @InjectRepository(EvaluationAssignmentOrmEntity)
+    private readonly evalAssignmentRepo: Repository<EvaluationAssignmentOrmEntity>,
+    @InjectRepository(RiskProposalOrmEntity)
+    private readonly riskProposalRepo: Repository<RiskProposalOrmEntity>,
     @InjectRepository(PeerRiskAssignmentOrmEntity)
     private readonly peerRiskRepository: Repository<PeerRiskAssignmentOrmEntity>,
     @InjectRepository(RiskLevelOrmEntity)
@@ -121,6 +126,7 @@ export class EvaluationsService {
     private readonly docxGeneratorService: DocxGeneratorService,
     @Inject(IStorageService)
     private readonly storageService: IStorageService,
+    private readonly dataSource: DataSource,
   ) {}
 
   private readonly logger = new Logger(EvaluationsService.name);
@@ -964,7 +970,51 @@ export class EvaluationsService {
    * Obtener asignaciones de riesgo pendientes para el evaluador logueado
    */
   async getMyPendingPeerAssignments(evaluatorId: number) {
-    return this.peerRiskRepository.find({
+    // 1. Asignaciones canónicas (asignaciones_evaluacion con es_asignado_anexo_10 = true)
+    const canonicalAssignments = await this.evalAssignmentRepo.find({
+      where: {
+        evaluatorId,
+        isAssignedForAnnex10: true,
+      },
+      relations: [
+        'version',
+        'version.protocol',
+        'version.protocol.studyType',
+        'version.protocol.principalInvestigator',
+      ],
+      order: { assignedAt: 'DESC' },
+    });
+
+    const canonicalMapped: Array<Record<string, any>> = [];
+    for (const a of canonicalAssignments) {
+      const activeProposal = await this.riskProposalRepo.findOne({
+        where: { assignmentId: a.id, isCurrent: true },
+      });
+      if (!activeProposal) {
+        canonicalMapped.push({
+          id: a.id,
+          evaluatorId: a.evaluatorId,
+          protocolId: a.version?.protocolId,
+          assignedAt: a.assignedAt,
+          deadline: a.deadline,
+          submittedAt: null,
+          proposedRiskLevelId: null,
+          observations: null,
+          reportPath: null,
+          protocol: a.version?.protocol
+            ? {
+                ...a.version.protocol,
+                studyType: a.version.protocol.studyType,
+                principalInvestigator: a.version.protocol.principalInvestigator,
+              }
+            : undefined,
+        });
+      }
+    }
+
+    // 2. Asignaciones legacy si existiesen
+    // TODO: [LEGACY-RETIREMENT] Retirar fallback a peerRiskRepository una vez ejecutada la migración de datos y verificado que 0 registros activos dependan de asignaciones_pares_riesgo.
+    const legacyAssignments = await this.peerRiskRepository.find({
       where: {
         evaluatorId,
         submittedAt: IsNull(),
@@ -976,137 +1026,302 @@ export class EvaluationsService {
       ],
       order: { assignedAt: 'DESC' },
     });
+
+    // Combinar evitando duplicados de protocolo
+    const canonicalProtocolIds = new Set(
+      canonicalMapped.map((c) => c.protocolId).filter(Boolean),
+    );
+    const filteredLegacy = legacyAssignments.filter(
+      (l) => !canonicalProtocolIds.has(l.protocolId),
+    );
+
+    return [...canonicalMapped, ...filteredLegacy];
   }
 
   /**
    * Enviar propuesta de nivel de riesgo por parte de un par evaluador
+   * TODO: [ARCHITECTURE-EXTRACTION] Extraer la lógica completa de evaluación de pares de riesgo a un caso de uso dedicado SubmitPeerRiskUseCase una vez retirado el soporte legacy.
    */
   async submitPeerRiskLevel(
     assignmentId: number,
     evaluatorId: number,
     dto: SubmitPeerRiskDto,
   ) {
-    const assignment = await this.peerRiskRepository.findOne({
-      where: { id: assignmentId },
-      relations: ['protocol'],
-    });
-
-    if (!assignment)
-      throw new NotFoundException('Asignación de par no encontrada.');
-    if (assignment.evaluatorId !== evaluatorId) {
-      throw new BadRequestException(
-        'No tiene permisos para responder esta asignación.',
+    return this.dataSource.transaction(async (manager) => {
+      const evalAssignmentRepo = manager.getRepository(
+        EvaluationAssignmentOrmEntity,
       );
-    }
-    if (assignment.submittedAt) {
-      throw new BadRequestException(
-        'Esta asignación ya ha sido evaluada y enviada.',
-      );
-    }
+      const riskProposalRepo = manager.getRepository(RiskProposalOrmEntity);
+      const peerRiskRepo = manager.getRepository(PeerRiskAssignmentOrmEntity);
+      const riskLevelRepo = manager.getRepository(RiskLevelOrmEntity);
+      const protocolOrmRepo = manager.getRepository(ProtocolOrmEntity);
 
-    const riskLevel = await this.riskLevelRepository.findOne({
-      where: { id: dto.riskLevelId, isActive: true },
-    });
-    if (!riskLevel)
-      throw new NotFoundException(
-        `Nivel de riesgo con ID ${dto.riskLevelId} no encontrado o inactivo.`,
-      );
+      // 1. Intentar encontrar la asignación en el modelo canónico
+      const canonicalAssignment = await evalAssignmentRepo.findOne({
+        where: { id: assignmentId },
+        relations: ['version', 'version.protocol'],
+      });
 
-    // Registrar la propuesta del evaluador
-    assignment.proposedRiskLevelId = dto.riskLevelId;
-    assignment.observations = dto.observations;
-    assignment.reportPath = dto.reportPath;
-    assignment.submittedAt = new Date();
-    await this.peerRiskRepository.save(assignment);
+      if (canonicalAssignment) {
+        if (canonicalAssignment.evaluatorId !== evaluatorId) {
+          throw new BadRequestException(
+            'No tiene permisos para responder esta asignación.',
+          );
+        }
+        if (!canonicalAssignment.isAssignedForAnnex10) {
+          throw new BadRequestException(
+            'Esta asignación no corresponde al Anexo 10 (evaluación de riesgo).',
+          );
+        }
 
-    // Verificar si el otro par de riesgo (seleccionado aleatoriamente) ya respondió
-    const peerAssignments = await this.peerRiskRepository.find({
-      where: { protocolId: assignment.protocolId },
-      relations: ['proposedRiskLevel'],
-    });
+        // Bloqueo pesimista sobre las asignaciones de Anexo 10 de esta versión para evitar condiciones de carrera
+        const annex10Assignments = await evalAssignmentRepo
+          .createQueryBuilder('asg')
+          .setLock('pessimistic_write')
+          .where('asg.versionId = :versionId', {
+            versionId: canonicalAssignment.versionId,
+          })
+          .andWhere('asg.isAssignedForAnnex10 = true')
+          .getMany();
 
-    const allSubmitted = peerAssignments.every((a) => a.submittedAt !== null);
-
-    if (allSubmitted && peerAssignments.length === 2) {
-      // Ambos evaluadores de riesgo (seleccionados aleatoriamente) han respondido
-      const [p1, p2] = peerAssignments;
-
-      if (p1.proposedRiskLevelId === p2.proposedRiskLevelId) {
-        // Coinciden en el riesgo: consolidamos
-        const finalRiskLevelId = p1.proposedRiskLevelId!;
-
-        // Obtener los detalles del nivel de riesgo final seleccionado
-        const finalRiskLevel = await this.riskLevelRepository.findOne({
-          where: { id: finalRiskLevelId },
+        const existingProposal = await riskProposalRepo.findOne({
+          where: { assignmentId, isCurrent: true },
         });
+        if (existingProposal) {
+          throw new BadRequestException(
+            'Esta asignación ya ha sido evaluada y enviada para la ronda actual.',
+          );
+        }
 
-        if (finalRiskLevel) {
-          // Actualizar el protocolo con el riesgo oficial y marcarlo como designado
-          const protocol = assignment.protocol;
-          protocol.riskLevelId = finalRiskLevelId;
+        const riskLevel = await riskLevelRepo.findOne({
+          where: { id: dto.riskLevelId, isActive: true },
+        });
+        if (!riskLevel) {
+          throw new NotFoundException(
+            `Nivel de riesgo con ID ${dto.riskLevelId} no encontrado o inactivo.`,
+          );
+        }
 
-          // Mapear reviewType según el tipo_revision del nivel de riesgo
-          // (tipo_revision es 'EXPEDITA' o 'PLENO' o 'ENSAYO_CLINICO')
-          let reviewType: ReviewType = ReviewType.PLENO;
-          if (finalRiskLevel.reviewType === 'EXPEDITA') {
-            reviewType = ReviewType.EXPEDITA;
-          } else if (finalRiskLevel.code === 'ENSAYO_CLINICO') {
-            reviewType = ReviewType.ENSAYO_CLINICO;
-          }
+        // Determinar la ronda
+        const priorCount = await riskProposalRepo.count({
+          where: { assignmentId },
+        });
+        const currentRound = priorCount + 1;
 
-          protocol.reviewType = reviewType;
-          protocol.isRiskLevelDesignated = true; // nivel_riesgo_confirmado = true
-          protocol.statusId = 13; // Volver a estado 'EN EVALUACIÓN' al resolver discrepancias
+        // Crear la propuesta en la entidad canónica separada (RiskProposalOrmEntity)
+        const proposal = riskProposalRepo.create({
+          assignmentId,
+          riskLevelId: dto.riskLevelId,
+          observations: dto.observations,
+          reportPath: dto.reportPath,
+          round: currentRound,
+          isCurrent: true,
+        });
+        await riskProposalRepo.save(proposal);
 
-          await this.protocolOrmRepository.save(protocol);
+        // Verificar si los 2 evaluadores de Anexo 10 de esta versión ya enviaron su propuesta vigente
+        if (annex10Assignments.length === 2) {
+          const p1Assignment = annex10Assignments[0];
+          const p2Assignment = annex10Assignments[1];
 
-          // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion
-          const version =
-            await this.evaluationRepository.findVersionByProtocolId(
-              protocol.id,
-              1,
-            );
-          if (version) {
-            const newDeadline =
-              this.deadlineService.calculateEvaluatorDeadline(reviewType);
-            const assignmentsToUpdate =
-              await this.evaluationRepository.findAssignmentsByVersionId(
-                version.id,
-              );
-            for (const a of assignmentsToUpdate) {
-              if (a.statusId === +AssignmentStatus.ASSIGNED) {
-                a.deadline = newDeadline;
-                await this.evaluationRepository.saveAssignment(a);
+          const p1Proposal = await riskProposalRepo.findOne({
+            where: { assignmentId: p1Assignment.id, isCurrent: true },
+          });
+          const p2Proposal = await riskProposalRepo.findOne({
+            where: { assignmentId: p2Assignment.id, isCurrent: true },
+          });
+
+          if (p1Proposal && p2Proposal) {
+            const protocolId = canonicalAssignment.version?.protocolId;
+            const protocol = protocolId
+              ? await protocolOrmRepo.findOne({
+                  where: { id: protocolId },
+                })
+              : null;
+
+            if (protocol) {
+              if (p1Proposal.riskLevelId === p2Proposal.riskLevelId) {
+                const finalRiskLevelId = p1Proposal.riskLevelId;
+                const finalRiskLevel = await riskLevelRepo.findOne({
+                  where: { id: finalRiskLevelId },
+                });
+
+                if (finalRiskLevel) {
+                  let reviewType: ReviewType = ReviewType.PLENO;
+                  if (finalRiskLevel.reviewType === 'EXPEDITA') {
+                    reviewType = ReviewType.EXPEDITA;
+                  } else if (finalRiskLevel.code === 'ENSAYO_CLINICO') {
+                    reviewType = ReviewType.ENSAYO_CLINICO;
+                  }
+
+                  protocol.riskLevelId = finalRiskLevelId;
+                  protocol.reviewType = reviewType;
+                  protocol.isRiskLevelDesignated = true;
+                  protocol.statusId = 13; // EN EVALUACIÓN
+                  await protocolOrmRepo.save(protocol);
+
+                  // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion
+                  const newDeadline =
+                    this.deadlineService.calculateEvaluatorDeadline(reviewType);
+                  const allVersionAssignments = await evalAssignmentRepo.find({
+                    where: { versionId: canonicalAssignment.versionId },
+                  });
+                  for (const a of allVersionAssignments) {
+                    if (a.statusId === +AssignmentStatus.ASSIGNED) {
+                      a.deadline = newDeadline;
+                      await evalAssignmentRepo.save(a);
+                    }
+                  }
+                }
+              } else {
+                // Discrepancia: El sistema pasa el protocolo a estado 16 (DISCREPANCIA_RIESGO)
+                protocol.statusId = 16; // DISCREPANCIA_RIESGO
+                protocol.isRiskLevelDesignated = false;
+                await protocolOrmRepo.save(protocol);
+
+                // NO borrar: marcar las propuestas actuales como es_vigente = false para abrir una nueva ronda
+                p1Proposal.isCurrent = false;
+                p2Proposal.isCurrent = false;
+                await riskProposalRepo.save([p1Proposal, p2Proposal]);
+
+                return {
+                  message:
+                    'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El protocolo ha pasado a estado de discrepancia de riesgo y las propuestas han sido archivadas para permitir una nueva ronda tras el debate en pleno.',
+                };
               }
             }
           }
         }
-      } else {
-        // Discrepancia: El sistema no debe consolidar automáticamente al mayor,
-        // sino pasar el protocolo a un estado de disputa/discrepancia (statusId: 16)
-        // y volver a definir el nivel de riesgo por los pares evaluadores designados.
-        const protocol = assignment.protocol;
-        protocol.statusId = 16; // 16 = DISCREPANCIA_RIESGO
-        protocol.isRiskLevelDesignated = false;
-        await this.protocolOrmRepository.save(protocol);
-
-        // Reiniciar las asignaciones de riesgo de los dos pares para permitir volver a definir
-        for (const pa of peerAssignments) {
-          pa.proposedRiskLevelId = undefined;
-          pa.observations = undefined;
-          pa.reportPath = undefined;
-          pa.submittedAt = undefined;
-          await this.peerRiskRepository.save(pa);
-        }
 
         return {
-          message:
-            'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El protocolo ha pasado a estado de discrepancia de riesgo y las asignaciones han sido reiniciadas para volver a ser definidas tras llegar a un acuerdo en pleno.',
+          message: 'Propuesta de nivel de riesgo enviada exitosamente.',
         };
       }
-    }
 
-    return { message: 'Propuesta de nivel de riesgo enviada exitosamente.' };
+      // 2. Fallback al modelo legacy
+      // TODO: [LEGACY-RETIREMENT] Retirar fallback a peerRiskRepository una vez ejecutada la migración de datos y verificado que 0 registros activos dependan de asignaciones_pares_riesgo.
+      const assignment = await peerRiskRepo.findOne({
+        where: { id: assignmentId },
+        relations: ['protocol'],
+      });
+
+      if (!assignment)
+        throw new NotFoundException('Asignación de par no encontrada.');
+      if (assignment.evaluatorId !== evaluatorId) {
+        throw new BadRequestException(
+          'No tiene permisos para responder esta asignación.',
+        );
+      }
+      if (assignment.submittedAt) {
+        throw new BadRequestException(
+          'Esta asignación ya ha sido evaluada y enviada.',
+        );
+      }
+
+      const riskLevel = await riskLevelRepo.findOne({
+        where: { id: dto.riskLevelId, isActive: true },
+      });
+      if (!riskLevel)
+        throw new NotFoundException(
+          `Nivel de riesgo con ID ${dto.riskLevelId} no encontrado o inactivo.`,
+        );
+
+      // Registrar la propuesta del evaluador
+      assignment.proposedRiskLevelId = dto.riskLevelId;
+      assignment.observations = dto.observations;
+      assignment.reportPath = dto.reportPath;
+      assignment.submittedAt = new Date();
+      await peerRiskRepo.save(assignment);
+
+      // Verificar si el otro par de riesgo (seleccionado aleatoriamente) ya respondió
+      const peerAssignments = await peerRiskRepo.find({
+        where: { protocolId: assignment.protocolId },
+        relations: ['proposedRiskLevel'],
+      });
+
+      const allSubmitted = peerAssignments.every((a) => a.submittedAt !== null);
+
+      if (allSubmitted && peerAssignments.length === 2) {
+        // Ambos evaluadores de riesgo (seleccionados aleatoriamente) han respondido
+        const [p1, p2] = peerAssignments;
+
+        if (p1.proposedRiskLevelId === p2.proposedRiskLevelId) {
+          // Coinciden en el riesgo: consolidamos
+          const finalRiskLevelId = p1.proposedRiskLevelId!;
+
+          // Obtener los detalles del nivel de riesgo final seleccionado
+          const finalRiskLevel = await riskLevelRepo.findOne({
+            where: { id: finalRiskLevelId },
+          });
+
+          if (finalRiskLevel) {
+            // Actualizar el protocolo con el riesgo oficial y marcarlo como designado
+            const protocol = assignment.protocol;
+            protocol.riskLevelId = finalRiskLevelId;
+
+            // Mapear reviewType según el tipo_revision del nivel de riesgo
+            // (tipo_revision es 'EXPEDITA' o 'PLENO' o 'ENSAYO_CLINICO')
+            let reviewType: ReviewType = ReviewType.PLENO;
+            if (finalRiskLevel.reviewType === 'EXPEDITA') {
+              reviewType = ReviewType.EXPEDITA;
+            } else if (finalRiskLevel.code === 'ENSAYO_CLINICO') {
+              reviewType = ReviewType.ENSAYO_CLINICO;
+            }
+
+            protocol.reviewType = reviewType;
+            protocol.isRiskLevelDesignated = true; // nivel_riesgo_confirmado = true
+            protocol.statusId = 13; // Volver a estado 'EN EVALUACIÓN' al resolver discrepancias
+
+            await protocolOrmRepo.save(protocol);
+
+            // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion
+            const version =
+              await this.evaluationRepository.findVersionByProtocolId(
+                protocol.id,
+                1,
+              );
+            if (version) {
+              const newDeadline =
+                this.deadlineService.calculateEvaluatorDeadline(reviewType);
+              const assignmentsToUpdate =
+                await this.evaluationRepository.findAssignmentsByVersionId(
+                  version.id,
+                );
+              for (const a of assignmentsToUpdate) {
+                if (a.statusId === +AssignmentStatus.ASSIGNED) {
+                  a.deadline = newDeadline;
+                  await this.evaluationRepository.saveAssignment(a);
+                }
+              }
+            }
+          }
+        } else {
+          // Discrepancia: El sistema no debe consolidar automáticamente al mayor,
+          // sino pasar el protocolo a un estado de disputa/discrepancia (statusId: 16)
+          // y volver a definir el nivel de riesgo por los pares evaluadores designados.
+          const protocol = assignment.protocol;
+          protocol.statusId = 16; // 16 = DISCREPANCIA_RIESGO
+          protocol.isRiskLevelDesignated = false;
+          await protocolOrmRepo.save(protocol);
+
+          // Reiniciar las asignaciones de riesgo de los dos pares para permitir volver a definir
+          for (const pa of peerAssignments) {
+            pa.proposedRiskLevelId = undefined;
+            pa.observations = undefined;
+            pa.reportPath = undefined;
+            pa.submittedAt = undefined;
+            await peerRiskRepo.save(pa);
+          }
+
+          return {
+            message:
+              'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El protocolo ha pasado a estado de discrepancia de riesgo y las asignaciones han sido reiniciadas para volver a ser definidas tras llegar a un acuerdo en pleno.',
+          };
+        }
+      }
+
+      return { message: 'Propuesta de nivel de riesgo enviada exitosamente.' };
+    });
   }
 
   /**

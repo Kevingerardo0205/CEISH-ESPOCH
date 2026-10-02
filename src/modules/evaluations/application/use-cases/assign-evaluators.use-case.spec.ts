@@ -110,4 +110,48 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     expect(result).toHaveLength(4);
     expect(result[0].id).toBe(1);
   });
+
+  it('should calculate 8 business days deadline when reviewType is EXPEDITA', async () => {
+    const dto: AssignEvaluatorsDto = {
+      protocolId: 50,
+      versionId: 1,
+      reviewType: 'EXPEDITA' as any,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    const result = await useCase.execute(dto);
+    expect(result).toHaveLength(4);
+    // Deadline should be ~8 business days in the future
+    const now = new Date();
+    const diffMs = result[0].deadlineDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    expect(diffDays).toBeGreaterThanOrEqual(8);
+    expect(diffDays).toBeLessThanOrEqual(14); // 8 business days + 2 weekends max = 12-14 calendar days
+  });
+
+  it('should calculate 15 business days deadline when reviewType is PLENO or omitted', async () => {
+    const dto: AssignEvaluatorsDto = {
+      protocolId: 51,
+      versionId: 1,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    const result = await useCase.execute(dto);
+    expect(result).toHaveLength(4);
+    const now = new Date();
+    const diffMs = result[0].deadlineDate.getTime() - now.getTime();
+    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+    expect(diffDays).toBeGreaterThanOrEqual(15);
+    expect(diffDays).toBeLessThanOrEqual(23); // 15 business days + weekends
+  });
 });

@@ -10,10 +10,14 @@ import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 
 import { AssignEvaluatorsDto, EvaluatorItemDto } from '../dtos/evaluator-dtos';
 
+import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
+import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
+
 describe('EvaluatorAssignmentAdapterService', () => {
   let service: EvaluatorAssignmentAdapterService;
   let mockEvaluatorProfileUserRepo: { find: jest.Mock };
   let mockProfileRepo: { findOne: jest.Mock };
+  let mockProtocolOrmRepo: { findOne: jest.Mock };
   let mockAssignEvaluatorsUseCase: { execute: jest.Mock };
 
   beforeEach(async () => {
@@ -22,6 +26,9 @@ describe('EvaluatorAssignmentAdapterService', () => {
     };
     mockProfileRepo = {
       findOne: jest.fn(),
+    };
+    mockProtocolOrmRepo = {
+      findOne: jest.fn().mockResolvedValue({ id: 100, reviewType: 'PLENO' }),
     };
     mockAssignEvaluatorsUseCase = {
       execute: jest.fn().mockImplementation((dto: AssignEvaluatorsDto) =>
@@ -50,6 +57,10 @@ describe('EvaluatorAssignmentAdapterService', () => {
           useValue: mockProfileRepo,
         },
         {
+          provide: getRepositoryToken(ProtocolOrmEntity),
+          useValue: mockProtocolOrmRepo,
+        },
+        {
           provide: AssignEvaluatorsUseCase,
           useValue: mockAssignEvaluatorsUseCase,
         },
@@ -64,6 +75,7 @@ describe('EvaluatorAssignmentAdapterService', () => {
   it('should pass through canonical DTO with evaluators array directly to use case', async () => {
     const canonicalDto = {
       protocolId: 100,
+      reviewType: ReviewType.PLENO,
       evaluators: [
         { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
         { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
@@ -97,6 +109,7 @@ describe('EvaluatorAssignmentAdapterService', () => {
     expect(result).toHaveLength(4);
     expect(mockAssignEvaluatorsUseCase.execute).toHaveBeenCalledWith({
       protocolId: 100,
+      reviewType: ReviewType.PLENO,
       evaluators: [
         { evaluatorId: 10, profile: EvaluatorProfile.JURIDICO },
         { evaluatorId: 20, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
@@ -116,6 +129,41 @@ describe('EvaluatorAssignmentAdapterService', () => {
     await expect(service.adaptAndAssign(100, legacyDto)).rejects.toThrow(
       BadRequestException,
     );
+  });
+
+  it('should resolve multiple profiles per evaluator by finding the unique bijective combination', async () => {
+    const legacyDto = {
+      evaluatorIds: [10, 20, 30, 40],
+    };
+
+    // Evaluator 10 has both JURIDICO and SALUD
+    mockEvaluatorProfileUserRepo.find
+      .mockResolvedValueOnce([
+        { profile: { name: 'Jurídico' } },
+        { profile: { name: 'Salud y Medicina' } },
+      ])
+      // Evaluator 20 is SOCIEDAD_CIVIL
+      .mockResolvedValueOnce([{ profile: { name: 'Sociedad Civil' } }])
+      // Evaluator 30 is METODOLOGICO
+      .mockResolvedValueOnce([
+        { profile: { name: 'Metodología de la Investigación' } },
+      ])
+      // Evaluator 40 is SALUD (meaning evaluator 10 must resolve to JURIDICO)
+      .mockResolvedValueOnce([{ profile: { name: 'Salud y Medicina' } }]);
+
+    const result = await service.adaptAndAssign(100, legacyDto);
+
+    expect(result).toHaveLength(4);
+    expect(mockAssignEvaluatorsUseCase.execute).toHaveBeenCalledWith({
+      protocolId: 100,
+      reviewType: ReviewType.PLENO,
+      evaluators: [
+        { evaluatorId: 10, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 20, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 30, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 40, profile: EvaluatorProfile.SALUD },
+      ],
+    });
   });
 
   it('should throw BadRequestException if the 4 evaluators do not cover all 4 mandatory profiles', async () => {

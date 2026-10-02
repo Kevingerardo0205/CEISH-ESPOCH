@@ -7,6 +7,8 @@ import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 
+import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
+
 export interface IEvaluationRepository {
   saveAssignments?(
     entities: EvaluationAssignmentEntity[],
@@ -34,7 +36,7 @@ export class AssignEvaluatorsUseCase {
    */
   public async execute(
     dto: AssignEvaluatorsDto,
-    standardFullDays: number = 15,
+    standardFullDays?: number,
     holidays: string[] = [],
   ): Promise<EvaluationAssignmentEntity[]> {
     // 1. Validar la cuota exacta de 4 perfiles obligatorios (1 de cada uno)
@@ -45,10 +47,14 @@ export class AssignEvaluatorsUseCase {
       RandomRiskSelectorService.selectAnnex10Evaluators(dto.evaluators);
     const annex10Set = new Set(annex10EvaluatorIds);
 
-    // 3. Calcular la fecha límite de entrega respetando días hábiles
+    // 3. Determinar días hábiles según reviewType (8 para EXPEDITA, 15 para PLENO / por defecto)
+    const daysToAdd =
+      standardFullDays ?? (dto.reviewType === ReviewType.EXPEDITA ? 8 : 15);
+
+    // 4. Calcular la fecha límite de entrega respetando días hábiles
     const deadlineDate = BusinessDayCalculator.calculateDeadline({
       startDate: new Date(),
-      businessDaysToAdd: standardFullDays,
+      businessDaysToAdd: daysToAdd,
       holidays,
     });
 

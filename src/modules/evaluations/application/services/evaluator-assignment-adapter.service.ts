@@ -9,6 +9,8 @@ import { AssignPeerEvaluatorsDto } from '../dtos/assign-peer-evaluators.dto';
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 
+import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
+
 @Injectable()
 export class EvaluatorAssignmentAdapterService {
   constructor(
@@ -16,6 +18,8 @@ export class EvaluatorAssignmentAdapterService {
     private readonly evaluatorProfileUserRepo: Repository<EvaluatorProfileUserOrmEntity>,
     @InjectRepository(EvaluatorProfileOrmEntity)
     private readonly profileRepo: Repository<EvaluatorProfileOrmEntity>,
+    @InjectRepository(ProtocolOrmEntity)
+    private readonly protocolOrmRepo: Repository<ProtocolOrmEntity>,
     private readonly assignEvaluatorsUseCase: AssignEvaluatorsUseCase,
   ) {}
 
@@ -27,10 +31,17 @@ export class EvaluatorAssignmentAdapterService {
     protocolId: number,
     dto: AssignEvaluatorsDto | AssignPeerEvaluatorsDto,
   ): Promise<EvaluationAssignmentEntity[]> {
+    // Consultar el reviewType del protocolo si no viene especificado en el DTO
+    const protocol = await this.protocolOrmRepo.findOne({
+      where: { id: protocolId },
+      select: { id: true, reviewType: true },
+    });
+
     // 1. Si ya viene con el formato canónico (array de evaluators con perfiles)
     if ('evaluators' in dto && Array.isArray(dto.evaluators)) {
       return this.assignEvaluatorsUseCase.execute({
         protocolId,
+        reviewType: dto.reviewType ?? protocol?.reviewType,
         evaluators: dto.evaluators,
       });
     }
@@ -111,6 +122,7 @@ export class EvaluatorAssignmentAdapterService {
     // Invocar el caso de uso canónico
     return this.assignEvaluatorsUseCase.execute({
       protocolId,
+      reviewType: protocol?.reviewType,
       evaluators: resolvedMatching,
     });
   }

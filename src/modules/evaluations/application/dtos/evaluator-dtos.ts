@@ -13,6 +13,7 @@ import {
   EvaluatorProfile,
   ReassignmentReason,
 } from '../../../../shared/enums/evaluator-enums';
+import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
 
 export class EvaluatorItemDto {
   @IsNotEmpty({
@@ -34,6 +35,12 @@ export class AssignEvaluatorsDto {
 
   @IsOptional()
   versionId?: number;
+
+  @IsOptional()
+  @IsEnum(ReviewType, {
+    message: 'El tipo de revisión no es válido.',
+  })
+  reviewType?: ReviewType;
 
   @IsArray({ message: 'La lista de evaluadores debe ser un arreglo.' })
   @ArrayMinSize(4, {

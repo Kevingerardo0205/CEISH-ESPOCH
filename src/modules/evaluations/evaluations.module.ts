@@ -15,6 +15,7 @@ import { ConvocatoriaProtocoloOrmEntity } from './infrastructure/database/entiti
 import { LugarOrmEntity } from './infrastructure/database/entities/lugar.orm-entity';
 import { AssignmentHistoryOrmEntity } from './infrastructure/database/entities/assignment-history.orm-entity';
 import { SecuenciaConvocatoriaOrmEntity } from './infrastructure/database/entities/secuencia-convocatoria.orm-entity';
+import { RiskProposalOrmEntity } from './infrastructure/database/entities/risk-proposal.orm-entity';
 
 import { EvaluationsService } from './application/services/evaluations.service';
 import { ConflictOfInterestService } from './application/services/conflict-of-interest.service';
@@ -82,6 +83,7 @@ import { EvaluatorAssignmentAdapterService } from './application/services/evalua
       ResolutionTypeOrmEntity,
       ReceptionOrmEntity,
       ProtocolRequirementOrmEntity,
+      RiskProposalOrmEntity,
     ]),
 
     forwardRef(() => ProtocolsModule),
