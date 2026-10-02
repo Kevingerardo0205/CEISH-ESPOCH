@@ -7,7 +7,7 @@ export interface EvaluationAssignmentProps {
   evaluatorId: number | string;
   evaluatorProfile: EvaluatorProfile;
   isAssignedForAnnex10: boolean;
-  deadlineDate: Date;
+  deadlineDate: Date | string;
   status?: AssignmentStatus;
 }
 
@@ -17,7 +17,7 @@ export class EvaluationAssignmentEntity {
   public readonly evaluatorId: number | string;
   public readonly evaluatorProfile: EvaluatorProfile;
   public readonly isAssignedForAnnex10: boolean;
-  public readonly deadlineDate: Date;
+  public readonly deadlineDate: Date | string;
   private _status: AssignmentStatus;
 
   constructor(props: EvaluationAssignmentProps) {

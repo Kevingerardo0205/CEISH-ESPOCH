@@ -57,8 +57,8 @@ export class AssignEvaluatorsUseCase {
     const daysToAdd =
       standardFullDays ?? (dto.reviewType === ReviewType.EXPEDITA ? 8 : 15);
 
-    // 4. Calcular la fecha límite de entrega respetando días hábiles
-    const deadlineDate = BusinessDayCalculator.calculateDeadline({
+    // 4. Calcular la fecha límite de entrega respetando días hábiles (YYYY-MM-DD para columnas PostgreSQL date)
+    const deadlineDate = BusinessDayCalculator.calculateDeadlineDateString({
       startDate: new Date(),
       businessDaysToAdd: daysToAdd,
       holidays,

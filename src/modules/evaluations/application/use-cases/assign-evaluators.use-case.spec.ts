@@ -131,9 +131,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
     // 8 días hábiles desde Mar 2 -> Jueves 12 de marzo (2026-03-12)
-    expect(result[0].deadlineDate.toISOString()).toBe(
-      '2026-03-12T00:00:00.000Z',
-    );
+    expect(result[0].deadlineDate).toBe('2026-03-12');
     jest.useRealTimers();
   });
 
@@ -156,9 +154,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
     // 15 días hábiles desde Mar 2 -> Lunes 23 de marzo (2026-03-23)
-    expect(result[0].deadlineDate.toISOString()).toBe(
-      '2026-03-23T00:00:00.000Z',
-    );
+    expect(result[0].deadlineDate).toBe('2026-03-23');
     jest.useRealTimers();
   });
 
@@ -182,9 +178,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
     // 8 días hábiles desde Jueves 5 -> Martes 17 de marzo (2026-03-17)
-    expect(result[0].deadlineDate.toISOString()).toBe(
-      '2026-03-17T00:00:00.000Z',
-    );
+    expect(result[0].deadlineDate).toBe('2026-03-17');
     jest.useRealTimers();
   });
 
@@ -208,9 +202,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
     // 8 días hábiles desde Viernes 6 -> Miércoles 18 de marzo (2026-03-18)
-    expect(result[0].deadlineDate.toISOString()).toBe(
-      '2026-03-18T00:00:00.000Z',
-    );
+    expect(result[0].deadlineDate).toBe('2026-03-18');
     jest.useRealTimers();
   });
 });

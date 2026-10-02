@@ -56,7 +56,7 @@ export class EvaluationAssignmentOrmEntity {
   isAssignedForAnnex10!: boolean;
 
   @Column({ name: 'fecha_limite', type: 'date', nullable: true })
-  deadline?: Date;
+  deadline?: Date | string;
 
   @CreateDateColumn({ name: 'fecha_asignacion', type: 'timestamp' })
   assignedAt!: Date;

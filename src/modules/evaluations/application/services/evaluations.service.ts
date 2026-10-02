@@ -1162,13 +1162,14 @@ export class EvaluationsService {
                   protocol.statusId = 13; // EN EVALUACIÓN
                   await protocolOrmRepo.save(protocol);
 
-                  // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion usando BusinessDayCalculator
+                  // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion usando BusinessDayCalculator (YYYY-MM-DD para columna date)
                   const daysToAdd = reviewType === ReviewType.EXPEDITA ? 8 : 15;
-                  const newDeadline = BusinessDayCalculator.calculateDeadline({
-                    startDate: new Date(),
-                    businessDaysToAdd: daysToAdd,
-                    holidays: [],
-                  });
+                  const newDeadline =
+                    BusinessDayCalculator.calculateDeadlineDateString({
+                      startDate: new Date(),
+                      businessDaysToAdd: daysToAdd,
+                      holidays: [],
+                    });
                   const allVersionAssignments = await evalAssignmentRepo.find({
                     where: { versionId: canonicalAssignment.versionId },
                   });
