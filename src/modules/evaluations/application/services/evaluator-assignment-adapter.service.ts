@@ -119,7 +119,9 @@ export class EvaluatorAssignmentAdapterService {
       );
     }
 
-    // Invocar el caso de uso canónico
+    // NOTA DE POLÍTICA: Si el protocolo no tiene reviewType definido, se delega al caso de uso
+    // que aplicará fallback a ReviewType.PLENO (15 días hábiles). Esta regla opera como política
+    // de precaución institucional pendiente de confirmación formal por parte del comité CEISH.
     return this.assignEvaluatorsUseCase.execute({
       protocolId,
       reviewType: protocol?.reviewType,

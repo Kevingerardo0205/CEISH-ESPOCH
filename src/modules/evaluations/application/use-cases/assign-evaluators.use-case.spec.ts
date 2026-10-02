@@ -111,7 +111,11 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     expect(result[0].id).toBe(1);
   });
 
-  it('should calculate 8 business days deadline when reviewType is EXPEDITA', async () => {
+  it('should calculate exactly 8 business days deadline when reviewType is EXPEDITA (crossing weekend)', async () => {
+    jest.useFakeTimers();
+    // Lunes 2 de marzo de 2026 10:00:00 UTC
+    jest.setSystemTime(new Date('2026-03-02T10:00:00.000Z'));
+
     const dto: AssignEvaluatorsDto = {
       protocolId: 50,
       versionId: 1,
@@ -126,15 +130,16 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
-    // Deadline should be ~8 business days in the future
-    const now = new Date();
-    const diffMs = result[0].deadlineDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    expect(diffDays).toBeGreaterThanOrEqual(8);
-    expect(diffDays).toBeLessThanOrEqual(14); // 8 business days + 2 weekends max = 12-14 calendar days
+    // 8 días hábiles desde Mar 2 -> Jueves 12 de marzo a las 23:59:59.999 UTC
+    expect(result[0].deadlineDate.toISOString()).toBe('2026-03-12T23:59:59.999Z');
+    jest.useRealTimers();
   });
 
-  it('should calculate 15 business days deadline when reviewType is PLENO or omitted', async () => {
+  it('should calculate exactly 15 business days deadline when reviewType is PLENO or omitted', async () => {
+    jest.useFakeTimers();
+    // Lunes 2 de marzo de 2026 10:00:00 UTC
+    jest.setSystemTime(new Date('2026-03-02T10:00:00.000Z'));
+
     const dto: AssignEvaluatorsDto = {
       protocolId: 51,
       versionId: 1,
@@ -148,10 +153,32 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
     const result = await useCase.execute(dto);
     expect(result).toHaveLength(4);
-    const now = new Date();
-    const diffMs = result[0].deadlineDate.getTime() - now.getTime();
-    const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
-    expect(diffDays).toBeGreaterThanOrEqual(15);
-    expect(diffDays).toBeLessThanOrEqual(23); // 15 business days + weekends
+    // 15 días hábiles desde Mar 2 -> Lunes 23 de marzo a las 23:59:59.999 UTC
+    expect(result[0].deadlineDate.toISOString()).toBe('2026-03-23T23:59:59.999Z');
+    jest.useRealTimers();
+  });
+
+  it('should calculate exact deadline when executed on Friday at 20:00 Ecuador time (America/Guayaquil UTC-5)', async () => {
+    jest.useFakeTimers();
+    // Viernes 6 de marzo de 2026 a las 20:00:00 Ecuador (UTC-5) = Sábado 7 de marzo 01:00:00 UTC
+    jest.setSystemTime(new Date('2026-03-06T20:00:00-05:00'));
+
+    const dto: AssignEvaluatorsDto = {
+      protocolId: 52,
+      versionId: 1,
+      reviewType: 'EXPEDITA' as any,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    const result = await useCase.execute(dto);
+    expect(result).toHaveLength(4);
+    // Debido a setUTCHours, al ejecutarse a las 20:00 ECT (01:00 UTC del sábado 7), el contador inicia el lunes 9 y suma 8 días hábiles -> Miércoles 18 de marzo 23:59:59.999 UTC
+    expect(result[0].deadlineDate.toISOString()).toBe('2026-03-18T23:59:59.999Z');
+    jest.useRealTimers();
   });
 });
