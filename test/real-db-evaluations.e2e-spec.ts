@@ -171,4 +171,123 @@ describe('Real Database Integration Tests (ceish_test_db on localhost:3100)', ()
       'Propuesta preliminar de riesgo mínimo',
     );
   });
+
+  it('3. Concurrencia real con Promise.all: dos pares envían propuesta de riesgo simultáneamente a PostgreSQL', async () => {
+    // Preparar versión 9998 y asignaciones 9911 y 9912
+    await dataSource.query(`
+      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (9911, 9912);
+      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 9998;
+      DELETE FROM public.versiones_protocolo WHERE id = 9998;
+      DELETE FROM public.protocolos WHERE id = 998;
+
+      INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id)
+      VALUES (998, 'Protocolo de Concurrencia Real', 901, 10);
+
+      INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+      VALUES (9998, 998, 1, 10);
+
+      INSERT INTO evaluacion.asignaciones_evaluacion (
+        id, version_id, evaluador_id, estado_id, es_asignado_anexo_10, fecha_asignacion
+      ) VALUES 
+        (9911, 9998, 901, ${AssignmentStatus.ASSIGNED}, true, NOW()),
+        (9912, 9998, 902, ${AssignmentStatus.ASSIGNED}, true, NOW());
+    `);
+
+    // Función que simula la transacción atómica de submitPeerRiskLevel con bloqueo pesimista
+    const submitRiskInTx = async (
+      assignmentId: number,
+      evaluatorId: number,
+      riskLevelId: number,
+      obs: string,
+    ) => {
+      const queryRunner = dataSource.createQueryRunner();
+      await queryRunner.connect();
+      await queryRunner.startTransaction();
+
+      try {
+        // 1. Bloqueo pesimista con ORDER BY
+        await queryRunner.query(
+          `SELECT * FROM evaluacion.asignaciones_evaluacion 
+           WHERE version_id = 9998 AND es_asignado_anexo_10 = true 
+           ORDER BY id ASC FOR UPDATE`,
+        );
+
+        // 2. Insertar propuesta de riesgo
+        await queryRunner.query(
+          `INSERT INTO evaluacion.propuestas_riesgo (
+             asignacion_id, nivel_riesgo_id, observaciones, ronda, es_vigente, fecha_propuesta
+           ) VALUES ($1, $2, $3, 1, true, NOW())`,
+          [assignmentId, riskLevelId, obs],
+        );
+
+        // 3. Verificar si ambos ya tienen propuesta vigente
+        const proposals = await queryRunner.query(
+          `SELECT pr.* FROM evaluacion.propuestas_riesgo pr
+           INNER JOIN evaluacion.asignaciones_evaluacion asg ON pr.asignacion_id = asg.id
+           WHERE asg.version_id = 9998 AND pr.es_vigente = true`,
+        );
+
+        if (proposals.length === 2) {
+          const p1 = proposals[0];
+          const p2 = proposals[1];
+          if (p1.nivel_riesgo_id === p2.nivel_riesgo_id) {
+            await queryRunner.query(
+              `UPDATE public.protocolos 
+               SET estado_id = 13, nivel_riesgo_id = $1 
+               WHERE id = 998`,
+              [p1.nivel_riesgo_id],
+            );
+          } else {
+            await queryRunner.query(
+              `UPDATE public.protocolos SET estado_id = 16 WHERE id = 998`,
+            );
+          }
+        }
+
+        await queryRunner.commitTransaction();
+        return { success: true };
+      } catch (err) {
+        await queryRunner.rollbackTransaction();
+        throw err;
+      } finally {
+        await queryRunner.release();
+      }
+    };
+
+    // Ejecutar ambas transacciones en paralelo real (Promise.all)
+    const [res1, res2] = await Promise.all([
+      submitRiskInTx(9911, 901, 1, 'Propuesta Par 1'),
+      submitRiskInTx(9912, 902, 1, 'Propuesta Par 2'),
+    ]);
+
+    expect(res1.success).toBe(true);
+    expect(res2.success).toBe(true);
+
+    // Verificaciones SQL reales en PostgreSQL:
+    // (a) Exactamente 1 propuesta vigente por cada asignación
+    const proposals9911 = await dataSource.query(`
+      SELECT * FROM evaluacion.propuestas_riesgo WHERE asignacion_id = 9911 AND es_vigente = true;
+    `);
+    const proposals9912 = await dataSource.query(`
+      SELECT * FROM evaluacion.propuestas_riesgo WHERE asignacion_id = 9912 AND es_vigente = true;
+    `);
+    expect(proposals9911).toHaveLength(1);
+    expect(proposals9912).toHaveLength(1);
+
+    // (b) Estado final consolidado del protocolo = 13 (EN EVALUACION), nivel_riesgo_id = 1
+    const protocolRows = await dataSource.query(`
+      SELECT id, estado_id, nivel_riesgo_id FROM public.protocolos WHERE id = 998;
+    `);
+    expect(protocolRows).toHaveLength(1);
+    expect(protocolRows[0].estado_id).toBe(13);
+    expect(protocolRows[0].nivel_riesgo_id).toBe(1);
+
+    // Cleanup
+    await dataSource.query(`
+      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (9911, 9912);
+      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 9998;
+      DELETE FROM public.versiones_protocolo WHERE id = 9998;
+      DELETE FROM public.protocolos WHERE id = 998;
+    `);
+  });
 });
