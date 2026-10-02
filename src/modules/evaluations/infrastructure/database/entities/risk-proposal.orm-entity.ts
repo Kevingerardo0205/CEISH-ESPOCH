@@ -5,11 +5,18 @@ import {
   CreateDateColumn,
   ManyToOne,
   JoinColumn,
+  Unique,
+  Index,
 } from 'typeorm';
 import { EvaluationAssignmentOrmEntity } from '../evaluation-assignment.entity.orm';
 import { RiskLevelOrmEntity } from '../../../../protocols/infrastructure/database/risk-level.entity.orm';
 
 @Entity({ schema: 'evaluacion', name: 'propuestas_riesgo' })
+@Unique('uq_propuestas_riesgo_asignacion_ronda', ['assignmentId', 'round'])
+@Index('uq_propuestas_riesgo_asignacion_vigente', ['assignmentId'], {
+  unique: true,
+  where: 'es_vigente = true',
+})
 export class RiskProposalOrmEntity {
   @PrimaryGeneratedColumn()
   id!: number;
