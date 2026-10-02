@@ -43,6 +43,8 @@ import {
   ApiQuery,
 } from '@nestjs/swagger';
 
+import { EvaluatorAssignmentAdapterService } from '../../application/services/evaluator-assignment-adapter.service';
+
 @ApiTags('evaluations')
 @ApiBearerAuth()
 @Controller('evaluations')
@@ -54,6 +56,7 @@ export class EvaluationsController {
     private readonly assignEvaluatorsUseCase: AssignEvaluatorsUseCase,
     private readonly reassignEvaluatorUseCase: ReassignEvaluatorUseCase,
     private readonly submitEvaluationUseCase: SubmitEvaluationUseCase,
+    private readonly assignmentAdapterService: EvaluatorAssignmentAdapterService,
   ) {}
 
   @Get('consolidate/:protocolId')
@@ -152,19 +155,8 @@ export class EvaluationsController {
   async assignPeerEvaluators(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: AssignEvaluatorsDto | AssignPeerEvaluatorsDto,
-    @Request() req: Request & { user: JwtPayload },
   ) {
-    if ('evaluators' in dto && Array.isArray(dto.evaluators)) {
-      if (!dto.protocolId) {
-        dto.protocolId = id;
-      }
-      return this.assignEvaluatorsUseCase.execute(dto);
-    }
-    return this.evaluationsService.assignPeerEvaluators(
-      id,
-      dto as AssignPeerEvaluatorsDto,
-      req.user.id,
-    );
+    return this.assignmentAdapterService.adaptAndAssign(id, dto);
   }
 
   @Post('assign')

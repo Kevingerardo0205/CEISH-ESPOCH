@@ -53,6 +53,8 @@ import { ReceptionOrmEntity } from '../reception/infrastructure/database/recepti
 import { ProtocolRequirementOrmEntity } from '../protocols/infrastructure/database/protocol-requirement.entity.orm';
 import { MeetingPdfGeneratorAdapter } from './infrastructure/adapters/meeting-pdf-generator.adapter';
 
+import { EvaluatorAssignmentAdapterService } from './application/services/evaluator-assignment-adapter.service';
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -90,6 +92,7 @@ import { MeetingPdfGeneratorAdapter } from './infrastructure/adapters/meeting-pd
     ConflictOfInterestService,
     EvaluationConsolidationService,
     CallsService,
+    EvaluatorAssignmentAdapterService,
     CreateMeetingUseCase,
     CalculateMeetingDatesService,
     PdfGeneratorService,

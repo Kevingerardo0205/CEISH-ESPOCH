@@ -1,6 +1,11 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-return */
 import { Test, TestingModule } from '@nestjs/testing';
-import { INestApplication, ValidationPipe, UnauthorizedException, ForbiddenException } from '@nestjs/common';
+import {
+  INestApplication,
+  ValidationPipe,
+  UnauthorizedException,
+  ForbiddenException,
+} from '@nestjs/common';
 import request from 'supertest';
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/shared/guards/roles.guard';
@@ -16,7 +21,11 @@ import { EvaluationConsolidationService } from '../src/modules/evaluations/appli
 import { CallsService } from '../src/modules/evaluations/application/services/calls.service';
 import { CreateMeetingUseCase } from '../src/modules/evaluations/application/services/create-meeting.use-case';
 import { CalculateMeetingDatesService } from '../src/modules/evaluations/application/services/calculate-meeting-dates.service';
-import { EvaluatorProfile, ReassignmentReason } from '../src/shared/enums/evaluator-enums';
+import { EvaluatorAssignmentAdapterService } from '../src/modules/evaluations/application/services/evaluator-assignment-adapter.service';
+import {
+  EvaluatorProfile,
+  ReassignmentReason,
+} from '../src/shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../src/modules/evaluations/domain/enums/assignment-status.enum';
 
 describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)', () => {
@@ -24,17 +33,49 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
 
   const mockAssignEvaluatorsUseCase = {
     execute: jest.fn().mockImplementation((dto: any) => {
+      const evaluators = dto.evaluators || [];
       return Promise.resolve(
-        dto.evaluators.map((e: any, idx: number) => ({
+        evaluators.map((e: any, idx: number) => ({
           id: idx + 1,
           protocolId: dto.protocolId,
           evaluatorId: e.evaluatorId,
           evaluatorProfile: e.profile,
-          isAssignedForAnnex10: idx < 2 && e.profile !== EvaluatorProfile.SOCIEDAD_CIVIL,
+          isAssignedForAnnex10:
+            idx < 2 && e.profile !== EvaluatorProfile.SOCIEDAD_CIVIL,
           status: AssignmentStatus.ASSIGNED,
         })),
       );
     }),
+  };
+
+  const mockAssignmentAdapterService = {
+    adaptAndAssign: jest
+      .fn()
+      .mockImplementation((protocolId: number, dto: any) => {
+        if ('evaluators' in dto && Array.isArray(dto.evaluators)) {
+          return mockAssignEvaluatorsUseCase.execute({
+            protocolId,
+            evaluators: dto.evaluators,
+          });
+        }
+        if ('evaluatorIds' in dto && Array.isArray(dto.evaluatorIds)) {
+          const profiles = [
+            EvaluatorProfile.JURIDICO,
+            EvaluatorProfile.SOCIEDAD_CIVIL,
+            EvaluatorProfile.METODOLOGICO,
+            EvaluatorProfile.SALUD,
+          ];
+          const adapted = dto.evaluatorIds.map((id: number, idx: number) => ({
+            evaluatorId: id,
+            profile: profiles[idx],
+          }));
+          return mockAssignEvaluatorsUseCase.execute({
+            protocolId,
+            evaluators: adapted,
+          });
+        }
+        return Promise.resolve([]);
+      }),
   };
 
   const mockReassignEvaluatorUseCase = {
@@ -59,14 +100,20 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
   };
 
   const mockSubmitEvaluationUseCase = {
-    isCompletion100Percent: jest.fn().mockImplementation((protocolId: string) => {
-      return Promise.resolve(protocolId === '100');
-    }),
+    isCompletion100Percent: jest
+      .fn()
+      .mockImplementation((protocolId: string) => {
+        return Promise.resolve(protocolId === '100');
+      }),
   };
 
   const mockEvaluationsService = {
-    assignPeerEvaluators: jest.fn().mockResolvedValue({ message: 'Evaluadores asignados' }),
-    submitEvaluation: jest.fn().mockResolvedValue({ message: 'Evaluación enviada' }),
+    assignPeerEvaluators: jest
+      .fn()
+      .mockResolvedValue({ message: 'Evaluadores asignados' }),
+    submitEvaluation: jest
+      .fn()
+      .mockResolvedValue({ message: 'Evaluación enviada' }),
     getMyAssignments: jest.fn().mockResolvedValue([]),
     getEvaluatorsDashboard: jest.fn().mockResolvedValue([]),
   };
@@ -76,12 +123,16 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
   };
 
   const mockCallsService = {
-    findAllCalls: jest.fn().mockResolvedValue([
-      { id: 'call-uuid-1', sessionNumber: '001-2026', status: 'PROGRAMADA' },
-    ]),
-    findAllPlaces: jest.fn().mockResolvedValue([
-      { id: 'place-uuid-1', name: 'Sala de Consejo', isVirtual: false },
-    ]),
+    findAllCalls: jest
+      .fn()
+      .mockResolvedValue([
+        { id: 'call-uuid-1', sessionNumber: '001-2026', status: 'PROGRAMADA' },
+      ]),
+    findAllPlaces: jest
+      .fn()
+      .mockResolvedValue([
+        { id: 'place-uuid-1', name: 'Sala de Consejo', isVirtual: false },
+      ]),
     createCall: jest.fn().mockImplementation((dto: any) =>
       Promise.resolve({
         id: 'call-uuid-created',
@@ -90,9 +141,11 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       }),
     ),
     getPendingProtocolsForCall: jest.fn().mockResolvedValue([]),
-    findCallById: jest.fn().mockImplementation((id: string) =>
-      Promise.resolve({ id, sessionNumber: '001-2026' }),
-    ),
+    findCallById: jest
+      .fn()
+      .mockImplementation((id: string) =>
+        Promise.resolve({ id, sessionNumber: '001-2026' }),
+      ),
   };
 
   const mockCreateMeetingUseCase = {
@@ -110,7 +163,9 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
   };
 
   const mockCalculateDatesService = {
-    calculateSuggestedEvalDeadline: jest.fn().mockReturnValue(new Date('2026-06-11T23:59:59.999Z')),
+    calculateSuggestedEvalDeadline: jest
+      .fn()
+      .mockReturnValue(new Date('2026-06-11T23:59:59.999Z')),
   };
 
   const mockMeetingRepo = {
@@ -125,8 +180,12 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
   };
 
   const mockPdfGenerator = {
-    generateAgendaPdf: jest.fn().mockResolvedValue('/api/evaluations/meetings/meeting-uuid-1/pdf'),
-    generateMeetingPdf: jest.fn().mockResolvedValue('/api/evaluations/meetings/meeting-uuid-1/pdf'),
+    generateAgendaPdf: jest
+      .fn()
+      .mockResolvedValue('/api/evaluations/meetings/meeting-uuid-1/pdf'),
+    generateMeetingPdf: jest
+      .fn()
+      .mockResolvedValue('/api/evaluations/meetings/meeting-uuid-1/pdf'),
   };
 
   beforeAll(async () => {
@@ -135,14 +194,33 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [EvaluationsController, CallsController, MeetingsController],
       providers: [
-        { provide: AssignEvaluatorsUseCase, useValue: mockAssignEvaluatorsUseCase },
-        { provide: ReassignEvaluatorUseCase, useValue: mockReassignEvaluatorUseCase },
-        { provide: SubmitEvaluationUseCase, useValue: mockSubmitEvaluationUseCase },
+        {
+          provide: AssignEvaluatorsUseCase,
+          useValue: mockAssignEvaluatorsUseCase,
+        },
+        {
+          provide: ReassignEvaluatorUseCase,
+          useValue: mockReassignEvaluatorUseCase,
+        },
+        {
+          provide: SubmitEvaluationUseCase,
+          useValue: mockSubmitEvaluationUseCase,
+        },
         { provide: EvaluationsService, useValue: mockEvaluationsService },
-        { provide: EvaluationConsolidationService, useValue: mockConsolidationService },
+        {
+          provide: EvaluationConsolidationService,
+          useValue: mockConsolidationService,
+        },
         { provide: CallsService, useValue: mockCallsService },
         { provide: CreateMeetingUseCase, useValue: mockCreateMeetingUseCase },
-        { provide: CalculateMeetingDatesService, useValue: mockCalculateDatesService },
+        {
+          provide: CalculateMeetingDatesService,
+          useValue: mockCalculateDatesService,
+        },
+        {
+          provide: EvaluatorAssignmentAdapterService,
+          useValue: mockAssignmentAdapterService,
+        },
         { provide: 'IMeetingRepositoryPort', useValue: mockMeetingRepo },
         { provide: 'IMeetingPdfGeneratorPort', useValue: mockPdfGenerator },
       ],
@@ -153,7 +231,9 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
           const req = context.switchToHttp().getRequest();
           const authHeader = req.headers['authorization'];
           if (!authHeader || authHeader === 'Bearer invalid') {
-            throw new UnauthorizedException('Token de autenticación inválido o ausente');
+            throw new UnauthorizedException(
+              'Token de autenticación inválido o ausente',
+            );
           }
           const roleHeader = req.headers['x-test-role'] || 'SECRETARIA';
           req.user = {
@@ -321,24 +401,60 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
   });
 
   describe('Contract 4: POST /api/evaluations/protocols/:id/assign-peer-evaluators', () => {
-    it('debe soportar payload canónico con array de evaluators y llamar a AssignEvaluatorsUseCase', async () => {
-      const payload = {
-        evaluators: [
-          { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
-          { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
-          { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
-          { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
-        ],
-      };
+    const canonicalPayload = {
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
 
+    const legacyPayload = {
+      evaluatorIds: [1, 2, 3, 4],
+    };
+
+    it('debe rechazar con HTTP 401 si no se envía token de autenticación', async () => {
+      await request(app.getHttpServer())
+        .post('/api/evaluations/protocols/100/assign-peer-evaluators')
+        .send(legacyPayload)
+        .expect(401);
+    });
+
+    it('debe rechazar con HTTP 403 si el rol no tiene permisos (INVESTIGADOR)', async () => {
+      await request(app.getHttpServer())
+        .post('/api/evaluations/protocols/100/assign-peer-evaluators')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'INVESTIGADOR')
+        .send(legacyPayload)
+        .expect(403);
+    });
+
+    it('debe soportar payload canónico con array de evaluators y llamar a AssignEvaluatorsUseCase', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/100/assign-peer-evaluators')
         .set('Authorization', 'Bearer valid-token')
-        .send(payload)
+        .set('x-test-role', 'SECRETARIA')
+        .send(canonicalPayload)
         .expect(201);
 
       const data = res.body.data || res.body;
       expect(Array.isArray(data)).toBe(true);
+      expect(mockAssignmentAdapterService.adaptAndAssign).toHaveBeenCalled();
+      expect(mockAssignEvaluatorsUseCase.execute).toHaveBeenCalled();
+    });
+
+    it('debe soportar payload legacy con array evaluatorIds y resolver hacia AssignEvaluatorsUseCase', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/protocols/100/assign-peer-evaluators')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'SECRETARIA')
+        .send(legacyPayload)
+        .expect(201);
+
+      const data = res.body.data || res.body;
+      expect(Array.isArray(data)).toBe(true);
+      expect(mockAssignmentAdapterService.adaptAndAssign).toHaveBeenCalled();
       expect(mockAssignEvaluatorsUseCase.execute).toHaveBeenCalled();
     });
   });
