@@ -60,11 +60,11 @@ describe('Evaluation ORM Entities (TSK-002-06)', () => {
     expect(transformer.to(undefined)).toBeUndefined();
 
     // Caso 2: Instancia de Date lanza excepción estricta
-    expect(() => transformer.to(new Date())).toThrow(
-      'fecha_limite no acepta Date, use formato YYYY-MM-DD',
-    );
-    expect(() => transformer.to(new Date('2026-03-12'))).toThrow(
-      'fecha_limite no acepta Date, use formato YYYY-MM-DD',
-    );
+    expect(() => {
+      transformer.to(new Date());
+    }).toThrow('fecha_limite no acepta Date, use formato YYYY-MM-DD');
+    expect(() => {
+      transformer.to(new Date('2026-03-12'));
+    }).toThrow('fecha_limite no acepta Date, use formato YYYY-MM-DD');
   });
 });

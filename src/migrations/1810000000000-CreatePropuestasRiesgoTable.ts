@@ -4,7 +4,6 @@ import {
   Table,
   TableForeignKey,
   TableUnique,
-  TableIndex,
 } from 'typeorm';
 
 export class CreatePropuestasRiesgoTable1810000000000 implements MigrationInterface {

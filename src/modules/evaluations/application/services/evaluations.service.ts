@@ -98,6 +98,19 @@ import { RandomRiskSelectorService } from '../../domain/services/random-risk-sel
 import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
 import { BusinessDayCalculator } from '../../../../shared/services/deadline-calculator.service';
 
+export interface PendingPeerRiskAssignmentItem {
+  id: number;
+  evaluatorId: number;
+  protocolId?: number;
+  assignedAt: Date;
+  deadline?: string | null;
+  submittedAt: Date | null;
+  proposedRiskLevelId: number | null;
+  observations: string | null;
+  reportPath: string | null;
+  protocol?: ProtocolOrmEntity;
+}
+
 @Injectable()
 export class EvaluationsService {
   constructor(
@@ -970,7 +983,11 @@ export class EvaluationsService {
   /**
    * Obtener asignaciones de riesgo pendientes para el evaluador logueado
    */
-  async getMyPendingPeerAssignments(evaluatorId: number) {
+  async getMyPendingPeerAssignments(
+    evaluatorId: number,
+  ): Promise<
+    Array<PendingPeerRiskAssignmentItem | PeerRiskAssignmentOrmEntity>
+  > {
     // 1. Asignaciones canónicas (asignaciones_evaluacion con es_asignado_anexo_10 = true)
     const canonicalAssignments = await this.evalAssignmentRepo.find({
       where: {
@@ -986,7 +1003,7 @@ export class EvaluationsService {
       order: { assignedAt: 'DESC' },
     });
 
-    const canonicalMapped: Array<Record<string, any>> = [];
+    const canonicalMapped: PendingPeerRiskAssignmentItem[] = [];
     for (const a of canonicalAssignments) {
       const activeProposal = await this.riskProposalRepo.findOne({
         where: { assignmentId: a.id, isCurrent: true },
@@ -1002,13 +1019,7 @@ export class EvaluationsService {
           proposedRiskLevelId: null,
           observations: null,
           reportPath: null,
-          protocol: a.version?.protocol
-            ? {
-                ...a.version.protocol,
-                studyType: a.version.protocol.studyType,
-                principalInvestigator: a.version.protocol.principalInvestigator,
-              }
-            : undefined,
+          protocol: a.version?.protocol,
         });
       }
     }
@@ -1030,7 +1041,9 @@ export class EvaluationsService {
 
     // Combinar evitando duplicados de protocolo
     const canonicalProtocolIds = new Set(
-      canonicalMapped.map((c) => c.protocolId).filter(Boolean),
+      canonicalMapped
+        .map((c) => c.protocolId)
+        .filter((id): id is number => typeof id === 'number'),
     );
     const filteredLegacy = legacyAssignments.filter(
       (l) => !canonicalProtocolIds.has(l.protocolId),

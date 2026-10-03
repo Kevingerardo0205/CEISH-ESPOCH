@@ -1,12 +1,12 @@
 import { DataSource } from 'typeorm';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
-import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { EvaluationsService } from './evaluations.service';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 import { PeerRiskAssignmentOrmEntity } from '../../infrastructure/database/peer-assignment.entity.orm';
 import { RiskLevelOrmEntity } from '../../../protocols/infrastructure/database/risk-level.entity.orm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
+import { ProtocolVersionOrmEntity } from '../../infrastructure/database/protocol-version.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { InvestigatorProfileOrmEntity } from '../../../auth/infrastructure/database/investigator-profile.entity.orm';
 import { EvaluatorProfileUserOrmEntity } from '../../infrastructure/database/evaluator-profile-user.entity.orm';
@@ -76,7 +76,12 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
     mockRiskProposalRepo = {
       find: jest.fn(),
       findOne: jest.fn(),
-      create: jest.fn().mockImplementation((dto) => ({ id: 101, ...dto })),
+      create: jest
+        .fn()
+        .mockImplementation((dto: Partial<RiskProposalOrmEntity>) => ({
+          id: 101,
+          ...dto,
+        })),
       save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
       count: jest.fn().mockResolvedValue(0),
     };
@@ -110,7 +115,11 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       }),
     };
     mockDataSource = {
-      transaction: jest.fn().mockImplementation(async (cb) => cb(mockManager)),
+      transaction: jest
+        .fn()
+        .mockImplementation((cb: (manager: unknown) => Promise<unknown>) =>
+          cb(mockManager),
+        ),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -180,7 +189,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       version: {
         id: 100,
         protocolId: 50,
-      } as any,
+      } as unknown as ProtocolVersionOrmEntity,
     };
 
     mockEvalAssignmentRepo.findOne.mockResolvedValue(canonicalAssignment);
@@ -228,7 +237,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       version: {
         id: 100,
         protocolId: 50,
-      } as any,
+      } as unknown as ProtocolVersionOrmEntity,
     };
 
     mockEvalAssignmentRepo.findOne.mockResolvedValue(canonicalAssignment);
@@ -296,7 +305,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       version: {
         id: 100,
         protocolId: 50,
-      } as any,
+      } as unknown as ProtocolVersionOrmEntity,
     };
 
     mockEvalAssignmentRepo.findOne.mockResolvedValue(canonicalAssignment);
@@ -371,21 +380,29 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       evaluatorId: 10,
       versionId: 100,
       isAssignedForAnnex10: true,
-      version: { id: 100, protocolId: 50 } as any,
+      version: {
+        id: 100,
+        protocolId: 50,
+      } as unknown as ProtocolVersionOrmEntity,
     };
     const asg2: Partial<EvaluationAssignmentOrmEntity> = {
       id: 2,
       evaluatorId: 20,
       versionId: 100,
       isAssignedForAnnex10: true,
-      version: { id: 100, protocolId: 50 } as any,
+      version: {
+        id: 100,
+        protocolId: 50,
+      } as unknown as ProtocolVersionOrmEntity,
     };
 
-    mockEvalAssignmentRepo.findOne.mockImplementation(({ where: { id } }) => {
-      if (id === 1) return Promise.resolve(asg1);
-      if (id === 2) return Promise.resolve(asg2);
-      return Promise.resolve(null);
-    });
+    mockEvalAssignmentRepo.findOne.mockImplementation(
+      ({ where: { id } }: { where: { id: number } }) => {
+        if (id === 1) return Promise.resolve(asg1);
+        if (id === 2) return Promise.resolve(asg2);
+        return Promise.resolve(null);
+      },
+    );
 
     mockRiskLevelRepo.findOne.mockResolvedValue({
       id: 2,
@@ -401,9 +418,13 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
     };
     mockProtocolOrmRepo.findOne.mockResolvedValue(mockProtocol);
 
-    const savedProposals: Record<number, any> = {};
+    const savedProposals: Record<number, Partial<RiskProposalOrmEntity>> = {};
     mockRiskProposalRepo.findOne.mockImplementation(
-      ({ where: { assignmentId, isCurrent } }) => {
+      ({
+        where: { assignmentId, isCurrent },
+      }: {
+        where: { assignmentId: number; isCurrent?: boolean };
+      }) => {
         if (isCurrent && savedProposals[assignmentId]) {
           return Promise.resolve(savedProposals[assignmentId]);
         }
@@ -411,12 +432,14 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       },
     );
 
-    mockRiskProposalRepo.save.mockImplementation((entity) => {
-      if (entity.assignmentId) {
-        savedProposals[entity.assignmentId] = entity;
-      }
-      return Promise.resolve(entity);
-    });
+    mockRiskProposalRepo.save.mockImplementation(
+      (entity: Partial<RiskProposalOrmEntity>) => {
+        if (entity.assignmentId) {
+          savedProposals[entity.assignmentId] = entity;
+        }
+        return Promise.resolve(entity);
+      },
+    );
 
     mockEvalAssignmentRepo.find.mockResolvedValue([
       {
