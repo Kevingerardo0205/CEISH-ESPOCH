@@ -69,14 +69,9 @@ export class EvaluationAssignmentOrmEntity {
         if (!value) return value;
         if (typeof value === 'string') return value;
         if (value instanceof Date) {
-          // Convertir usando la fecha de calendario de Ecuador (America/Guayaquil, UTC-5), nunca con UTC
-          const ectFormatter = new Intl.DateTimeFormat('en-CA', {
-            timeZone: 'America/Guayaquil',
-            year: 'numeric',
-            month: '2-digit',
-            day: '2-digit',
-          });
-          return ectFormatter.format(value);
+          throw new Error(
+            'fecha_limite no acepta Date, use formato YYYY-MM-DD',
+          );
         }
         return value;
       },

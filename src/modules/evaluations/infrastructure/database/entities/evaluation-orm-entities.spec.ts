@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { getMetadataArgsStorage, ValueTransformer } from 'typeorm';
 import { EvaluationAssignmentOrmEntity } from '../evaluation-assignment.entity.orm';
 import { AssignmentHistoryOrmEntity } from './assignment-history.orm-entity';
 import { AssignmentStatus } from '../../../domain/enums/assignment-status.enum';
@@ -41,16 +42,29 @@ describe('Evaluation ORM Entities (TSK-002-06)', () => {
     expect(entity.executedBy).toBe(15);
   });
 
-  it('should format Date objects using Ecuador calendar timezone in deadline transformer', () => {
-    // 2026-03-13T04:59:59.999Z es 2026-03-12 23:59:59.999 ECT
-    const instant = new Date('2026-03-13T04:59:59.999Z');
-    const ectFormatter = new Intl.DateTimeFormat('en-CA', {
-      timeZone: 'America/Guayaquil',
-      year: 'numeric',
-      month: '2-digit',
-      day: '2-digit',
-    });
-    const formatted = ectFormatter.format(instant);
-    expect(formatted).toBe('2026-03-12');
+  it('should invoke the REAL deadline transformer from EvaluationAssignmentOrmEntity metadata', () => {
+    const columnMetadata = getMetadataArgsStorage().columns.find(
+      (c) =>
+        c.target === EvaluationAssignmentOrmEntity &&
+        c.propertyName === 'deadline',
+    );
+    expect(columnMetadata).toBeDefined();
+
+    const transformer = columnMetadata!.options.transformer as ValueTransformer;
+    expect(transformer).toBeDefined();
+    expect(typeof transformer.to).toBe('function');
+
+    // Caso 1: Cadena 'YYYY-MM-DD' intacta
+    expect(transformer.to('2026-03-12')).toBe('2026-03-12');
+    expect(transformer.to(null)).toBeNull();
+    expect(transformer.to(undefined)).toBeUndefined();
+
+    // Caso 2: Instancia de Date lanza excepción estricta
+    expect(() => transformer.to(new Date())).toThrow(
+      'fecha_limite no acepta Date, use formato YYYY-MM-DD',
+    );
+    expect(() => transformer.to(new Date('2026-03-12'))).toThrow(
+      'fecha_limite no acepta Date, use formato YYYY-MM-DD',
+    );
   });
 });

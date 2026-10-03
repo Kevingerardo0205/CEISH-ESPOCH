@@ -4,6 +4,16 @@ export interface CalculateDeadlineInput {
   holidays: string[];
 }
 
+export function toCalendarDateString(date: Date): string {
+  const ectFormatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Guayaquil',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+  });
+  return ectFormatter.format(date);
+}
+
 export interface DeadlineCalculationResult {
   /**
    * Instante exacto de fin de día en hora de Ecuador (23:59:59.999 ECT = 04:59:59.999Z día siguiente)

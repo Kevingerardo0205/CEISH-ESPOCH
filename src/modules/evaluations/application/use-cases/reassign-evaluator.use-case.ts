@@ -87,7 +87,7 @@ export class ReassignEvaluatorUseCase {
         evaluatorId: orm.evaluatorId,
         evaluatorProfile: profile,
         isAssignedForAnnex10: orm.isAssignedForAnnex10 ?? false,
-        deadlineDate: orm.deadline ?? new Date(),
+        deadlineDate: orm.deadline ?? '',
         status: orm.statusId,
       });
     }
