@@ -1,9 +1,12 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument, @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-call */
 process.env.DB_NAME = process.env.TEST_DB_NAME || 'ceish_test_db';
-process.env.DB_HOST = process.env.TEST_DB_HOST || 'localhost';
-process.env.DB_PORT = process.env.TEST_DB_PORT || '3100';
-process.env.DB_USERNAME = process.env.TEST_DB_USER || 'ceish_user';
-process.env.DB_PASSWORD = process.env.TEST_DB_PASSWORD || 'ceish_password';
+process.env.DB_HOST =
+  process.env.TEST_DB_HOST || process.env.DB_HOST || 'localhost';
+process.env.DB_PORT = process.env.TEST_DB_PORT || process.env.DB_PORT || '3100';
+process.env.DB_USERNAME =
+  process.env.TEST_DB_USER || process.env.DB_USERNAME || 'ceish_user';
+process.env.DB_PASSWORD =
+  process.env.TEST_DB_PASSWORD || process.env.DB_PASSWORD || '';
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ExecutionContext } from '@nestjs/common';
@@ -49,10 +52,14 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     }
 
     process.env.DB_NAME = dbName;
-    process.env.DB_HOST = process.env.TEST_DB_HOST || 'localhost';
-    process.env.DB_PORT = process.env.TEST_DB_PORT || '3100';
-    process.env.DB_USERNAME = process.env.TEST_DB_USER || 'ceish_user';
-    process.env.DB_PASSWORD = process.env.TEST_DB_PASSWORD || 'ceish_password';
+    process.env.DB_HOST =
+      process.env.TEST_DB_HOST || process.env.DB_HOST || 'localhost';
+    process.env.DB_PORT =
+      process.env.TEST_DB_PORT || process.env.DB_PORT || '3100';
+    process.env.DB_USERNAME =
+      process.env.TEST_DB_USER || process.env.DB_USERNAME || 'ceish_user';
+    process.env.DB_PASSWORD =
+      process.env.TEST_DB_PASSWORD || process.env.DB_PASSWORD || '';
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
