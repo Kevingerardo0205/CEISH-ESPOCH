@@ -636,6 +636,16 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         resCreateMeeting.body.id || resCreateMeeting.body.data?.id;
       expect(createdMeetingId).toBeDefined();
 
+      // Verificación SQL directa en PostgreSQL de la fila creada
+      const meetingRows = await dataSource.query(`
+        SELECT id, numero_convocatoria, tipo_session, estado 
+        FROM evaluacion.convocatorias 
+        WHERE id = '${createdMeetingId}';
+      `);
+      expect(meetingRows.length).toBe(1);
+      expect(meetingRows[0].tipo_session).toBe('ORDINARIA');
+      expect(meetingRows[0].estado).toBe('PROGRAMADA');
+
       // 4. GET /api/evaluations/meetings/:id
       const resGetMeeting = await request(app.getHttpServer())
         .get(`/api/evaluations/meetings/${createdMeetingId}`)
