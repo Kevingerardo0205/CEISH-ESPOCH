@@ -74,10 +74,31 @@ export class ReassignEvaluatorUseCase {
         2: EvaluatorProfile.SOCIEDAD_CIVIL,
         3: EvaluatorProfile.METODOLOGICO,
         4: EvaluatorProfile.SALUD,
+        6: EvaluatorProfile.METODOLOGICO,
+        7: EvaluatorProfile.SALUD,
+        8: EvaluatorProfile.JURIDICO,
+        9: EvaluatorProfile.SALUD,
+        10: EvaluatorProfile.SOCIEDAD_CIVIL,
+      };
+
+      const parseProfileEnum = (
+        name?: string,
+      ): EvaluatorProfile | undefined => {
+        if (!name) return undefined;
+        const norm = name
+          .normalize('NFD')
+          .replace(/[\u0300-\u036f]/g, '')
+          .toUpperCase()
+          .replace(/\s+/g, '_');
+        if (norm.includes('JURIDIC')) return EvaluatorProfile.JURIDICO;
+        if (norm.includes('SOCIEDAD')) return EvaluatorProfile.SOCIEDAD_CIVIL;
+        if (norm.includes('METODOL')) return EvaluatorProfile.METODOLOGICO;
+        if (norm.includes('SALUD')) return EvaluatorProfile.SALUD;
+        return undefined;
       };
 
       const profile =
-        (orm.profile?.name as EvaluatorProfile) ??
+        parseProfileEnum(orm.profile?.name) ??
         (orm.profileId ? profileIdToEnumMap[orm.profileId] : undefined) ??
         EvaluatorProfile.SALUD;
 
@@ -122,10 +143,10 @@ export class ReassignEvaluatorUseCase {
 
     if (this.reassignmentRepository.executeReassignmentTransaction) {
       const profileEnumToIdMap: Record<string, number> = {
-        [EvaluatorProfile.JURIDICO]: 1,
-        [EvaluatorProfile.SOCIEDAD_CIVIL]: 2,
-        [EvaluatorProfile.METODOLOGICO]: 3,
-        [EvaluatorProfile.SALUD]: 4,
+        [EvaluatorProfile.METODOLOGICO]: 6,
+        [EvaluatorProfile.JURIDICO]: 8,
+        [EvaluatorProfile.SALUD]: 9,
+        [EvaluatorProfile.SOCIEDAD_CIVIL]: 10,
       };
 
       const rawVersionId =
@@ -133,6 +154,12 @@ export class ReassignEvaluatorUseCase {
         (typeof currentAssignment.protocolId === 'number'
           ? currentAssignment.protocolId
           : 1);
+
+      const resolvedProfileId =
+        (currentAssignmentRaw as EvaluationAssignmentOrmEntity).profileId ??
+        (currentAssignmentRaw as EvaluationAssignmentOrmEntity).profile?.id ??
+        profileEnumToIdMap[dto.replacementEvaluatorProfile] ??
+        9;
 
       const res =
         await this.reassignmentRepository.executeReassignmentTransaction({
@@ -147,7 +174,7 @@ export class ReassignEvaluatorUseCase {
               typeof dto.replacementEvaluatorId === 'number'
                 ? dto.replacementEvaluatorId
                 : parseInt(`${dto.replacementEvaluatorId}`, 10) || 0,
-            profileId: profileEnumToIdMap[dto.replacementEvaluatorProfile] ?? 1,
+            profileId: resolvedProfileId,
             statusId: AssignmentStatus.ASSIGNED,
             isAssignedForAnnex10:
               reassignmentResult.newAssignment.isAssignedForAnnex10,
@@ -162,7 +189,7 @@ export class ReassignEvaluatorUseCase {
               typeof currentAssignment.evaluatorId === 'number'
                 ? currentAssignment.evaluatorId
                 : parseInt(`${currentAssignment.evaluatorId}`, 10) || 0,
-            profileId: profileEnumToIdMap[dto.replacementEvaluatorProfile] ?? 1,
+            profileId: resolvedProfileId,
             reason: dto.reason,
             justification: dto.reasonDescription,
             newEvaluatorId:

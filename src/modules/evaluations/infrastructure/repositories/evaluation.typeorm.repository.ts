@@ -1,6 +1,7 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
+import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import { IEvaluationRepository } from '../../domain/ports/evaluation.repository.port';
 import { EvaluationAssignmentOrmEntity } from '../database/evaluation-assignment.entity.orm';
 import { EvaluatorProfileOrmEntity } from '../database/evaluator-profile.entity.orm';
@@ -133,9 +134,15 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
       );
 
       // 2. Crear y guardar la nueva asignación
+      const resolvedProfileId =
+        outgoing.profileId ?? params.newAssignment.profileId;
+
       const newAssignmentEntity = queryRunner.manager.create(
         EvaluationAssignmentOrmEntity,
-        params.newAssignment,
+        {
+          ...params.newAssignment,
+          profileId: resolvedProfileId,
+        },
       );
       const savedNewAssignment = await queryRunner.manager.save(
         EvaluationAssignmentOrmEntity,
@@ -147,6 +154,7 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
         AssignmentHistoryOrmEntity,
         {
           ...params.auditHistory,
+          profileId: resolvedProfileId,
           previousAssignmentId: savedOutgoing.id,
           newAssignmentId: savedNewAssignment.id,
         },
@@ -235,7 +243,16 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
       qb.andWhere('p.id = :profileId', { profileId });
     }
 
-    const rawData = await qb.getRawMany();
+    interface RawEvaluatorRow {
+      u_id: number;
+      u_nombres_completos: string;
+      u_email_institucional: string;
+      p_id?: number;
+      p_nombre?: string;
+      a_active_id?: number;
+      a_done_id?: number;
+    }
+    const rawData = await qb.getRawMany<RawEvaluatorRow>();
 
     interface EvaluatorData {
       profiles: Map<number, string>;
@@ -257,7 +274,8 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
         };
         evaluatorsMap.set(row.u_id, evaluator);
       }
-      if (row.p_id) evaluator.profiles.set(row.p_id, row.p_nombre);
+      if (row.p_id && row.p_nombre)
+        evaluator.profiles.set(row.p_id, row.p_nombre);
       if (row.a_active_id) evaluator.activeAssignments.add(row.a_active_id);
       if (row.a_done_id) evaluator.completedThisMonth.add(row.a_done_id);
     });
@@ -293,7 +311,10 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     id: number,
     entity: Partial<EvaluatorProfileOrmEntity>,
   ): Promise<void> {
-    await this.profileRepo.update(id, entity as any);
+    await this.profileRepo.update(
+      id,
+      entity as QueryDeepPartialEntity<EvaluatorProfileOrmEntity>,
+    );
   }
 
   async deleteProfile(id: number): Promise<void> {
