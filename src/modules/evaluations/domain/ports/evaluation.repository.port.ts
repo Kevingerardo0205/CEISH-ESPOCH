@@ -41,6 +41,10 @@ export abstract class IEvaluationRepository {
   }>;
 
   // Evaluators & Profiles
+  abstract hasActiveProfile(
+    userId: number | string,
+    profileId: number,
+  ): Promise<boolean>;
   abstract findEvaluatorsWithWorkload(
     profileId?: number,
   ): Promise<Record<string, unknown>[]>;

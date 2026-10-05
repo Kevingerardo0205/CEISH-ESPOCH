@@ -8,7 +8,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, DataSource } from 'typeorm';
+import { Repository, IsNull, In, DataSource } from 'typeorm';
 import { Permission } from '../../../../shared/enums/permission.enum';
 
 /**
@@ -996,6 +996,7 @@ export class EvaluationsService {
       where: {
         evaluatorId,
         isAssignedForAnnex10: true,
+        statusId: In([AssignmentStatus.ASSIGNED, AssignmentStatus.SUGGESTED]),
       },
       relations: [
         'version',
@@ -1085,13 +1086,22 @@ export class EvaluationsService {
             'No tiene permisos para responder esta asignación.',
           );
         }
+        if (
+          canonicalAssignment.statusId === +AssignmentStatus.REASIGNED_COI ||
+          canonicalAssignment.statusId ===
+            +AssignmentStatus.REASIGNED_VENCIMIENTO
+        ) {
+          throw new BadRequestException(
+            'Esta asignación ha sido reasignada y ya no está vigente.',
+          );
+        }
         if (!canonicalAssignment.isAssignedForAnnex10) {
           throw new BadRequestException(
             'Esta asignación no corresponde al Anexo 10 (evaluación de riesgo).',
           );
         }
 
-        // Bloqueo pesimista sobre las asignaciones de Anexo 10 de esta versión para evitar condiciones de carrera
+        // Bloqueo pesimista sobre las asignaciones de Anexo 10 vigentes de esta versión para evitar condiciones de carrera
         const annex10Assignments = await evalAssignmentRepo
           .createQueryBuilder('asg')
           .setLock('pessimistic_write')
@@ -1099,6 +1109,13 @@ export class EvaluationsService {
             versionId: canonicalAssignment.versionId,
           })
           .andWhere('asg.isAssignedForAnnex10 = true')
+          .andWhere('asg.statusId IN (:...activeStatuses)', {
+            activeStatuses: [
+              AssignmentStatus.SUGGESTED,
+              AssignmentStatus.ASSIGNED,
+              AssignmentStatus.COMPLETED,
+            ],
+          })
           .orderBy('asg.id', 'ASC')
           .getMany();
 

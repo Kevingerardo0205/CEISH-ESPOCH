@@ -1,4 +1,4 @@
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, BadRequestException } from '@nestjs/common';
 import { ReassignEvaluatorDto } from '../dtos/evaluator-dtos';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import { AssignmentHistoryEntity } from '../../domain/entities/assignment-history.entity';
@@ -15,6 +15,13 @@ export interface IReassignmentRepository {
   findAssignmentById(
     id: number | string,
   ): Promise<EvaluationAssignmentEntity | EvaluationAssignmentOrmEntity | null>;
+  findActiveAssignmentsByVersionId?(
+    versionId: number,
+  ): Promise<EvaluationAssignmentOrmEntity[]>;
+  hasActiveProfile?(
+    evaluatorId: number | string,
+    profileId: number,
+  ): Promise<boolean>;
   executeReassignmentTransaction?(params: {
     outgoingAssignmentId: number;
     outgoingStatusId: number;
@@ -113,6 +120,63 @@ export class ReassignEvaluatorUseCase {
       });
     }
 
+    const profileEnumToIdMap: Record<string, number> = {
+      [EvaluatorProfile.METODOLOGICO]: 6,
+      [EvaluatorProfile.JURIDICO]: 8,
+      [EvaluatorProfile.SALUD]: 9,
+      [EvaluatorProfile.SOCIEDAD_CIVIL]: 10,
+    };
+
+    const numReplacementId =
+      typeof dto.replacementEvaluatorId === 'number'
+        ? dto.replacementEvaluatorId
+        : parseInt(`${dto.replacementEvaluatorId}`, 10) || 0;
+
+    const rawVersionId =
+      (currentAssignmentRaw as EvaluationAssignmentOrmEntity).versionId ??
+      (typeof currentAssignment.protocolId === 'number'
+        ? currentAssignment.protocolId
+        : 1);
+
+    const resolvedProfileId =
+      (currentAssignmentRaw as EvaluationAssignmentOrmEntity).profileId ??
+      (currentAssignmentRaw as EvaluationAssignmentOrmEntity).profile?.id ??
+      profileEnumToIdMap[dto.replacementEvaluatorProfile] ??
+      9;
+
+    // Validación 1: El evaluador de reemplazo no debe estar ya asignado activamente a esta versión
+    if (this.reassignmentRepository.findActiveAssignmentsByVersionId) {
+      const activeAssignments =
+        await this.reassignmentRepository.findActiveAssignmentsByVersionId(
+          rawVersionId,
+        );
+      const currentAsgNumId =
+        typeof currentAssignment.id === 'number'
+          ? currentAssignment.id
+          : parseInt(`${currentAssignment.id}`, 10) || 0;
+      const isAlreadyAssigned = activeAssignments.some(
+        (a) => a.evaluatorId === numReplacementId && a.id !== currentAsgNumId,
+      );
+      if (isAlreadyAssigned) {
+        throw new BadRequestException(
+          'El evaluador de reemplazo ya se encuentra asignado a este protocolo.',
+        );
+      }
+    }
+
+    // Validación 2: El evaluador de reemplazo debe tener el perfil requerido activo
+    if (this.reassignmentRepository.hasActiveProfile) {
+      const hasProfile = await this.reassignmentRepository.hasActiveProfile(
+        numReplacementId,
+        resolvedProfileId,
+      );
+      if (!hasProfile) {
+        throw new BadRequestException(
+          'El evaluador de reemplazo no posee el perfil requerido activo.',
+        );
+      }
+    }
+
     // 2. Invocar al servicio de dominio para realizar la sustitución inmutable y reinicio de plazo
     const newAssignmentId =
       typeof dto.currentAssignmentId === 'number'
@@ -123,8 +187,9 @@ export class ReassignEvaluatorUseCase {
         ? undefined
         : `hist-reassign-${Date.now()}`;
 
-    const reassignmentResult = EvaluatorReassignmentService.executeReassignment(
-      {
+    let reassignmentResult: ReassignmentResult;
+    try {
+      reassignmentResult = EvaluatorReassignmentService.executeReassignment({
         currentAssignment,
         replacementEvaluatorId: dto.replacementEvaluatorId,
         replacementEvaluatorProfile: dto.replacementEvaluatorProfile,
@@ -135,32 +200,19 @@ export class ReassignEvaluatorUseCase {
         newAssignmentId,
         historyId,
         justification: dto.reasonDescription,
-      },
-    );
+      });
+    } catch (err: unknown) {
+      const message =
+        err instanceof Error
+          ? err.message
+          : 'Error en la reasignación de evaluador.';
+      throw new BadRequestException(message);
+    }
 
     // 3. Persistir en transacción
     let persistedResult: ReassignmentResult;
 
     if (this.reassignmentRepository.executeReassignmentTransaction) {
-      const profileEnumToIdMap: Record<string, number> = {
-        [EvaluatorProfile.METODOLOGICO]: 6,
-        [EvaluatorProfile.JURIDICO]: 8,
-        [EvaluatorProfile.SALUD]: 9,
-        [EvaluatorProfile.SOCIEDAD_CIVIL]: 10,
-      };
-
-      const rawVersionId =
-        (currentAssignmentRaw as EvaluationAssignmentOrmEntity).versionId ??
-        (typeof currentAssignment.protocolId === 'number'
-          ? currentAssignment.protocolId
-          : 1);
-
-      const resolvedProfileId =
-        (currentAssignmentRaw as EvaluationAssignmentOrmEntity).profileId ??
-        (currentAssignmentRaw as EvaluationAssignmentOrmEntity).profile?.id ??
-        profileEnumToIdMap[dto.replacementEvaluatorProfile] ??
-        9;
-
       const res =
         await this.reassignmentRepository.executeReassignmentTransaction({
           outgoingAssignmentId:

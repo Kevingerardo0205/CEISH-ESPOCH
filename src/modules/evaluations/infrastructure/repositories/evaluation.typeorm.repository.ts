@@ -293,6 +293,20 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     }));
   }
 
+  async hasActiveProfile(
+    userId: number | string,
+    profileId: number,
+  ): Promise<boolean> {
+    const numUserId =
+      typeof userId === 'number' ? userId : parseInt(`${userId}`, 10) || 0;
+    const record = await this.dataSource
+      .getRepository(EvaluatorProfileUserOrmEntity)
+      .findOne({
+        where: { userId: numUserId, profileId, isActive: true },
+      });
+    return !!record;
+  }
+
   async findProfiles(): Promise<EvaluatorProfileOrmEntity[]> {
     return this.profileRepo.find({ where: { isActive: true } });
   }
