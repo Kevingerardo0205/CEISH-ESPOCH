@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument, @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument, @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-call */
 process.env.DB_NAME = process.env.TEST_DB_NAME || 'ceish_test_db';
 process.env.DB_HOST = process.env.TEST_DB_HOST || 'localhost';
 process.env.DB_PORT = process.env.TEST_DB_PORT || '3100';
@@ -16,6 +16,7 @@ import { PermissionsGuard } from '../src/shared/guards/permissions.guard';
 import { Permission } from '../src/shared/enums/permission.enum';
 import { GlobalValidationPipe } from '../src/shared/pipes/validation.pipe';
 import { AssignmentStatus } from '../src/modules/evaluations/domain/enums/assignment-status.enum';
+import { EvaluatorProfile } from '../src/shared/enums/evaluator-enums';
 import { RiskProposalOrmEntity } from '../src/modules/evaluations/infrastructure/database/entities/risk-proposal.orm-entity';
 import { MailerNotificationAdapter } from '../src/modules/evaluations/infrastructure/adapters/mailer-notification.adapter';
 import { IEmailServicePort } from '../src/modules/notifications/domain/ports/email.service.port';
@@ -27,6 +28,8 @@ import { DocxGeneratorService } from '../src/shared/utils/docx-generator.service
 describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)', () => {
   let app: INestApplication;
   let dataSource: DataSource;
+  let expeditaRiskId: number;
+  let plenoRiskId: number;
 
   beforeAll(async () => {
     // 1. Guard de seguridad de Base de Datos
@@ -125,6 +128,20 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
     dataSource = app.get(DataSource);
 
+    // Guard de seguridad de Base de Datos: verificar current_database()
+    const testDbResult = await dataSource.query('SELECT current_database();');
+    const nestDbName = testDbResult[0]?.current_database;
+    if (
+      !nestDbName ||
+      (!nestDbName.endsWith('test') &&
+        !nestDbName.endsWith('test_db') &&
+        !nestDbName.endsWith('_test_db'))
+    ) {
+      throw new Error(
+        `ABORT: DataSource conectado a base no autorizada: '${nestDbName}'. Solo se permiten bases *test.`,
+      );
+    }
+
     // Configurar timeouts en sesión PostgreSQL
     await dataSource.query(`
       SET lock_timeout = '5s';
@@ -132,30 +149,108 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       SET idle_in_transaction_session_timeout = '5s';
     `);
 
-    // Limpiar y sembrar datos de prueba aislados en ceish_test_db
+    // Limpiar datos previos de prueba de forma acotada
     await dataSource.query(`
       UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 998, 999);
-      DELETE FROM evaluacion.convocatoria_protocolos;
-      DELETE FROM evaluacion.convocatorias;
+      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 998, 999) OR protocolo_id IN (991, 992, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+      DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 998, 999));
       DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999)));
       DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
       DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
-      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
+      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
       DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999);
       DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 998, 999);
       DELETE FROM public.protocolos WHERE id IN (991, 992, 998, 999);
       DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
-      DELETE FROM catalogos.perfiles_evaluador WHERE id IN (1, 2, 3, 4);
       DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
-      DELETE FROM evaluacion.lugares WHERE nombre LIKE '%Sala de Consejo%';
+      DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%';
+    `);
 
-      INSERT INTO catalogos.criterios_evaluacion (id, tipo, descripcion)
+    // Resolver catálogos dinámicamente sin IDs fijos ni borrados
+    await dataSource.query(`
+      INSERT INTO catalogos.criterios_evaluacion (tipo, descripcion)
       VALUES 
-        (1, 'EVALUACION ETICA', 'Aspectos éticos y consentimiento informado'),
-        (2, 'EVALUACION METODOLOGICA', 'Aspectos metodológicos y validez científica'),
-        (3, 'EVALUACION JURIDICA', 'Aspectos jurídicos y viabilidad legal')
-      ON CONFLICT (id) DO NOTHING;
+        ('EVALUACION ETICA', 'Aspectos éticos y consentimiento informado'),
+        ('EVALUACION METODOLOGICA', 'Aspectos metodológicos y validez científica'),
+        ('EVALUACION JURIDICA', 'Aspectos jurídicos y viabilidad legal')
+      ON CONFLICT (tipo, descripcion) DO NOTHING;
+    `);
 
+    const existingProfiles = await dataSource.query(`
+      SELECT id, nombre FROM catalogos.perfiles_evaluador;
+    `);
+    const normalize = (str: string) =>
+      str
+        ? str
+            .normalize('NFD')
+            .replace(/[\u0300-\u036f]/g, '')
+            .toLowerCase()
+        : '';
+
+    const getOrInsertProfile = async (
+      namePattern: string,
+      defaultName: string,
+      priority: number,
+    ): Promise<number> => {
+      const found = existingProfiles.find((p: any) =>
+        normalize(p.nombre).includes(normalize(namePattern)),
+      );
+      if (found) return found.id;
+      const res = await dataSource.query(
+        `INSERT INTO catalogos.perfiles_evaluador (nombre, activo, orden_prioridad) VALUES ($1, true, $2) RETURNING id;`,
+        [defaultName, priority],
+      );
+      return res[0].id;
+    };
+
+    const saludProfileId = await getOrInsertProfile('salud', 'Salud', 1);
+    const metodolProfileId = await getOrInsertProfile(
+      'metodol',
+      'Metodológico',
+      2,
+    );
+    const juridicoProfileId = await getOrInsertProfile('jurid', 'Jurídico', 3);
+    const sociedadCivilProfileId = await getOrInsertProfile(
+      'sociedad',
+      'Sociedad Civil',
+      4,
+    );
+
+    const existingRiskLevels = await dataSource.query(`
+      SELECT id, codigo, tipo_revision FROM catalogos.niveles_riesgo;
+    `);
+    const getOrInsertRiskLevel = async (
+      codes: string[],
+      reviewType: string,
+      defaultCode: string,
+      defaultName: string,
+    ): Promise<number> => {
+      const found = existingRiskLevels.find(
+        (r: any) => codes.includes(r.codigo) || r.tipo_revision === reviewType,
+      );
+      if (found) return found.id;
+      const res = await dataSource.query(
+        `INSERT INTO catalogos.niveles_riesgo (codigo, nombre, tipo_revision, activo) VALUES ($1, $2, $3, true) RETURNING id;`,
+        [defaultCode, defaultName, reviewType],
+      );
+      return res[0].id;
+    };
+
+    expeditaRiskId = await getOrInsertRiskLevel(
+      ['RIESGO_MINIMO', 'MINIMO', 'SIN_RIESG'],
+      'EXPEDITA',
+      'RIESGO_MINIMO',
+      'Investigación con riesgo mínimo',
+    );
+    plenoRiskId = await getOrInsertRiskLevel(
+      ['RIESGO_MAYOR', 'MAYOR_MINIMO', 'RIESGO_MODERADO'],
+      'PLENO',
+      'RIESGO_MAYOR',
+      'Investigación con riesgo mayor',
+    );
+
+    // Sembrar usuarios de prueba y vincular con perfiles reales
+    await dataSource.query(`
       INSERT INTO catalogos.usuarios (id, email_institucional, nombres_completos, cedula)
       VALUES 
         (901, 'salud@test.com', 'Dr. Salud', '1111111111'),
@@ -165,34 +260,19 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         (905, 'reemplazo@test.com', 'Dr. Reemplazo', '5555555555')
       ON CONFLICT (id) DO NOTHING;
 
-      INSERT INTO catalogos.perfiles_evaluador (id, nombre, activo, orden_prioridad)
-      VALUES 
-        (1, 'Salud', true, 1),
-        (2, 'Metodología', true, 2),
-        (3, 'Jurídico', true, 3),
-        (4, 'Sociedad Civil', true, 4)
-      ON CONFLICT (id) DO NOTHING;
-
-      INSERT INTO catalogos.niveles_riesgo (id, codigo, nombre, tipo_revision, activo)
-      VALUES 
-        (1, 'MINIMO', 'Riesgo Minimo', 'EXPEDITA', true),
-        (2, 'MAYOR_MINIMO', 'Riesgo Mayor que el Minimo', 'PLENO', true)
-      ON CONFLICT (id) DO NOTHING;
-
-      -- Vincular perfiles
       INSERT INTO catalogos.evaluadores_perfil (usuario_id, perfil_id, activo)
       VALUES 
-        (901, 1, true),
-        (902, 2, true),
-        (903, 3, true),
-        (904, 4, true),
-        (905, 1, true)
+        (901, ${saludProfileId}, true),
+        (902, ${metodolProfileId}, true),
+        (903, ${juridicoProfileId}, true),
+        (904, ${sociedadCivilProfileId}, true),
+        (905, ${saludProfileId}, true)
       ON CONFLICT (usuario_id, perfil_id) DO NOTHING;
 
       -- Protocolo 991 EXPEDITA
       INSERT INTO public.protocolos (id, titulo, investigador_principal_id, nivel_riesgo_id, estado_id, tipo_revision)
-      VALUES (991, 'Protocolo Expedita Test', 901, 1, 10, 'EXPEDITA')
-      ON CONFLICT (id) DO UPDATE SET tipo_revision = 'EXPEDITA';
+      VALUES (991, 'Protocolo Expedita Test', 901, ${expeditaRiskId}, 10, 'EXPEDITA')
+      ON CONFLICT (id) DO UPDATE SET tipo_revision = 'EXPEDITA', nivel_riesgo_id = ${expeditaRiskId};
       INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
       VALUES (991, 991, 1, 10)
       ON CONFLICT (id) DO NOTHING;
@@ -200,8 +280,8 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
       -- Protocolo 992 PLENO
       INSERT INTO public.protocolos (id, titulo, investigador_principal_id, nivel_riesgo_id, estado_id, tipo_revision)
-      VALUES (992, 'Protocolo Pleno Test', 901, 2, 10, 'PLENO')
-      ON CONFLICT (id) DO UPDATE SET tipo_revision = 'PLENO';
+      VALUES (992, 'Protocolo Pleno Test', 901, ${plenoRiskId}, 10, 'PLENO')
+      ON CONFLICT (id) DO UPDATE SET tipo_revision = 'PLENO', nivel_riesgo_id = ${plenoRiskId};
       INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
       VALUES (992, 992, 1, 10)
       ON CONFLICT (id) DO NOTHING;
@@ -210,26 +290,28 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
   }, 60000);
 
   afterAll(async () => {
-    if (dataSource && dataSource.isInitialized) {
-      await dataSource.query(`
-        UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 998, 999);
-        DELETE FROM evaluacion.convocatoria_protocolos;
-        DELETE FROM evaluacion.convocatorias;
-        DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999)));
-        DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
-        DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
-        DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
-        DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999);
-        DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 998, 999);
-        DELETE FROM public.protocolos WHERE id IN (991, 992, 998, 999);
-        DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
-        DELETE FROM catalogos.perfiles_evaluador WHERE id IN (1, 2, 3, 4);
-        DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
-        DELETE FROM evaluacion.lugares WHERE nombre LIKE '%Sala de Consejo%';
-      `);
-    }
-    if (app) {
-      await app.close();
+    try {
+      if (dataSource && dataSource.isInitialized) {
+        await dataSource.query(`
+          UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 998, 999);
+          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 998, 999) OR protocolo_id IN (991, 992, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+          DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 998, 999));
+          DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999)));
+          DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
+          DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
+          DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
+          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999);
+          DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 998, 999);
+          DELETE FROM public.protocolos WHERE id IN (991, 992, 998, 999);
+          DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
+          DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
+          DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%';
+        `);
+      }
+    } finally {
+      if (app) {
+        await app.close();
+      }
     }
   });
 
@@ -300,7 +382,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         .post(`/api/evaluations/peer-assignments/${targetAsg.id}/submit-risk`)
         .set('x-user-id', String(targetAsg.evaluador_id))
         .send({
-          riskLevelId: 1,
+          riskLevelId: expeditaRiskId,
           observations: 'Evaluación preliminar de riesgo mínimo',
         });
       expect(resRisk.status).toBe(201);
@@ -440,14 +522,14 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
             .post('/api/evaluations/peer-assignments/9911/submit-risk')
             .set('x-user-id', '901')
             .send({
-              riskLevelId: 1,
+              riskLevelId: expeditaRiskId,
               observations: 'Propuesta Par 1',
             }),
           request(app.getHttpServer())
             .post('/api/evaluations/peer-assignments/9912/submit-risk')
             .set('x-user-id', '902')
             .send({
-              riskLevelId: 1,
+              riskLevelId: expeditaRiskId,
               observations: 'Propuesta Par 2',
             }),
         ]);
@@ -470,7 +552,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           SELECT id, estado_id, nivel_riesgo_id FROM public.protocolos WHERE id = 998;
         `);
         expect(protocol[0].estado_id).toBe(13);
-        expect(protocol[0].nivel_riesgo_id).toBe(1);
+        expect(protocol[0].nivel_riesgo_id).toBe(expeditaRiskId);
       } finally {
         saveSpy.mockRestore();
       }
@@ -491,9 +573,9 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       });
       jest.setSystemTime(new Date('2026-03-02T10:00:00.000Z'));
       try {
-        // Reasignar evaluador 904 de la versión 992 por conflicto de interés
+        // Reasignar evaluador 901 de la versión 992 por conflicto de interés
         const asgToReassign = await dataSource.query(`
-          SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 992 AND evaluador_id = 904 LIMIT 1;
+          SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 992 AND evaluador_id = 901 LIMIT 1;
         `);
         expect(asgToReassign.length).toBe(1);
 
@@ -505,7 +587,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
             reason: 'CONFLICTO_INTERES',
             reasonDescription: 'Conflicto voluntario declarado en prueba e2e.',
             replacementEvaluatorId: 905,
-            replacementEvaluatorProfile: 'SALUD',
+            replacementEvaluatorProfile: EvaluatorProfile.SALUD,
           });
 
         expect(resReassign.status).toBe(201);
@@ -545,7 +627,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         .post('/api/evaluations/meetings/places')
         .set('x-user-id', '901')
         .send({
-          name: 'Sala de Consejo Politécnico Test',
+          name: 'TEST-E2E-Sala de Consejo Politécnico',
           location: 'Edificio Central ESPOCH Piso 2',
           esVirtual: false,
           isActive: true,
@@ -578,7 +660,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         .patch(`/api/evaluations/meetings/places/${createdPlaceId}`)
         .set('x-user-id', '901')
         .send({
-          name: 'Sala de Consejo Actualizada',
+          name: 'TEST-E2E-Sala de Consejo Actualizada',
         });
       expect(resPatch.status).toBe(200);
 
@@ -595,7 +677,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         .post('/api/evaluations/meetings/places')
         .set('x-user-id', '901')
         .send({
-          name: 'Sala de Consejo para Reunion Test',
+          name: 'TEST-E2E-Sala para Reunion Test',
           location: 'Edificio Central ESPOCH Piso 2',
           esVirtual: false,
           isActive: true,
