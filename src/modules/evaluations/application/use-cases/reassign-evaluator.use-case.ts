@@ -38,6 +38,44 @@ export interface IEventEmitter {
   emit(event: string, payload: Record<string, unknown>): void;
 }
 
+// Normalizes a catalog profile name to EvaluatorProfile.
+// Returns undefined for Ético (not in the 4-profile par quota) or any unrecognized profile.
+// Ético assignments must be managed manually outside this reassignment flow.
+function parseProfileEnum(name?: string): EvaluatorProfile | undefined {
+  if (!name) return undefined;
+  const norm = name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+  if (norm.includes('JURIDIC')) return EvaluatorProfile.JURIDICO;
+  if (norm.includes('SOCIEDAD')) return EvaluatorProfile.SOCIEDAD_CIVIL;
+  if (norm.includes('METODOL')) return EvaluatorProfile.METODOLOGICO;
+  if (norm.includes('SALUD')) return EvaluatorProfile.SALUD;
+  return undefined;
+}
+
+function requireProfileEnum(
+  profileName: string | undefined,
+  profileId: number | undefined,
+): EvaluatorProfile {
+  const resolved = parseProfileEnum(profileName);
+  if (resolved) return resolved;
+
+  const normName = (profileName ?? '')
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase();
+  if (normName.includes('ETIC')) {
+    throw new BadRequestException(
+      `El evaluador tiene perfil Ético (id=${profileId ?? 'desconocido'}), que no está soportado en el flujo de reasignación. Gestione la sustitución manualmente.`,
+    );
+  }
+  throw new BadRequestException(
+    `No se pudo determinar el perfil del evaluador saliente (profileId=${profileId ?? 'desconocido'}, nombre='${profileName ?? 'sin nombre'}'). Verifique la asignación.`,
+  );
+}
+
 export class ReassignEvaluatorUseCase {
   constructor(
     private readonly reassignmentRepository: IReassignmentRepository,
@@ -70,44 +108,20 @@ export class ReassignEvaluatorUseCase {
       );
     }
 
-    // Adaptar entidad cruda/ORM a entidad de dominio si es necesario
+    // Adaptar entidad cruda/ORM a entidad de dominio si es necesario.
+    // rawOrmProfileId solo existe en la ruta ORM; es undefined en la ruta de entidad de dominio.
     let currentAssignment: EvaluationAssignmentEntity;
+    let rawOrmProfileId: number | undefined;
+
     if (currentAssignmentRaw instanceof EvaluationAssignmentEntity) {
       currentAssignment = currentAssignmentRaw;
     } else {
       const orm = currentAssignmentRaw;
-      const profileIdToEnumMap: Record<number, EvaluatorProfile> = {
-        1: EvaluatorProfile.JURIDICO,
-        2: EvaluatorProfile.SOCIEDAD_CIVIL,
-        3: EvaluatorProfile.METODOLOGICO,
-        4: EvaluatorProfile.SALUD,
-        6: EvaluatorProfile.METODOLOGICO,
-        7: EvaluatorProfile.SALUD,
-        8: EvaluatorProfile.JURIDICO,
-        9: EvaluatorProfile.SALUD,
-        10: EvaluatorProfile.SOCIEDAD_CIVIL,
-      };
+      // Resuelve el perfil por nombre del catálogo (relación 'profile' siempre cargada en
+      // findAssignmentById). Lanza error explícito si el perfil es Ético o desconocido.
+      const profile = requireProfileEnum(orm.profile?.name, orm.profileId);
 
-      const parseProfileEnum = (
-        name?: string,
-      ): EvaluatorProfile | undefined => {
-        if (!name) return undefined;
-        const norm = name
-          .normalize('NFD')
-          .replace(/[\u0300-\u036f]/g, '')
-          .toUpperCase()
-          .replace(/\s+/g, '_');
-        if (norm.includes('JURIDIC')) return EvaluatorProfile.JURIDICO;
-        if (norm.includes('SOCIEDAD')) return EvaluatorProfile.SOCIEDAD_CIVIL;
-        if (norm.includes('METODOL')) return EvaluatorProfile.METODOLOGICO;
-        if (norm.includes('SALUD')) return EvaluatorProfile.SALUD;
-        return undefined;
-      };
-
-      const profile =
-        parseProfileEnum(orm.profile?.name) ??
-        (orm.profileId ? profileIdToEnumMap[orm.profileId] : undefined) ??
-        EvaluatorProfile.SALUD;
+      rawOrmProfileId = orm.profileId ?? orm.profile?.id;
 
       currentAssignment = new EvaluationAssignmentEntity({
         id: orm.id,
@@ -120,13 +134,6 @@ export class ReassignEvaluatorUseCase {
       });
     }
 
-    const profileEnumToIdMap: Record<string, number> = {
-      [EvaluatorProfile.METODOLOGICO]: 6,
-      [EvaluatorProfile.JURIDICO]: 8,
-      [EvaluatorProfile.SALUD]: 9,
-      [EvaluatorProfile.SOCIEDAD_CIVIL]: 10,
-    };
-
     const numReplacementId =
       typeof dto.replacementEvaluatorId === 'number'
         ? dto.replacementEvaluatorId
@@ -137,12 +144,6 @@ export class ReassignEvaluatorUseCase {
       (typeof currentAssignment.protocolId === 'number'
         ? currentAssignment.protocolId
         : 1);
-
-    const resolvedProfileId =
-      (currentAssignmentRaw as EvaluationAssignmentOrmEntity).profileId ??
-      (currentAssignmentRaw as EvaluationAssignmentOrmEntity).profile?.id ??
-      profileEnumToIdMap[dto.replacementEvaluatorProfile] ??
-      9;
 
     // Validación 1: El evaluador de reemplazo no debe estar ya asignado activamente a esta versión
     if (this.reassignmentRepository.findActiveAssignmentsByVersionId) {
@@ -164,11 +165,12 @@ export class ReassignEvaluatorUseCase {
       }
     }
 
-    // Validación 2: El evaluador de reemplazo debe tener el perfil requerido activo
-    if (this.reassignmentRepository.hasActiveProfile) {
+    // Validación 2: El evaluador de reemplazo debe tener el perfil requerido activo.
+    // Solo se valida cuando rawOrmProfileId está disponible (ruta ORM).
+    if (rawOrmProfileId !== undefined && this.reassignmentRepository.hasActiveProfile) {
       const hasProfile = await this.reassignmentRepository.hasActiveProfile(
         numReplacementId,
-        resolvedProfileId,
+        rawOrmProfileId,
       );
       if (!hasProfile) {
         throw new BadRequestException(
@@ -213,6 +215,14 @@ export class ReassignEvaluatorUseCase {
     let persistedResult: ReassignmentResult;
 
     if (this.reassignmentRepository.executeReassignmentTransaction) {
+      // Usa el profileId que ya trae la asignación saliente; no hay fallback por enum.
+      if (rawOrmProfileId === undefined) {
+        throw new BadRequestException(
+          'No se pudo determinar el profileId de la asignación saliente. Verifique la asignación.',
+        );
+      }
+      const resolvedProfileId = rawOrmProfileId;
+
       const res =
         await this.reassignmentRepository.executeReassignmentTransaction({
           outgoingAssignmentId:
