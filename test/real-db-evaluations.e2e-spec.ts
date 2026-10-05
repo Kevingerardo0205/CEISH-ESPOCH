@@ -30,6 +30,10 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
   let dataSource: DataSource;
   let expeditaRiskId: number;
   let plenoRiskId: number;
+  let saludProfileId: number;
+  let metodolProfileId: number;
+  let juridicoProfileId: number;
+  let sociedadCivilProfileId: number;
 
   beforeAll(async () => {
     // 1. Guard de seguridad de Base de Datos
@@ -87,6 +91,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         sendEvaluationSubmitted: jest.fn().mockResolvedValue(undefined),
         sendPasswordReset: jest.fn().mockResolvedValue(undefined),
         sendEmailVerification: jest.fn().mockResolvedValue(undefined),
+        sendCallNotification: jest.fn().mockResolvedValue(undefined),
       })
       .overrideProvider(IStorageService)
       .useValue({
@@ -103,6 +108,9 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         generateAnnex9Report: jest
           .fn()
           .mockResolvedValue(Buffer.from('%PDF-1.4 test')),
+        generateCallPdf: jest
+          .fn()
+          .mockResolvedValue(Buffer.from('%PDF-1.4 call')),
       })
       .overrideProvider(DocxGeneratorService)
       .useValue({
@@ -203,14 +211,10 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       return res[0].id;
     };
 
-    const saludProfileId = await getOrInsertProfile('salud', 'Salud', 1);
-    const metodolProfileId = await getOrInsertProfile(
-      'metodol',
-      'Metodológico',
-      2,
-    );
-    const juridicoProfileId = await getOrInsertProfile('jurid', 'Jurídico', 3);
-    const sociedadCivilProfileId = await getOrInsertProfile(
+    saludProfileId = await getOrInsertProfile('salud', 'Salud', 1);
+    metodolProfileId = await getOrInsertProfile('metodol', 'Metodológico', 2);
+    juridicoProfileId = await getOrInsertProfile('jurid', 'Jurídico', 3);
+    sociedadCivilProfileId = await getOrInsertProfile(
       'sociedad',
       'Sociedad Civil',
       4,
@@ -618,9 +622,180 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         jest.useRealTimers();
       }
     });
+
+    it('1e. Reasignación falla con 400 cuando el evaluador de reemplazo ya está asignado al protocolo', async () => {
+      // Intentar reasignar a 902 en protocolo 992 donde 902 ya está asignado
+      const asgSalud = await dataSource.query(`
+        SELECT id FROM evaluacion.asignaciones_evaluacion 
+        WHERE version_id = 992 AND evaluador_id = 905 AND estado_id = ${AssignmentStatus.ASSIGNED} 
+        LIMIT 1;
+      `);
+      expect(asgSalud.length).toBe(1);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .set('x-user-id', '901')
+        .send({
+          currentAssignmentId: asgSalud[0].id,
+          reason: 'CONFLICTO_INTERES',
+          reasonDescription: 'Test de evaluador duplicado',
+          replacementEvaluatorId: 902,
+          replacementEvaluatorProfile: EvaluatorProfile.METODOLOGICO,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain(
+        'El evaluador de reemplazo ya se encuentra asignado a este protocolo.',
+      );
+    });
+
+    it('1f. Reasignación falla con 400 cuando el evaluador de reemplazo no posee el perfil requerido activo', async () => {
+      // Evaluador 903 tiene perfil JURÍDICO. Evaluador 901 solo tiene perfil SALUD y ya no está activo en 992.
+      const asgJuridico = await dataSource.query(`
+        SELECT id FROM evaluacion.asignaciones_evaluacion 
+        WHERE version_id = 992 AND evaluador_id = 903 
+        LIMIT 1;
+      `);
+      expect(asgJuridico.length).toBe(1);
+
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .set('x-user-id', '901')
+        .send({
+          currentAssignmentId: asgJuridico[0].id,
+          reason: 'CONFLICTO_INTERES',
+          reasonDescription: 'Test de perfil incompatible',
+          replacementEvaluatorId: 901,
+          replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+        });
+
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain(
+        'El evaluador de reemplazo no posee el perfil requerido activo.',
+      );
+    });
+
+    it('1g. Escenario completo de reasignación con Anexo 10: transferencia de flag, exclusión de saliente y consolidación a 13', async () => {
+      // 1. Sembrar Protocolo 999 con 4 evaluadores (2 de Anexo 10: 901 y 902)
+      await dataSource.query(`
+        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id)
+        VALUES (999, 'Protocolo Reasignacion Anexo 10 E2E', 901, 10)
+        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+        VALUES (999, 999, 1, 10)
+        ON CONFLICT (id) DO NOTHING;
+        UPDATE public.protocolos SET version_actual_id = 999 WHERE id = 999;
+        INSERT INTO evaluacion.asignaciones_evaluacion (
+          id, version_id, evaluador_id, perfil_id, estado_id, es_asignado_anexo_10, fecha_asignacion, fecha_limite
+        ) VALUES 
+          (9991, 999, 901, ${saludProfileId}, ${AssignmentStatus.ASSIGNED}, true, NOW(), '2026-03-23'),
+          (9992, 999, 902, ${metodolProfileId}, ${AssignmentStatus.ASSIGNED}, true, NOW(), '2026-03-23'),
+          (9993, 999, 903, ${juridicoProfileId}, ${AssignmentStatus.ASSIGNED}, false, NOW(), '2026-03-23'),
+          (9994, 999, 904, ${sociedadCivilProfileId}, ${AssignmentStatus.ASSIGNED}, false, NOW(), '2026-03-23')
+        ON CONFLICT (id) DO NOTHING;
+      `);
+
+      // 2. Reasignar evaluador 901 (Anexo 10) a evaluador 905 (perfil Salud)
+      const resReassign = await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .set('x-user-id', '901')
+        .send({
+          currentAssignmentId: 9991,
+          reason: 'CONFLICTO_INTERES',
+          reasonDescription: 'Conflicto de interés evaluador Anexo 10',
+          replacementEvaluatorId: 905,
+          replacementEvaluatorProfile: EvaluatorProfile.SALUD,
+        });
+      expect(resReassign.status).toBe(201);
+
+      // 3. Verificaciones SQL de estados y herencia de Anexo 10
+      const oldAsgRows = await dataSource.query(`
+        SELECT id, estado_id, es_asignado_anexo_10 FROM evaluacion.asignaciones_evaluacion WHERE id = 9991;
+      `);
+      expect(oldAsgRows[0].estado_id).toBe(AssignmentStatus.REASIGNED_COI);
+
+      const newAsgRows = await dataSource.query(`
+        SELECT id, evaluador_id, estado_id, es_asignado_anexo_10 
+        FROM evaluacion.asignaciones_evaluacion 
+        WHERE version_id = 999 AND evaluador_id = 905 AND estado_id = ${AssignmentStatus.ASSIGNED};
+      `);
+      expect(newAsgRows.length).toBe(1);
+      expect(newAsgRows[0].es_asignado_anexo_10).toBe(true);
+      const newAsgId = newAsgRows[0].id;
+
+      // 4. GET /api/evaluations/peer-assignments/my-pending para saliente (901) -> excluye asignación saliente
+      const resPendingSaliente = await request(app.getHttpServer())
+        .get('/api/evaluations/peer-assignments/my-pending')
+        .set('x-user-id', '901');
+      expect(resPendingSaliente.status).toBe(200);
+      const pendingSaliente999 = (resPendingSaliente.body || []).filter(
+        (a: any) => a.protocolId === 999 || a.id === 9991,
+      );
+      expect(pendingSaliente999.length).toBe(0);
+
+      // 5. GET /api/evaluations/peer-assignments/my-pending para entrante (905) -> recibe la asignación
+      const resPendingEntrante = await request(app.getHttpServer())
+        .get('/api/evaluations/peer-assignments/my-pending')
+        .set('x-user-id', '905');
+      expect(resPendingEntrante.status).toBe(200);
+      const pendingEntrante999 = (resPendingEntrante.body || []).filter(
+        (a: any) => a.protocolId === 999 || a.id === newAsgId,
+      );
+      expect(pendingEntrante999.length).toBe(1);
+      expect(pendingEntrante999[0].id).toBe(newAsgId);
+
+      // 6. POST /api/evaluations/peer-assignments/9991/submit-risk para saliente -> 400 Bad Request
+      const resSubmitSaliente = await request(app.getHttpServer())
+        .post('/api/evaluations/peer-assignments/9991/submit-risk')
+        .set('x-user-id', '901')
+        .send({
+          riskLevelId: expeditaRiskId,
+          observations: 'Intento de envío sobre asignación reasignada',
+        });
+      expect(resSubmitSaliente.status).toBe(400);
+
+      // 7. Enviar propuesta por evaluador entrante 905
+      const resSubmitEntrante = await request(app.getHttpServer())
+        .post(`/api/evaluations/peer-assignments/${newAsgId}/submit-risk`)
+        .set('x-user-id', '905')
+        .send({
+          riskLevelId: expeditaRiskId,
+          observations: 'Propuesta de riesgo por evaluador reemplazo 905',
+        });
+      expect(resSubmitEntrante.status).toBe(201);
+
+      // Protocolo aún no debe consolidar a 13 (falta evaluador 902)
+      const protoPartial = await dataSource.query(`
+        SELECT estado_id FROM public.protocolos WHERE id = 999;
+      `);
+      expect(protoPartial[0].estado_id).toBe(10);
+
+      // 8. Enviar propuesta por evaluador par 902
+      const resSubmit902 = await request(app.getHttpServer())
+        .post('/api/evaluations/peer-assignments/9992/submit-risk')
+        .set('x-user-id', '902')
+        .send({
+          riskLevelId: expeditaRiskId,
+          observations: 'Propuesta de riesgo por evaluador par 902',
+        });
+      expect(resSubmit902.status).toBe(201);
+
+      // 9. Consolidación a estado 13 (EN EVALUACION) y verificación de conteo de asignaciones Anexo 10
+      const protoFinal = await dataSource.query(`
+        SELECT estado_id, nivel_riesgo_id FROM public.protocolos WHERE id = 999;
+      `);
+      expect(protoFinal[0].estado_id).toBe(13);
+      expect(protoFinal[0].nivel_riesgo_id).toBe(expeditaRiskId);
+
+      const activeAnnex10Rows = await dataSource.query(`
+        SELECT id, evaluador_id, estado_id FROM evaluacion.asignaciones_evaluacion 
+        WHERE version_id = 999 AND es_asignado_anexo_10 = true AND estado_id IN (${AssignmentStatus.ASSIGNED}, ${AssignmentStatus.SUGGESTED});
+      `);
+      expect(activeAnnex10Rows.length).toBe(2);
+    });
   });
 
-  describe('5. Pruebas de Humo de Places por Supertest', () => {
+  describe('5. Pruebas de Humo de Places y Calls por Supertest', () => {
     let createdPlaceId: string;
 
     it('5a. CRUD de /api/evaluations/meetings/places y GET /api/evaluations/calls/places', async () => {
@@ -743,6 +918,78 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       if (placeId) {
         await request(app.getHttpServer())
           .delete(`/api/evaluations/meetings/places/${placeId}`)
+          .set('x-user-id', '901');
+      }
+    });
+
+    it('5c. Smoke tests para Calls (deprecated): GET /calls, GET /calls/protocols/pending, POST /calls, GET /calls/:id, GET /calls/:id/protocols, GET /calls/places', async () => {
+      // Create a place to attach call to
+      const resPlace = await request(app.getHttpServer())
+        .post('/api/evaluations/calls/places')
+        .set('x-user-id', '901')
+        .send({
+          name: 'TEST-E2E-Sala para Convocatoria Test',
+          location: 'Edificio Central ESPOCH Sala 3',
+          esVirtual: false,
+          isActive: true,
+        });
+      expect(resPlace.status).toBe(201);
+      const placeId = resPlace.body.id;
+
+      // 1. GET /api/evaluations/calls
+      const resCalls = await request(app.getHttpServer())
+        .get('/api/evaluations/calls')
+        .set('x-user-id', '901');
+      expect(resCalls.status).toBe(200);
+      expect(Array.isArray(resCalls.body)).toBe(true);
+
+      // 2. GET /api/evaluations/calls/protocols/pending
+      const resPendingCalls = await request(app.getHttpServer())
+        .get('/api/evaluations/calls/protocols/pending')
+        .set('x-user-id', '901');
+      expect(resPendingCalls.status).toBe(200);
+      expect(Array.isArray(resPendingCalls.body)).toBe(true);
+
+      // 3. POST /api/evaluations/calls
+      const resCreateCall = await request(app.getHttpServer())
+        .post('/api/evaluations/calls')
+        .set('x-user-id', '901')
+        .send({
+          date: '2026-04-15',
+          time: '10:00',
+          placeId,
+          protocolVersionIds: [991],
+          sessionType: 'ORDINARIA',
+        });
+      expect([200, 201]).toContain(resCreateCall.status);
+      const createdCallId = resCreateCall.body.id;
+      expect(createdCallId).toBeDefined();
+
+      // 4. GET /api/evaluations/calls/:id
+      const resGetCall = await request(app.getHttpServer())
+        .get(`/api/evaluations/calls/${createdCallId}`)
+        .set('x-user-id', '901');
+      expect(resGetCall.status).toBe(200);
+      expect(resGetCall.body.id).toBe(createdCallId);
+
+      // 5. GET /api/evaluations/calls/:id/protocols
+      const resGetCallProtocols = await request(app.getHttpServer())
+        .get(`/api/evaluations/calls/${createdCallId}/protocols`)
+        .set('x-user-id', '901');
+      expect(resGetCallProtocols.status).toBe(200);
+      expect(Array.isArray(resGetCallProtocols.body)).toBe(true);
+
+      // 6. GET /api/evaluations/calls/places
+      const resCallsPlaces = await request(app.getHttpServer())
+        .get('/api/evaluations/calls/places')
+        .set('x-user-id', '901');
+      expect(resCallsPlaces.status).toBe(200);
+      expect(Array.isArray(resCallsPlaces.body)).toBe(true);
+
+      // Cleanup
+      if (placeId) {
+        await request(app.getHttpServer())
+          .delete(`/api/evaluations/calls/places/${placeId}`)
           .set('x-user-id', '901');
       }
     });

@@ -219,6 +219,7 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
     );
   });
 
+
   it('should throw NotFoundException if assignment not found', async () => {
     repositoryMock.findAssignmentById.mockResolvedValue(null);
 
