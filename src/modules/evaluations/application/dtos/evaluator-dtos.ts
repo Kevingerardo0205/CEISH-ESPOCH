@@ -26,9 +26,6 @@ export class EvaluatorItemDto {
   })
   profile: EvaluatorProfile;
 
-  // Resolved catalog profile ID — populated by the adapter layer before persistence.
-  // Not exposed in the API contract; validation is intentionally omitted.
-  profileId?: number;
 }
 
 export class AssignEvaluatorsDto {

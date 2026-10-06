@@ -1,4 +1,3 @@
-import { AssignEvaluatorsDto } from '../dtos/evaluator-dtos';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import { QuotaEvaluatorValidatorService } from '../../domain/services/quota-evaluator-validator.service';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
@@ -6,8 +5,23 @@ import { BusinessDayCalculator } from '../../../../shared/services/deadline-calc
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
-
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
+
+// Internal type — carries the catalog profileId resolved by the adapter.
+// Never appears in the public API contract; not a DTO class.
+export interface ResolvedEvaluatorItem {
+  evaluatorId: number | string;
+  profile: EvaluatorProfile;
+  profileId?: number;
+}
+
+// Internal command passed from the controller (without profileId) or from the adapter (with profileId).
+export interface AssignEvaluatorsCommand {
+  protocolId: number | string;
+  versionId?: number;
+  reviewType?: ReviewType;
+  evaluators: ResolvedEvaluatorItem[];
+}
 
 export interface IEvaluationRepository {
   saveAssignments?(
@@ -35,7 +49,7 @@ export class AssignEvaluatorsUseCase {
    * Caso de uso para la asignación atómica de evaluadores pares [RF-12.1, RF-12.2, RF-12.6]
    */
   public async execute(
-    dto: AssignEvaluatorsDto,
+    dto: AssignEvaluatorsCommand,
     standardFullDays?: number,
     holidays: string[] = [],
   ): Promise<EvaluationAssignmentEntity[]> {

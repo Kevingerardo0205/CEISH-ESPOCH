@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EvaluatorProfileUserOrmEntity } from '../../infrastructure/database/evaluator-profile-user.entity.orm';
 import { EvaluatorProfileOrmEntity } from '../../infrastructure/database/evaluator-profile.entity.orm';
-import { AssignEvaluatorsUseCase } from '../use-cases/assign-evaluators.use-case';
+import {
+  AssignEvaluatorsUseCase,
+  ResolvedEvaluatorItem,
+} from '../use-cases/assign-evaluators.use-case';
 import { AssignEvaluatorsDto } from '../dtos/evaluator-dtos';
 import { AssignPeerEvaluatorsDto } from '../dtos/assign-peer-evaluators.dto';
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
@@ -123,10 +126,11 @@ export class EvaluatorAssignmentAdapterService {
     }
 
     // Attach catalog profileId to each resolved item so the use case can persist perfil_id.
-    const resolvedMatchingWithIds = resolvedMatching.map((item) => ({
-      ...item,
-      profileId: profileIdByKey.get(`${item.evaluatorId}-${item.profile}`),
-    }));
+    const resolvedMatchingWithIds: ResolvedEvaluatorItem[] =
+      resolvedMatching.map((item) => ({
+        ...item,
+        profileId: profileIdByKey.get(`${item.evaluatorId}-${item.profile}`),
+      }));
 
     // NOTA DE POLÍTICA: Si el protocolo no tiene reviewType definido, se delega al caso de uso
     // que aplicará fallback a ReviewType.PLENO (15 días hábiles). Esta regla opera como política
