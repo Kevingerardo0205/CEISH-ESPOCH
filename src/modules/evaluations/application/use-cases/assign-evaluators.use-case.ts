@@ -90,18 +90,22 @@ export class AssignEvaluatorsUseCase {
       savedEntities =
         await this.evaluationRepository.saveAssignments(assignmentEntities);
     } else if (this.evaluationRepository.saveAssignmentsTransaction) {
-      const ormPayloads = assignmentEntities.map((entity) => ({
-        versionId:
-          dto.versionId ??
-          (typeof dto.protocolId === 'number' ? dto.protocolId : 1),
-        evaluatorId:
-          typeof entity.evaluatorId === 'number'
-            ? entity.evaluatorId
-            : parseInt(`${entity.evaluatorId}`, 10) || 1,
-        statusId: AssignmentStatus.ASSIGNED,
-        isAssignedForAnnex10: entity.isAssignedForAnnex10,
-        deadline: entity.deadlineDate,
-      }));
+      const ormPayloads = assignmentEntities.map((entity, index) => {
+        const dtoItem = dto.evaluators[index];
+        return {
+          versionId:
+            dto.versionId ??
+            (typeof dto.protocolId === 'number' ? dto.protocolId : 1),
+          evaluatorId:
+            typeof entity.evaluatorId === 'number'
+              ? entity.evaluatorId
+              : parseInt(`${entity.evaluatorId}`, 10) || 1,
+          profileId: dtoItem?.profileId,
+          statusId: AssignmentStatus.ASSIGNED,
+          isAssignedForAnnex10: entity.isAssignedForAnnex10,
+          deadline: entity.deadlineDate,
+        };
+      });
       const ormEntities =
         await this.evaluationRepository.saveAssignmentsTransaction(ormPayloads);
 
