@@ -8,6 +8,7 @@ import {
   OneToMany,
   JoinColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { LugarOrmEntity } from './lugar.orm-entity';
 import { ConvocatoriaProtocoloOrmEntity } from './convocatoria-protocolo.orm-entity';
 
@@ -77,7 +78,7 @@ export class ConvocatoriaOrmEntity {
   ordenDiaPdfPath?: string;
 
   @OneToMany(() => ConvocatoriaProtocoloOrmEntity, (cp) => cp.convocatoria)
-  convocatoriaProtocolos?: ConvocatoriaProtocoloOrmEntity[];
+  convocatoriaProtocolos?: Relation<ConvocatoriaProtocoloOrmEntity[]>;
 
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;

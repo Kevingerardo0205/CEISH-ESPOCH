@@ -7,6 +7,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { ConvocatoriaOrmEntity } from './convocatoria.orm-entity';
 import { ProtocolOrmEntity } from '../../../../protocols/infrastructure/database/protocol.entity.orm';
 import { ProtocolVersionOrmEntity } from '../protocol-version.entity.orm';
@@ -66,5 +67,5 @@ export class ConvocatoriaProtocoloOrmEntity {
 
   @ManyToOne(() => ConvocatoriaOrmEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'convocatoria_id' })
-  convocatoria?: ConvocatoriaOrmEntity;
+  convocatoria?: Relation<ConvocatoriaOrmEntity>;
 }
