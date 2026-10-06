@@ -135,27 +135,29 @@ export class InheritEvaluatorsUseCase {
         inheritedAssignments,
       );
     } else if (this.evaluationRepository.saveAssignmentsTransaction) {
-      const ormPayloads = enriched.map(({ assignment, originalProfileId }, idx) => {
-        if (!originalProfileId) {
-          throw new Error(
-            `No se pudo determinar profileId para el evaluador ${idx + 1} en herencia. Verifique la asignación original.`,
-          );
-        }
-        return {
-          versionId:
-            typeof newVersionOrProtocolId === 'number'
-              ? newVersionOrProtocolId
-              : 1,
-          evaluatorId:
-            typeof assignment.evaluatorId === 'number'
-              ? assignment.evaluatorId
-              : parseInt(`${assignment.evaluatorId}`, 10) || 1,
-          profileId: originalProfileId,
-          statusId: AssignmentStatus.ASSIGNED,
-          isAssignedForAnnex10: assignment.isAssignedForAnnex10,
-          deadline: assignment.deadlineDate,
-        };
-      });
+      const ormPayloads = enriched.map(
+        ({ assignment, originalProfileId }, idx) => {
+          if (!originalProfileId) {
+            throw new Error(
+              `No se pudo determinar profileId para el evaluador ${idx + 1} en herencia. Verifique la asignación original.`,
+            );
+          }
+          return {
+            versionId:
+              typeof newVersionOrProtocolId === 'number'
+                ? newVersionOrProtocolId
+                : 1,
+            evaluatorId:
+              typeof assignment.evaluatorId === 'number'
+                ? assignment.evaluatorId
+                : parseInt(`${assignment.evaluatorId}`, 10) || 1,
+            profileId: originalProfileId,
+            statusId: AssignmentStatus.ASSIGNED,
+            isAssignedForAnnex10: assignment.isAssignedForAnnex10,
+            deadline: assignment.deadlineDate,
+          };
+        },
+      );
 
       const savedOrm =
         await this.evaluationRepository.saveAssignmentsTransaction(ormPayloads);

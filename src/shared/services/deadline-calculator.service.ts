@@ -121,9 +121,7 @@ export class BusinessDayCalculator {
   /**
    * Retorna el instante exacto de fin de día (23:59:59.999 ECT = 04:59:59.999Z).
    */
-  public static calculateDeadlineInstant(
-    input: CalculateDeadlineInput,
-  ): Date {
+  public static calculateDeadlineInstant(input: CalculateDeadlineInput): Date {
     return this.calculateDetailedDeadline(input).deadlineInstant;
   }
 }

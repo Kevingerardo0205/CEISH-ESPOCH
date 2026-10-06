@@ -167,7 +167,10 @@ export class ReassignEvaluatorUseCase {
 
     // Validación 2: El evaluador de reemplazo debe tener el perfil requerido activo.
     // Solo se valida cuando rawOrmProfileId está disponible (ruta ORM).
-    if (rawOrmProfileId !== undefined && this.reassignmentRepository.hasActiveProfile) {
+    if (
+      rawOrmProfileId !== undefined &&
+      this.reassignmentRepository.hasActiveProfile
+    ) {
       const hasProfile = await this.reassignmentRepository.hasActiveProfile(
         numReplacementId,
         rawOrmProfileId,

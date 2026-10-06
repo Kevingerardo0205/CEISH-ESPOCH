@@ -96,7 +96,10 @@ import { DocxGeneratorService } from '../../../../shared/utils/docx-generator.se
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
 import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
-import { BusinessDayCalculator, endOfDayGuayaquil } from '../../../../shared/services/deadline-calculator.service';
+import {
+  BusinessDayCalculator,
+  endOfDayGuayaquil,
+} from '../../../../shared/services/deadline-calculator.service';
 
 export interface PendingPeerRiskAssignmentItem {
   id: number;
