@@ -309,9 +309,11 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         `);
       }
     } finally {
-      if (app) {
-        await app.close();
-      }
+      if (app) await app.close();
+      // app.close() triggers NestJS shutdown which calls dataSource.destroy() internally,
+      // but the pool keep-alive timers can still be active when Jest checks for open handles.
+      // Calling destroy() explicitly here ensures the pool is fully closed before Jest exits.
+      if (dataSource && dataSource.isInitialized) await dataSource.destroy();
     }
   });
 

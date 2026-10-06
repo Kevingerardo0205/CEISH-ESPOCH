@@ -398,6 +398,28 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       expect(data).toHaveLength(4);
       expect(mockAssignEvaluatorsUseCase.execute).toHaveBeenCalled();
     });
+
+    it('debe rechazar con HTTP 400 si el body incluye profileId (campo no permitido en el contrato público)', async () => {
+      const payloadWithProfileId = {
+        protocolId: 100,
+        evaluators: [
+          {
+            evaluatorId: 1,
+            profile: EvaluatorProfile.JURIDICO,
+            profileId: 8,
+          },
+          { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+          { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+          { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+        ],
+      };
+      await request(app.getHttpServer())
+        .post('/api/evaluations/assign')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'SECRETARIA')
+        .send(payloadWithProfileId)
+        .expect(400);
+    });
   });
 
   describe('Contract 2: POST /api/evaluations/reassign (Authorization & Functionality)', () => {
