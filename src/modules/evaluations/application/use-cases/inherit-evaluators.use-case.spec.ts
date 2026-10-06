@@ -158,7 +158,8 @@ describe('InheritEvaluatorsUseCase (TSK-002-11)', () => {
 
     expect(transactionRepo.saveAssignmentsTransaction).toHaveBeenCalledTimes(1);
 
-    const payloads = transactionRepo.saveAssignmentsTransaction.mock.calls[0][0];
+    const payloads =
+      transactionRepo.saveAssignmentsTransaction.mock.calls[0][0];
     // profileIds must come from original ORM entities, not from a hardcoded enum map
     expect(payloads[0].profileId).toBe(8);
     expect(payloads[1].profileId).toBe(10);

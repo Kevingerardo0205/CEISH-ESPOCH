@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -55,23 +55,23 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
 
   const mockAssignmentAdapterService = {
     adaptAndAssign: jest.fn().mockImplementation((protocolId: number) => {
-        // Simula la resolución real de plazos según reviewType
-        const reviewType =
-          protocolId === 10 ? ReviewType.EXPEDITA : ReviewType.PLENO;
-        const days = reviewType === ReviewType.EXPEDITA ? 8 : 15;
-        const deadline = BusinessDayCalculator.calculateDeadline({
-          startDate: new Date(),
-          businessDaysToAdd: days,
-          holidays: [],
-        });
+      // Simula la resolución real de plazos según reviewType
+      const reviewType =
+        protocolId === 10 ? ReviewType.EXPEDITA : ReviewType.PLENO;
+      const days = reviewType === ReviewType.EXPEDITA ? 8 : 15;
+      const deadline = BusinessDayCalculator.calculateDeadline({
+        startDate: new Date(),
+        businessDaysToAdd: days,
+        holidays: [],
+      });
 
-        return [
-          { id: 1, protocolId, evaluatorId: 10, deadlineDate: deadline },
-          { id: 2, protocolId, evaluatorId: 20, deadlineDate: deadline },
-          { id: 3, protocolId, evaluatorId: 30, deadlineDate: deadline },
-          { id: 4, protocolId, evaluatorId: 40, deadlineDate: deadline },
-        ];
-      }),
+      return [
+        { id: 1, protocolId, evaluatorId: 10, deadlineDate: deadline },
+        { id: 2, protocolId, evaluatorId: 20, deadlineDate: deadline },
+        { id: 3, protocolId, evaluatorId: 30, deadlineDate: deadline },
+        { id: 4, protocolId, evaluatorId: 40, deadlineDate: deadline },
+      ];
+    }),
   };
 
   beforeAll(async () => {

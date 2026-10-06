@@ -358,18 +358,18 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
         // Verificación SQL directa contra PostgreSQL
         const expeditaRows = await dataSource.query(`
-        SELECT id, fecha_limite::text AS fecha_limite_str, es_asignado_anexo_10
-        FROM evaluacion.asignaciones_evaluacion
-        WHERE version_id = 991
+        SELECT id, fecha_limite::text AS fecha_limite_str, es_asignado_anexo_10 
+        FROM evaluacion.asignaciones_evaluacion 
+        WHERE version_id = 991 
         ORDER BY id ASC;
       `);
         expect(expeditaRows.length).toBe(4);
         expect(expeditaRows[0].fecha_limite_str).toBe('2026-03-12');
 
         const plenoRows = await dataSource.query(`
-        SELECT id, fecha_limite::text AS fecha_limite_str
-        FROM evaluacion.asignaciones_evaluacion
-        WHERE version_id = 992
+        SELECT id, fecha_limite::text AS fecha_limite_str 
+        FROM evaluacion.asignaciones_evaluacion 
+        WHERE version_id = 992 
         ORDER BY id ASC;
       `);
         expect(plenoRows.length).toBe(4);

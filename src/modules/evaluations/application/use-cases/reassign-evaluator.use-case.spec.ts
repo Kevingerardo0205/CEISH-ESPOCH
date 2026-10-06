@@ -83,10 +83,10 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
     expect(repositoryMock.findAssignmentById).toHaveBeenCalledWith(101);
 
     // 2. Ejecuta la transacción atómica con profileId derivado de la entidad ORM
-    expect(repositoryMock.executeReassignmentTransaction).toHaveBeenCalledTimes(1);
-    expect(
-      repositoryMock.executeReassignmentTransaction,
-    ).toHaveBeenCalledWith(
+    expect(repositoryMock.executeReassignmentTransaction).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(repositoryMock.executeReassignmentTransaction).toHaveBeenCalledWith(
       expect.objectContaining({
         newAssignment: expect.objectContaining({ profileId: 8 }),
         auditHistory: expect.objectContaining({ profileId: 8 }),
@@ -218,7 +218,6 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
       'No se pudo determinar el perfil del evaluador saliente',
     );
   });
-
 
   it('should throw NotFoundException if assignment not found', async () => {
     repositoryMock.findAssignmentById.mockResolvedValue(null);
