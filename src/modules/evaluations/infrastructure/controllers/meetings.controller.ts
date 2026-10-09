@@ -256,7 +256,7 @@ export class MeetingsController {
   @ApiOperation({
     summary: 'Obtener detalle estructurado de una convocatoria por ID',
   })
-  async getMeeting(@Param('id') id: string) {
+  async getMeeting(@Param('id', ParseUUIDPipe) id: string) {
     const meeting = await this.meetingRepository.findById(id);
     if (!meeting) {
       throw new NotFoundException(`Convocatoria con ID ${id} no encontrada.`);
@@ -281,7 +281,7 @@ export class MeetingsController {
     summary: 'Descargar el PDF oficial del Orden del Día de la Convocatoria',
   })
   async downloadMeetingPdf(
-    @Param('id') id: string,
+    @Param('id', ParseUUIDPipe) id: string,
     @Res({ passthrough: true }) res: Response,
   ): Promise<StreamableFile> {
     const meeting = await this.meetingRepository.findById(id);

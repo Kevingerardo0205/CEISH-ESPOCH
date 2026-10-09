@@ -25,15 +25,19 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
           year,
         );
 
+        // UUID determinista basado en la secuencia para que ParseUUIDPipe lo acepte
+        const paddedSeq = String(currentSequence).padStart(12, '0');
+        const id = `f47ac10b-58cc-4372-a567-${paddedSeq}`;
+
         const meetingRecord = {
-          id: `meet-uuid-${currentSequence}`,
+          id,
           numeroConvocatoria: meetingVo.value,
           anioLectivo: year,
           tipoSession: params.sessionType,
           fechaReunion: params.meetingDate,
           fechaEntregaEvaluacion: evalDeadline,
           estado: 'PROGRAMADA',
-          ordenDiaPdfPath: `/api/evaluations/meetings/meet-uuid-${currentSequence}/pdf`,
+          ordenDiaPdfPath: `/api/evaluations/meetings/${id}/pdf`,
         };
 
         mockMeetingsMap.set(meetingRecord.id, meetingRecord);
@@ -73,8 +77,6 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
   };
 
   beforeAll(async () => {
-    jest.setTimeout(60000);
-
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
@@ -230,10 +232,17 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
       expect(data).toHaveProperty('estado');
     });
 
-    it('debe retornar HTTP 404 si la convocatoria no existe', async () => {
+    it('debe retornar HTTP 404 si la convocatoria no existe (UUID válido, no registrado)', async () => {
+      // 'non-existent-id' ahora retorna 400 por ParseUUIDPipe; se usa un UUID válido inexistente
       await request(app.getHttpServer())
-        .get('/api/evaluations/meetings/non-existent-id')
+        .get('/api/evaluations/meetings/00000000-0000-0000-0000-000000000001')
         .expect(404);
+    });
+
+    it('debe retornar HTTP 400 si el id no tiene formato UUID (validación ParseUUIDPipe)', async () => {
+      await request(app.getHttpServer())
+        .get('/api/evaluations/meetings/1')
+        .expect(400);
     });
   });
 
@@ -260,10 +269,19 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
       expect(pdfRes.headers['content-type']).toContain('application/pdf');
     });
 
-    it('debe retornar HTTP 404 al intentar descargar el PDF de una convocatoria inexistente', async () => {
+    it('debe retornar HTTP 404 al intentar descargar el PDF de una convocatoria inexistente (UUID válido, no registrado)', async () => {
+      // 'non-existent-id' ahora retorna 400 por ParseUUIDPipe; se usa un UUID válido inexistente
       await request(app.getHttpServer())
-        .get('/api/evaluations/meetings/non-existent-id/pdf')
+        .get(
+          '/api/evaluations/meetings/00000000-0000-0000-0000-000000000001/pdf',
+        )
         .expect(404);
+    });
+
+    it('debe retornar HTTP 400 al solicitar PDF con id que no tiene formato UUID', async () => {
+      await request(app.getHttpServer())
+        .get('/api/evaluations/meetings/1/pdf')
+        .expect(400);
     });
   });
 });
