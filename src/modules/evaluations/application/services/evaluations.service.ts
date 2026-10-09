@@ -8,7 +8,7 @@ import {
   Logger,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, IsNull, DataSource } from 'typeorm';
+import { Repository, IsNull, In, DataSource } from 'typeorm';
 import { Permission } from '../../../../shared/enums/permission.enum';
 
 /**
@@ -96,7 +96,10 @@ import { DocxGeneratorService } from '../../../../shared/utils/docx-generator.se
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
 import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
-import { BusinessDayCalculator } from '../../../../shared/services/deadline-calculator.service';
+import {
+  BusinessDayCalculator,
+  endOfDayGuayaquil,
+} from '../../../../shared/services/deadline-calculator.service';
 
 export interface PendingPeerRiskAssignmentItem {
   id: number;
@@ -212,14 +215,18 @@ export class EvaluationsService {
     return assignments
       .filter((a) => a.statusId === +AssignmentStatus.ASSIGNED)
       .map((a) => {
-        const deadline = a.deadline ? new Date(a.deadline) : null;
+        // end-of-day ECT prevents the deadline day from appearing expired before
+        // midnight Ecuador time (new Date('YYYY-MM-DD') = midnight UTC = 19:00 ECT prev day).
+        const deadline = a.deadline ? endOfDayGuayaquil(a.deadline) : null;
         let diffDays: number | null = null;
         let isUrgent = false;
+        let isExpired = false;
 
         if (deadline) {
           const diffTime = deadline.getTime() - now.getTime();
-          diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-          isUrgent = diffDays !== null && diffDays <= 2 && diffDays >= 0;
+          diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+          isExpired = diffTime < 0;
+          isUrgent = !isExpired && diffDays <= 2;
         }
 
         const isRiskDesignated = a.version?.protocol?.isRiskLevelDesignated;
@@ -237,6 +244,7 @@ export class EvaluationsService {
         return {
           ...a,
           isUrgent,
+          isExpired,
           daysRemaining: diffDays,
           annexToUse: annexSuggestion,
         };
@@ -996,6 +1004,7 @@ export class EvaluationsService {
       where: {
         evaluatorId,
         isAssignedForAnnex10: true,
+        statusId: In([AssignmentStatus.ASSIGNED, AssignmentStatus.SUGGESTED]),
       },
       relations: [
         'version',
@@ -1085,13 +1094,22 @@ export class EvaluationsService {
             'No tiene permisos para responder esta asignación.',
           );
         }
+        if (
+          canonicalAssignment.statusId === +AssignmentStatus.REASIGNED_COI ||
+          canonicalAssignment.statusId ===
+            +AssignmentStatus.REASIGNED_VENCIMIENTO
+        ) {
+          throw new BadRequestException(
+            'Esta asignación ha sido reasignada y ya no está vigente.',
+          );
+        }
         if (!canonicalAssignment.isAssignedForAnnex10) {
           throw new BadRequestException(
             'Esta asignación no corresponde al Anexo 10 (evaluación de riesgo).',
           );
         }
 
-        // Bloqueo pesimista sobre las asignaciones de Anexo 10 de esta versión para evitar condiciones de carrera
+        // Bloqueo pesimista sobre las asignaciones de Anexo 10 vigentes de esta versión para evitar condiciones de carrera
         const annex10Assignments = await evalAssignmentRepo
           .createQueryBuilder('asg')
           .setLock('pessimistic_write')
@@ -1099,6 +1117,13 @@ export class EvaluationsService {
             versionId: canonicalAssignment.versionId,
           })
           .andWhere('asg.isAssignedForAnnex10 = true')
+          .andWhere('asg.statusId IN (:...activeStatuses)', {
+            activeStatuses: [
+              AssignmentStatus.SUGGESTED,
+              AssignmentStatus.ASSIGNED,
+              AssignmentStatus.COMPLETED,
+            ],
+          })
           .orderBy('asg.id', 'ASC')
           .getMany();
 

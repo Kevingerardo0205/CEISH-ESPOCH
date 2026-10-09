@@ -1,4 +1,4 @@
-import { AssignEvaluatorsDto } from '../dtos/evaluator-dtos';
+import { BadRequestException } from '@nestjs/common';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import { QuotaEvaluatorValidatorService } from '../../domain/services/quota-evaluator-validator.service';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
@@ -6,8 +6,23 @@ import { BusinessDayCalculator } from '../../../../shared/services/deadline-calc
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
-
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
+
+// Internal type — carries the catalog profileId resolved by the adapter.
+// Never appears in the public API contract; not a DTO class.
+export interface ResolvedEvaluatorItem {
+  evaluatorId: number | string;
+  profile: EvaluatorProfile;
+  profileId?: number;
+}
+
+// Internal command passed from the controller (without profileId) or from the adapter (with profileId).
+export interface AssignEvaluatorsCommand {
+  protocolId: number | string;
+  versionId?: number;
+  reviewType?: ReviewType;
+  evaluators: ResolvedEvaluatorItem[];
+}
 
 export interface IEvaluationRepository {
   saveAssignments?(
@@ -35,7 +50,7 @@ export class AssignEvaluatorsUseCase {
    * Caso de uso para la asignación atómica de evaluadores pares [RF-12.1, RF-12.2, RF-12.6]
    */
   public async execute(
-    dto: AssignEvaluatorsDto,
+    dto: AssignEvaluatorsCommand,
     standardFullDays?: number,
     holidays: string[] = [],
   ): Promise<EvaluationAssignmentEntity[]> {
@@ -90,18 +105,42 @@ export class AssignEvaluatorsUseCase {
       savedEntities =
         await this.evaluationRepository.saveAssignments(assignmentEntities);
     } else if (this.evaluationRepository.saveAssignmentsTransaction) {
-      const ormPayloads = assignmentEntities.map((entity) => ({
-        versionId:
-          dto.versionId ??
-          (typeof dto.protocolId === 'number' ? dto.protocolId : 1),
-        evaluatorId:
-          typeof entity.evaluatorId === 'number'
-            ? entity.evaluatorId
-            : parseInt(`${entity.evaluatorId}`, 10) || 1,
-        statusId: AssignmentStatus.ASSIGNED,
-        isAssignedForAnnex10: entity.isAssignedForAnnex10,
-        deadline: entity.deadlineDate,
-      }));
+      let resolvedVersionId: number | undefined = dto.versionId;
+      if (resolvedVersionId === undefined) {
+        if (!this.evaluationRepository.findVersionByProtocolId) {
+          throw new BadRequestException(
+            'No se puede resolver la versión del protocolo: falta versionId o soporte de findVersionByProtocolId.',
+          );
+        }
+        const numericProtocolId =
+          typeof dto.protocolId === 'number'
+            ? dto.protocolId
+            : parseInt(`${dto.protocolId}`, 10);
+        const found =
+          await this.evaluationRepository.findVersionByProtocolId(
+            numericProtocolId,
+          );
+        if (found === null) {
+          throw new BadRequestException(
+            `No existe versión activa resoluble para el protocolo con ID ${numericProtocolId}.`,
+          );
+        }
+        resolvedVersionId = found.id;
+      }
+      const ormPayloads = assignmentEntities.map((entity, index) => {
+        const dtoItem = dto.evaluators[index];
+        return {
+          versionId: resolvedVersionId,
+          evaluatorId:
+            typeof entity.evaluatorId === 'number'
+              ? entity.evaluatorId
+              : parseInt(`${entity.evaluatorId}`, 10) || 1,
+          profileId: dtoItem?.profileId,
+          statusId: AssignmentStatus.ASSIGNED,
+          isAssignedForAnnex10: entity.isAssignedForAnnex10,
+          deadline: entity.deadlineDate,
+        };
+      });
       const ormEntities =
         await this.evaluationRepository.saveAssignmentsTransaction(ormPayloads);
 

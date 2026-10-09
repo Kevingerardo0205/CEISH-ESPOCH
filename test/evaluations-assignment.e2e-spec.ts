@@ -53,9 +53,41 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
       findAssignmentById: jest
         .fn()
         .mockImplementation((id: number | string) => {
-          return Promise.resolve(
-            inMemoryAssignments.find((a) => a.id === Number(id)) ?? null,
-          );
+          const domainEntity =
+            inMemoryAssignments.find((a) => a.id === Number(id)) ?? null;
+          if (!domainEntity) return Promise.resolve(null);
+          // Return ORM-like plain object so the use-case takes the ORM branch.
+          // The instanceof check only triggers for actual EvaluationAssignmentEntity
+          // instances; a plain object goes to the else branch where rawOrmProfileId
+          // is set from profileId, which the reassignment transaction requires.
+          const PROFILE_META: Record<string, { id: number; name: string }> = {
+            [EvaluatorProfile.JURIDICO]: { id: 8, name: 'Jurídico' },
+            [EvaluatorProfile.SOCIEDAD_CIVIL]: {
+              id: 10,
+              name: 'Sociedad Civil',
+            },
+            [EvaluatorProfile.METODOLOGICO]: { id: 6, name: 'Metodológico' },
+            [EvaluatorProfile.SALUD]: { id: 9, name: 'Salud' },
+          };
+          const meta = PROFILE_META[
+            domainEntity.evaluatorProfile as string
+          ] ?? { id: 9, name: 'Salud' };
+          return Promise.resolve({
+            id: domainEntity.id,
+            evaluatorId:
+              typeof domainEntity.evaluatorId === 'number'
+                ? domainEntity.evaluatorId
+                : 1,
+            profileId: meta.id,
+            profile: { id: meta.id, name: meta.name },
+            versionId:
+              typeof domainEntity.protocolId === 'number'
+                ? domainEntity.protocolId
+                : 1,
+            statusId: domainEntity.status,
+            isAssignedForAnnex10: domainEntity.isAssignedForAnnex10 ?? false,
+            deadline: domainEntity.deadlineDate ?? new Date(),
+          });
         }),
       findAssignmentsByProtocolId: jest
         .fn()

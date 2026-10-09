@@ -3,7 +3,10 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { EvaluatorProfileUserOrmEntity } from '../../infrastructure/database/evaluator-profile-user.entity.orm';
 import { EvaluatorProfileOrmEntity } from '../../infrastructure/database/evaluator-profile.entity.orm';
-import { AssignEvaluatorsUseCase } from '../use-cases/assign-evaluators.use-case';
+import {
+  AssignEvaluatorsUseCase,
+  ResolvedEvaluatorItem,
+} from '../use-cases/assign-evaluators.use-case';
 import { AssignEvaluatorsDto } from '../dtos/evaluator-dtos';
 import { AssignPeerEvaluatorsDto } from '../dtos/assign-peer-evaluators.dto';
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
@@ -69,6 +72,8 @@ export class EvaluatorAssignmentAdapterService {
 
     // Consultar los perfiles activos de cada evaluador en catalogos.evaluadores_perfil
     const userProfilesMap = new Map<number, EvaluatorProfile[]>();
+    // key: `${userId}-${EvaluatorProfile}` → catalog perfil_id for DB persistence
+    const profileIdByKey = new Map<string, number>();
 
     for (const userId of evaluatorIds) {
       const activeAssignments = await this.evaluatorProfileUserRepo.find({
@@ -87,6 +92,7 @@ export class EvaluatorAssignmentAdapterService {
         const canonicalProfile = this.mapProfileNameToEnum(asg.profile?.name);
         if (canonicalProfile && !profiles.includes(canonicalProfile)) {
           profiles.push(canonicalProfile);
+          profileIdByKey.set(`${userId}-${canonicalProfile}`, asg.profileId);
         }
       }
 
@@ -119,13 +125,20 @@ export class EvaluatorAssignmentAdapterService {
       );
     }
 
+    // Attach catalog profileId to each resolved item so the use case can persist perfil_id.
+    const resolvedMatchingWithIds: ResolvedEvaluatorItem[] =
+      resolvedMatching.map((item) => ({
+        ...item,
+        profileId: profileIdByKey.get(`${item.evaluatorId}-${item.profile}`),
+      }));
+
     // NOTA DE POLÍTICA: Si el protocolo no tiene reviewType definido, se delega al caso de uso
     // que aplicará fallback a ReviewType.PLENO (15 días hábiles). Esta regla opera como política
     // de precaución institucional pendiente de confirmación formal por parte del comité CEISH.
     return this.assignEvaluatorsUseCase.execute({
       protocolId,
       reviewType: protocol?.reviewType,
-      evaluators: resolvedMatching,
+      evaluators: resolvedMatchingWithIds,
     });
   }
 

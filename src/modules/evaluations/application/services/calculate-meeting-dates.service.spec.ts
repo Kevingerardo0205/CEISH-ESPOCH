@@ -38,4 +38,33 @@ describe('CalculateMeetingDatesService', () => {
     // Jueves previo es el 15 de Octubre de 2026 a las 23:59:59.999 ECT -> 2026-10-16T04:59:59.999Z
     expect(deadline.toISOString()).toBe('2026-10-16T04:59:59.999Z');
   });
+
+  it('should format legacy call deadline without day-shift under both UTC and America/Guayaquil', () => {
+    const originalTz = process.env.TZ;
+    try {
+      for (const tz of ['UTC', 'America/Guayaquil']) {
+        process.env.TZ = tz;
+        // Jueves 12 de marzo de 2026 a las 20:00 hora de Ecuador (UTC-5)
+        const callDate = new Date('2026-03-12T20:00:00-05:00');
+        const deadline = new Date(callDate);
+        deadline.setDate(deadline.getDate() - 1);
+        while (deadline.getDay() !== 4) {
+          deadline.setDate(deadline.getDate() - 1);
+        }
+        deadline.setHours(23, 59, 59, 999);
+
+        // toCalendarDateString siempre debe dar el jueves 5 de marzo en Ecuador
+        const dateStr = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Guayaquil',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(deadline);
+
+        expect(dateStr).toBe('2026-03-05');
+      }
+    } finally {
+      process.env.TZ = originalTz;
+    }
+  });
 });

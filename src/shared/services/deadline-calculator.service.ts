@@ -30,6 +30,21 @@ export interface DeadlineCalculationResult {
   deadlineDate: Date;
 }
 
+/**
+ * Converts a YYYY-MM-DD calendar date to the instant 23:59:59.999 ECT (UTC-5).
+ * Use this when comparing a stored 'date' column against "now" so the deadline
+ * day is not treated as expired until after midnight Ecuador time.
+ * Example: '2026-03-12' → 2026-03-13T04:59:59.999Z
+ */
+export function endOfDayGuayaquil(dateString: string): Date {
+  const [year, month, day] = dateString.split('-').map(Number);
+  // ECT = UTC-5 → add 5 h to get the UTC equivalent of 23:59:59.999 ECT
+  const ECUADOR_OFFSET_ABS_MS = 5 * 60 * 60 * 1000;
+  return new Date(
+    Date.UTC(year, month - 1, day, 23, 59, 59, 999) + ECUADOR_OFFSET_ABS_MS,
+  );
+}
+
 export class BusinessDayCalculator {
   // Offset fijo de Ecuador (America/Guayaquil): UTC-5 horas sin horario de verano
   private static readonly ECUADOR_OFFSET_HOURS = -5;
@@ -106,9 +121,7 @@ export class BusinessDayCalculator {
   /**
    * Retorna el instante exacto de fin de día (23:59:59.999 ECT = 04:59:59.999Z).
    */
-  public static calculateDeadlineInstant(
-    input: CalculateDeadlineInput,
-  ): Date {
+  public static calculateDeadlineInstant(input: CalculateDeadlineInput): Date {
     return this.calculateDetailedDeadline(input).deadlineInstant;
   }
 }

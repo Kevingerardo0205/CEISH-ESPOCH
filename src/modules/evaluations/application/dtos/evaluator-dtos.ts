@@ -25,6 +25,7 @@ export class EvaluatorItemDto {
     message: 'El perfil del evaluador no es válido.',
   })
   profile: EvaluatorProfile;
+
 }
 
 export class AssignEvaluatorsDto {

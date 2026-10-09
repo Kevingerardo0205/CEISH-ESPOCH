@@ -19,6 +19,23 @@ export interface IInheritEvaluatorsRepository {
   ): Promise<EvaluationAssignmentOrmEntity[]>;
 }
 
+// Normalizes a catalog profile name to EvaluatorProfile.
+// Returns undefined for Ético (not in the 4-profile par quota) or any unrecognized profile.
+// Ético assignments must be managed manually outside the inheritance flow.
+function parseProfileEnum(name?: string): EvaluatorProfile | undefined {
+  if (!name) return undefined;
+  const norm = name
+    .normalize('NFD')
+    .replace(/[̀-ͯ]/g, '')
+    .toUpperCase()
+    .replace(/\s+/g, '_');
+  if (norm.includes('JURIDIC')) return EvaluatorProfile.JURIDICO;
+  if (norm.includes('SOCIEDAD')) return EvaluatorProfile.SOCIEDAD_CIVIL;
+  if (norm.includes('METODOL')) return EvaluatorProfile.METODOLOGICO;
+  if (norm.includes('SALUD')) return EvaluatorProfile.SALUD;
+  return undefined;
+}
+
 export class InheritEvaluatorsUseCase {
   constructor(
     private readonly evaluationRepository: IInheritEvaluatorsRepository,
@@ -64,66 +81,83 @@ export class InheritEvaluatorsUseCase {
       holidays,
     });
 
-    const profileIdToEnumMap: Record<number, EvaluatorProfile> = {
-      1: EvaluatorProfile.JURIDICO,
-      2: EvaluatorProfile.SOCIEDAD_CIVIL,
-      3: EvaluatorProfile.METODOLOGICO,
-      4: EvaluatorProfile.SALUD,
-    };
+    // Enrich: resolve profile from catalog name (relation always loaded for ORM entities)
+    // and preserve originalProfileId for ORM persistence.
+    // Ético is NOT a par-evaluator profile and causes an explicit error here.
+    const enriched = activeAssignments.map((old, index) => {
+      const ormEntity = old as EvaluationAssignmentOrmEntity;
+      const profileFromDomain = (old as Partial<EvaluationAssignmentEntity>)
+        .evaluatorProfile;
+      const profileFromName = parseProfileEnum(ormEntity.profile?.name);
+      const profileMaybe: EvaluatorProfile | undefined =
+        profileFromDomain ?? profileFromName;
 
-    const inheritedAssignments = activeAssignments.map((old, index) => {
+      if (!profileMaybe) {
+        const normName = (ormEntity.profile?.name ?? '')
+          .normalize('NFD')
+          .replace(/[̀-ͯ]/g, '')
+          .toUpperCase();
+        if (normName.includes('ETIC')) {
+          throw new Error(
+            `El evaluador ${index + 1} tiene perfil Ético (id=${ormEntity.profileId ?? 'desconocido'}), que no es compatible con el flujo de herencia de evaluadores par.`,
+          );
+        }
+        throw new Error(
+          `No se pudo determinar el perfil del evaluador ${index + 1} (profileId=${ormEntity.profileId ?? 'desconocido'}, nombre='${ormEntity.profile?.name ?? 'sin nombre'}'). Verifique la asignación.`,
+        );
+      }
+
+      const profile: EvaluatorProfile = profileMaybe;
+
       const generatedId =
         typeof newVersionOrProtocolId === 'number'
           ? undefined
           : `asg-${String(newVersionOrProtocolId).substring(0, 8)}-v2-${index + 1}`;
 
-      const profile =
-        (old as EvaluationAssignmentEntity).evaluatorProfile ??
-        ((old as EvaluationAssignmentOrmEntity).profile
-          ?.name as EvaluatorProfile) ??
-        ((old as EvaluationAssignmentOrmEntity).profileId
-          ? profileIdToEnumMap[
-              (old as EvaluationAssignmentOrmEntity).profileId!
-            ]
-          : EvaluatorProfile.SALUD);
-
-      return new EvaluationAssignmentEntity({
-        id: generatedId,
-        protocolId: newVersionOrProtocolId,
-        evaluatorId: old.evaluatorId,
-        evaluatorProfile: profile,
-        isAssignedForAnnex10: old.isAssignedForAnnex10 ?? false,
-        deadlineDate: newDeadline,
-        status: AssignmentStatus.ASSIGNED,
-      });
+      return {
+        assignment: new EvaluationAssignmentEntity({
+          id: generatedId,
+          protocolId: newVersionOrProtocolId,
+          evaluatorId: old.evaluatorId,
+          evaluatorProfile: profile,
+          isAssignedForAnnex10: old.isAssignedForAnnex10 ?? false,
+          deadlineDate: newDeadline,
+          status: AssignmentStatus.ASSIGNED,
+        }),
+        originalProfileId: ormEntity.profileId,
+      };
     });
+
+    const inheritedAssignments = enriched.map((e) => e.assignment);
 
     if (this.evaluationRepository.saveAssignments) {
       return await this.evaluationRepository.saveAssignments(
         inheritedAssignments,
       );
     } else if (this.evaluationRepository.saveAssignmentsTransaction) {
-      const profileEnumToIdMap: Record<string, number> = {
-        [EvaluatorProfile.JURIDICO]: 1,
-        [EvaluatorProfile.SOCIEDAD_CIVIL]: 2,
-        [EvaluatorProfile.METODOLOGICO]: 3,
-        [EvaluatorProfile.SALUD]: 4,
-      };
-
-      const ormPayloads = inheritedAssignments.map((entity) => ({
-        versionId:
-          typeof newVersionOrProtocolId === 'number'
-            ? newVersionOrProtocolId
-            : 1,
-        evaluatorId:
-          typeof entity.evaluatorId === 'number'
-            ? entity.evaluatorId
-            : parseInt(`${entity.evaluatorId}`, 10) || 1,
-        profileId: profileEnumToIdMap[entity.evaluatorProfile] ?? 1,
-        statusId: AssignmentStatus.ASSIGNED,
-        isAssignedForAnnex10: entity.isAssignedForAnnex10,
-        deadline: entity.deadlineDate,
-      }));
+      const ormPayloads = enriched.map(
+        ({ assignment, originalProfileId }, idx) => {
+          if (!originalProfileId) {
+            throw new Error(
+              `No se pudo determinar profileId para el evaluador ${idx + 1} en herencia. Verifique la asignación original.`,
+            );
+          }
+          return {
+            versionId:
+              typeof newVersionOrProtocolId === 'number'
+                ? newVersionOrProtocolId
+                : 1,
+            evaluatorId:
+              typeof assignment.evaluatorId === 'number'
+                ? assignment.evaluatorId
+                : parseInt(`${assignment.evaluatorId}`, 10) || 1,
+            profileId: originalProfileId,
+            statusId: AssignmentStatus.ASSIGNED,
+            isAssignedForAnnex10: assignment.isAssignedForAnnex10,
+            deadline: assignment.deadlineDate,
+          };
+        },
+      );
 
       const savedOrm =
         await this.evaluationRepository.saveAssignmentsTransaction(ormPayloads);
