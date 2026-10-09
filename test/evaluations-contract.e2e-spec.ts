@@ -422,6 +422,28 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
         .expect(400);
     });
 
+    it('debe responder HTTP 400 cuando protocolId es una cadena no numérica ("abc")', async () => {
+      mockAssignEvaluatorsUseCase.execute.mockRejectedValueOnce(
+        new (require('@nestjs/common').BadRequestException)(
+          'protocolId debe ser un entero positivo; se recibió "abc".',
+        ),
+      );
+      await request(app.getHttpServer())
+        .post('/api/evaluations/assign')
+        .set('Authorization', 'Bearer valid-token')
+        .set('x-test-role', 'SECRETARIA')
+        .send({
+          protocolId: 'abc',
+          evaluators: [
+            { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+            { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+            { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+            { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+          ],
+        })
+        .expect(400);
+    });
+
     it('debe rechazar con HTTP 400 si el body incluye profileId (campo no permitido en el contrato público)', async () => {
       const payloadWithProfileId = {
         protocolId: 100,

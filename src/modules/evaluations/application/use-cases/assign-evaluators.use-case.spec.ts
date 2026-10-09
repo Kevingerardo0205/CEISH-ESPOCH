@@ -328,6 +328,54 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
   });
 
+  it('should throw BadRequestException when protocolId is a non-numeric string ("abc")', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest.fn(),
+      findVersionByProtocolId: jest.fn(),
+    };
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+    const dto = {
+      protocolId: 'abc',
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should throw BadRequestException when protocolId is a mixed string ("12abc")', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest.fn(),
+      findVersionByProtocolId: jest.fn(),
+    };
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+    const dto = {
+      protocolId: '12abc',
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
+  });
+
   it('should propagate NotFoundException thrown by findVersionByProtocolId when protocol does not exist', async () => {
     const transactionRepoMock = {
       saveAssignmentsTransaction: jest.fn(),
