@@ -13,22 +13,17 @@ export class GeminiService {
   private readonly modelName: string;
 
   constructor(private readonly configService: ConfigService) {
-    this.apiKey =
-      this.configService.get<string>('GEMINI_API_KEY') ||
-      process.env.GEMINI_API_KEY ||
-      '';
+    this.apiKey = this.configService.get<string>('GEMINI_API_KEY') ?? '';
     let model =
-      this.configService.get<string>('GEMINI_MODEL') ||
-      process.env.GEMINI_MODEL ||
-      'gemini-2.5-flash';
+      this.configService.get<string>('GEMINI_MODEL') ?? 'gemini-2.5-flash';
     if (model === 'gemini-2.5-flash-lite') {
       model = 'gemini-2.5-flash';
     }
     this.modelName = model;
 
-    if (!this.apiKey || this.apiKey === 'CLAVEAPI') {
+    if (!this.apiKey) {
       this.logger.warn(
-        'La clave GEMINI_API_KEY no está configurada o es la de ejemplo. El asistente de IA fallará al realizar llamadas reales.',
+        'La clave GEMINI_API_KEY no está configurada. El asistente de IA fallará al realizar llamadas reales.',
       );
     }
   }
@@ -46,7 +41,7 @@ export class GeminiService {
     protocolContext: string,
     history: ChatMessage[] = [],
   ): Promise<string> {
-    if (!this.apiKey || this.apiKey === 'CLAVEAPI') {
+    if (!this.apiKey) {
       throw new HttpException(
         'El servicio de Asistente de IA no está configurado (Falta GEMINI_API_KEY en el servidor).',
         HttpStatus.SERVICE_UNAVAILABLE,

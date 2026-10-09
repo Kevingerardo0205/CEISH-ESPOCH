@@ -18,10 +18,9 @@ export class S3StorageAdapter implements IStorageService {
   private readonly logger = new Logger(S3StorageAdapter.name);
 
   constructor(private readonly configService: ConfigService) {
-    const accessKeyId =
-      this.configService.get<string>('S3_ACCESS_KEY_ID') || '';
+    const accessKeyId = this.configService.getOrThrow<string>('S3_ACCESS_KEY_ID');
     const secretAccessKey =
-      this.configService.get<string>('S3_SECRET_ACCESS_KEY') || '';
+      this.configService.getOrThrow<string>('S3_SECRET_ACCESS_KEY');
     const endpoint = this.configService.get<string>('S3_ENDPOINT') || '';
     this.bucketName =
       this.configService.get<string>('S3_BUCKET') || 'ceish-bucket';
