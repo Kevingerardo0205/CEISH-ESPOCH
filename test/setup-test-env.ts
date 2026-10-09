@@ -16,3 +16,6 @@ process.env.JWT_REFRESH_SECRET =
 // S3 test credentials (test-only, not real values — prevents startup throw in e2e)
 process.env.S3_ACCESS_KEY_ID = 'test-s3-access-key-id-fake';
 process.env.S3_SECRET_ACCESS_KEY = 'test-s3-secret-access-key-fake';
+
+// Default test database for all e2e suites — can be overridden by TEST_DB_NAME
+process.env.DB_NAME = process.env.TEST_DB_NAME || 'ceish_test_db';
