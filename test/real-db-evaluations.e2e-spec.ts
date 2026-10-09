@@ -3,10 +3,8 @@ process.env.DB_NAME = process.env.TEST_DB_NAME || 'ceish_test_db';
 process.env.DB_HOST =
   process.env.TEST_DB_HOST || process.env.DB_HOST || 'localhost';
 process.env.DB_PORT = process.env.TEST_DB_PORT || process.env.DB_PORT || '3100';
-process.env.DB_USERNAME =
-  process.env.TEST_DB_USER || process.env.DB_USERNAME || 'ceish_user';
-process.env.DB_PASSWORD =
-  process.env.TEST_DB_PASSWORD || process.env.DB_PASSWORD || 'ceish_password';
+if (process.env.TEST_DB_USER) process.env.DB_USERNAME = process.env.TEST_DB_USER;
+if (process.env.TEST_DB_PASSWORD) process.env.DB_PASSWORD = process.env.TEST_DB_PASSWORD;
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ExecutionContext } from '@nestjs/common';
@@ -56,10 +54,8 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       process.env.TEST_DB_HOST || process.env.DB_HOST || 'localhost';
     process.env.DB_PORT =
       process.env.TEST_DB_PORT || process.env.DB_PORT || '3100';
-    process.env.DB_USERNAME =
-      process.env.TEST_DB_USER || process.env.DB_USERNAME || 'ceish_user';
-    process.env.DB_PASSWORD =
-      process.env.TEST_DB_PASSWORD || process.env.DB_PASSWORD || '';
+    if (process.env.TEST_DB_USER) process.env.DB_USERNAME = process.env.TEST_DB_USER;
+    if (process.env.TEST_DB_PASSWORD) process.env.DB_PASSWORD = process.env.TEST_DB_PASSWORD;
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
