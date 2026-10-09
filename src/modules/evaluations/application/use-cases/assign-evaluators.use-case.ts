@@ -31,6 +31,7 @@ export interface IEvaluationRepository {
   saveAssignmentsTransaction?(
     assignments: Partial<EvaluationAssignmentOrmEntity>[],
   ): Promise<EvaluationAssignmentOrmEntity[]>;
+  findVersionById?(id: number): Promise<{ id: number; protocolId: number } | null>;
   findVersionByProtocolId?(
     protocolId: number,
   ): Promise<{ id: number; protocolId: number } | null>;
@@ -105,6 +106,24 @@ export class AssignEvaluatorsUseCase {
       savedEntities =
         await this.evaluationRepository.saveAssignments(assignmentEntities);
     } else if (this.evaluationRepository.saveAssignmentsTransaction) {
+      // Validate explicitly supplied versionId before any DB write
+      if (dto.versionId !== undefined && this.evaluationRepository.findVersionById) {
+        const existing = await this.evaluationRepository.findVersionById(dto.versionId);
+        if (existing === null) {
+          throw new BadRequestException(
+            `La versión con ID ${dto.versionId} no existe.`,
+          );
+        }
+        const numericProtocolId =
+          typeof dto.protocolId === 'number'
+            ? dto.protocolId
+            : parseInt(`${dto.protocolId}`, 10);
+        if (!isNaN(numericProtocolId) && existing.protocolId !== numericProtocolId) {
+          throw new BadRequestException(
+            `La versión ${dto.versionId} no pertenece al protocolo ${numericProtocolId}.`,
+          );
+        }
+      }
       let resolvedVersionId: number | undefined = dto.versionId;
       if (resolvedVersionId === undefined) {
         if (!this.evaluationRepository.findVersionByProtocolId) {

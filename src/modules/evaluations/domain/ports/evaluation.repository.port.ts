@@ -65,6 +65,7 @@ export abstract class IEvaluationRepository {
   abstract saveVersion(
     entity: Partial<ProtocolVersionOrmEntity>,
   ): Promise<ProtocolVersionOrmEntity>;
+  abstract findVersionById(id: number): Promise<ProtocolVersionOrmEntity | null>;
   abstract findVersionByProtocolId(
     protocolId: number,
     versionNumber?: number,

@@ -341,6 +341,10 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     return this.versionRepo.save(entity as ProtocolVersionOrmEntity);
   }
 
+  async findVersionById(id: number): Promise<ProtocolVersionOrmEntity | null> {
+    return this.versionRepo.findOne({ where: { id } });
+  }
+
   async findVersionByProtocolId(
     protocolId: number,
     versionNumber: number = 1,
