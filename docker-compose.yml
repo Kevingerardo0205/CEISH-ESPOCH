@@ -24,7 +24,7 @@ services:
       POSTGRES_PASSWORD: ceish_password
       POSTGRES_DB: ceish_db
     ports:
-      - "3100:5432"
+      - "127.0.0.1:3100:5432"
     volumes:
       - postgres_data:/var/lib/postgresql/data
 
@@ -36,7 +36,7 @@ services:
       PGADMIN_DEFAULT_EMAIL: admin@ceish.com      # Cambia por tu email de acceso
       PGADMIN_DEFAULT_PASSWORD: admin123           # Cambia por una contraseña segura
     ports:
-      - "5051:80"                                  # Acceso web: http://localhost:5050
+      - "127.0.0.1:5051:80"                                  # Acceso web: http://localhost:5050
     depends_on:
       - db
     volumes:
