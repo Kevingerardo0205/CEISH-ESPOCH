@@ -177,13 +177,14 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
   const mockCreateMeetingUseCase = {
     execute: jest.fn().mockImplementation((dto: any) =>
       Promise.resolve({
-        id: 'meeting-uuid-1',
+        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
         meetingNumber: '010-2026',
         academicYear: 2026,
         sessionType: dto.sessionType,
         meetingDate: dto.meetingDate,
         evalSubmissionDeadline: dto.evalSubmissionDeadline,
-        agendaPdfUrl: '/api/evaluations/meetings/meeting-uuid-1/pdf',
+        agendaPdfUrl:
+          '/api/evaluations/meetings/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11/pdf',
       }),
     ),
   };
@@ -196,15 +197,22 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
 
   const mockMeetingRepo = {
     findById: jest.fn().mockImplementation((id: string) => {
-      if (id === 'non-existent-id') return Promise.resolve(null);
+      // ParseUUIDPipe bloquea strings no-UUID antes de llegar aquí
+      if (id === '00000000-0000-0000-0000-000000000000')
+        return Promise.resolve(null);
       return Promise.resolve({
-        id: 'meeting-uuid-1',
+        id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
         numeroConvocatoria: '010-2026',
         estado: 'PROGRAMADA',
       });
     }),
     findAll: jest.fn().mockResolvedValue({
-      items: [{ id: 'meeting-uuid-1', numeroConvocatoria: '010-2026' }],
+      items: [
+        {
+          id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
+          numeroConvocatoria: '010-2026',
+        },
+      ],
       total: 1,
       page: 1,
       limit: 10,
@@ -243,15 +251,17 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
   const mockPdfGenerator = {
     generateAgendaPdf: jest
       .fn()
-      .mockResolvedValue('/api/evaluations/meetings/meeting-uuid-1/pdf'),
+      .mockResolvedValue(
+        '/api/evaluations/meetings/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11/pdf',
+      ),
     generateMeetingPdf: jest
       .fn()
-      .mockResolvedValue('/api/evaluations/meetings/meeting-uuid-1/pdf'),
+      .mockResolvedValue(
+        '/api/evaluations/meetings/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11/pdf',
+      ),
   };
 
   beforeAll(async () => {
-    jest.setTimeout(60000);
-
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [EvaluationsController, CallsController, MeetingsController],
       providers: [
@@ -665,12 +675,12 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
 
     it('debe responder HTTP 200 en GET /api/evaluations/meetings/:id', async () => {
       const res = await request(app.getHttpServer())
-        .get('/api/evaluations/meetings/meeting-uuid-1')
+        .get('/api/evaluations/meetings/a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11')
         .set('Authorization', 'Bearer valid-token')
         .expect(200);
 
       const data = res.body.data || res.body;
-      expect(data).toHaveProperty('id', 'meeting-uuid-1');
+      expect(data).toHaveProperty('id', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
       expect(data).toHaveProperty('numeroConvocatoria', '010-2026');
     });
 

@@ -75,8 +75,6 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
   };
 
   beforeAll(async () => {
-    jest.setTimeout(60000);
-
     const moduleFixture: TestingModule = await Test.createTestingModule({
       controllers: [EvaluationsController],
       providers: [

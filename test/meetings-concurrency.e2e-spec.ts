@@ -59,8 +59,6 @@ describe('Convocatorias Concurrency Stress Tests (e2e) - [TSK-009-009 / EARS 1]'
   };
 
   beforeAll(async () => {
-    jest.setTimeout(60000);
-
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
     })
