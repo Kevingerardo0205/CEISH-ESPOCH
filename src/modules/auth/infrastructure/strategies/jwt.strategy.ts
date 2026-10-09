@@ -2,6 +2,7 @@ import { ExtractJwt, Strategy } from 'passport-jwt';
 import { PassportStrategy } from '@nestjs/passport';
 import { Injectable } from '@nestjs/common';
 import type { Request } from 'express';
+import { requireEnv } from '../../../../shared/utils/require-env';
 
 export interface JwtPayload {
   sub: number;
@@ -26,7 +27,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
         },
       ]),
       ignoreExpiration: false,
-      secretOrKey: process.env.JWT_SECRET || 'SUPER_SECRET_KEY',
+      secretOrKey: requireEnv('JWT_SECRET'),
     });
   }
 

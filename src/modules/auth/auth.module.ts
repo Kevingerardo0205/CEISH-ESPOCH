@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { requireEnv } from '../../shared/utils/require-env';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -38,7 +39,7 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
     ]),
     PassportModule,
     JwtModule.register({
-      secret: process.env.JWT_SECRET || 'SUPER_SECRET_KEY',
+      secret: requireEnv('JWT_SECRET'),
       signOptions: { expiresIn: '15m' },
     }),
   ],

@@ -5,6 +5,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
+import { requireEnv } from '../../../../shared/utils/require-env';
 import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -364,11 +365,11 @@ export class AuthService {
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(payload, {
         expiresIn: '15m',
-        secret: process.env.JWT_SECRET || 'SUPER_SECRET_KEY',
+        secret: requireEnv('JWT_SECRET'),
       }),
       this.jwtService.signAsync(payload, {
         expiresIn: '7d',
-        secret: process.env.JWT_REFRESH_SECRET || 'SUPER_SECRET_REFRESH_KEY',
+        secret: requireEnv('JWT_REFRESH_SECRET'),
       }),
     ]);
 

@@ -1,5 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import * as crypto from 'crypto';
+import { requireEnv } from '../utils/require-env';
 
 @Injectable()
 export class EncryptionService {
@@ -7,16 +8,14 @@ export class EncryptionService {
   private readonly key: Buffer;
 
   constructor() {
-    // Se espera una clave de 32 bytes en base64 en .env.
-    // El fallback es una cadena de 44 caracteres que decodifica a exactamente 32 bytes.
-    const keyBase64 =
-      process.env.ENCRYPTION_KEY ||
-      'Z9xK8mNpQ2wE5rT7yU1iL4oA3sD6fG9hJ0kL2zXcVbNnM=';
+    // Se espera una clave de 32 bytes codificada en base64 en ENCRYPTION_KEY.
+    const keyBase64 = requireEnv('ENCRYPTION_KEY');
     this.key = Buffer.from(keyBase64, 'base64');
 
     if (this.key.length !== 32) {
       throw new Error(
-        `ENCRYPTION_KEY must be 32 bytes. Current length: ${this.key.length}`,
+        `[startup] ENCRYPTION_KEY debe decodificar a exactamente 32 bytes (AES-256). ` +
+          `Longitud actual: ${this.key.length} bytes.`,
       );
     }
   }
