@@ -1,35 +1,34 @@
 import 'reflect-metadata';
+import { ConfigService } from '@nestjs/config';
 import { JwtStrategy } from './jwt.strategy';
 
+function makeConfig(secret: string | undefined): ConfigService {
+  return {
+    getOrThrow: (path: string) => {
+      if (path === 'app.jwtSecret') {
+        if (secret === undefined) throw new Error(`Config key "${path}" not found`);
+        return secret;
+      }
+      throw new Error(`Config key "${path}" not found`);
+    },
+  } as unknown as ConfigService;
+}
+
 describe('JwtStrategy — secret guard', () => {
-  const ORIGINAL = process.env;
-
-  beforeEach(() => {
-    process.env = { ...ORIGINAL };
-  });
-
-  afterEach(() => {
-    process.env = ORIGINAL;
-  });
-
   it('throws at construction when JWT_SECRET is absent', () => {
-    delete process.env['JWT_SECRET'];
-    expect(() => new JwtStrategy()).toThrow(/JWT_SECRET/);
-  });
-
-  it('throws at construction when JWT_SECRET is empty', () => {
-    process.env['JWT_SECRET'] = '';
-    expect(() => new JwtStrategy()).toThrow(/JWT_SECRET/);
+    expect(() => new JwtStrategy(makeConfig(undefined))).toThrow();
   });
 
   it('constructs successfully when JWT_SECRET is provided', () => {
-    process.env['JWT_SECRET'] = 'test-secret-value-only-for-unit-tests';
-    expect(() => new JwtStrategy()).not.toThrow();
+    expect(
+      () => new JwtStrategy(makeConfig('test-secret-value-only-for-unit-tests')),
+    ).not.toThrow();
   });
 
   it('validate() returns the payload unchanged', () => {
-    process.env['JWT_SECRET'] = 'test-secret-value-only-for-unit-tests';
-    const strategy = new JwtStrategy();
+    const strategy = new JwtStrategy(
+      makeConfig('test-secret-value-only-for-unit-tests'),
+    );
     const payload = {
       sub: 1,
       id: 1,
