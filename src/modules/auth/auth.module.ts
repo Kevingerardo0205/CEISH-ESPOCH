@@ -1,4 +1,5 @@
 import { Module } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
@@ -37,9 +38,12 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
       UserRoleOrmEntity,
     ]),
     PassportModule,
-    JwtModule.register({
-      secret: process.env.JWT_SECRET || 'SUPER_SECRET_KEY',
-      signOptions: { expiresIn: '15m' },
+    JwtModule.registerAsync({
+      inject: [ConfigService],
+      useFactory: (config: ConfigService) => ({
+        secret: config.getOrThrow<string>('app.jwtSecret'),
+        signOptions: { expiresIn: '15m' },
+      }),
     }),
   ],
   controllers: [AuthController, PermissionsController, RolesController],

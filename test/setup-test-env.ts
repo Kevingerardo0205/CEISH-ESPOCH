@@ -1,0 +1,14 @@
+/**
+ * Fake environment variables for the e2e test suite.
+ * These are clearly synthetic test-only values — NEVER real credentials.
+ * They are set before NestJS modules are initialised so that requireEnv()
+ * does not abort the test bootstrap.
+ */
+
+// AES-256 test key: 32 zero-bytes encoded in base64 (test-only, not a real key)
+process.env.ENCRYPTION_KEY = 'AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=';
+
+// JWT test secrets (test-only, not real values)
+process.env.JWT_SECRET = 'ceish-test-jwt-secret-value-for-unit-tests-only';
+process.env.JWT_REFRESH_SECRET =
+  'ceish-test-refresh-secret-value-for-unit-tests-only';

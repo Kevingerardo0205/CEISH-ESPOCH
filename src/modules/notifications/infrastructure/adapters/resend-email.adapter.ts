@@ -63,10 +63,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
     name: string,
   ): Promise<void> {
     try {
-      // 🚀 LOG PARA PRUEBAS: Copia el código de aquí si no lo ves en el correo
-      console.log('-----------------------------------------');
-      console.log(`[AUTH] Código de verificación para ${email}: ${code}`);
-      console.log('-----------------------------------------');
+      // OTP intencionalmente no incluido en logs.
 
       const confirmUrl = `${this.baseUrl}/auth/confirm-email?email=${encodeURIComponent(email)}`;
       const data = await this.resend.emails.send({
@@ -88,9 +85,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
     name: string,
   ): Promise<void> {
     try {
-      console.log('-----------------------------------------');
-      console.log(`[INVITATION] Código de invitación para ${email}: ${otp}`);
-      console.log('-----------------------------------------');
+      // OTP intencionalmente no incluido en logs.
 
       const setupUrl = `${this.baseUrl}/auth/setup-account?email=${email}`;
       const data = await this.resend.emails.send({
