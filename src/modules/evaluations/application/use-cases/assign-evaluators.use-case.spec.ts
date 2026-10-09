@@ -376,6 +376,68 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
   });
 
+  it('should throw BadRequestException when an evaluatorId is a non-numeric string ("abc")', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest.fn(),
+      findVersionByProtocolId: jest
+        .fn()
+        .mockResolvedValue({ id: 42, protocolId: 25 }),
+    };
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+    const dto = {
+      protocolId: 25,
+      evaluators: [
+        { evaluatorId: 'abc', profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should throw BadRequestException when ORM returns an evaluatorId not present in the profile map', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest
+        .fn()
+        .mockImplementation(async (payloads: any[]) =>
+          payloads.map((p, idx) => ({
+            id: idx + 1,
+            versionId: p.versionId,
+            evaluatorId: 9999, // unexpected id — not in dto.evaluators
+            isAssignedForAnnex10: p.isAssignedForAnnex10,
+            deadline: p.deadline,
+            statusId: p.statusId,
+          })),
+        ),
+      findVersionByProtocolId: jest
+        .fn()
+        .mockResolvedValue({ id: 42, protocolId: 25 }),
+    };
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+    const dto = {
+      protocolId: 25,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
+  });
+
   it('should propagate NotFoundException thrown by findVersionByProtocolId when protocol does not exist', async () => {
     const transactionRepoMock = {
       saveAssignmentsTransaction: jest.fn(),

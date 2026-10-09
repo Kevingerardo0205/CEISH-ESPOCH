@@ -159,12 +159,19 @@ export class AssignEvaluatorsUseCase {
       }
       const ormPayloads = assignmentEntities.map((entity, index) => {
         const dtoItem = dto.evaluators[index];
+        const rawEvaluatorId = entity.evaluatorId;
+        const numericEvaluatorId =
+          typeof rawEvaluatorId === 'number'
+            ? rawEvaluatorId
+            : parseInt(`${rawEvaluatorId}`, 10);
+        if (!Number.isInteger(numericEvaluatorId) || numericEvaluatorId <= 0) {
+          throw new BadRequestException(
+            `El ID del evaluador debe ser un entero positivo; se recibió "${String(rawEvaluatorId)}".`,
+          );
+        }
         return {
           versionId: resolvedVersionId,
-          evaluatorId:
-            typeof entity.evaluatorId === 'number'
-              ? entity.evaluatorId
-              : parseInt(`${entity.evaluatorId}`, 10) || 1,
+          evaluatorId: numericEvaluatorId,
           profileId: dtoItem?.profileId,
           statusId: AssignmentStatus.ASSIGNED,
           isAssignedForAnnex10: entity.isAssignedForAnnex10,
@@ -177,19 +184,23 @@ export class AssignEvaluatorsUseCase {
       const profileMap = new Map(
         dto.evaluators.map((e) => [e.evaluatorId, e.profile]),
       );
-      savedEntities = ormEntities.map(
-        (orm) =>
-          new EvaluationAssignmentEntity({
-            id: orm.id,
-            protocolId: dto.protocolId,
-            evaluatorId: orm.evaluatorId,
-            evaluatorProfile:
-              profileMap.get(orm.evaluatorId) ?? EvaluatorProfile.SALUD,
-            isAssignedForAnnex10: orm.isAssignedForAnnex10 ?? false,
-            deadlineDate: orm.deadline ?? deadlineDate,
-            status: orm.statusId,
-          }),
-      );
+      savedEntities = ormEntities.map((orm) => {
+        const resolvedProfile = profileMap.get(orm.evaluatorId);
+        if (resolvedProfile === undefined) {
+          throw new BadRequestException(
+            `No se encontró perfil para el evaluador con ID ${orm.evaluatorId}.`,
+          );
+        }
+        return new EvaluationAssignmentEntity({
+          id: orm.id,
+          protocolId: dto.protocolId,
+          evaluatorId: orm.evaluatorId,
+          evaluatorProfile: resolvedProfile,
+          isAssignedForAnnex10: orm.isAssignedForAnnex10 ?? false,
+          deadlineDate: orm.deadline ?? deadlineDate,
+          status: orm.statusId,
+        });
+      });
     } else {
       savedEntities = assignmentEntities;
     }
