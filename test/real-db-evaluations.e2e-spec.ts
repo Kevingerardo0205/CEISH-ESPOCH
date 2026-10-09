@@ -968,9 +968,17 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           protocolVersionIds: [991],
           sessionType: 'ORDINARIA',
         });
-      expect([200, 201]).toContain(resCreateCall.status);
-      const createdCallId = resCreateCall.body.id;
-      expect(createdCallId).toBeDefined();
+      if (![200, 201].includes(resCreateCall.status)) {
+        throw new Error(
+          `POST /api/evaluations/calls → ${resCreateCall.status}: ${JSON.stringify(resCreateCall.body)}`,
+        );
+      }
+      const createdCallId: string | undefined = resCreateCall.body?.id;
+      if (!createdCallId) {
+        throw new Error(
+          `POST /api/evaluations/calls returned no id — status ${resCreateCall.status} body ${JSON.stringify(resCreateCall.body)}`,
+        );
+      }
 
       // 4. GET /api/evaluations/calls/:id
       const resGetCall = await request(app.getHttpServer())
