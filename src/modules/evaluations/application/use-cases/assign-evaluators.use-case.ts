@@ -1,3 +1,4 @@
+import { BadRequestException } from '@nestjs/common';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import { QuotaEvaluatorValidatorService } from '../../domain/services/quota-evaluator-validator.service';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
@@ -104,12 +105,32 @@ export class AssignEvaluatorsUseCase {
       savedEntities =
         await this.evaluationRepository.saveAssignments(assignmentEntities);
     } else if (this.evaluationRepository.saveAssignmentsTransaction) {
+      let resolvedVersionId: number | undefined = dto.versionId;
+      if (resolvedVersionId === undefined) {
+        if (!this.evaluationRepository.findVersionByProtocolId) {
+          throw new BadRequestException(
+            'No se puede resolver la versión del protocolo: falta versionId o soporte de findVersionByProtocolId.',
+          );
+        }
+        const numericProtocolId =
+          typeof dto.protocolId === 'number'
+            ? dto.protocolId
+            : parseInt(`${dto.protocolId}`, 10);
+        const found =
+          await this.evaluationRepository.findVersionByProtocolId(
+            numericProtocolId,
+          );
+        if (found === null) {
+          throw new BadRequestException(
+            `No existe versión activa resoluble para el protocolo con ID ${numericProtocolId}.`,
+          );
+        }
+        resolvedVersionId = found.id;
+      }
       const ormPayloads = assignmentEntities.map((entity, index) => {
         const dtoItem = dto.evaluators[index];
         return {
-          versionId:
-            dto.versionId ??
-            (typeof dto.protocolId === 'number' ? dto.protocolId : 1),
+          versionId: resolvedVersionId,
           evaluatorId:
             typeof entity.evaluatorId === 'number'
               ? entity.evaluatorId

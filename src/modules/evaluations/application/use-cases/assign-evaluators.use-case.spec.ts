@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument, @typescript-eslint/require-await, @typescript-eslint/no-unsafe-call */
 import 'reflect-metadata';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { AssignEvaluatorsUseCase } from './assign-evaluators.use-case';
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignEvaluatorsDto } from '../dtos/evaluator-dtos';
@@ -204,5 +205,105 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     // 8 días hábiles desde Viernes 6 -> Miércoles 18 de marzo (2026-03-18)
     expect(result[0].deadlineDate).toBe('2026-03-18');
     jest.useRealTimers();
+  });
+
+  it('should resolve versionId via findVersionByProtocolId when dto.versionId is absent', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest
+        .fn()
+        .mockImplementation(async (payloads: any[]) =>
+          payloads.map((p, idx) => ({
+            id: idx + 1,
+            versionId: p.versionId,
+            evaluatorId: p.evaluatorId,
+            isAssignedForAnnex10: p.isAssignedForAnnex10,
+            deadline: p.deadline,
+            statusId: p.statusId,
+          })),
+        ),
+      findVersionByProtocolId: jest
+        .fn()
+        .mockResolvedValue({ id: 42, protocolId: 25 }),
+    };
+
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+
+    const dto = {
+      protocolId: 25,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    const result = await transactionalUseCase.execute(dto, 15, []);
+
+    expect(transactionRepoMock.findVersionByProtocolId).toHaveBeenCalledWith(25);
+    expect(result).toHaveLength(4);
+    const callPayloads =
+      transactionRepoMock.saveAssignmentsTransaction.mock.calls[0][0] as any[];
+    expect(callPayloads[0].versionId).toBe(42);
+  });
+
+  it('should throw BadRequestException when findVersionByProtocolId returns null (no resolvable version)', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest.fn(),
+      findVersionByProtocolId: jest.fn().mockResolvedValue(null),
+    };
+
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+
+    const dto = {
+      protocolId: 99,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should propagate NotFoundException thrown by findVersionByProtocolId when protocol does not exist', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest.fn(),
+      findVersionByProtocolId: jest
+        .fn()
+        .mockRejectedValue(
+          new NotFoundException('Protocolo con ID 999 no encontrado'),
+        ),
+    };
+
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+
+    const dto = {
+      protocolId: 999,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 });
