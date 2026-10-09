@@ -5,7 +5,7 @@ import {
   BadRequestException,
   NotFoundException,
 } from '@nestjs/common';
-import { requireEnv } from '../../../../shared/utils/require-env';
+import { ConfigService } from '@nestjs/config';
 import { DataSource } from 'typeorm';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
@@ -32,6 +32,7 @@ export class AuthService {
     private readonly jwtService: JwtService,
     private readonly emailService: IEmailServicePort,
     private readonly dataSource: DataSource,
+    private readonly configService: ConfigService,
   ) {}
 
   async setupAccount(dto: SetupAccountDto): Promise<void> {
@@ -365,11 +366,11 @@ export class AuthService {
     const [at, rt] = await Promise.all([
       this.jwtService.signAsync(payload, {
         expiresIn: '15m',
-        secret: requireEnv('JWT_SECRET'),
+        secret: this.configService.getOrThrow<string>('app.jwtSecret'),
       }),
       this.jwtService.signAsync(payload, {
         expiresIn: '7d',
-        secret: requireEnv('JWT_REFRESH_SECRET'),
+        secret: this.configService.getOrThrow<string>('app.jwtRefreshSecret'),
       }),
     ]);
 

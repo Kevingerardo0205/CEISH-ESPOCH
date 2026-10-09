@@ -9,6 +9,7 @@ import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import databaseConfig from './config/database.config';
+import appConfig from './config/app.config';
 import { ProtocolsModule } from './modules/protocols/protocols.module';
 import { AuditModule } from './modules/audit/audit.module';
 import { AuthModule } from './modules/auth/auth.module';
@@ -29,7 +30,7 @@ import { StorageModule } from './shared/storage/storage.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      load: [databaseConfig],
+      load: [databaseConfig, appConfig],
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],

@@ -1,15 +1,14 @@
 import { Injectable } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 import * as crypto from 'crypto';
-import { requireEnv } from '../utils/require-env';
 
 @Injectable()
 export class EncryptionService {
   private readonly algorithm = 'aes-256-cbc';
   private readonly key: Buffer;
 
-  constructor() {
-    // Se espera una clave de 32 bytes codificada en base64 en ENCRYPTION_KEY.
-    const keyBase64 = requireEnv('ENCRYPTION_KEY');
+  constructor(configService: ConfigService) {
+    const keyBase64 = configService.getOrThrow<string>('app.encryptionKey');
     this.key = Buffer.from(keyBase64, 'base64');
 
     if (this.key.length !== 32) {
