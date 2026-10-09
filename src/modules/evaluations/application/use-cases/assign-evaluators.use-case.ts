@@ -31,6 +31,7 @@ export interface IEvaluationRepository {
   saveAssignmentsTransaction?(
     assignments: Partial<EvaluationAssignmentOrmEntity>[],
   ): Promise<EvaluationAssignmentOrmEntity[]>;
+  findVersionById?(id: number): Promise<{ id: number; protocolId: number } | null>;
   findVersionByProtocolId?(
     protocolId: number,
   ): Promise<{ id: number; protocolId: number } | null>;
@@ -105,6 +106,39 @@ export class AssignEvaluatorsUseCase {
       savedEntities =
         await this.evaluationRepository.saveAssignments(assignmentEntities);
     } else if (this.evaluationRepository.saveAssignmentsTransaction) {
+      // b) Strict protocolId: must be a positive integer (rejects "abc", "12abc", 0, -1)
+      const rawProtocolId = dto.protocolId;
+      if (
+        (typeof rawProtocolId === 'string' && !/^\d+$/.test(rawProtocolId)) ||
+        (typeof rawProtocolId === 'number' &&
+          (!Number.isInteger(rawProtocolId) || rawProtocolId <= 0))
+      ) {
+        throw new BadRequestException(
+          `protocolId debe ser un entero positivo; se recibió "${String(rawProtocolId)}".`,
+        );
+      }
+      const numericProtocolId =
+        typeof rawProtocolId === 'number'
+          ? rawProtocolId
+          : parseInt(rawProtocolId, 10);
+
+      // a) Validate explicitly supplied versionId before any DB write
+      if (dto.versionId !== undefined && this.evaluationRepository.findVersionById) {
+        const existing = await this.evaluationRepository.findVersionById(
+          dto.versionId,
+        );
+        if (existing === null) {
+          throw new BadRequestException(
+            `La versión con ID ${dto.versionId} no existe.`,
+          );
+        }
+        if (existing.protocolId !== numericProtocolId) {
+          throw new BadRequestException(
+            `La versión ${dto.versionId} no pertenece al protocolo ${numericProtocolId}.`,
+          );
+        }
+      }
+
       let resolvedVersionId: number | undefined = dto.versionId;
       if (resolvedVersionId === undefined) {
         if (!this.evaluationRepository.findVersionByProtocolId) {
@@ -112,10 +146,6 @@ export class AssignEvaluatorsUseCase {
             'No se puede resolver la versión del protocolo: falta versionId o soporte de findVersionByProtocolId.',
           );
         }
-        const numericProtocolId =
-          typeof dto.protocolId === 'number'
-            ? dto.protocolId
-            : parseInt(`${dto.protocolId}`, 10);
         const found =
           await this.evaluationRepository.findVersionByProtocolId(
             numericProtocolId,
@@ -129,12 +159,19 @@ export class AssignEvaluatorsUseCase {
       }
       const ormPayloads = assignmentEntities.map((entity, index) => {
         const dtoItem = dto.evaluators[index];
+        const rawEvaluatorId = entity.evaluatorId;
+        const numericEvaluatorId =
+          typeof rawEvaluatorId === 'number'
+            ? rawEvaluatorId
+            : parseInt(`${rawEvaluatorId}`, 10);
+        if (!Number.isInteger(numericEvaluatorId) || numericEvaluatorId <= 0) {
+          throw new BadRequestException(
+            `El ID del evaluador debe ser un entero positivo; se recibió "${String(rawEvaluatorId)}".`,
+          );
+        }
         return {
           versionId: resolvedVersionId,
-          evaluatorId:
-            typeof entity.evaluatorId === 'number'
-              ? entity.evaluatorId
-              : parseInt(`${entity.evaluatorId}`, 10) || 1,
+          evaluatorId: numericEvaluatorId,
           profileId: dtoItem?.profileId,
           statusId: AssignmentStatus.ASSIGNED,
           isAssignedForAnnex10: entity.isAssignedForAnnex10,
@@ -147,19 +184,23 @@ export class AssignEvaluatorsUseCase {
       const profileMap = new Map(
         dto.evaluators.map((e) => [e.evaluatorId, e.profile]),
       );
-      savedEntities = ormEntities.map(
-        (orm) =>
-          new EvaluationAssignmentEntity({
-            id: orm.id,
-            protocolId: dto.protocolId,
-            evaluatorId: orm.evaluatorId,
-            evaluatorProfile:
-              profileMap.get(orm.evaluatorId) ?? EvaluatorProfile.SALUD,
-            isAssignedForAnnex10: orm.isAssignedForAnnex10 ?? false,
-            deadlineDate: orm.deadline ?? deadlineDate,
-            status: orm.statusId,
-          }),
-      );
+      savedEntities = ormEntities.map((orm) => {
+        const resolvedProfile = profileMap.get(orm.evaluatorId);
+        if (resolvedProfile === undefined) {
+          throw new BadRequestException(
+            `No se encontró perfil para el evaluador con ID ${orm.evaluatorId}.`,
+          );
+        }
+        return new EvaluationAssignmentEntity({
+          id: orm.id,
+          protocolId: dto.protocolId,
+          evaluatorId: orm.evaluatorId,
+          evaluatorProfile: resolvedProfile,
+          isAssignedForAnnex10: orm.isAssignedForAnnex10 ?? false,
+          deadlineDate: orm.deadline ?? deadlineDate,
+          status: orm.statusId,
+        });
+      });
     } else {
       savedEntities = assignmentEntities;
     }

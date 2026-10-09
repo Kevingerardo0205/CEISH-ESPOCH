@@ -85,6 +85,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
             statusId: p.statusId,
           })),
         ),
+      findVersionById: jest.fn().mockResolvedValue({ id: 1, protocolId: 25 }),
     };
 
     const transactionalUseCase = new AssignEvaluatorsUseCase(
@@ -275,6 +276,166 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
       BadRequestException,
     );
     expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should throw BadRequestException when explicit versionId does not exist in the repository', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest.fn(),
+      findVersionById: jest.fn().mockResolvedValue(null),
+    };
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+    const dto = {
+      protocolId: 25,
+      versionId: 9999,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should throw BadRequestException when versionId belongs to a different protocol', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest.fn(),
+      findVersionById: jest.fn().mockResolvedValue({ id: 5, protocolId: 99 }),
+    };
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+    const dto = {
+      protocolId: 25,
+      versionId: 5,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should throw BadRequestException when protocolId is a non-numeric string ("abc")', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest.fn(),
+      findVersionByProtocolId: jest.fn(),
+    };
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+    const dto = {
+      protocolId: 'abc',
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should throw BadRequestException when protocolId is a mixed string ("12abc")', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest.fn(),
+      findVersionByProtocolId: jest.fn(),
+    };
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+    const dto = {
+      protocolId: '12abc',
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should throw BadRequestException when an evaluatorId is a non-numeric string ("abc")', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest.fn(),
+      findVersionByProtocolId: jest
+        .fn()
+        .mockResolvedValue({ id: 42, protocolId: 25 }),
+    };
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+    const dto = {
+      protocolId: 25,
+      evaluators: [
+        { evaluatorId: 'abc', profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
+    expect(transactionRepoMock.saveAssignmentsTransaction).not.toHaveBeenCalled();
+  });
+
+  it('should throw BadRequestException when ORM returns an evaluatorId not present in the profile map', async () => {
+    const transactionRepoMock = {
+      saveAssignmentsTransaction: jest
+        .fn()
+        .mockImplementation(async (payloads: any[]) =>
+          payloads.map((p, idx) => ({
+            id: idx + 1,
+            versionId: p.versionId,
+            evaluatorId: 9999, // unexpected id — not in dto.evaluators
+            isAssignedForAnnex10: p.isAssignedForAnnex10,
+            deadline: p.deadline,
+            statusId: p.statusId,
+          })),
+        ),
+      findVersionByProtocolId: jest
+        .fn()
+        .mockResolvedValue({ id: 42, protocolId: 25 }),
+    };
+    const transactionalUseCase = new AssignEvaluatorsUseCase(
+      transactionRepoMock,
+      eventEmitterMock,
+    );
+    const dto = {
+      protocolId: 25,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+    await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
+      BadRequestException,
+    );
   });
 
   it('should propagate NotFoundException thrown by findVersionByProtocolId when protocol does not exist', async () => {
