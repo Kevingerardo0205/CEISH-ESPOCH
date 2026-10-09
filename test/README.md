@@ -25,7 +25,7 @@ Se pueden configurar las siguientes variables de entorno para personalizar la co
 | `TEST_DB_HOST` | `localhost` | Host de PostgreSQL |
 | `TEST_DB_PORT` | `3100` | Puerto expuesto en Docker |
 | `TEST_DB_USER` | `ceish_user` | Usuario de PostgreSQL |
-| `TEST_DB_PASSWORD` | `ceish_password` | Contraseña |
+| `TEST_DB_PASSWORD` | `<tu-clave>` | Contraseña |
 | `TEST_DB_NAME` | `ceish_test_db` | Nombre de la base de datos de pruebas |
 
 ## 4. Ejecución de las Pruebas
