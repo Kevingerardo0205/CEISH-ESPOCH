@@ -7,6 +7,8 @@ import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 
+import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
+
 export interface IEvaluationRepository {
   saveAssignments?(
     entities: EvaluationAssignmentEntity[],
@@ -34,7 +36,7 @@ export class AssignEvaluatorsUseCase {
    */
   public async execute(
     dto: AssignEvaluatorsDto,
-    standardFullDays: number = 15,
+    standardFullDays?: number,
     holidays: string[] = [],
   ): Promise<EvaluationAssignmentEntity[]> {
     // 1. Validar la cuota exacta de 4 perfiles obligatorios (1 de cada uno)
@@ -45,10 +47,20 @@ export class AssignEvaluatorsUseCase {
       RandomRiskSelectorService.selectAnnex10Evaluators(dto.evaluators);
     const annex10Set = new Set(annex10EvaluatorIds);
 
-    // 3. Calcular la fecha límite de entrega respetando días hábiles
-    const deadlineDate = BusinessDayCalculator.calculateDeadline({
+    // NOTA NORMATIVA: Según el PET (líneas 726, 819) y la normativa CEISH, una revisión EXPEDITA
+    // requiere únicamente 1 o 2 miembros evaluadores (habitualmente perfil metodológico y salud/ético).
+    // Actualmente, la interfaz del frontend envía y requiere la selección de los 4 evaluadores
+    // obligatorios para todos los flujos. Por compatibilidad con la interfaz, hoy se asignan los 4
+    // evaluadores con el plazo normativo reducido (8 días hábiles), quedando pendiente la decisión
+    // del comité para un eventual flujo de asignación parcial de 1-2 miembros en revisiones expeditas.
+    // 3. Determinar días hábiles según reviewType (8 para EXPEDITA, 15 para PLENO / por defecto)
+    const daysToAdd =
+      standardFullDays ?? (dto.reviewType === ReviewType.EXPEDITA ? 8 : 15);
+
+    // 4. Calcular la fecha límite de entrega respetando días hábiles (YYYY-MM-DD para columnas PostgreSQL date)
+    const deadlineDate = BusinessDayCalculator.calculateDeadlineDateString({
       startDate: new Date(),
-      businessDaysToAdd: standardFullDays,
+      businessDaysToAdd: daysToAdd,
       holidays,
     });
 

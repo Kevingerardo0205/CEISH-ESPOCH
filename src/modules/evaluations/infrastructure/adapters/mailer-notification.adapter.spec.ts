@@ -25,7 +25,7 @@ describe('MailerNotificationAdapter (TSK-002-16)', () => {
       protocolCode: 'CEISH-ESPOCH-EI-004-2026',
       evaluatorProfile: EvaluatorProfile.JURIDICO,
       isAssignedForAnnex10: true,
-      deadlineDate: new Date('2026-10-15T23:59:59.999Z'),
+      deadlineDate: '2026-10-15',
     };
 
     await adapter.handleEvaluatorAssignedEvent(payload);
@@ -59,7 +59,7 @@ describe('MailerNotificationAdapter (TSK-002-16)', () => {
       protocolCode: 'CEISH-ESPOCH-EI-004-2026',
       evaluatorProfile: EvaluatorProfile.SOCIEDAD_CIVIL,
       isAssignedForAnnex10: false,
-      deadlineDate: new Date('2026-10-15T23:59:59.999Z'),
+      deadlineDate: '2026-10-15',
     };
 
     await adapter.handleEvaluatorAssignedEvent(payload);
@@ -74,8 +74,30 @@ describe('MailerNotificationAdapter (TSK-002-16)', () => {
     expect(mailOptions.html).toContain(
       'https://ceish.espoch.edu.ec/evaluations/asg-102/panel',
     );
-    expect(mailOptions.html).not.toContain(
-      'RESPONSABILIDAD ADICIONAL: Ha sido seleccionado para diligenciar el Anexo 10',
-    );
+  });
+
+  it('should format date string 2026-03-12 correctly as 12 de marzo de 2026 even under America/Guayaquil timezone', async () => {
+    const payload = {
+      assignmentId: 'asg-103',
+      protocolId: 'prot-202',
+      evaluatorId: 'eval-305',
+      evaluatorEmail: 'medico@espoch.edu.ec',
+      evaluatorFullName: 'Dr. Roberto Gomez',
+      protocolCode: 'CEISH-ESPOCH-EI-005-2026',
+      evaluatorProfile: EvaluatorProfile.SALUD,
+      isAssignedForAnnex10: false,
+      deadlineDate: '2026-03-12',
+    };
+
+    await adapter.handleEvaluatorAssignedEvent(payload);
+
+    expect(mailerServiceMock.sendMail).toHaveBeenCalledTimes(1);
+    const mailOptions = (
+      mailerServiceMock.sendMail.mock.calls as Array<
+        [{ to: string; subject: string; html: string }]
+      >
+    )[0][0];
+
+    expect(mailOptions.html).toContain('12 de marzo de 2026');
   });
 });

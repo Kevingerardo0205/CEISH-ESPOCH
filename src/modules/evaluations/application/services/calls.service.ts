@@ -30,6 +30,7 @@ import { CreateCallDto } from '../dtos/create-call.dto';
 import { CreatePlaceDto, UpdatePlaceDto } from '../dtos/create-place.dto';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
 import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
+import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
 
 /**
  * @deprecated CallsService queda deprecado según RF-09 / TSK-009-000.
@@ -299,7 +300,7 @@ export class CallsService {
           );
 
           for (const assignment of assignments) {
-            assignment.deadline = evaluationDeadline;
+            assignment.deadline = toCalendarDateString(evaluationDeadline);
             await queryRunner.manager.save(
               EvaluationAssignmentOrmEntity,
               assignment,

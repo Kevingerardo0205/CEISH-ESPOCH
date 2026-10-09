@@ -21,13 +21,7 @@ export class ConvocatoriaProtocoloOrmEntity {
   @Column({ name: 'convocatoria_id', type: 'uuid' })
   convocatoriaId: string;
 
-  @Column({
-    name: 'tipo_punto_agenda',
-    type: 'varchar',
-    length: 50,
-    default: AgendaItemType.EVALUACION_INICIAL,
-  })
-  tipoPuntoAgenda: AgendaItemType;
+  tipoPuntoAgenda?: AgendaItemType;
 
   @Column({ name: 'protocolo_id', type: 'integer', nullable: true })
   protocoloId?: number | null;
@@ -43,7 +37,6 @@ export class ConvocatoriaProtocoloOrmEntity {
   @JoinColumn({ name: 'version_id' })
   version?: ProtocolVersionOrmEntity;
 
-  @Column({ name: 'informe_seguimiento_id', type: 'integer', nullable: true })
   informeSeguimientoId?: number | null;
 
   @Column({ name: 'orden', type: 'integer' })

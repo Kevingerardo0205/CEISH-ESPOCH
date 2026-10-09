@@ -110,4 +110,99 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     expect(result).toHaveLength(4);
     expect(result[0].id).toBe(1);
   });
+
+  it('should calculate exactly 8 business days deadline when reviewType is EXPEDITA (crossing weekend)', async () => {
+    jest.useFakeTimers();
+    // Lunes 2 de marzo de 2026 10:00:00 UTC (05:00 ECT)
+    jest.setSystemTime(new Date('2026-03-02T10:00:00.000Z'));
+
+    const dto: AssignEvaluatorsDto = {
+      protocolId: 50,
+      versionId: 1,
+      reviewType: 'EXPEDITA' as any,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    const result = await useCase.execute(dto);
+    expect(result).toHaveLength(4);
+    // 8 días hábiles desde Mar 2 -> Jueves 12 de marzo (2026-03-12)
+    expect(result[0].deadlineDate).toBe('2026-03-12');
+    jest.useRealTimers();
+  });
+
+  it('should calculate exactly 15 business days deadline when reviewType is PLENO or omitted', async () => {
+    jest.useFakeTimers();
+    // Lunes 2 de marzo de 2026 10:00:00 UTC (05:00 ECT)
+    jest.setSystemTime(new Date('2026-03-02T10:00:00.000Z'));
+
+    const dto: AssignEvaluatorsDto = {
+      protocolId: 51,
+      versionId: 1,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    const result = await useCase.execute(dto);
+    expect(result).toHaveLength(4);
+    // 15 días hábiles desde Mar 2 -> Lunes 23 de marzo (2026-03-23)
+    expect(result[0].deadlineDate).toBe('2026-03-23');
+    jest.useRealTimers();
+  });
+
+  it('should calculate exact deadline when executed on Thursday at 20:00 Ecuador time (America/Guayaquil UTC-5)', async () => {
+    jest.useFakeTimers();
+    // Jueves 5 de marzo de 2026 a las 20:00:00 Ecuador (UTC-5)
+    jest.setSystemTime(new Date('2026-03-05T20:00:00-05:00'));
+
+    const dto: AssignEvaluatorsDto = {
+      protocolId: 52,
+      versionId: 1,
+      reviewType: 'EXPEDITA' as any,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    const result = await useCase.execute(dto);
+    expect(result).toHaveLength(4);
+    // 8 días hábiles desde Jueves 5 -> Martes 17 de marzo (2026-03-17)
+    expect(result[0].deadlineDate).toBe('2026-03-17');
+    jest.useRealTimers();
+  });
+
+  it('should calculate exact deadline when executed on Friday at 20:00 Ecuador time (America/Guayaquil UTC-5)', async () => {
+    jest.useFakeTimers();
+    // Viernes 6 de marzo de 2026 a las 20:00:00 Ecuador (UTC-5)
+    jest.setSystemTime(new Date('2026-03-06T20:00:00-05:00'));
+
+    const dto: AssignEvaluatorsDto = {
+      protocolId: 53,
+      versionId: 1,
+      reviewType: 'EXPEDITA' as any,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    const result = await useCase.execute(dto);
+    expect(result).toHaveLength(4);
+    // 8 días hábiles desde Viernes 6 -> Miércoles 18 de marzo (2026-03-18)
+    expect(result[0].deadlineDate).toBe('2026-03-18');
+    jest.useRealTimers();
+  });
 });

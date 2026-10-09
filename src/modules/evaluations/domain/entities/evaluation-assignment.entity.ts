@@ -1,5 +1,6 @@
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../enums/assignment-status.enum';
+import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
 
 export interface EvaluationAssignmentProps {
   id?: number | string;
@@ -7,7 +8,7 @@ export interface EvaluationAssignmentProps {
   evaluatorId: number | string;
   evaluatorProfile: EvaluatorProfile;
   isAssignedForAnnex10: boolean;
-  deadlineDate: Date;
+  deadlineDate: string | Date;
   status?: AssignmentStatus;
 }
 
@@ -17,7 +18,7 @@ export class EvaluationAssignmentEntity {
   public readonly evaluatorId: number | string;
   public readonly evaluatorProfile: EvaluatorProfile;
   public readonly isAssignedForAnnex10: boolean;
-  public readonly deadlineDate: Date;
+  public readonly deadlineDate: string;
   private _status: AssignmentStatus;
 
   constructor(props: EvaluationAssignmentProps) {
@@ -51,7 +52,12 @@ export class EvaluationAssignmentEntity {
     this.evaluatorId = props.evaluatorId;
     this.evaluatorProfile = props.evaluatorProfile;
     this.isAssignedForAnnex10 = props.isAssignedForAnnex10;
-    this.deadlineDate = props.deadlineDate;
+    this.deadlineDate =
+      typeof props.deadlineDate === 'string'
+        ? props.deadlineDate
+        : props.deadlineDate instanceof Date
+          ? toCalendarDateString(props.deadlineDate)
+          : '';
     this._status = props.status ?? AssignmentStatus.ASSIGNED;
   }
 

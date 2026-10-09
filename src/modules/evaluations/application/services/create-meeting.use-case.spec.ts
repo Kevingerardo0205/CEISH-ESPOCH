@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/unbound-method */
 import { BadRequestException } from '@nestjs/common';
 import { CreateMeetingUseCase } from './create-meeting.use-case';
 import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-repository.port';

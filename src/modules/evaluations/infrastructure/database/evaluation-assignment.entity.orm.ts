@@ -52,11 +52,33 @@ export class EvaluationAssignmentOrmEntity {
   })
   statusId!: number;
 
-  @Column({ name: 'es_asignado_anexo_10', type: 'boolean', default: false })
+  @Column({
+    name: 'es_asignado_anexo_10',
+    type: 'boolean',
+    nullable: true,
+    default: false,
+  })
   isAssignedForAnnex10!: boolean;
 
-  @Column({ name: 'fecha_limite', type: 'date', nullable: true })
-  deadline?: Date;
+  @Column({
+    name: 'fecha_limite',
+    type: 'date',
+    nullable: true,
+    transformer: {
+      to: (value?: Date | string | null) => {
+        if (!value) return value;
+        if (typeof value === 'string') return value;
+        if (value instanceof Date) {
+          throw new Error(
+            'fecha_limite no acepta Date, use formato YYYY-MM-DD',
+          );
+        }
+        return value;
+      },
+      from: (value?: string | null) => value,
+    },
+  })
+  deadline?: string | null;
 
   @CreateDateColumn({ name: 'fecha_asignacion', type: 'timestamp' })
   assignedAt!: Date;

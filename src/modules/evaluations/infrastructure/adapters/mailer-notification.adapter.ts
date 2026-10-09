@@ -10,7 +10,7 @@ export interface EvaluatorAssignedEventPayload {
   protocolCode?: string;
   evaluatorProfile: EvaluatorProfile;
   isAssignedForAnnex10: boolean;
-  deadlineDate: Date;
+  deadlineDate: string;
   isReassignment?: boolean;
 }
 
@@ -43,6 +43,7 @@ export class MailerNotificationAdapter {
     const formattedDeadline = new Date(payload.deadlineDate).toLocaleDateString(
       'es-EC',
       {
+        timeZone: 'UTC',
         year: 'numeric',
         month: 'long',
         day: 'numeric',

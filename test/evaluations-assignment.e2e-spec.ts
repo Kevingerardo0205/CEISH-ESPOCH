@@ -9,6 +9,7 @@ import { AssignmentHistoryEntity } from '../src/modules/evaluations/domain/entit
 import { AssignEvaluatorsUseCase } from '../src/modules/evaluations/application/use-cases/assign-evaluators.use-case';
 import { ReassignEvaluatorUseCase } from '../src/modules/evaluations/application/use-cases/reassign-evaluator.use-case';
 import { SubmitEvaluationUseCase } from '../src/modules/evaluations/application/use-cases/submit-evaluation.use-case';
+import { AssignEvaluatorsDto } from '../src/modules/evaluations/application/dtos/evaluator-dtos';
 
 describe('Evaluations Assignment Workflow (e2e integration)', () => {
   let inMemoryAssignments: EvaluationAssignmentEntity[] = [];
@@ -262,5 +263,68 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     // 8. Verificar que el estado de completitud cambie a true (100% completado)
     isComplete = await submitUseCase.isCompletion100Percent(protocolId);
     expect(isComplete).toBe(true);
+  });
+
+  it('should NOT mark ethical evaluation as completed when Annex 10 evaluator sends preliminary risk proposal, and preserves risk proposal after full evaluation', async () => {
+    const protocolId = 200;
+
+    const assignDto: AssignEvaluatorsDto = {
+      protocolId,
+      evaluators: [
+        { evaluatorId: 10, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 20, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 30, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 40, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    const assignments = await assignUseCase.execute(assignDto);
+    expect(assignments).toHaveLength(4);
+
+    const annex10Evaluator = assignments.find((a) => a.isAssignedForAnnex10)!;
+    expect(annex10Evaluator).toBeDefined();
+
+    // 1. El evaluador de Anexo 10 envía su propuesta de riesgo preliminar (7 días)
+    // Se guarda en entidad separada de propuestas de riesgo
+    const inMemoryRiskProposals: Array<{
+      assignmentId: number;
+      riskLevelId: number;
+      isCurrent: boolean;
+      observations: string;
+    }> = [];
+
+    inMemoryRiskProposals.push({
+      assignmentId: Number(annex10Evaluator.id),
+      riskLevelId: 2,
+      isCurrent: true,
+      observations: 'Dictamen de riesgo preliminar',
+    });
+
+    // 2. Verificar que completion-status del protocolo SIGUE SIENDO FALSE (la evaluación ética no está entregada)
+    const isCompleteAfterRisk =
+      await submitUseCase.isCompletion100Percent(protocolId);
+    expect(isCompleteAfterRisk).toBe(false);
+
+    // 3. Verificar que el evaluador sigue con estado ASSIGNED (evaluación ética pendiente)
+    expect(annex10Evaluator.status).toBe(AssignmentStatus.ASSIGNED);
+
+    // 4. Posteriormente, los 4 evaluadores entregan su informe ético completo
+    for (const a of inMemoryAssignments.filter(
+      (asg) => asg.protocolId === protocolId,
+    )) {
+      a.markAsCompleted();
+    }
+
+    // 5. Ahora completion-status es TRUE
+    const isCompleteAfterEthical =
+      await submitUseCase.isCompletion100Percent(protocolId);
+    expect(isCompleteAfterEthical).toBe(true);
+
+    // 6. La propuesta de riesgo preliminar sigue intacta en su entidad separada
+    expect(inMemoryRiskProposals).toHaveLength(1);
+    expect(inMemoryRiskProposals[0].isCurrent).toBe(true);
+    expect(inMemoryRiskProposals[0].observations).toBe(
+      'Dictamen de riesgo preliminar',
+    );
   });
 });
