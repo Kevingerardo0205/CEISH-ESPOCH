@@ -313,6 +313,8 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 - **RF-12.1**: El sistema debe controlar el número máximo de evaluadores asignados por tipo en cada protocolo.
 - **Criterio EARS (RF-12.1)**: **Cuando** se asignen evaluadores a un protocolo, **el sistema debe** verificar que no se superen las cuotas permitidas: máximo 1 para `SOCIEDAD_CIVIL`, máximo 1 para `JURIDICO`, y hasta 2 para `ETICA / METODOLOGICO_SALUD`.
 
+---
+
 ### RF-13: Observaciones Multilínea por Requisito Documental
 - **RF-13.1**: Permite a la Secretaria detallar correcciones específicas por cada documento del checklist.
 - **Criterio EARS (RF-13.1)**: **Si** la Secretaria marca un requisito como observatorio, **el sistema debe** habilitar un campo multilínea (textarea) por ítem y consolidar todas las observaciones en el correo de subsanación.

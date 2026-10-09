@@ -52,6 +52,9 @@ export class EvaluationAssignmentOrmEntity {
   })
   statusId!: number;
 
+  @Column({ name: 'es_asignado_anexo_10', type: 'boolean', default: false })
+  isAssignedForAnnex10!: boolean;
+
   @Column({ name: 'fecha_limite', type: 'date', nullable: true })
   deadline?: Date;
 

@@ -1,6 +1,6 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import { IEvaluationRepository } from '../../domain/ports/evaluation.repository.port';
 import { EvaluationAssignmentOrmEntity } from '../database/evaluation-assignment.entity.orm';
 import { EvaluatorProfileOrmEntity } from '../database/evaluator-profile.entity.orm';
@@ -8,6 +8,7 @@ import { EvaluatorProfileUserOrmEntity } from '../database/evaluator-profile-use
 import { ProtocolVersionOrmEntity } from '../database/protocol-version.entity.orm';
 import { EvaluationOrmEntity } from '../database/evaluation.entity.orm';
 import { EvaluationResponseDetailOrmEntity } from '../database/evaluation-response-detail.entity.orm';
+import { AssignmentHistoryOrmEntity } from '../database/entities/assignment-history.orm-entity';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
@@ -28,6 +29,7 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     private readonly evaluationRepo: Repository<EvaluationOrmEntity>,
     @InjectRepository(EvaluationResponseDetailOrmEntity)
     private readonly detailRepo: Repository<EvaluationResponseDetailOrmEntity>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findAssignmentById(
@@ -52,6 +54,121 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
       where: { versionId },
       relations: ['evaluator', 'profile'],
     });
+  }
+
+  async findActiveAssignmentsByVersionId(
+    versionId: number,
+  ): Promise<EvaluationAssignmentOrmEntity[]> {
+    return this.assignmentRepo.find({
+      where: {
+        versionId,
+        statusId: In([
+          AssignmentStatus.SUGGESTED,
+          AssignmentStatus.ASSIGNED,
+          AssignmentStatus.COMPLETED,
+        ]),
+      },
+      relations: ['evaluator', 'profile', 'version', 'version.protocol'],
+    });
+  }
+
+  async saveAssignmentsTransaction(
+    assignments: Partial<EvaluationAssignmentOrmEntity>[],
+  ): Promise<EvaluationAssignmentOrmEntity[]> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      const entities = assignments.map((a) =>
+        queryRunner.manager.create(EvaluationAssignmentOrmEntity, a),
+      );
+      const saved = await queryRunner.manager.save(
+        EvaluationAssignmentOrmEntity,
+        entities,
+      );
+      await queryRunner.commitTransaction();
+      return saved;
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
+  }
+
+  async executeReassignmentTransaction(params: {
+    outgoingAssignmentId: number;
+    outgoingStatusId: number;
+    newAssignment: Partial<EvaluationAssignmentOrmEntity>;
+    auditHistory: Partial<AssignmentHistoryOrmEntity>;
+  }): Promise<{
+    outgoingAssignment: EvaluationAssignmentOrmEntity;
+    newAssignment: EvaluationAssignmentOrmEntity;
+    auditHistory: AssignmentHistoryOrmEntity;
+  }> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+
+    try {
+      // 1. Obtener y actualizar asignación saliente
+      const outgoing = await queryRunner.manager.findOne(
+        EvaluationAssignmentOrmEntity,
+        {
+          where: { id: params.outgoingAssignmentId },
+        },
+      );
+
+      if (!outgoing) {
+        throw new NotFoundException(
+          `Asignación previa con ID ${params.outgoingAssignmentId} no encontrada.`,
+        );
+      }
+
+      outgoing.statusId = params.outgoingStatusId;
+      const savedOutgoing = await queryRunner.manager.save(
+        EvaluationAssignmentOrmEntity,
+        outgoing,
+      );
+
+      // 2. Crear y guardar la nueva asignación
+      const newAssignmentEntity = queryRunner.manager.create(
+        EvaluationAssignmentOrmEntity,
+        params.newAssignment,
+      );
+      const savedNewAssignment = await queryRunner.manager.save(
+        EvaluationAssignmentOrmEntity,
+        newAssignmentEntity,
+      );
+
+      // 3. Crear y guardar el historial de auditoría inmutable
+      const auditEntity = queryRunner.manager.create(
+        AssignmentHistoryOrmEntity,
+        {
+          ...params.auditHistory,
+          previousAssignmentId: savedOutgoing.id,
+          newAssignmentId: savedNewAssignment.id,
+        },
+      );
+      const savedAuditHistory = await queryRunner.manager.save(
+        AssignmentHistoryOrmEntity,
+        auditEntity,
+      );
+
+      await queryRunner.commitTransaction();
+
+      return {
+        outgoingAssignment: savedOutgoing,
+        newAssignment: savedNewAssignment,
+        auditHistory: savedAuditHistory,
+      };
+    } catch (error) {
+      await queryRunner.rollbackTransaction();
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 
   async findAssignmentsByEvaluatorId(

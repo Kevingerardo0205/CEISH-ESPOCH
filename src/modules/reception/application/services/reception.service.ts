@@ -461,7 +461,8 @@ export class ReceptionService {
     // o si el estado del protocolo es REQUIERE_SUBSANACION (19, 20) o EN_CONTROL_DOCUMENTAL (21).
     const isVersionSubsanacionActive =
       (protocol.currentVersion && protocol.currentVersion > 1) ||
-      (protocol.activeVersion && protocol.activeVersion.versionNumber > 1) ||
+      (protocol.activeVersion?.versionNumber != null &&
+        protocol.activeVersion.versionNumber > 1) ||
       protocol.statusId === 19 ||
       protocol.statusId === 20 ||
       protocol.statusId === 21;
@@ -494,7 +495,8 @@ export class ReceptionService {
     // Para la Versión 2 o superior (subsanación de versión), el investigador puede reemplazar los archivos del checklist para armar el nuevo expediente V2.
     const isMultiversion =
       (protocol.currentVersion && protocol.currentVersion > 1) ||
-      (protocol.activeVersion && protocol.activeVersion.versionNumber > 1) ||
+      (protocol.activeVersion?.versionNumber != null &&
+        protocol.activeVersion.versionNumber > 1) ||
       protocol.statusId === 19 ||
       protocol.statusId === 20 ||
       protocol.statusId === 21;
@@ -557,7 +559,8 @@ export class ReceptionService {
 
     const isVersionSubsanacionActive =
       (protocol.currentVersion && protocol.currentVersion > 1) ||
-      (protocol.activeVersion && protocol.activeVersion.versionNumber > 1) ||
+      (protocol.activeVersion?.versionNumber != null &&
+        protocol.activeVersion.versionNumber > 1) ||
       protocol.statusId === 19 ||
       protocol.statusId === 20 ||
       protocol.statusId === 21;

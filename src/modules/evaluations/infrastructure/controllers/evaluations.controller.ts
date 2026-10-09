@@ -28,12 +28,22 @@ import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
 import { Permissions } from '../../../../shared/decorators/permissions.decorator';
 import { Permission } from '../../../../shared/enums/permission.enum';
+import { Roles } from '../../../../shared/decorators/roles.decorator';
+import {
+  AssignEvaluatorsDto,
+  ReassignEvaluatorDto,
+} from '../../application/dtos/evaluator-dtos';
+import { AssignEvaluatorsUseCase } from '../../application/use-cases/assign-evaluators.use-case';
+import { ReassignEvaluatorUseCase } from '../../application/use-cases/reassign-evaluator.use-case';
+import { SubmitEvaluationUseCase } from '../../application/use-cases/submit-evaluation.use-case';
 import {
   ApiTags,
   ApiOperation,
   ApiBearerAuth,
   ApiQuery,
 } from '@nestjs/swagger';
+
+import { EvaluatorAssignmentAdapterService } from '../../application/services/evaluator-assignment-adapter.service';
 
 @ApiTags('evaluations')
 @ApiBearerAuth()
@@ -43,6 +53,10 @@ export class EvaluationsController {
   constructor(
     private readonly evaluationsService: EvaluationsService,
     private readonly consolidationService: EvaluationConsolidationService,
+    private readonly assignEvaluatorsUseCase: AssignEvaluatorsUseCase,
+    private readonly reassignEvaluatorUseCase: ReassignEvaluatorUseCase,
+    private readonly submitEvaluationUseCase: SubmitEvaluationUseCase,
+    private readonly assignmentAdapterService: EvaluatorAssignmentAdapterService,
   ) {}
 
   @Get('consolidate/:protocolId')
@@ -131,18 +145,62 @@ export class EvaluationsController {
   }
 
   @Post('protocols/:id/assign-peer-evaluators')
+  @Roles('SECRETARIA', 'PRESIDENTE')
   @Permissions(Permission.EVALUATORS_ASSIGN)
   @Audit('PEER_EVALUATORS_ASSIGNED')
   @ApiOperation({
     summary:
-      'Secretaría asigna evaluadores al protocolo (mínimo 4). 2 aleatorios para riesgo + todos para evaluación ética.',
+      'Secretaría asigna evaluadores al protocolo (exactamente 4). 2 aleatorios para riesgo + todos para evaluación ética.',
   })
   async assignPeerEvaluators(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AssignPeerEvaluatorsDto,
-    @Request() req: Request & { user: JwtPayload },
+    @Body() dto: AssignEvaluatorsDto | AssignPeerEvaluatorsDto,
   ) {
-    return this.evaluationsService.assignPeerEvaluators(id, dto, req.user.id);
+    return this.assignmentAdapterService.adaptAndAssign(id, dto);
+  }
+
+  @Post('assign')
+  @Roles('SECRETARIA', 'PRESIDENTE')
+  @Permissions(Permission.EVALUATORS_ASSIGN)
+  @Audit('PEER_EVALUATORS_ASSIGNED')
+  @ApiOperation({
+    summary:
+      'Asignar 4 evaluadores pares con perfiles obligatorios y sorteo determinístico de Anexo 10',
+  })
+  async assignEvaluators(@Body() dto: AssignEvaluatorsDto) {
+    return this.assignEvaluatorsUseCase.execute(dto);
+  }
+
+  @Post('reassign')
+  @Roles('SECRETARIA', 'PRESIDENTE')
+  @Permissions(Permission.EVALUATORS_ASSIGN)
+  @Audit('EVALUATOR_REASSIGNED')
+  @ApiOperation({
+    summary:
+      'Reasignar un evaluador por vencimiento de plazo o conflicto de interés preservando historial inmutable',
+  })
+  async reassignEvaluator(
+    @Body() dto: ReassignEvaluatorDto,
+    @Request() req: Request & { user?: JwtPayload },
+  ) {
+    const adminUserId = req.user?.id ? Number(req.user.id) : 1;
+    return this.reassignEvaluatorUseCase.execute(dto, adminUserId);
+  }
+
+  @Get('completion-status/:protocolId')
+  @Roles('SECRETARIA', 'PRESIDENTE', 'EVALUADOR')
+  @Permissions(Permission.EVALUATORS_ASSIGN, Permission.EVALUATION_VIEW_MINE)
+  @ApiOperation({
+    summary:
+      'Consultar si el protocolo tiene el 100% de evaluaciones completadas',
+  })
+  async getCompletionStatus(@Param('protocolId') protocolId: string) {
+    const isComplete =
+      await this.submitEvaluationUseCase.isCompletion100Percent(protocolId);
+    return {
+      protocolId,
+      isCompletion100Percent: isComplete,
+    };
   }
 
   @Get('peer-assignments/my-pending')
