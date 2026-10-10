@@ -315,6 +315,7 @@
   - `src/modules/evaluations/application/services/calculate-meeting-dates.service.ts`
 - **Dependencias**: `TSK-009-002`
 - **Descripción**: Implementar la nueva regla de `fecha_entrega_evaluacion`: DESPUÉS de la reunión (`fecha_entrega_evaluacion > fecha_reunion`), calculada como `fecha_reunion + entrega_evaluacion_dias_habiles_tras_reunion` días laborables a las `entrega_evaluacion_hora_corte` (12:00) en America/Guayaquil. Usar `Intl.DateTimeFormat` para la zona horaria (nunca `.toISOString().split('T')[0]`).
+  - **Constantes (PR-B1 y PR-B2 usan estas mismas)**: N = `ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION = 2` y H = `ENTREGA_EVALUACION_HORA_CORTE = '12:00'` se leen de `src/shared/deadlines/deadline-rules.ts`, **NO** de `sistema.parametros_sistema` (que no existe hasta TSK-015-N03 en PR-C). PR-C añadirá migración para persistir esos valores en BD (TSK-009-N04), pero PR-B1 opera con las constantes.
 - **Tests**: `meeting-dates.vo.spec.ts`, `calculate-meeting-dates.service.spec.ts`.
 - **Criterio "Hecho cuando:"**: Tests validan la nueva regla `>` y que el cálculo respeta días laborables y zona horaria ECT.
 
@@ -329,3 +330,50 @@
 - **Descripción**: Implementar recordatorios de convocatoria parametrizables (RF-09.3): (i) el viernes previo, enviar a los pares la lista de protocolos; (ii) recordar a evaluadores pendientes el día de la sesión por la tarde, el día siguiente por la mañana y 1 hora antes del corte. Al cierre, registrar incumplimiento si un evaluador no entregó. Aplica RF-ALR.
 - **Tests**: `meeting-reminders.service.spec.ts`.
 - **Criterio "Hecho cuando:"**: Tests unitarios validan los tres momentos de recordatorio y el registro de incumplimiento al cierre.
+
+### Task TSK-009-N03 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N03`
+- **Requisito Relacionado**: `RF-09.1`, `RF-12.7(b)`
+- **PR**: PR-B1 (`feat/meeting-delivery-after-session`)
+- **Criterio EARS**: `EARS 2`
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts`
+  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts`
+- **Dependencias**: `TSK-009-N01` (nueva regla `fecha_entrega_evaluacion > fecha_reunion`)
+- **Descripción**: Al crear una convocatoria, sobrescribir `fecha_limite` (type `date`, YYYY-MM-DD) en cada registro de `asignaciones_evaluacion` con estado `ASIGNADO` que corresponda a un protocolo agendado. La propagación debe ocurrir dentro de la misma transacción `QueryRunner` de `saveMeetingWithAtomicNumber`. Usa las mismas constantes de `deadline-rules.ts` que TSK-009-N01 (N=2, H=12:00); **NO lee `sistema.parametros_sistema`** (inexistente hasta TSK-015-N03 en PR-C).
+  - **Fuente de la fecha (verificado)**: La fecha de entrega vive en `ConvocatoriaOrmEntity.fechaEntregaEvaluacion` (`timestamptz`, nullable; `convocatoria.orm-entity.ts:56-60`) — es **única por sesión**, compartida por todos los protocolos agendados. `ConvocatoriaProtocoloOrmEntity` **NO tiene** `fecha_entrega_evaluacion`; solo tiene `fechaPlazoNormativo` (plazo normativo de revisión del protocolo, `convocatoria-protocolo.orm-entity.ts:46-50`).
+  - **Conversión timezone-safe**: `fechaEntregaEvaluacion` es `timestamptz`; `fecha_limite` es `date` (YYYY-MM-DD). Usar `Intl.DateTimeFormat('es-EC', { timeZone: 'America/Guayaquil' })` para extraer la fecha local. **Nunca** usar `.toISOString().split('T')[0]` (produce fecha UTC distinta en horario ECT).
+  - **Hallazgo Paso 1 (a)**: `fecha_limite` ya es `nullable: true` y `fecha_asignacion` ya existe como `@CreateDateColumn` — no se necesita migración de BD.
+  - **Hallazgo Paso 1 (d)**: `saveMeetingWithAtomicNumber` actualmente no toca `asignaciones_evaluacion` (`meeting-typeorm.repository.ts`). Este es el gap que esta tarea cierra.
+- **Tests**: Ver TSK-009-N05 para la tarea específica de actualizar `test/real-db-evaluations.e2e-spec.ts:616` y añadir assertion post-convocatoria.
+- **Criterio "Hecho cuando:"**: Al crear una convocatoria cuya `fechaEntregaEvaluacion = '2026-10-14T17:00:00Z'` (= miércoles 12:00 ECT), las asignaciones activas del protocolo agendado tienen `fecha_limite = '2026-10-14'` en BD. Test E2E verifica el valor exacto.
+
+### Task TSK-009-N04 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N04`
+- **Requisito Relacionado**: `RF-09.1`
+- **PR**: PR-C (`feat/deadline-alerts`)
+- **Criterio EARS**: `EARS 2`
+- **Acción**: `CREAR` (migración + columnas)
+- **Archivos Afectados**:
+  - Migración TypeORM nueva (ej. `src/migrations/<ts>-AddConvocatoriaDeliveryParams.ts`)
+  - `src/modules/evaluations/infrastructure/database/entities/convocatoria.orm-entity.ts`
+- **Dependencias**: `TSK-015-N03` (tabla `sistema.parametros_sistema` debe existir antes de migrar estos valores desde ahí)
+- **Descripción**: Persistir los parámetros de cálculo de fecha de entrega directamente en la tabla `evaluacion.convocatorias` para que cada convocatoria registre los valores con los que fue creada. Añadir columnas: `entrega_evaluacion_dias_habiles_tras_reunion INTEGER DEFAULT 2` y `entrega_evaluacion_hora_corte VARCHAR(5) DEFAULT '12:00'`. Poblarlas al crear la convocatoria desde `sistema.parametros_sistema` (o desde las constantes de `deadline-rules.ts` si `sistema.parametros_sistema` aún no tiene esos parámetros).
+- **Tests**: Verificar migración `up`/`down`; prueba unitaria confirma que los valores se persisten en la convocatoria.
+- **Criterio "Hecho cuando:"**: La tabla `evaluacion.convocatorias` tiene las dos columnas nuevas con sus valores por defecto, y el repositorio las lee al calcular `fecha_limite` en TSK-009-N03 (o lo hace de forma directa en el mismo PR-C).
+
+### Task TSK-009-N05 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N05`
+- **Requisito Relacionado**: `RF-09.1`, `RF-12.7(b)`
+- **PR**: PR-B1 (`feat/meeting-delivery-after-session`)
+- **Criterio EARS**: `EARS 2`
+- **Acción**: `MODIFICAR` (tests)
+- **Archivos Afectados**:
+  - `test/real-db-evaluations.e2e-spec.ts` (nueva assertion post-convocatoria)
+- **Dependencias**: `TSK-009-N03`
+- **Descripción**: Añadir assertion E2E que verifique el comportamiento de PR-B1 tras crear una convocatoria:
+  - Después de `POST /api/evaluations/meetings`, verificar en BD que `asignaciones_evaluacion.fecha_limite` de cada protocolo agendado = `convocatoria.fechaEntregaEvaluacion` convertida a YYYY-MM-DD en ECT.
+  - **Nota**: La línea `:616` (test de reasignación COI sin convocatoria activa; aserta `'2026-03-23'` LEGACY) pertenece a **TSK-002-N07** (PR-B2), no a este PR. Las líneas `:363` y `:372` también pertenecen a TSK-002-N07.
+- **Tests**: `npm run test:e2e -- test/real-db-evaluations.e2e-spec.ts`.
+- **Criterio "Hecho cuando:"**: Nueva assertion en verde: después de crear convocatoria con `fechaEntregaEvaluacion = '2026-10-14T17:00:00Z'`, las asignaciones activas del protocolo agendado tienen `fecha_limite = '2026-10-14'` en BD.

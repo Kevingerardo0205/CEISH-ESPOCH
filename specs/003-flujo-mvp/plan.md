@@ -435,3 +435,33 @@ graph TD
 3. Estructuración del Orden del Día en 4 secciones y elevación de Informes de Inicio, Avance y Fin a Pleno.
 4. Estrategia TDD con pruebas unitarias y E2E definidas sin mocks en código productivo.
 5. Cero modificaciones de código fuente durante la presente fase de planificación.
+
+---
+
+## 13. Secuencia de Pull Requests y Decisiones Técnicas de Implementación
+
+### 13.1 Tabla de PRs
+
+| PR | Rama | Spec / RF | Descripción | Estado |
+|---|---|---|---|---|
+| PR-A | `refactor/deadline-rules` | todos los plazos | Centralizar constantes de plazos en `src/shared/deadlines/deadline-rules.ts`. Sin cambio de valores en ejecución. Constantes LEGACY preservan valores de código cuando difieren del spec. | ✅ Mergeado (a8c3969) |
+| PR-B1 | `feat/meeting-delivery-after-session` | RF-09.1, RF-12.7(b), RF-12.7(c) | Al crear convocatoria, sobrescribir `fecha_limite` en cada asignación activa (estado ASIGNADO) de los protocolos agendados con `ConvocatoriaOrmEntity.fechaEntregaEvaluacion` convertida a YYYY-MM-DD en ECT. Usa solo constantes de `deadline-rules.ts` (N=`ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION`, H=`ENTREGA_EVALUACION_HORA_CORTE`). Incluye aviso suave (TSK-002-N05): si `fecha_reunion` está a menos de `PLAZO_REVISION_OFICIO_DIAS` días hábiles de la `fecha_asignacion` activa más antigua de algún protocolo agendado, el response incluye advertencia no bloqueante. | 🔲 Pendiente |
+| PR-B2 | `feat/assignment-without-deadline` | RF-12.7(a), RF-12.7(e) | Eliminar la fijación de `fecha_limite` al asignar evaluadores — queda `null` ("Pendiente de convocatoria"). PR-B1 ya propaga la fecha al crear la convocatoria; PR-B2 elimina el plazo previo que el código ponía en la asignación. Exponer `assignedAt` y estado semántico en el response. Reasignación hereda `fechaEntregaEvaluacion` vigente. | 🔲 Pendiente |
+| PR-B3 | `fix/documental-subsanation-30d` | RF-07.1, RF-13, RF-09.1 | Cambiar plazo de subsanación documental de 15 a 30 días hábiles. Umbral `EVALUADOR_URGENTE_UMBRAL_DIAS` aplica solo cuando existe `fecha_limite` definida. Actualizar tests E2E afectados. | 🔲 Pendiente |
+| PR-C | `feat/deadline-alerts` | RF-ALR, RF-12.7(d), RF-09.3, RF-CAL, RF-15 | Alertas diarias de plazo, alerta protocolo sin convocatoria, recordatorios RF-09.3, biblioteca interna de feriados Ecuador, tabla `sistema.parametros_sistema` (prerequisito para parametrizar offsets), módulo `follow-up` completo. | 🔲 Pendiente |
+
+### 13.2 Decisiones Técnicas Verificadas (Paso 1 de planificación, solo lectura de `src/`)
+
+| Decisión | Verificación | Archivo:Línea |
+|---|---|---|
+| La fecha de entrega de evaluación (`fecha_entrega_evaluacion`) vive a nivel de **convocatoria** en `ConvocatoriaOrmEntity.fechaEntregaEvaluacion` (`timestamptz`, nullable) — única para toda la sesión | Confirmado. PR-B1 lee este campo y lo convierte a YYYY-MM-DD en ECT para escribir en `fecha_limite` de cada asignación. | `convocatoria.orm-entity.ts:56-60` |
+| `ConvocatoriaProtocoloOrmEntity` NO tiene `fecha_entrega_evaluacion` por protocolo — solo tiene `fechaPlazoNormativo` (plazo normativo de revisión del protocolo) | Confirmado. `convocatoria_protocolos` no es la fuente correcta para la fecha de entrega. | `convocatoria-protocolo.orm-entity.ts:46-50` |
+| `saveMeetingWithAtomicNumber` NO actualiza `asignaciones_evaluacion`; el puerto de reunión tampoco define método para ello | Confirmado. Gap que PR-B1 debe cerrar extendiendo el `QueryRunner`. | `meeting-typeorm.repository.ts`, `meeting-repository.port.ts` |
+| `fecha_limite` (`deadline`) ya es `nullable: true` | Confirmado. No se necesita migración para PR-B2. | `evaluation-assignment.entity.orm.ts` |
+| `fecha_asignacion` (`assignedAt`) ya existe como `@CreateDateColumn` | Confirmado. No se necesita nueva columna para PR-B2. | `evaluation-assignment.entity.orm.ts` |
+| PR-B1 usa solo constantes de `deadline-rules.ts` (`ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION = 2`, `ENTREGA_EVALUACION_HORA_CORTE = '12:00'`), NO lee `sistema.parametros_sistema` (que no existe hasta TSK-015-N03 en PR-C) | Diseño confirmado. PR-C añadirá migración para persistir esos valores en BD (TSK-009-N04). | `deadline-rules.ts` |
+| No existe fuente de feriados en el código actual (`holidays: []` siempre) | Confirmado. PR-C debe crear la fuente (biblioteca interna Ecuador, TSK-015-N04). | `deadline-calculator.service.ts` |
+| No existe entidad, repositorio ni servicio para `sistema.parametros_sistema` | Confirmado (búsqueda en `src/` sin resultados). PR-C debe crear el módulo (TSK-015-N03). | — |
+| No existe endpoint para remover un protocolo de una convocatoria | Confirmado. Gap pendiente de decisión de diseño en PR-C. | `meetings.controller.ts` |
+| El response de asignaciones es un objeto literal inline (sin DTO formal); `assignedAt` no se expone actualmente | Confirmado. PR-B2 debe añadir `assignedAt` y estado semántico (TSK-002-N04). | `evaluations.service.ts:1453-1464` |
+| Tests E2E hardcodean `fecha_limite` con valores de 8/15 días hábiles — romperán con PR-B1 y PR-B2 | Confirmado. PR-B2 actualiza líneas 363,372 y `peer-risk-concurrency:202,215,236` (deadline→null). PR-B1 actualiza línea 616 y añade assertion post-convocatoria. | `real-db-evaluations.e2e-spec.ts:363,372,616`, `peer-risk-concurrency.e2e-spec.ts:202,215,236` |
