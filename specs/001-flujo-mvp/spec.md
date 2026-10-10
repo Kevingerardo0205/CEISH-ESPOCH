@@ -2,8 +2,9 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.2.0  
+**Versión:** 3.3.0  
 **Estado:** Aprobado  
+**Historial:** 2026-10-10 — alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)
 
 ---
 
@@ -106,13 +107,13 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 
 ---
 
-### HU-005: Subsanación Focalizada y Control de Plazo (15 Días Hábiles)
+### HU-005: Subsanación Focalizada y Control del Plazo de Subsanación Documental
 #### 1. Información General de la Historia de Usuario
 | Campo | Valor |
 |---|---|
-| **Título** | Subsanación Focalizada y Control de Plazo de 15 Días Hábiles |
+| **Título** | Subsanación Focalizada y Control del Plazo de Subsanación Documental |
 | **ID** | HU-005 |
-| **Descripción** | Gestiona el plazo de 15 días hábiles para corregir únicamente los archivos observados, manteniendo inmutables los requisitos ya validados. |
+| **Descripción** | Gestiona el plazo `plazo_subsanacion_documental_dias` (inicial 30 días; el SRS v3.2 decía 15 días hábiles — Secretaría oct 2026 prevalece, ver Pendientes) para corregir únicamente los archivos observados, manteniendo inmutables los requisitos ya validados. |
 | **Estimación** | 16 horas |
 | **Prioridad** | ALTA (5) |
 | **Dependencias** | HU-004 |
@@ -121,7 +122,7 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 #### 2. Pruebas de Aceptación
 1. **Notificación de Observaciones Multilínea**: Envía un correo notificando las observaciones detalladas por cada ítem y la fecha límite exacta.
 2. **Inmutabilidad de Aprobados**: Muestra bloqueados (🔒) los documentos validados previamente.
-3. **Archivado Híbrido**: Transcurridos los 15 días hábiles sin subsanación, el expediente pasa automáticamente a `Archivado por Vencimiento`.
+3. **Archivado Híbrido**: Transcurrido el plazo `plazo_subsanacion_documental_dias` sin subsanación, el expediente pasa automáticamente a `Archivado por Vencimiento`.
 
 ---
 
@@ -286,10 +287,10 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 - **RF-06.1**: Formato atómico: `CEISH-ESPOCH-[SIGLA]-[SECUENCIAL_3_DIGITOS]-[AÑO]`.
 - **Criterio EARS (RF-06.1)**: **Cuando** la Secretaria apruebe la validación documental completa, **el sistema debe** generar de forma atómica e incremental el código único oficial en la base de datos.
 
-### RF-07: Gestión del Plazo de 15 Días Hábiles y Archivado Híbrido
-- **RF-07.1**: Otorga 15 días hábiles para subsanar observaciones.
-- **Criterio EARS (RF-07.1)**: **Si** se registran observaciones, **el sistema debe** calcular el plazo de 15 días hábiles, enviar la notificación por correo y cambiar el estado a `Incompleto / Requiere Subsanación`.
-- **Criterio EARS (RF-07.2)**: **Si** transcurren los 15 días hábiles sin subsanación o se ejecuta el Cron Job diario, **el sistema debe** marcar el trámite como `Archivado por Vencimiento / Extemporáneo`.
+### RF-07: Gestión del Plazo de 30 Días y Archivado Híbrido
+- **RF-07.1**: Otorga `plazo_subsanacion_documental_dias` días (inicial 30), contados desde la notificación, para subsanar documentos faltantes u observaciones de forma. Fuente: Secretaría (oct 2026), que prevalece sobre los 15 días hábiles del SRS v3.2. Si son laborables o de calendario: ver Pendientes.
+- **Criterio EARS (RF-07.1)**: **Si** se registran observaciones de documentación, **el sistema debe** calcular el plazo según RF-CAL, enviar la notificación por correo y cambiar el estado a `Incompleto / Requiere Subsanación`, con las alertas de RF-ALR.
+- **Criterio EARS (RF-07.2)**: **Si** transcurre el plazo sin subsanación o se ejecuta el Cron Job diario, **el sistema debe** marcar el trámite como `Archivado por Vencimiento / Extemporáneo`, notificar al investigador y no reutilizar el código. La subsanación documental no genera nueva versión.
 
 ### RF-08: Emisión de Constancia PDF y Aceptación Explícita del Investigador
 - **RF-08.1**: Genera la Constancia de Recepción en PDF con el código asignado.
@@ -309,9 +310,19 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 - **RF-11.1**: Proporciona un módulo de asistencia basado en IA para consultar la normativa PET 2023 y el contexto de protocolos.
 - **Criterio EARS (RF-11.1)**: **Cuando** la Secretaria o un Evaluador realicen una consulta en el chat del asistente, **el sistema debe** recuperar fragmentos del PET 2023 mediante RAG y retornar la orientación correspondiente respetando el control de acceso RBAC.
 
-### RF-12: Matriz de Asignación y Restricción de Cuotas por Perfil de Evaluador
-- **RF-12.1**: El sistema debe controlar el número máximo de evaluadores asignados por tipo en cada protocolo.
-- **Criterio EARS (RF-12.1)**: **Cuando** se asignen evaluadores a un protocolo, **el sistema debe** verificar que no se superen las cuotas permitidas: máximo 1 para `SOCIEDAD_CIVIL`, máximo 1 para `JURIDICO`, y hasta 2 para `ETICA / METODOLOGICO_SALUD`.
+### RF-12: Matriz de Asignación de Evaluadores Pares
+- **RF-12.1**: Reemplazado por `specs/002-flujo-mvp` RF-12.1 (exactamente 4 evaluadores pares, uno por perfil). Se eliminan los topes 1/1/2 de esta versión.
+
+---
+
+### RF-CAL: Cómputo de Días Laborables
+- **RF-CAL.a**: El sistema debe calcular los días laborables como lunes a viernes, excluyendo los feriados nacionales de Ecuador obtenidos de una librería interna, sin depender de internet ni de carga manual.
+- **RF-CAL.b**: La Secretaría o la Presidencia pueden ajustar manualmente cualquier fecha límite calculada, registrando el motivo; el ajuste queda en auditoría.
+- **RF-CAL.c**: El receso académico no se modela en esta versión (ver Pendientes).
+- **RF-CAL.d**: Las sesiones de pleno no forman parte de este cómputo: sus fechas las define la Secretaría al crear la convocatoria.
+
+### RF-NORM: Plazo Normativo del Comité
+- **RF-NORM.1**: El plazo normativo del comité es 45 días laborables (expedita) o 60 (pleno y ensayos clínicos), contados desde la documentación completa (código definitivo). En emergencia: 15 días. Es una fecha de referencia y control, no bloquea la creación de convocatorias: el sistema debe mostrar una advertencia si la `fecha_reunion` supera el plazo y usarlo para las alertas de protocolos pendientes de convocatoria. No corre mientras el trámite esté en `Incompleto / Requiere Subsanación`. Cada nueva versión recalcula un plazo nuevo. Los días se cuentan según RF-CAL. Valores parametrizables y ajustables manualmente con motivo registrado.
 
 ---
 
@@ -330,6 +341,7 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 ### RF-16: Gestión de Enmiendas, Renovaciones y Eventos Adversos
 - **RF-16.1**: El sistema debe permitir la tramitación de Enmiendas al protocolo, Renovaciones del certificado ético y Alertas tempranas de Eventos Adversos Graves (`SEGUIMIENTO_EVENTOS`).
 - **Criterio EARS (RF-16.1)**: **Cuando** el Investigador Principal reporte un Evento Adverso Grave (EAG), **el sistema debe** registrar la notificación de urgencia en un plazo no mayor a 24-48 horas e informar inmediatamente con alerta roja al Presidente y Secretaría.
+- **Criterio EARS (RF-16.1 — Renovaciones)**: **Cuando** se aproxime el vencimiento del aval ético, **el sistema debe** avisar al Investigador 3 meses antes según RF-ALR. El Investigador debe presentar la renovación 60 días antes del vencimiento; la vigencia del aval renovado es de 1 año.
 
 ### RF-17: Suspensión y Revocatoria del Aval Ético
 - **RF-17.1**: El sistema debe permitir al Pleno del CEISH suspender o revocar resoluciones vigentes ante violaciones éticas o riesgos no tolerables (`SEGUIMIENTO_SUSPENSION`).
@@ -365,7 +377,7 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 
 - **Fallo de Envíos de Correo / SMTP**: El sistema registrará la falla en bitácora sin revertir las transacciones de cambio de estado o generación de convocatorias.
 - **Expiración de Código OTP**: Si un usuario ingresa un token OTP después de los 15 minutos, el sistema rechazará la autenticación e invitará a solicitar un nuevo código.
-- **Superación de Cuotas de Evaluadores**: Si se intenta asignar un segundo evaluador de `SOCIEDAD_CIVIL` o `JURIDICO` al mismo protocolo, el sistema rechazará la asignación con un error explicativo.
+- **Superación de Cuotas de Evaluadores**: Las reglas de cuota aplican según `specs/002-flujo-mvp` RF-12.1 (exactamente 4 evaluadores pares, 1 por perfil). El sistema rechazará asignaciones que incumplan esa composición.
 - **Indisponibilidad del Asistente de IA**: Si falta la API Key o falla el proveedor de IA (Gemini), el módulo responderá con una excepción 553 / Service Unavailable sin interrumpir el funcionamiento de la plataforma.
 - **Concurrencia en Convocatorias y Código Único**: Las secuencias correlativas de código CEISH (`001-2026`) y Convocatorias (`001-2026`) se aislarán mediante transacciones atómicas en PostgreSQL para evitar duplicaciones.
 
@@ -386,7 +398,7 @@ Un requerimiento se considerará **Finalizado** cuando:
 1. Todos los criterios de aceptación EARS asociados sean verificables funcionalmente.
 2. Se permita la autenticación politécnica y externa vía OTP de 6 dígitos.
 3. Se generen códigos atómicos y Convocatorias al Pleno con notificaciones PDF sin duplicados.
-4. Se aplique la restricción de cuotas por perfil de evaluador (`SOCIEDAD_CIVIL`, `JURIDICO`, `ETICA`).
+4. Se aplique la composición exacta de 4 evaluadores pares (1 por perfil) según `specs/002-flujo-mvp` RF-12.1.
 5. Se registre atómicamente la Aceptación Explícita de plazos con fecha e IP por el Investigador.
 6. Todos los mensajes al usuario, errores, correos y PDFs estén 100% en idioma Español y el código interno en Inglés.
 
@@ -394,4 +406,21 @@ Un requerimiento se considerará **Finalizado** cuando:
 
 ## 9. Dudas Abiertas
 
-- `[NECESITA ACLARACIÓN]`: Ninguna. La totalidad de funcionalidades desarrolladas en el Backend y reglas de negocio han sido integradas y documentadas en la especificación.
+- Ver sección Pendientes por confirmar.
+
+---
+
+## 10. Pendientes por confirmar
+
+- Entrega del informe: miércoles 12:00 posterior a la sesión (presidenta).
+- Documentos faltantes: 30 días, ¿laborables o calendario?
+- Tiempo mínimo del oficio: 8 días para expedita y pleno (el SRS v3.2 decía 15).
+- `dias_max_sin_convocatoria` (8) y `dias_alerta_normativo_sin_convocatoria`.
+- Receso académico: no modelado; ¿suspende el plazo normativo? ¿quién lo cargaría?
+- ¿El informe al Ministerio de Salud mide el cumplimiento del plazo normativo al día? De ser así, ¿se requiere precisión exacta?
+- Valores de aviso por hito y si la Secretaría quiere resumen diario por correo o solo la vista dentro del sistema.
+- Riesgo: lo estratifican 2 de los 4 pares (sociedad civil excluida).
+- Riesgo mayor al mínimo: ¿se requieren más de 4 pares (bioética)?
+- Prórroga de hasta 30 días del plazo normativo (PET): ¿se modela?
+- Informe de inicio: ¿desde la aprobación (Secretaría) o desde el inicio de la ejecución (PET y carta)?
+- Situación de un protocolo "No aprobado" (qué pasa después).
