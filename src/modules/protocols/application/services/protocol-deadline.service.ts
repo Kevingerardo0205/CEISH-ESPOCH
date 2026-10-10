@@ -1,5 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ReviewType } from '../../domain/enums/review-type.enum';
+import {
+  PLAZO_SUBSANACION_DOCUMENTAL_LEGACY_DIAS,
+  PLAZO_CONDICION_DIAS,
+  PLAZO_REVISION_OFICIO_DIAS,
+  PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS,
+  PLAZO_NORMATIVO_EXPEDITA_DIAS,
+  PLAZO_NORMATIVO_PLENO_DIAS,
+} from '../../../../shared/deadlines/deadline-rules';
 
 @Injectable()
 export class ProtocolDeadlineService {
@@ -24,7 +32,11 @@ export class ProtocolDeadlineService {
    * Deadline for missing requirements (15 business days)
    */
   calculateSubmissionDeadline(receptionDate: Date = new Date()): Date {
-    return this.addBusinessDays(receptionDate, 15);
+    // TODO PR-B: contradice spec-001 RF-07.1 — plazo_subsanacion_documental_dias = 30
+    return this.addBusinessDays(
+      receptionDate,
+      PLAZO_SUBSANACION_DOCUMENTAL_LEGACY_DIAS,
+    );
   }
 
   /**
@@ -36,7 +48,10 @@ export class ProtocolDeadlineService {
     reviewType: ReviewType,
     receptionDate: Date = new Date(),
   ): Date {
-    const days = reviewType === ReviewType.EXPEDITA ? 45 : 60;
+    const days =
+      reviewType === ReviewType.EXPEDITA
+        ? PLAZO_NORMATIVO_EXPEDITA_DIAS
+        : PLAZO_NORMATIVO_PLENO_DIAS;
     return this.addBusinessDays(receptionDate, days);
   }
 
@@ -49,7 +64,11 @@ export class ProtocolDeadlineService {
     reviewType: ReviewType,
     assignmentDate: Date = new Date(),
   ): Date {
-    const days = reviewType === ReviewType.EXPEDITA ? 8 : 15;
+    // TODO PR-B: PLENO usa PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS — contradice spec-002 RF-12.7(a) (sin plazo hasta convocatoria)
+    const days =
+      reviewType === ReviewType.EXPEDITA
+        ? PLAZO_REVISION_OFICIO_DIAS
+        : PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS;
     return this.addBusinessDays(assignmentDate, days);
   }
 
@@ -57,6 +76,6 @@ export class ProtocolDeadlineService {
    * Deadline for correcting observations (30 business days)
    */
   calculateSubsanacionDeadline(evaluationDate: Date = new Date()): Date {
-    return this.addBusinessDays(evaluationDate, 30);
+    return this.addBusinessDays(evaluationDate, PLAZO_CONDICION_DIAS);
   }
 }

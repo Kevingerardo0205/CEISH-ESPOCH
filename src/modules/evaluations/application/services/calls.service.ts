@@ -31,6 +31,7 @@ import { CreatePlaceDto, UpdatePlaceDto } from '../dtos/create-place.dto';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
 import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
 import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
+import { PLAZO_CONDICION_DIAS } from '../../../../shared/deadlines/deadline-rules';
 
 /**
  * @deprecated CallsService queda deprecado según RF-09 / TSK-009-000.
@@ -526,7 +527,7 @@ export class CallsService {
         versionNumber: nextVersionNumber,
         submissionDate: new Date(),
         statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
-        correctionDeadlineDays: 30,
+        correctionDeadlineDays: PLAZO_CONDICION_DIAS,
         correctionDeadlineDate: deadlineDate,
       });
       const savedVersion = await queryRunner.manager.save(
