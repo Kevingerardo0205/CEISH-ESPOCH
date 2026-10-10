@@ -1,6 +1,6 @@
 # Desglose de Tareas de Implementación (TDD): RF-14 Ciclo Multiversión e Inmutabilidad de Aprobados
 
-**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.1.0, HU-014, RF-14)  
+**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.4.1, HU-014, RF-14)  
 **Plan Técnico de Referencia:** `specs/003-flujo-mvp/plan-rf14-multiversion.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
 **Documento Target:** `specs/003-flujo-mvp/tasks-rf14-multiversion.md`  
@@ -10,7 +10,7 @@
 
 ## Leyenda de Notaciones
 - `[P]`: Tarea ejecutable en paralelo con otras del mismo bloque (sin dependencias cruzadas).
-- `EARS 1`: Auto-Generación de Versión Mayor (v1.0 ➔ v2.0) y asignación del plazo normativo de 30 días hábiles.
+- `EARS 1`: Auto-Generación de Versión Mayor (v1.0 ➔ v2.0) y asignación del plazo normativo de `plazo_condicion_dias` días hábiles (inicial 30).
 - `EARS 2`: Inmutabilidad y Congelamiento Documental (🔒) de requisitos `APROBADO` / `NO_APLICA` y reseteo a `NO_PRESENTADO` solo de observados/rechazados.
 - `EARS 3`: Incremento dinámico sin límite duro hasta dictamen explícito `RECHAZADO` y formateo de presentación `v${numero_version}.0`.
 
@@ -29,7 +29,7 @@
 - **Cobertura Plan**: Sección 2 (Estructura de Módulos)
 
 ### Task T002 [P]
-- **Descripción**: Mapear la entidad ORM `VersionProtocoloOrmEntity` (`protocolos.versiones_protocolo`) asegurando el campo `numero_version` como `integer` y el plazo normativo de 30 días hábiles.
+- **Descripción**: Mapear la entidad ORM `VersionProtocoloOrmEntity` (`protocolos.versiones_protocolo`) asegurando el campo `numero_version` como `integer` y el plazo normativo de `plazo_condicion_dias` días hábiles (inicial 30).
 - **Archivos Afectados**: `src/modules/protocols/infrastructure/database/entities/version-protocolo.orm-entity.ts`
 - **Dependencias**: T001
 - **Cobertura Plan**: Sección 2 (Entidades ORM), `EARS 1`
@@ -59,7 +59,7 @@
 ### Task T006
 - **Descripción**: Escribir prueba unitaria en ROJO para el caso de uso `CreateNextVersionUseCase` comprobando:
   - Incremento de `numero_version` (+1)
-  - Asignación de 30 días hábiles de plazo
+  - Asignación de `plazo_condicion_dias` días hábiles de plazo (inicial 30)
   - Caso límite: Dictamen `RECHAZADO` cierra/archiva el expediente sin crear v2.0
   - Caso límite: Transición atómica de versión anterior `es_activa = false` a nueva versión `es_activa = true`.
 - **Archivos Afectados**: `src/modules/protocols/application/services/create-next-version.use-case.spec.ts`
@@ -83,7 +83,7 @@
 - **Cobertura Plan**: Sección 4 (Algoritmo B), `EARS 2`
 
 ### Task T009
-- **Descripción**: Implementar `CreateNextVersionUseCase` haciendo pasar T006 (incremento de entero en BD, 30 días hábiles, cierre ante dictamen `RECHAZADO`).
+- **Descripción**: Implementar `CreateNextVersionUseCase` haciendo pasar T006 (incremento de entero en BD, `plazo_condicion_dias` días hábiles (inicial 30), cierre ante dictamen `RECHAZADO`).
 - **Archivos Afectados**: `src/modules/protocols/application/services/create-next-version.use-case.ts`
 - **Dependencias**: T006, T007, T008
 - **Cobertura Plan**: Sección 4 (Algoritmos A, B y C), `EARS 1`, `EARS 3`

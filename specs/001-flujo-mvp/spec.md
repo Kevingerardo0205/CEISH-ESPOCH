@@ -2,9 +2,10 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.3.0  
+**Versión:** 3.3.1  
 **Estado:** Aprobado  
-**Historial:** 2026-10-10 — alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)
+**Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
+**Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`
 
 ---
 
@@ -341,7 +342,7 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 ### RF-16: Gestión de Enmiendas, Renovaciones y Eventos Adversos
 - **RF-16.1**: El sistema debe permitir la tramitación de Enmiendas al protocolo, Renovaciones del certificado ético y Alertas tempranas de Eventos Adversos Graves (`SEGUIMIENTO_EVENTOS`).
 - **Criterio EARS (RF-16.1)**: **Cuando** el Investigador Principal reporte un Evento Adverso Grave (EAG), **el sistema debe** registrar la notificación de urgencia en un plazo no mayor a 24-48 horas e informar inmediatamente con alerta roja al Presidente y Secretaría.
-- **Criterio EARS (RF-16.1 — Renovaciones)**: **Cuando** se aproxime el vencimiento del aval ético, **el sistema debe** avisar al Investigador 3 meses antes según RF-ALR. El Investigador debe presentar la renovación 60 días antes del vencimiento; la vigencia del aval renovado es de 1 año.
+- **Criterio EARS (RF-16.1 — Renovaciones)**: **Cuando** se aproxime el vencimiento del aval ético, **el sistema debe** enviar avisos al Investigador a 90, 60 y 15 días antes del vencimiento según `alerta_renovacion_offsets_dias` (RF-ALR). El aviso a 90 días equivale al anterior aviso de "3 meses antes". La ventana para presentar la solicitud de renovación se mantiene en 60 días antes del vencimiento; la vigencia del aval renovado es de 1 año.
 
 ### RF-17: Suspensión y Revocatoria del Aval Ético
 - **RF-17.1**: El sistema debe permitir al Pleno del CEISH suspender o revocar resoluciones vigentes ante violaciones éticas o riesgos no tolerables (`SEGUIMIENTO_SUSPENSION`).

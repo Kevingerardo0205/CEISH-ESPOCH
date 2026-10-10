@@ -2,7 +2,7 @@
 
 **Fecha:** 2026-09-25  
 **Proyecto:** CEISH-ESPOCH (Frontend Angular)  
-**Especificación Base:** `specs/002-flujo-mvp/spec.md` (v1.0.0)  
+**Especificación Base:** `specs/002-flujo-mvp/spec.md` (v1.1.0)  
 **Tareas Implementadas:** `specs/002-flujo-mvp/tasks-frontend-asignacion.md` (100% Completadas - 80 Tests)  
 **Ubicación del Workspace Existente:** `https://localhost:4200/dashboard/protocols/workspace/:id/info`  
 

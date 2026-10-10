@@ -1,6 +1,6 @@
 # Plan de Tareas de Implementación (Tasks Delta Brownfield): Flujo 002 — Asignación y Evaluación Par
 
-**Código de Especificación:** `specs/002-flujo-mvp/spec.md` (v1.0.0)  
+**Código de Especificación:** `specs/002-flujo-mvp/spec.md` (v1.1.0)  
 **Ubicación del Plan:** `specs/002-flujo-mvp/plan.md`  
 **Ubicación de Tareas:** `specs/002-flujo-mvp/tasks.md`  
 **Documentos de Referencia:** `docs/doc_base/constitution_v2.md`, `specs/002-flujo-mvp/reconciliation.md`  
@@ -93,15 +93,15 @@ Las tareas marcadas con `[x]` certifican componentes previamente implementados y
 
 ## 3. Fase 2: Dominio y Métodos Transaccionales de Repositorio (Delta)
 
-- [x] **TSK-002-07**: Adaptar servicio de reasignación y entidades de dominio puras a identificadores numéricos.
-  - **Requisito relacionado:** `RF-12.3`
+- [ ] **TSK-002-07**: Adaptar servicio de reasignación y entidades de dominio puras a identificadores numéricos. (REABIERTA: spec v1.1.0 RF-12.7(e), pendiente de código)
+  - **Requisito relacionado:** `RF-12.3`, `RF-12.7(e)`
   - **Criterio EARS:** `EARS (RF-12.3)` (Reasignación Inmutable por Motivo y homogeneidad de perfil).
   - **Acción:** `ADAPTAR`
   - **Archivos afectados:** `src/modules/evaluations/domain/services/evaluator-reassignment.service.ts`, `src/modules/evaluations/domain/entities/evaluation-assignment.entity.ts`, `src/modules/evaluations/domain/entities/assignment-history.entity.ts`, `src/modules/evaluations/domain/ports/evaluation.repository.port.ts`
   - **Dependencias:** `TSK-002-06`
-  - **Descripción:** Ajustar los tipos a `number` en las entidades de dominio y actualizar el servicio para aplicar el cálculo de 15 días hábiles (`BusinessDayCalculator`), el traspaso determinístico de Anexo 10 y la asignación del estado numérico correspondiente (`REASIGNED_COI` o `REASIGNED_VENCIMIENTO`).
+  - **Descripción:** Ajustar los tipos a `number` en las entidades de dominio y actualizar el servicio para aplicar RF-12.7(e): el reemplazante hereda la `fecha_entrega_evaluacion` vigente de la convocatoria (sin calcular 15 días hábiles), el traspaso determinístico de Anexo 10 y la asignación del estado numérico correspondiente (`REASIGNED_COI` o `REASIGNED_VENCIMIENTO`).
   - **Pruebas necesarias:** `npm test -- evaluator-reassignment.service.spec.ts`
-  - **Hecho cuando:** Las pruebas unitarias confirmen que intentar sustituir con un perfil heterogéneo arroja error y que se genera el registro inmutable con los estados numéricos correctos.
+  - **Hecho cuando:** Las pruebas unitarias confirmen que intentar sustituir con un perfil heterogéneo arroja error y que se genera el registro inmutable con los estados numéricos correctos y la fecha heredada.
 
 - [x] **TSK-002-08**: Implementar métodos transaccionales en `EvaluationTypeOrmRepository`.
   - **Requisito relacionado:** `RF-12.1`, `RF-12.3`, `RF-12.4`
@@ -117,25 +117,25 @@ Las tareas marcadas con `[x]` certifican componentes previamente implementados y
 
 ## 4. Fase 3: Casos de Uso y Orquestación de Aplicación (Delta)
 
-- [x] **TSK-002-09**: Adaptar `AssignEvaluatorsUseCase` y DTOs de asignación con tipado numérico.
-  - **Requisito relacionado:** `RF-12.1`, `RF-12.2`, `RF-12.6`
+- [ ] **TSK-002-09**: Adaptar `AssignEvaluatorsUseCase` y DTOs de asignación con tipado numérico. (REABIERTA: spec v1.1.0 RF-12.7(a), pendiente de código)
+  - **Requisito relacionado:** `RF-12.1`, `RF-12.2`, `RF-12.6`, `RF-12.7(a)`
   - **Criterio EARS:** `EARS (RF-12.1)`, `EARS (RF-12.2)`, `EARS (RF-12.6)`
   - **Acción:** `ADAPTAR`
   - **Archivos afectados:** `src/modules/evaluations/application/dtos/evaluator-dtos.ts`, `src/modules/evaluations/application/use-cases/assign-evaluators.use-case.ts`, `src/modules/evaluations/application/use-cases/assign-evaluators.use-case.spec.ts`
   - **Dependencias:** `TSK-002-08`
-  - **Descripción:** Adaptar el caso de uso para validar cuota con `QuotaEvaluatorValidatorService`, ejecutar sorteo de Anexo 10 con `RandomRiskSelectorService`, computar plazo de 15 días hábiles, persistir en `EvaluationTypeOrmRepository` y despachar evento `evaluator.assigned`.
+  - **Descripción:** Adaptar el caso de uso para validar cuota con `QuotaEvaluatorValidatorService`, ejecutar sorteo de Anexo 10 con `RandomRiskSelectorService`, registrar `fecha_asignacion` sin fijar plazo de entrega (tarea queda "Pendiente de convocatoria" según RF-12.7(a)), persistir en `EvaluationTypeOrmRepository` y despachar evento `evaluator.assigned`.
   - **Pruebas necesarias:** `npm test -- assign-evaluators.use-case.spec.ts`
-  - **Hecho cuando:** La prueba unitaria simule la asignación completa de 4 evaluadores retornando las entidades persistidas y confirmando la emisión de los eventos.
+  - **Hecho cuando:** La prueba unitaria simule la asignación completa de 4 evaluadores con estado "Pendiente de convocatoria" retornando las entidades persistidas y confirmando la emisión de los eventos.
 
-- [x] **TSK-002-10**: Adaptar `ReassignEvaluatorUseCase` y DTOs de reasignación con tipado numérico.
-  - **Requisito relacionado:** `RF-12.3`, `RF-12.6`
+- [ ] **TSK-002-10**: Adaptar `ReassignEvaluatorUseCase` y DTOs de reasignación con tipado numérico. (REABIERTA: spec v1.1.0 RF-12.7(e), pendiente de código)
+  - **Requisito relacionado:** `RF-12.3`, `RF-12.6`, `RF-12.7(e)`
   - **Criterio EARS:** `EARS (RF-12.3)`, `EARS (RF-12.6)`
   - **Acción:** `ADAPTAR`
   - **Archivos afectados:** `src/modules/evaluations/application/dtos/evaluator-dtos.ts`, `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts`, `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.spec.ts`
   - **Dependencias:** `TSK-002-08`
-  - **Descripción:** Adaptar el caso de uso para recibir `currentAssignmentId: number`, buscar la asignación previa, invocar `EvaluatorReassignmentService.executeReassignment`, ejecutar la transacción de persistencia y disparar la notificación por correo al nuevo evaluador.
+  - **Descripción:** Adaptar el caso de uso para recibir `currentAssignmentId: number`, buscar la asignación previa, invocar `EvaluatorReassignmentService.executeReassignment`, aplicar RF-12.7(e) (el reemplazante hereda `fecha_entrega_evaluacion` vigente de la convocatoria; si no está agendado queda "Pendiente de convocatoria"), ejecutar la transacción de persistencia y disparar la notificación por correo al nuevo evaluador.
   - **Pruebas necesarias:** `npm test -- reassign-evaluator.use-case.spec.ts`
-  - **Hecho cuando:** La prueba valide la ejecución transaccional y el reinicio de plazo a 15 días hábiles.
+  - **Hecho cuando:** La prueba valide la ejecución transaccional y que el reemplazante hereda la fecha de entrega vigente (sin reinicio de plazo a días hábiles fijos).
 
 - [x] **TSK-002-11**: Adaptar `SubmitEvaluationUseCase` (100% Completitud) e `InheritEvaluatorsUseCase` (Multiversiones v2.0).
   - **Requisito relacionado:** `RF-12.4`, `RF-12.5`
@@ -194,3 +194,37 @@ Las tareas marcadas con `[x]` certifican componentes previamente implementados y
   - **Descripción:** Ejecutar análisis estático de código y formateo para asegurar cero advertencias de ESLint, cero usos indebidos de `any` y formateo homogéneo con Prettier.
   - **Pruebas necesarias:** `npm run lint` y `npm test`.
   - **Hecho cuando:** `npm run lint` y `npm test` retornen código de salida 0 sin advertencias.
+
+---
+
+## 7. Parámetros Configurables Nuevos (RF-12.7 — Pendientes de implementación)
+
+Los siguientes parámetros deben leerse de la configuración del sistema (no hardcodeados):
+
+| Parámetro | Valor inicial | RF |
+|---|---|---|
+| `plazo_revision_oficio_dias` | 8 días laborables | RF-12.7(c): tiempo mínimo de revisión en oficio; si `fecha_reunion` queda a menos de este valor desde `fecha_asignacion`, advertencia no bloqueante |
+| `dias_max_sin_convocatoria` | 8 días laborables | RF-12.7(d): alerta a Secretaría/Presidencia cuando protocolo-versión lleva más de este valor sin convocatoria |
+| `dias_alerta_normativo_sin_convocatoria` | pendiente de confirmación | RF-12.7(d): alerta de proximidad al `fecha_plazo_normativo` sin convocatoria; aplica RF-ALR |
+
+---
+
+## 8. Nuevas Tareas Pendientes (RF-12.7)
+
+- [ ] **TSK-002-N01**: Implementar RF-12.7(a) — asignación sin plazo + "Pendiente de convocatoria".
+  - **Requisito relacionado:** `RF-12.7(a)`
+  - **Criterio EARS:** `EARS (RF-12.6)` (notificación indica que la fecha de entrega se informará al agendar)
+  - **Descripción:** Al asignar evaluadores, registrar `fecha_asignacion` y NO fijar `fecha_entrega_evaluacion`. El estado de la tarea del evaluador debe mostrarse como "Pendiente de convocatoria". El oficio de asignación indica `plazo_revision_oficio_dias` como tiempo de referencia (no fecha límite).
+  - **Hecho cuando:** Prueba unitaria y E2E confirmen que la asignación retorna `fecha_entrega_evaluacion: null` y el mensaje "Pendiente de convocatoria".
+
+- [ ] **TSK-002-N02**: Implementar RF-12.7(e) — reasignación hereda `fecha_entrega_evaluacion` vigente.
+  - **Requisito relacionado:** `RF-12.7(e)`
+  - **Criterio EARS:** `EARS (RF-12.3)`
+  - **Descripción:** Al reasignar, el reemplazante hereda la `fecha_entrega_evaluacion` de la convocatoria activa. Si el protocolo no está agendado, queda "Pendiente de convocatoria". No hay reinicio de plazo.
+  - **Hecho cuando:** Prueba unitaria confirme herencia de fecha y E2E valide la ruta de reasignación con y sin convocatoria activa.
+
+- [ ] **TSK-002-N03**: Implementar RF-12.7(d) — alerta de protocolos sin convocatoria tras `dias_max_sin_convocatoria`.
+  - **Requisito relacionado:** `RF-12.7(d)`
+  - **Criterio EARS:** aplica RF-ALR
+  - **Descripción:** Cron diario que lista protocolos-versión con pares asignados y sin convocatoria. Alerta a Secretaría/Presidencia cuando transcurran `dias_max_sin_convocatoria` (inicial 8) días laborables desde la `fecha_asignacion` activa más antigua, o cuando `fecha_plazo_normativo` esté a `dias_alerta_normativo_sin_convocatoria` o menos. La reasignación NO reinicia la antigüedad.
+  - **Hecho cuando:** Prueba unitaria del cron valide las dos condiciones de alerta; alerta deja de emitirse al agendar.

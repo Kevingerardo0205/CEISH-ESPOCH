@@ -1,6 +1,6 @@
 # Desglose de Tareas de Implementación (TDD): RF-09 Gestión de Convocatorias a Sesiones del Pleno y Orden del Día Clasificado
 
-**Código de Especificación:** `specs/003-flujo-mvp/spec.md` (Versión 1.3.0, HU-007, RF-09.1, RF-09.2, RF-15.2)  
+**Código de Especificación:** `specs/003-flujo-mvp/spec.md` (Versión 1.4.1, HU-007, RF-09.1, RF-09.2, RF-15.2)  
 **Plan Técnico de Referencia:** `specs/003-flujo-mvp/00301-flujo-mvp/plan-rf09-convocatorias.md`  
 **Ubicación del Documento:** `specs/003-flujo-mvp/00301-flujo-mvp/tasks-rf09-convocatorias.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
@@ -13,7 +13,7 @@
 - `[ ] PENDIENTE`: Tarea pendiente de ejecución.
 - `[P]`: Tarea paralelizable (sin dependencias bloqueantes dentro del mismo bloque).
 - `EARS 1`: Numeración correlativa atómica anual (`001-2026`).
-- `EARS 2`: Registro de 3 fechas normativas con validación dura `fecha_entrega_evaluacion < fecha_reunion`.
+- `EARS 2`: Registro de 3 fechas normativas con validación dura `fecha_entrega_evaluacion > fecha_reunion` (entrega DESPUÉS de la reunión, +2 días hábiles a las 12:00 ECT).
 - `EARS 3`: Orden del Día clasificado en 4 secciones (Evaluación de Protocolos e Informes de Seguimiento).
 - `EARS 4`: Generación de PDF oficial del Orden del Día y despacho de notificaciones a miembros.
 
@@ -139,20 +139,20 @@
 - **Tests**: `npm run test -- src/modules/evaluations/infrastructure/database/entities/convocatoria.orm-entity.spec.ts`.
 - **Criterio "Hecho cuando:"**: La migración se ejecuta limpiamente sin pérdida de datos históricos y la restricción `UNIQUE` queda activa en PostgreSQL.
 
-### Task TSK-009-002 [P] - [x] COMPLETADA
+### Task TSK-009-002 [P] - [ ] PENDIENTE (REABIERTA: spec v1.4.1 RF-09.1, pendiente de código)
 - **ID Único**: `TSK-009-002`
 - **Requisito Relacionado**: `RF-09.1`
 - **Criterio EARS**: `EARS 1`, `EARS 2`
-- **Acción**: `REUTILIZAR`
+- **Acción**: `MODIFICAR`
 - **Archivos Afectados**:
   - `src/modules/evaluations/domain/value-objects/meeting-number.vo.ts`
   - `src/modules/evaluations/domain/value-objects/meeting-dates.vo.ts`
   - `src/modules/evaluations/application/services/calculate-meeting-dates.service.ts`
 - **Dependencias**: Ninguna
 - **Precondiciones**: Ninguna
-- **Descripción**: Value Objects y servicios de dominio para validación dura de precedencia (`fecha_entrega_evaluacion < fecha_reunion`), cálculo de jueves previo y formateo de correlativo `001-2026`.
+- **Descripción**: Actualizar Value Objects y servicios de dominio para validación dura de precedencia (`fecha_entrega_evaluacion > fecha_reunion`, entrega DESPUÉS de la reunión) y cálculo de +2 días hábiles tras la reunión a las 12:00 ECT (America/Guayaquil). El código actual implementa la regla vieja (`<` y jueves previo).
 - **Tests**: `meeting-number.vo.spec.ts`, `meeting-dates.vo.spec.ts`, `calculate-meeting-dates.service.spec.ts`.
-- **Criterio "Hecho cuando:"**: Tests unitarios en verde validando reglas de fechas y formato.
+- **Criterio "Hecho cuando:"**: Tests unitarios en verde validando nueva regla `>` y cálculo +2 días hábiles a las 12:00 ECT.
 
 ### Task TSK-009-003 [P] - [x] COMPLETADA
 - **ID Único**: `TSK-009-003`
@@ -205,7 +205,7 @@
 
 ## Fase 2: Aplicación, Use Cases y PDF Oficial
 
-### Task TSK-009-006 - [x] COMPLETADA
+### Task TSK-009-006 - [ ] PENDIENTE (REABIERTA: spec v1.4.1 RF-09.1, pendiente de código)
 - **ID Único**: `TSK-009-006`
 - **Requisito Relacionado**: `RF-09.1`, `RF-09.2`, `RF-15.2`
 - **Criterio EARS**: `EARS 1`, `EARS 2`, `EARS 3`, `EARS 4`
@@ -213,15 +213,15 @@
 - **Archivos Afectados**:
   - `src/modules/evaluations/application/services/create-meeting.use-case.ts`
   - `src/modules/evaluations/application/services/create-meeting.use-case.spec.ts`
-- **Dependencias**: `TSK-009-004`, `TSK-009-005`
-- **Precondiciones**: Repositorio y DTOs listos.
+- **Dependencias**: `TSK-009-002`, `TSK-009-004`, `TSK-009-005`
+- **Precondiciones**: Repositorio y DTOs listos; TSK-009-002 completada (nueva regla `>`).
 - **Descripción**: Modificar `CreateMeetingUseCase` para:
-  1. Validar precedencia dura mediante `MeetingDatesVO`.
+  1. Validar precedencia dura mediante `MeetingDatesVO` con la regla `fecha_entrega_evaluacion > fecha_reunion` (entrega DESPUÉS de la reunión).
   2. Validar que exista al menos un punto en el Orden del Día (evaluación o seguimiento).
   3. Delegar la persistencia atómica al repositorio.
   4. Invocar la generación de PDF oficial estructurado en 4 secciones.
 - **Tests**: `create-meeting.use-case.spec.ts`.
-- **Criterio "Hecho cuando:"**: Caso de uso coordina la creación completa y retorna el ID, número (`010-2026`) y URL del PDF.
+- **Criterio "Hecho cuando:"**: Caso de uso coordina la creación completa y retorna el ID, número (`010-2026`) y URL del PDF; rechaza `fecha_entrega_evaluacion <= fecha_reunion`.
 
 ### Task TSK-009-007 - [x] COMPLETADA
 - **ID Único**: `TSK-009-007`
@@ -300,3 +300,32 @@
   4. `npm run lint` y `npm run format`.
 - **Tests**: Ejecución de scripts npm.
 - **Criterio "Hecho cuando:"**: Verificación integral superada sin fallos ni advertencias bloqueantes.
+
+---
+
+## Fase 4: Nuevas Tareas RF-09.1 y RF-09.3 (Pendientes de código)
+
+### Task TSK-009-N01 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N01`
+- **Requisito Relacionado**: `RF-09.1`
+- **Criterio EARS**: `EARS 2`
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/modules/evaluations/domain/value-objects/meeting-dates.vo.ts`
+  - `src/modules/evaluations/application/services/calculate-meeting-dates.service.ts`
+- **Dependencias**: `TSK-009-002`
+- **Descripción**: Implementar la nueva regla de `fecha_entrega_evaluacion`: DESPUÉS de la reunión (`fecha_entrega_evaluacion > fecha_reunion`), calculada como `fecha_reunion + entrega_evaluacion_dias_habiles_tras_reunion` días laborables a las `entrega_evaluacion_hora_corte` (12:00) en America/Guayaquil. Usar `Intl.DateTimeFormat` para la zona horaria (nunca `.toISOString().split('T')[0]`).
+- **Tests**: `meeting-dates.vo.spec.ts`, `calculate-meeting-dates.service.spec.ts`.
+- **Criterio "Hecho cuando:"**: Tests validan la nueva regla `>` y que el cálculo respeta días laborables y zona horaria ECT.
+
+### Task TSK-009-N02 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N02`
+- **Requisito Relacionado**: `RF-09.3`
+- **Criterio EARS**: aplica RF-ALR
+- **Acción**: `CREAR`
+- **Archivos Afectados**:
+  - `src/modules/evaluations/application/services/meeting-reminders.service.ts`
+- **Dependencias**: `TSK-009-N01`
+- **Descripción**: Implementar recordatorios de convocatoria parametrizables (RF-09.3): (i) el viernes previo, enviar a los pares la lista de protocolos; (ii) recordar a evaluadores pendientes el día de la sesión por la tarde, el día siguiente por la mañana y 1 hora antes del corte. Al cierre, registrar incumplimiento si un evaluador no entregó. Aplica RF-ALR.
+- **Tests**: `meeting-reminders.service.spec.ts`.
+- **Criterio "Hecho cuando:"**: Tests unitarios validan los tres momentos de recordatorio y el registro de incumplimiento al cierre.

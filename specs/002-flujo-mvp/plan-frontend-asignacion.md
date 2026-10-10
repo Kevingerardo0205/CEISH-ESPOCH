@@ -1,6 +1,6 @@
 # Plan de Arquitectura y Diseño Técnico Frontend Delta (Brownfield SDD)
 
-**Código de Especificación Activa:** `specs/002-flujo-mvp/spec.md` (v1.0.0 — Flujo 002: Asignación y Evaluación Par)  
+**Código de Especificación Activa:** `specs/002-flujo-mvp/spec.md` (v1.1.0 — Flujo 002: Asignación y Evaluación Par)  
 **Ubicación del Plan Frontend:** `specs/002-flujo-mvp/plan-frontend-asignacion.md`  
 **Documento de Referencia de Reconciliación:** `specs/002-flujo-mvp/reconciliation-frontend-asignacion.md`  
 **Base Arquitectónica Canónica:** `src/domain/`, `src/infrastructure/`, `src/features/evaluations/`, `src/features/dashboard/`  
@@ -178,7 +178,7 @@ export interface ReassignPeerEvaluatorResponse {
   newAssignmentId: number;
   newEvaluatorId: number;
   newEvaluatorName: string;
-  deadlineDate: string;
+  fechaEntregaEvaluacion: string | null; // null = "Pendiente de convocatoria" (RF-12.7(e)); ISO-8601 si el protocolo está agendado
   auditHistoryId: number;
 }
 

@@ -1,6 +1,6 @@
 # Plan de Tareas Frontend: Flujo 002 - Asignación y Evaluación Par
 
-**Código de Especificación Activa:** `specs/002-flujo-mvp/spec.md` (v1.0.0)  
+**Código de Especificación Activa:** `specs/002-flujo-mvp/spec.md` (v1.1.0)  
 **Ubicación del Plan:** `specs/002-flujo-mvp/plan.md`  
 **Ubicación de Tareas Frontend:** `specs/002-flujo-mvp/tasks_fron.md`  
 **Estimación por Tarea:** Máximo 20-30 minutos por tarea.
