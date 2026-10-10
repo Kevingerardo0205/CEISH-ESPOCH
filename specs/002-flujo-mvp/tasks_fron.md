@@ -66,3 +66,16 @@
 - [ ] **TSK-002-FE-11**: Implementar pruebas unitarias e integración de componentes frontend con React Testing Library / Jest.
   - **Requisitos cubiertos:** `RF-12.1`, `RF-12.2`, `RF-12.3`, `RF-12.4`
   - **Hecho cuando:** `npm run test` valide en el frontend la restricción de cuota en el formulario, el filtrado estricto por perfil en la reasignación, la renderización condicional del Anexo 10 y el bloqueo del botón de resolución final.
+
+---
+
+### 5. Campos de Estado de Convocatoria (PR-B2)
+
+- [ ] **TSK-002-FE-12**: Mostrar `assignedAt` y `estadoConvocatoria` en el panel de asignaciones; manejar `deadline` nulo.
+  - **Requisitos cubiertos:** `RF-12.7(a)`, `RF-12.7(b)`
+  - **PR:** PR-B2 (`feat/assignment-without-deadline`)
+  - **Framework:** Angular 20 (repo del frontend separado del backend)
+  - **Archivos afectados:** pendiente de verificar en el repo del frontend
+  - **Dependencias:** TSK-002-N04 (backend expone los nuevos campos)
+  - **Descripción:** El backend (TSK-002-N04) añade `assignedAt` y `estadoConvocatoria` al response de asignaciones. El frontend Angular debe: (i) mostrar la fecha de asignación (`assignedAt`) en la tarjeta del evaluador; (ii) mostrar el badge "Pendiente de convocatoria" cuando `estadoConvocatoria === 'Pendiente de convocatoria'` (= `deadline === null`); (iii) mostrar la fecha límite de entrega solo cuando `estadoConvocatoria === 'Con plazo asignado'`; (iv) el contador regresivo del panel del evaluador (equivalente a TSK-002-FE-07) debe estar deshabilitado/ocultado cuando `deadline === null`.
+  - **Hecho cuando:** El panel del evaluador muestra "Pendiente de convocatoria" para asignaciones sin fecha de entrega, y el contador regresivo aparece solo cuando `deadline !== null`; prueba unitaria Angular (Karma/Jasmine o Jest si está configurado) cubre ambos estados.

@@ -371,3 +371,37 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 | `plazo_revision_oficio_dias` | 8 días laborables | Tiempo mínimo de revisión informado en el oficio de asignación. No es una fecha límite; si la `fecha_reunion` queda a menos de este número de días desde `fecha_asignacion`, se muestra advertencia no bloqueante (RF-12.7(c)). |
 | `dias_max_sin_convocatoria` | 8 días laborables | Umbral para alertar a Secretaría (con copia a Presidencia) cuando un protocolo-versión tiene pares asignados pero no ha sido agendado en convocatoria (RF-12.7(d)). |
 | `dias_alerta_normativo_sin_convocatoria` | pendiente de confirmación | Proximidad al `fecha_plazo_normativo` que activa la alerta de "riesgo de vencimiento normativo sin convocatoria" (RF-12.7(d)). Aplica RF-ALR. |
+
+---
+
+## 16. Secuencia de Pull Requests y Decisiones Técnicas (RF-12.7)
+
+### 16.1 Tabla de PRs Relevantes al Flujo 002
+
+| PR | RF | Descripción | Estado |
+|---|---|---|---|
+| PR-A | — | Centralizar constantes de plazos en `deadline-rules.ts`. `PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS = 15` preservado como LEGACY con TODO PR-B. | ✅ Mergeado (a8c3969) |
+| PR-B1 | RF-12.7(b), RF-12.7(c) | `feat/meeting-delivery-after-session` — Al crear convocatoria, sobrescribir `fecha_limite` en asignaciones activas con `convocatoria.fechaEntregaEvaluacion` (YYYY-MM-DD en ECT). Usa solo constantes de `deadline-rules.ts`; NO lee BD de parámetros. Incluye aviso suave (TSK-002-N05): si `fecha_reunion` está a menos de `PLAZO_REVISION_OFICIO_DIAS` días hábiles de la `fecha_asignacion` activa más antigua de algún protocolo agendado, el response incluye advertencia no bloqueante. | 🔲 Pendiente |
+| PR-B2 | RF-12.7(a), RF-12.7(e) | `feat/assignment-without-deadline` — Eliminar fijación de `fecha_limite` al asignar (`null`, "Pendiente de convocatoria"). Reasignación hereda `fechaEntregaEvaluacion` vigente. Exponer `assignedAt` y estado semántico. | 🔲 Pendiente |
+| PR-B3 | RF-07.1, RF-09.1 | `fix/documental-subsanation-30d` — Corrección de plazos legados (15→30 días subsanación; `EVALUADOR_URGENTE_UMBRAL_DIAS` solo cuando existe `fecha_limite`). | 🔲 Pendiente |
+| PR-C | RF-12.7(d), RF-ALR | `feat/deadline-alerts` — Cron de alertas para protocolos sin convocatoria; biblioteca interna de feriados Ecuador; tabla `sistema.parametros_sistema` (TSK-015-N03). | 🔲 Pendiente |
+
+### 16.2 Decisiones Técnicas Verificadas
+
+| Decisión | Impacto en Implementación | Archivo:Línea |
+|---|---|---|
+| `fecha_limite` ya es `nullable: true` | PR-B2 no necesita migración para hacer el campo nullable | `evaluation-assignment.entity.orm.ts` |
+| `fecha_asignacion` ya existe como `@CreateDateColumn` | PR-B2 no necesita nueva columna | `evaluation-assignment.entity.orm.ts` |
+| `ConvocatoriaOrmEntity.fechaEntregaEvaluacion` es timestamp absoluto (no par N+hora_corte) | PR-B1 escribe directamente ese valor en `fecha_limite`; no necesita recalcular | `convocatoria.orm-entity.ts:56-60` |
+| `saveMeetingWithAtomicNumber` no toca `asignaciones_evaluacion` | PR-B1 debe extender la transacción QueryRunner o agregar paso post-creación | `meeting-typeorm.repository.ts` |
+| Response en `evaluations.service.ts:1453-1464` no expone `assignedAt` ni estado semántico | PR-B2 debe añadir `assignedAt` y `estadoConvocatoria: 'Pendiente de convocatoria' | 'Con plazo asignado'` | `evaluations.service.ts:1453-1464` |
+| `ReassignEvaluatorUseCase` tiene `standardFullDays = 15` como parámetro default | PR-B2 cambia el default a `null`; hereda `fecha_entrega_evaluacion` de la convocatoria activa | `reassign-evaluator.use-case.ts:91` |
+| PR-B1 usa solo `ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION = 2` y `ENTREGA_EVALUACION_HORA_CORTE = '12:00'` de `deadline-rules.ts`, NO `sistema.parametros_sistema` (que no existe hasta TSK-015-N03 en PR-C) | PR-B1 no debe tener dependencia en BD de parámetros | `deadline-rules.ts` |
+| RF-12.7(c): aviso suave al **crear convocatoria** — si `diasHabiles(fechaAsignacionMasAntigua, fechaReunion) < PLAZO_REVISION_OFICIO_DIAS`, el POST /meetings incluye advertencia no bloqueante por protocolo | PR-B1 implementa el aviso en `calculate-meeting-dates.service.ts` (método `evaluateSoftWarnings`) y `create-meeting.use-case.ts` (TSK-002-N05) | `deadline-rules.ts` |
+| Tests hardcodean `fecha_limite` con 8 y 15 días: PR-B2 actualiza :363, :372, **:616** (reasignación COI sin convocatoria → `null`) y `peer-risk-concurrency:202,215,236` (deadline→null); PR-B1 solo añade nueva assertion post-convocatoria | TSK-002-N07 cubre líneas 363, 372, 616 y peer-risk-concurrency; TSK-009-N05 solo añade assertion post-POST-meetings | `real-db-evaluations.e2e-spec.ts:363,372,616`, `peer-risk-concurrency.e2e-spec.ts:202,215,236` |
+
+### 16.3 Decisiones de Diseño Abiertas (deben resolverse antes de PR-C)
+
+| Decisión pendiente | Impacto | Dónde resolver |
+|---|---|---|
+| No existe endpoint para **quitar un protocolo de una convocatoria**; comportamiento de sus asignaciones activas no está definido (¿volver a "Pendiente de convocatoria"? ¿mantener `fecha_limite`?) | PR-C (alertas y seguimiento) necesita saber si un protocolo puede desagendarse y cómo queda su estado de entrega | Acta de decisión con Secretaría/Presidencia antes de diseñar PR-C |

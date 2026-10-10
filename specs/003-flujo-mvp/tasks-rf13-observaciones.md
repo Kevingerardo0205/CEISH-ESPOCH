@@ -114,3 +114,22 @@
 - **Archivos Afectados**: Todo el proyecto.
 - **Dependencias**: T012
 - **Cobertura Plan**: Sección 7 (Definition of Done), Constitución del Proyecto
+
+---
+
+## Fase 6: Nueva Tarea RF-07.1 — Corrección de Plazo de Subsanación Documental (PR-B3)
+
+### Task TSK-013-N01 - [ ] PENDIENTE
+- **ID Único**: `TSK-013-N01`
+- **Requisito Relacionado**: `RF-07.1` (spec-001 v3.3.1), `RF-13` (spec-003 v1.4.1)
+- **Criterio EARS**: `EARS 2`
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/modules/protocols/application/services/protocol-deadline.service.ts`
+  - Tests E2E que asertan plazo de 15 días (Pendiente de verificar cuáles son afectados)
+- **Dependencias**: PR-B3 (después de PR-B1 y PR-B2 para evitar conflictos en tests)
+- **Descripción**: Cambiar el uso de `PLAZO_SUBSANACION_DOCUMENTAL_LEGACY_DIAS` (15 días hábiles) por `PLAZO_SUBSANACION_DOCUMENTAL_DIAS` (30 días hábiles) en `calculateSubmissionDeadline` para alinearse con spec-001 RF-07.1. La constante `PLAZO_SUBSANACION_DOCUMENTAL_LEGACY_DIAS = 15` permanece definida en `deadline-rules.ts` como referencia histórica hasta que no haya más usos en el código.
+  - **Código actual**: `protocol-deadline.service.ts:38` usa `PLAZO_SUBSANACION_DOCUMENTAL_LEGACY_DIAS` con comentario `// TODO PR-B: contradice spec-001 RF-07.1`.
+  - **Impacto en tests**: Cualquier test E2E o unitario que aserte un plazo de subsanación de 15 días hábiles deberá actualizarse a 30 días.
+- **Tests**: `npm test -- protocol-deadline.service.spec.ts`; revisar y actualizar tests E2E afectados.
+- **Criterio "Hecho cuando:"**: `calculateSubmissionDeadline` calcula 30 días hábiles, el TODO PR-B en `protocol-deadline.service.ts:36` está eliminado y todos los tests pasan en verde.

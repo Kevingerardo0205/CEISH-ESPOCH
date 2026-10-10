@@ -228,3 +228,39 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Criterio EARS:** aplica RF-ALR
   - **Descripción:** Cron diario que lista protocolos-versión con pares asignados y sin convocatoria. Alerta a Secretaría/Presidencia cuando transcurran `dias_max_sin_convocatoria` (inicial 8) días laborables desde la `fecha_asignacion` activa más antigua, o cuando `fecha_plazo_normativo` esté a `dias_alerta_normativo_sin_convocatoria` o menos. La reasignación NO reinicia la antigüedad.
   - **Hecho cuando:** Prueba unitaria del cron valide las dos condiciones de alerta; alerta deja de emitirse al agendar.
+
+- [ ] **TSK-002-N04**: Exponer `assignedAt` y estado semántico de convocatoria en el response de asignaciones.
+  - **Requisito relacionado:** `RF-12.7(a)`, `RF-12.7(b)`
+  - **PR:** PR-B2 (`feat/assignment-without-deadline`)
+  - **Criterio EARS:** `EARS (RF-12.6)` (el oficio informa estado de convocatoria al evaluador)
+  - **Descripción:** El objeto literal de respuesta en `evaluations.service.ts:1453-1464` actualmente omite `assignedAt` y no indica si el evaluador está "Pendiente de convocatoria". Añadir `assignedAt` (fecha de asignación, ya disponible en `asignaciones_evaluacion.fecha_asignacion`) y `estadoConvocatoria: 'Pendiente de convocatoria' | 'Con plazo asignado'` derivado de si `deadline === null`. No se necesita migración: `fecha_asignacion` ya existe como `@CreateDateColumn` y `fecha_limite` ya es `nullable: true` (verificado en Paso 1 (a) y (g)).
+  - **Hecho cuando:** La respuesta del endpoint de asignaciones incluya `assignedAt` y `estadoConvocatoria` para cada asignación; prueba unitaria verifica ambos campos.
+
+- [ ] **TSK-002-N05**: Implementar aviso suave no bloqueante RF-12.7(c) al crear convocatoria — `fecha_reunion` a menos de `PLAZO_REVISION_OFICIO_DIAS` de la `fecha_asignacion` activa más antigua.
+  - **Requisito relacionado:** `RF-12.7(c)`
+  - **PR:** PR-B1 (`feat/meeting-delivery-after-session`)
+  - **Criterio EARS:** `EARS (RF-12.6)`
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/services/calculate-meeting-dates.service.ts` (método `evaluateSoftWarnings` — nuevo o existente)
+    - `src/modules/evaluations/application/use-cases/create-meeting.use-case.ts`
+  - **Dependencias:** `TSK-009-N01`
+  - **Descripción:** Al crear la convocatoria, por cada protocolo-versión incluido, si el número de días hábiles entre la **fecha de asignación activa más antigua** de ese protocolo y `fecha_reunion` es menor que `PLAZO_REVISION_OFICIO_DIAS` (= 8, de `deadline-rules.ts`), la respuesta incluye una advertencia no bloqueante. La convocatoria se crea igualmente (HTTP 201); no se modifica ningún valor en BD. La advertencia se genera en `calculate-meeting-dates.service.ts` (método `evaluateSoftWarnings`) y se propaga en el response como `advertencias: [{ protocolVersionId, mensaje }]`.
+  - **Hecho cuando:** Prueba unitaria verifica: (a) si `diasHabilesEntre(fechaAsignacionMasAntigua, fechaReunion) < PLAZO_REVISION_OFICIO_DIAS`, el response del create-meeting incluye la advertencia para ese protocolo; (b) si `>= PLAZO_REVISION_OFICIO_DIAS`, sin advertencia; (c) la convocatoria se crea con HTTP 201 en ambos casos.
+
+- [ ] **TSK-002-N06**: PR-B3 — `EVALUADOR_URGENTE_UMBRAL_DIAS` aplicable solo cuando existe `fecha_limite`.
+  - **Requisito relacionado:** `RF-09.1`
+  - **PR:** PR-B3 (`fix/documental-subsanation-30d`)
+  - **Criterio EARS:** aplica RF-09.1
+  - **Descripción:** **Verificado (`evaluations.service.ts:226-228`)**: el código ya tolera `deadline === null` — `const deadline = a.deadline ? endOfDayGuayaquil(a.deadline) : null` + `let isUrgent = false` (default), sobreescrito solo dentro del `if (deadline) { ... }`. No se necesita cambio adicional para el null check. En PR-B3 confirmar con Secretaría el valor del umbral `EVALUADOR_URGENTE_UMBRAL_DIAS = 2` y eliminar el `TODO PR-B` del código.
+  - **Hecho cuando:** Prueba unitaria verifica: (a) `deadline = null` → `isUrgent = false`; (b) `deadline = mañana` → `isUrgent = true`; (c) `deadline = en 5 días` → `isUrgent = false`.
+
+- [ ] **TSK-002-N07**: PR-B2 — actualizar tests E2E que asertan `fecha_limite` legado al asignar (sin convocatoria).
+  - **Requisito relacionado:** `RF-12.7(a)`
+  - **PR:** PR-B2 (`feat/assignment-without-deadline`)
+  - **Criterio EARS:** aplica RF-12.7(a)
+  - **Descripción:** Cuatro aserciones hardcodean valores de `fecha_limite` basados en la regla LEGACY de 8/15 días desde asignación:
+    - `test/real-db-evaluations.e2e-spec.ts:363`: aserta `'2026-03-12'` (EXPEDITA, 8 días). Después de PR-B2, valor esperado: `null` (sin convocatoria aún).
+    - `test/real-db-evaluations.e2e-spec.ts:372`: aserta `'2026-03-23'` (PLENO, 15 días). Después de PR-B2, valor esperado: `null`.
+    - `test/real-db-evaluations.e2e-spec.ts:616`: test de **reasignación COI** — verifica `fecha_limite` de la nueva asignación (evaluador 905, version 992) después de `POST /api/evaluations/reassign`. El test no crea convocatoria activa; valor LEGACY `'2026-03-23'` (15 días). Después de PR-B2 (sin convocatoria activa), valor esperado: `null`.
+    - `test/peer-risk-concurrency.e2e-spec.ts:202,215,236`: asertan `deadlineDate` absoluto basado en cálculo de 8/15 días. Después de PR-B2, `deadlineDate` = `null` en el response.
+  - **Hecho cuando:** Las cuatro aserciones pasan en verde con `deadline = null` para contextos sin convocatoria activa y sin referencias al valor LEGACY.
