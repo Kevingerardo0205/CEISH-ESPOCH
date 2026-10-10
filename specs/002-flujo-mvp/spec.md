@@ -2,8 +2,9 @@
 
 **Código de Especificación:** `specs/002-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 1.0.0  
+**Versión:** 1.1.0  
 **Estado:** Aprobado  
+**Historial:** 2026-10-10 — alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)
 
 ---
 
@@ -21,7 +22,7 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 
 | Rol | Descripción | Acciones Principales |
 |---|---|---|
-| **Secretaria / Presidente CEISH** | Autoridad administrativa y de supervisión operativa. | Asignar la cuota exacta de 4 evaluadores, ejecutar reasignaciones por vencimiento/COI indicando el catálogo de motivo, agendar convocatorias. |
+| **Secretaria / Presidente CEISH** | Autoridad administrativa y de supervisión operativa. La Secretaría asigna a los 4 evaluadores pares; la Presidencia puede asignar y supervisar. | Asignar la cuota exacta de 4 evaluadores, ejecutar reasignaciones por vencimiento/COI indicando el catálogo de motivo, agendar convocatorias. |
 | **Evaluador Par** | Miembro del CEISH pertenecientes a uno de los 4 perfiles (`JURIDICO`, `SOCIEDAD_CIVIL`, `METODOLOGICO`, `SALUD/ETICA`). | Recibir notificaciones con deep-linking, acceder a su panel, descargar expediente, diligenciar el Anexo 9 e Informe Narrativo (y el Anexo 10 si fue seleccionado aleatoriamente). |
 
 ---
@@ -41,8 +42,8 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 #### 2. Pruebas de Aceptación (EARS)
 1. **Validación de Cuota Exacta**: **Cuando** la Secretaría asigna evaluadores, **el sistema debe** verificar que la lista contenga exactamente 4 evaluadores con un representante por perfil (`JURIDICO`, `SOCIEDAD_CIVIL`, `METODOLOGICO`, `SALUD`), impidiendo guardar combinaciones duplicadas o incompletas.
 2. **Exclusión Aleatoria en Anexo 10**: **Cuando** se confirma la cuota de 4 evaluadores, **el sistema debe** escoger aleatoriamente a 2 evaluadores pertenecientes a `JURIDICO`, `METODOLOGICO` o `SALUD` para llenar el Anexo 10, excluyendo explícitamente a `SOCIEDAD_CIVIL`.
-3. **Reasignación Trazable por Motivo**: **Si** un evaluador es sustituido por `VENCIMIENTO` o `CONFLICTO_INTERES`, **el sistema debe** actualizar su estado histórico (`REASIGNADO_VENCIMIENTO` / `REASIGNADO_COI`), filtrar a los candidatos de reemplazo estrictamente por el mismo perfil saliente y otorgar el plazo operativo completo al nuevo evaluador.
-4. **Notificación con Deep-Linking**: **Cuando** se formaliza una asignación o reasignación, **el sistema debe** enviar un correo electrónico al evaluador con el código del protocolo, fecha límite de entrega, la indicación explícita de si debe llenar el Anexo 10 y un enlace directo a su panel de evaluación.
+3. **Reasignación Trazable por Motivo**: **Si** un evaluador es sustituido por `VENCIMIENTO` o `CONFLICTO_INTERES`, **el sistema debe** actualizar su estado histórico (`REASIGNADO_VENCIMIENTO` / `REASIGNADO_COI`), filtrar a los candidatos de reemplazo estrictamente por el mismo perfil saliente y aplicar RF-12.7(e) para la fecha de entrega.
+4. **Notificación con Deep-Linking**: **Cuando** se formaliza una asignación o reasignación, **el sistema debe** enviar un correo electrónico al evaluador con el código del protocolo, el tiempo mínimo de revisión (`plazo_revision_oficio_dias`) y la indicación de que la fecha de entrega se informará cuando el protocolo se agende en una convocatoria, la indicación explícita de si debe llenar el Anexo 10 y un enlace directo a su panel de evaluación.
 
 ---
 
@@ -52,15 +53,21 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 
 - **RF-12.1 (Composición Estricta de Cuota)**: El sistema debe exigir la asignación de exactamente 4 evaluadores pares por protocolo, asignando obligatoriamente 1 miembro por cada uno de los 4 perfiles requeridos: `JURIDICO` (1), `SOCIEDAD_CIVIL` (1), `METODOLOGICO` (1) y `SALUD` / `ETICA` (1).
 - **RF-12.2 (Selección Aleatoria para Estratificación de Riesgo - Anexo 10)**: El sistema debe seleccionar automáticamente de forma aleatoria a 2 evaluadores de la lista asignada para diligenciar el Anexo 10 (Estratificación del Riesgo), excluyendo de forma estricta e innegociable al evaluador con perfil `SOCIEDAD_CIVIL` (la selección se realiza única y exclusivamente entre los perfiles técnicos: `JURIDICO`, `METODOLOGICO` y `SALUD` / `ETICA`).
-- **RF-12.3 (Reasignación Inmutable por Vencimiento o COI)**: Si un evaluador es desasignado por vencimiento del plazo o Conflicto de Interés (`CONFLICTO_INTERES`), el sistema debe conservar inmutable el registro saliente (marcando estado `REASIGNADO_VENCIMIENTO` o `REASIGNADO_COI` con timestamp y motivo) y filtrar obligatoriamente al evaluador reemplazante dentro del mismo perfil estricto (`JURIDICO`, `SOCIEDAD_CIVIL`, `METODOLOGICO` o `SALUD`), reiniciando el plazo operativo completo para el nuevo evaluador.
+- **RF-12.3 (Reasignación Inmutable por Vencimiento o COI)**: Si un evaluador es desasignado por vencimiento del plazo o Conflicto de Interés (`CONFLICTO_INTERES`), el sistema debe conservar inmutable el registro saliente (marcando estado `REASIGNADO_VENCIMIENTO` o `REASIGNADO_COI` con timestamp y motivo) y filtrar obligatoriamente al evaluador reemplazante dentro del mismo perfil estricto (`JURIDICO`, `SOCIEDAD_CIVIL`, `METODOLOGICO` o `SALUD`), aplicando RF-12.7(e) para la fecha de entrega.
 - **RF-12.4 (Requisito de Completitud del 100%)**: El sistema debe impedir el avance a la fase de dictamen final o resolución si falta el reporte del Anexo 9 e Informe Narrativo de cualquiera de los 4 evaluadores (o el Anexo 10 de los 2 seleccionados aleatoriamente).
 - **RF-12.5 (Continuidad Evaluadora en Versiones Mayores v2.0/v3.0)**: Al resometer una versión mayor tras dictamen de subsanación (`v2.0`), el sistema debe heredar automáticamente la asignación de los 4 evaluadores originales de la versión previa.
-- **RF-12.6 (Notificaciones Automatizadas con Deep-Linking)**: El sistema debe notificar inmediatamente por correo al evaluador asignado/reasignado incluyendo el resumen del protocolo, fecha límite, indicación explícita sobre el Anexo 10 y enlace directo (deep-linking) a su formulario de evaluación.
+- **RF-12.6 (Notificaciones Automatizadas con Deep-Linking)**: El sistema debe notificar inmediatamente por correo al evaluador asignado/reasignado incluyendo el resumen del protocolo, el tiempo mínimo de revisión (`plazo_revision_oficio_dias`) y la indicación de que la fecha de entrega se informará cuando el protocolo se agende en una convocatoria, la indicación explícita sobre el Anexo 10 y enlace directo (deep-linking) a su formulario de evaluación.
+- **RF-12.7 (Plazos del Evaluador):**
+  - a) Al asignar a un par, el sistema debe registrar la `fecha_asignacion` y NO fijar plazo de entrega al evaluador. La tarea se muestra como "Pendiente de convocatoria" y, como referencia, el `fecha_plazo_normativo` de la versión.
+  - b) El plazo del evaluador comienza cuando la Secretaría agrega el protocolo a una convocatoria. En ese momento el sistema debe registrar la `fecha_reunion` y la `fecha_entrega_evaluacion` de esa convocatoria (specs/003 RF-09.1) y usarla como el plazo del evaluador.
+  - c) El oficio de asignación informa un tiempo de revisión de `plazo_revision_oficio_dias` días laborables (inicial 8), igual para revisión expedita y en pleno. Es un tiempo mínimo, no una fecha límite. Si la `fecha_reunion` queda a menos de ese número de días laborables de la `fecha_asignacion`, mostrar una advertencia no bloqueante. Fuente: Secretaría (oct 2026).
+  - d) Control de protocolos pendientes de convocatoria: el sistema debe listar los protocolos-versión con pares asignados y sin convocatoria, y alertar a la Secretaría (con copia a la Presidencia) cuando: transcurran `dias_max_sin_convocatoria` días laborables (inicial 8) desde la `fecha_asignacion` activa más antigua de esa versión, o el `fecha_plazo_normativo` esté a `dias_alerta_normativo_sin_convocatoria` días o menos. Aplica specs/003 RF-ALR; deja de emitirse al agendar. La reasignación (RF-12.3) no reinicia la antigüedad.
+  - e) En una reasignación (RF-12.3), el evaluador reemplazante hereda la `fecha_entrega_evaluacion` vigente de la convocatoria; si el protocolo no está agendado, queda "Pendiente de convocatoria".
 
 #### Criterios de Aceptación EARS (RF-12)
 1. **Criterio EARS (RF-12.1)**: **Cuando** la Secretaría o Presidente asignen evaluadores a un protocolo, **el sistema debe** validar que la lista contenga exactamente 4 evaluadores con la combinación única de perfiles (`1 Jurídico`, `1 Sociedad Civil`, `1 Metodológico`, `1 Salud`), rechazando cualquier duplicidad o asignación incompleta.
 2. **Criterio EARS (RF-12.2)**: **Cuando** se confirme la asignación de los 4 evaluadores, **el sistema debe** elegir aleatoriamente a 2 evaluadores pertenecientes a los perfiles `JURIDICO`, `METODOLOGICO` o `SALUD` para responder el Anexo 10, excluyendo de forma estricta e innegociable al evaluador con perfil `SOCIEDAD_CIVIL` de dicha estratificación.
-3. **Criterio EARS (RF-12.3)**: **Si** se ejecuta la reasignación de un evaluador por `VENCIMIENTO` o `CONFLICTO_INTERES`, **el sistema debe** registrar el evento en la bitácora de auditoría sin borrar el registro histórico, limitar la lista de selección al mismo perfil del evaluador saliente y otorgar el plazo operativo completo al nuevo evaluador.
+3. **Criterio EARS (RF-12.3)**: **Si** se ejecuta la reasignación de un evaluador por `VENCIMIENTO` o `CONFLICTO_INTERES`, **el sistema debe** registrar el evento en la bitácora de auditoría sin borrar el registro histórico, limitar la lista de selección al mismo perfil del evaluador saliente y aplicar RF-12.7(e) para la fecha de entrega del reemplazante.
 4. **Criterio EARS (RF-12.4)**: **Mientras** no se haya registrado el 100% de las evaluaciones de la cuota de 4 miembros (Anexos 9, Anexo 10 e Informes Narrativos), **el sistema debe** impedir la emisión de la resolución final de la Convocatoria.
 5. **Criterio EARS (RF-12.5)**: **Cuando** un protocolo resometido en versión v2.0 ingrese a control, **el sistema debe** vincular automáticamente a los mismos 4 evaluadores asignados en v1.0.
 6. **Criterio EARS (RF-12.6)**: **Cuando** un evaluador sea asignado o reasignado, **el sistema debe** despachar un correo con el resumen, la indicación explícita del Anexo 10 y la URL con deep-linking al panel del evaluador.
@@ -93,11 +100,28 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 
 1. Validación funcional de la cuota exacta de 4 evaluadores (1 Jurídico, 1 Sociedad Civil, 1 Metodológico, 1 Salud).
 2. Selección aleatoria de Anexo 10 excluyendo de forma estricta e innegociable al evaluador con perfil SOCIEDAD_CIVIL.
-3. Trazabilidad inmutable de reasignaciones por `VENCIMIENTO` o `CONFLICTO_INTERES` con reinicio de plazo.
+3. Trazabilidad inmutable de reasignaciones por `VENCIMIENTO` o `CONFLICTO_INTERES` aplicando RF-12.7(e) para la fecha de entrega.
 4. Notificaciones por correo comprobables con deep-linking directo al panel.
 
 ---
 
 ## 9. Dudas Abiertas
 
-- `[NECESITA ACLARACIÓN]`: Ninguna. El comportamiento y las reglas del flujo han sido 100% refinadas con el usuario.
+- Ver sección Pendientes por confirmar.
+
+---
+
+## 10. Pendientes por confirmar
+
+- Entrega del informe: miércoles 12:00 posterior a la sesión (presidenta).
+- Documentos faltantes: 30 días, ¿laborables o calendario?
+- Tiempo mínimo del oficio: 8 días para expedita y pleno (el SRS v3.2 decía 15).
+- `dias_max_sin_convocatoria` (8) y `dias_alerta_normativo_sin_convocatoria`.
+- Receso académico: no modelado; ¿suspende el plazo normativo? ¿quién lo cargaría?
+- ¿El informe al Ministerio de Salud mide el cumplimiento del plazo normativo al día? De ser así, ¿se requiere precisión exacta?
+- Valores de aviso por hito y si la Secretaría quiere resumen diario por correo o solo la vista dentro del sistema.
+- Riesgo: lo estratifican 2 de los 4 pares (sociedad civil excluida).
+- Riesgo mayor al mínimo: ¿se requieren más de 4 pares (bioética)?
+- Prórroga de hasta 30 días del plazo normativo (PET): ¿se modela?
+- Informe de inicio: ¿desde la aprobación (Secretaría) o desde el inicio de la ejecución (PET y carta)?
+- Situación de un protocolo "No aprobado" (qué pasa después).
