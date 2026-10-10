@@ -1,6 +1,6 @@
 # Plan de Arquitectura y Diseño Técnico: RF-13 Registro de Observaciones Multilínea y Correo Consolidado
 
-**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.1.0, HU-013, RF-13)  
+**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.4.1, HU-013, RF-13)  
 **Proyecto:** CEISH-ESPOCH Backend  
 **Documento Target:** `specs/003-flujo-mvp/plan-rf13-observaciones.md`  
 **Cumplimiento Constitucional:** `docs/doc_base/constitution.md` y `AGENTS.md` (Arquitectura Hexagonal, NestJS, TypeORM, Resend Email Service, cero dependencias no autorizadas).
@@ -12,7 +12,7 @@
 | Criterio EARS / Requisito | Ubicación en este Plan | Descripción de Cobertura |
 |---|---|---|
 | **RF-13.1 (EARS 1)**: Captura Multilínea por Requisito Documental | Sección 2 (Módulos), Sección 3 (Modelo JSON) y Sección 4 (Contrato API) | Habilitación de campo de texto explicativo multilínea por requisito en la auditoría documental de Secretaría. |
-| **RF-13.1 (EARS 2)**: Consolidación de Notificación y Cálculo a 15 Días Hábiles | Sección 3 (Algoritmo de Consolidación), Sección 4 (Endpoints) y Sección 5 (Decisiones Técnicas) | Algoritmo que itera el checklist, filtra ítems observados/pendientes, calcula la fecha límite a 15 días hábiles y emite un único correo consolidado al Investigador Principal. |
+| **RF-13.1 (EARS 2)**: Consolidación de Notificación y Cálculo a `plazo_subsanacion_documental_dias` Días Hábiles | Sección 3 (Algoritmo de Consolidación), Sección 4 (Endpoints) y Sección 5 (Decisiones Técnicas) | Algoritmo que itera el checklist, filtra ítems observados/pendientes, calcula la fecha límite a `plazo_subsanacion_documental_dias` días hábiles (inicial 30) y emite un único correo consolidado al Investigador Principal. |
 
 ---
 
@@ -64,7 +64,7 @@ src/modules/reception/
   },
   "auditStatus": "OBSERVADO",
   "responseDeadline": "2026-10-14T23:59:59.000Z",
-  "businessDaysAllowed": 15,
+  "businessDaysAllowed": "<plazo_subsanacion_documental_dias>",
   "requirements": [
     {
       "requirementId": "req-001",
@@ -116,9 +116,9 @@ PASO 4: IF observedItems ES VACÍO ENTONCES
             RETORNAR { emailSent: false, deadlineDate: null, missingRequirementsCount: 0 }
         FIN IF
 
-PASO 5: Calcular la fecha límite exacta sumando 15 DÍAS HÁBILES (excluyendo fines de semana y feriados institucionales):
+PASO 5: Calcular la fecha límite exacta sumando `plazo_subsanacion_documental_dias` DÍAS HÁBILES (inicial 30; excluyendo fines de semana y feriados institucionales):
         startDate = FechaActual()
-        deadlineDate = BusinessDaysCalculator.addBusinessDays(startDate, 15) // Establece hora a 23:59:59.999
+        deadlineDate = BusinessDaysCalculator.addBusinessDays(startDate, plazo_subsanacion_documental_dias) // Establece hora a 23:59:59.999
 
 PASO 6: Construir el cuerpo del correo consolidado (HTML + Formato Texto Plano):
         emailBody = "Estimado/a Investigador/a Principal,\n\n"
@@ -130,7 +130,7 @@ PASO 6: Construir el cuerpo del correo consolidado (HTML + Formato Texto Plano):
                       + "  OBSERVACIONES:\n" + Indentar(req.observation, "    ") + "\n\n"
         FIN PARA
 
-        emailBody += "FECHA LÍMITE DE SUBSANACIÓN: " + FormatearFecha(deadlineDate) + " (15 días hábiles).\n"
+        emailBody += "FECHA LÍMITE DE SUBSANACIÓN: " + FormatearFecha(deadlineDate) + " (" + plazo_subsanacion_documental_dias + " días hábiles).\n"
                   + "Enlace para resometer observaciones: " + SystemConfig.PORTAL_URL + "/protocols/" + protocolId + "/subsanar\n\n"
                   + "Atentamente,\nSecretaría CEISH-ESPOCH"
 
@@ -187,7 +187,7 @@ FIN ALGORITMO
         "protocolId": "c2ffcd77-7b0a-2ef6-994b-4aa7ac160a33",
         "auditStatus": "DOCUMENTACION_OBSERVADA",
         "responseDeadline": "2026-10-14T23:59:59.000Z",
-        "businessDaysAllowed": 15,
+        "businessDaysAllowed": "<plazo_subsanacion_documental_dias>",
         "consolidatedItemsCount": 2,
         "emailSentTo": "carlos.mendoza@espoch.edu.ec"
       }
@@ -201,7 +201,7 @@ FIN ALGORITMO
 
 ### Decisión: Notificación en Mensaje Único Consolidado vs. Múltiples Correos por Documento
 - **Decisión**: El sistema envía **un único correo electrónico consolidado** con la lista estructurada de todos los requisitos observados al concluir la auditoría.
-- **Justificación**: Evita el spam de correos electrónicos al investigador principal (quien recibiría entre 10 y 15 correos individuales si se enviara por documento), previene la saturación del servicio transaccional de correos (Resend API) y ofrece una experiencia de usuario clara con una sola fecha límite unificada de 15 días hábiles para subsanar todo el paquete.
+- **Justificación**: Evita el spam de correos electrónicos al investigador principal (quien recibiría entre 10 y 15 correos individuales si se enviara por documento), previene la saturación del servicio transaccional de correos (Resend API) y ofrece una experiencia de usuario clara con una sola fecha límite unificada de `plazo_subsanacion_documental_dias` días hábiles para subsanar todo el paquete.
 - **Alternativa descartada**: Enviar un correo electrónico inmediatamente cada vez que la Secretaría guarda la observación de un archivo individual. Descartada por mala usabilidad y falta de consolidación en la auditoría.
 
 ---
@@ -210,6 +210,6 @@ FIN ALGORITMO
 
 1. **Pruebas Unitarias (`npm test`)**:
    - `send-consolidated-observations.use-case.spec.ts`: Verificar que se agrupen únicamente los requisitos `OBSERVADO` / `PENDIENTE`, ignorando los `APROBADO`.
-   - `business-days-calculator.spec.ts`: Validar que el cálculo de 15 días hábiles se salte fines de semana y feriados.
+   - `business-days-calculator.spec.ts`: Validar que el cálculo de `plazo_subsanacion_documental_dias` días hábiles se salte fines de semana y feriados.
 2. **Pruebas E2E (`npm run test:e2e`)**:
    - `reception-observations.e2e-spec.ts`: Probar endpoint `POST /api/reception/protocols/:id/observations/send` mockeando `ResendService`. Validar cambio de estado a `DOCUMENTACION_OBSERVADA` y recepción del payload estructurado.

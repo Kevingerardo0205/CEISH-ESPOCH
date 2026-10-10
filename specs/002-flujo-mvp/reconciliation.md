@@ -1,6 +1,6 @@
 # Informe de Reconciliación Arquitectónica Brownfield (SDD)
 
-**Código de Especificación:** `specs/002-flujo-mvp/spec.md` (v1.0.0 — Flujo 002: Asignación y Evaluación Par)  
+**Código de Especificación:** `specs/002-flujo-mvp/spec.md` (v1.1.0 — Flujo 002: Asignación y Evaluación Par)  
 **Ubicación del Documento:** `specs/002-flujo-mvp/reconciliation.md`  
 **Fecha:** 2026-09-28  
 **Documentos de Referencia:** `docs/doc_base/constitution_v2.md`, `specs/002-flujo-mvp/spec.md`, `specs/002-flujo-mvp/plan.md`, `specs/002-flujo-mvp/tasks.md`, `specs/002-flujo-mvp/informe-brecha-evaluacion.md`  
@@ -32,14 +32,14 @@
 * **Servicios de Dominio:**
   * `QuotaEvaluatorValidatorService` (`src/modules/evaluations/domain/services/quota-evaluator-validator.service.ts`): Validador estricto de cuota de 4 perfiles.
   * `RandomRiskSelectorService` (`src/modules/evaluations/domain/services/random-risk-selector.service.ts`): Sorteo aleatorio Fisher-Yates de 2 evaluadores para Anexo 10 excluyendo `SOCIEDAD_CIVIL`.
-  * `EvaluatorReassignmentService` (`src/modules/evaluations/domain/services/evaluator-reassignment.service.ts`): Lógica pura de reasignación inmutable y reinicio de plazos.
+  * `EvaluatorReassignmentService` (`src/modules/evaluations/domain/services/evaluator-reassignment.service.ts`): Lógica pura de reasignación inmutable; aplica RF-12.7(e): el reemplazante hereda la `fecha_entrega_evaluacion` vigente (no hay "reinicio de plazo").
 * **Puertos de Dominio:**
   * `IEvaluationRepository` (`src/modules/evaluations/domain/ports/evaluation.repository.port.ts`).
 
 ### 1.3 Capa de Aplicación (Casos de Uso, Servicios, DTOs)
 * **Casos de Uso Existentes:**
   * `AssignEvaluatorsUseCase` (`src/modules/evaluations/application/use-cases/assign-evaluators.use-case.ts`): Orquestador de asignación atómica y sorteo.
-  * `ReassignEvaluatorUseCase` (`src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts`): Orquestador de sustitución inmutable con reinicio de plazo.
+  * `ReassignEvaluatorUseCase` (`src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts`): Orquestador de sustitución inmutable; aplica RF-12.7(e): hereda `fecha_entrega_evaluacion` vigente (sin reinicio de plazo).
   * `SubmitEvaluationUseCase` (`src/modules/evaluations/application/use-cases/submit-evaluation.use-case.ts`): Validador de porcentaje de completitud 100%.
   * `InheritEvaluatorsUseCase` (`src/modules/evaluations/application/use-cases/inherit-evaluators.use-case.ts`): Herencia de evaluadores para versiones mayores v2.0.
 * **Servicios de Aplicación Existentes:**

@@ -1,6 +1,6 @@
 # Informe de Reconciliación Arquitectónica Frontend Brownfield (SDD)
 
-**Código de Especificación:** `specs/002-flujo-mvp/spec.md` (v1.0.0 — Flujo 002: Asignación y Evaluación Par)  
+**Código de Especificación:** `specs/002-flujo-mvp/spec.md` (v1.1.0 — Flujo 002: Asignación y Evaluación Par)  
 **Ubicación del Documento:** `specs/002-flujo-mvp/reconciliation-frontend-asignacion.md`  
 **Fecha:** 2026-09-28  
 **Documentos de Referencia:** `specs/002-flujo-mvp/spec.md`, `specs/002-flujo-mvp/clarification.md`, `specs/002-flujo-mvp/plan-frontend-asignacion.md`, `specs/002-flujo-mvp/tasks-frontend-asignacion.md`, `specs/002-flujo-mvp/reconciliation.md`, `specs/002-flujo-mvp/informe-brecha-evaluacion.md`  

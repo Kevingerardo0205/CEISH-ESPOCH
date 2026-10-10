@@ -1,6 +1,6 @@
 # Plan de Arquitectura y Diseño Técnico: RF-09 Gestión de Convocatorias a Sesiones del Pleno y Orden del Día Clasificado
 
-**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.3.0, HU-007, RF-09.1, RF-09.2, RF-15.2)  
+**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.4.1, HU-007, RF-09.1, RF-09.2, RF-15.2)  
 **Proyecto:** CEISH-ESPOCH Backend  
 **Documento Target:** `specs/003-flujo-mvp/00301-flujo-mvp/plan-rf09-convocatorias.md`  
 **Cumplimiento Constitucional:** `docs/doc_base/constitution_v2.md`, `specs/003-flujo-mvp/reconciliation.md`, `AGENTS.md` (Arquitectura Hexagonal, TypeScript Strict, TypeORM, cero dependencias no autorizadas).
@@ -12,7 +12,7 @@
 | Criterio EARS / Requisito | Ubicación en este Plan | Descripción de Cobertura |
 |---|---|---|
 | **RF-09.1 (EARS 1)**: Numeración Secuencial Atómica Anual (`001-2026`) | Sección 3 (Fase 1, Algoritmo A) y Sección 5 | Estrategia Opción E: Tabla de secuencias anuales + `UNIQUE` constraint en PostgreSQL + retry loop ante errores `23505`/`40001`. |
-| **RF-09.1 (EARS 2)**: Registro Obligatorio de 3 Fechas Normativas (`fecha_plazo_normativo`, `fecha_reunion`, `fecha_entrega_evaluacion`) | Sección 3 (Fase 1, Algoritmo B) y Sección 4 | Validación dura de precedencia temporal `fecha_entrega_evaluacion < fecha_reunion` y sugerencia de jueves previo a las 23:59:59. |
+| **RF-09.1 (EARS 2)**: Registro Obligatorio de 3 Fechas Normativas (`fecha_plazo_normativo`, `fecha_reunion`, `fecha_entrega_evaluacion`) | Sección 3 (Fase 1, Algoritmo B) y Sección 4 | Validación dura de precedencia temporal `fecha_entrega_evaluacion > fecha_reunion` (entrega DESPUÉS de la reunión) y cálculo de +2 días hábiles tras la reunión a las 12:00 ECT (America/Guayaquil). **Nota:** código actual implementa regla vieja; pendiente de PR de código. |
 | **RF-09.2 (EARS 3)**: Orden del Día Clasificado en 4 Secciones (Evaluaciones e Informes de Seguimiento) | Sección 2, Sección 3 (Fases 2 y 3) y Sección 4 | Modelo unificado de `AgendaItem` con `AgendaSectionType` (I, II, III, IV) y `AgendaItemType` (Evaluación inicial, Subsanación, Inicio, Avance Anexo 18, Fin Anexo 8). |
 | **RF-09.1 / RF-09.2 (EARS 4)**: Generación de PDF Oficial del Orden del Día y Notificación a Miembros | Sección 2 (Módulos), Sección 3 (Fase 4) y Sección 6 | Integración de `MeetingPdfGeneratorAdapter` con `PdfGeneratorService` real (sin mocks) y despacho de notificaciones a vocales. |
 
@@ -43,10 +43,10 @@ src/
     │   │   ├── dtos/
     │   │   │   ├── create-meeting.dto.ts    # DTO con protocolVersionIds y followUpReportIds
     │   │   │   ├── meeting-response.dto.ts  # DTO con desglose de las 4 secciones
-    │   │   │   └── calculate-eval-date.dto.ts # DTO pre-cálculo de jueves previo
+    │   │   │   └── calculate-eval-date.dto.ts # DTO pre-cálculo de fecha entrega (+2 días hábiles tras reunión)
     │   │   ├── services/
     │   │   │   ├── create-meeting.use-case.ts # Orquestación transaccional con retry handler
-    │   │   │   ├── calculate-meeting-dates.service.ts # Cálculo de jueves previo
+    │   │   │   ├── calculate-meeting-dates.service.ts # Cálculo de +2 días hábiles tras la reunión a las 12:00 ECT
     │   │   │   └── get-meeting.use-case.ts  # Consulta detallada de Convocatoria
     │   │   └── mappers/
     │   │       └── meeting.mapper.ts        # Mapeo Dominio <-> ORM <-> DTO
@@ -117,7 +117,7 @@ src/
 
 ### Fase 5: API REST y Seguridad
 1. **Endpoints Canónicos**:
-   - `POST /api/evaluations/meetings/calculate-eval-date`: Pre-cálculo de jueves previo (Helper UI).
+   - `POST /api/evaluations/meetings/calculate-eval-date`: Pre-cálculo de fecha de entrega (+2 días hábiles tras la reunión a las 12:00 ECT; Helper UI).
    - `POST /api/evaluations/meetings`: Creación atómica de convocatoria con Orden del Día clasificado (`JwtAuthGuard`, `RolesGuard('SECRETARIA', 'ADMIN')`).
    - `GET /api/evaluations/meetings/:id`: Consulta detallada estructurada en las 4 secciones (`JwtAuthGuard`).
    - `GET /api/evaluations/meetings/:id/pdf`: Descarga del PDF oficial del Orden del Día (`JwtAuthGuard`).
@@ -133,8 +133,8 @@ src/
 ### Fase 7: Estrategia de Pruebas (TDD) y Concurrencia
 1. **Pruebas Unitarias (`npm test`)**:
    - `meeting-number.vo.spec.ts`: Formato correlativo y validación de año.
-   - `meeting-dates.vo.spec.ts`: Precedencia `evalDeadline < meetingDate`.
-   - `calculate-meeting-dates.service.spec.ts`: Auto-cálculo de jueves previo.
+   - `meeting-dates.vo.spec.ts`: Precedencia `evalDeadline > meetingDate` (entrega DESPUÉS de la reunión).
+   - `calculate-meeting-dates.service.spec.ts`: Auto-cálculo de +2 días hábiles tras la reunión a las 12:00 ECT.
    - `create-meeting.use-case.spec.ts`: Creación con ítems clasificados, reintentos y generación de PDF.
 2. **Pruebas de Integración y Concurrencia**:
    - Test de persistencia transaccional con `QueryRunner`.

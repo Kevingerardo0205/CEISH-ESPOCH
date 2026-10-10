@@ -1,6 +1,6 @@
 # Plan de Arquitectura y Diseño Técnico Brownfield: Flujo 002 — Asignación y Evaluación Par
 
-**Código de Especificación:** `specs/002-flujo-mvp/spec.md` (v1.0.0)  
+**Código de Especificación:** `specs/002-flujo-mvp/spec.md` (v1.1.0)  
 **Ubicación del Plan:** `specs/002-flujo-mvp/plan.md`  
 **Estado:** Aprobado para Planificación Técnica  
 **Documentos de Referencia:** `docs/doc_base/constitution_v2.md`, `specs/002-flujo-mvp/reconciliation.md`, Acta de Clarificación  
@@ -92,7 +92,7 @@ sequenceDiagram
     Sec->>Ctrl: POST /evaluations/reassign (saliente, nuevo, motivo COI/VENCIMIENTO)
     Ctrl->>UC_Reassign: execute(ReassignEvaluatorDto)
     UC_Reassign->>ReassignSvc: executeReassignment() [RF-12.3]
-    Note over ReassignSvc: Valida mismo perfil + traspaso Anexo 10 + 15 días hábiles
+    Note over ReassignSvc: Valida mismo perfil + traspaso Anexo 10 + hereda fecha_entrega_evaluacion vigente (RF-12.7(e))
     UC_Reassign->>Repo: executeReassignmentTransaction()
     Note over Repo: Transacción SERIALIZABLE:<br/>1. Update saliente (estado REASIGNED_*)<br/>2. Insert entrante (estado ASSIGNED)<br/>3. Insert evaluacion.asignacion_historial
     UC_Reassign->>Event: emit('evaluator.assigned', payload) [RF-12.6]
@@ -120,8 +120,8 @@ sequenceDiagram
   * *Motivo*: Soportar la persistencia de estados de reasignación inmutable con FK física a la base de datos (Opción A acordada).
 * **[`EvaluatorReassignmentService`](file:///C:/Users/Usuario/Desktop/8vo/API%20II/CEISH-ESPOCH/src/modules/evaluations/domain/services/evaluator-reassignment.service.ts)**:
   * *Acción*: **ADAPTAR**.
-  * *Responsabilidad actual*: Lógica pura de sustitución y reinicio de plazos.
-  * *Cambio requerido*: Adaptar los tipos de identificadores de `string` a `number`, y referenciar los estados numéricos de `AssignmentStatus`.
+  * *Responsabilidad actual*: Lógica pura de sustitución.
+  * *Cambio requerido*: Adaptar los tipos de identificadores de `string` a `number`, referenciar los estados numéricos de `AssignmentStatus`, y aplicar RF-12.7(e): el reemplazante hereda la `fecha_entrega_evaluacion` vigente de la convocatoria; si el protocolo no está agendado, queda "Pendiente de convocatoria".
   * *Motivo*: Alineación con el esquema de persistencia relacional.
 * **[`EvaluationAssignmentEntity`](file:///C:/Users/Usuario/Desktop/8vo/API%20II/CEISH-ESPOCH/src/modules/evaluations/domain/entities/evaluation-assignment.entity.ts)** y **[`AssignmentHistoryEntity`](file:///C:/Users/Usuario/Desktop/8vo/API%20II/CEISH-ESPOCH/src/modules/evaluations/domain/entities/assignment-history.entity.ts)**:
   * *Acción*: **ADAPTAR**.
@@ -144,7 +144,7 @@ sequenceDiagram
 * **[`AssignEvaluatorsUseCase`](file:///C:/Users/Usuario/Desktop/8vo/API%20II/CEISH-ESPOCH/src/modules/evaluations/application/use-cases/assign-evaluators.use-case.ts)**:
   * *Acción*: **ADAPTAR**.
   * *Responsabilidad actual*: Orquestación de asignación atómica con UUIDs.
-  * *Cambio requerido*: Conectar con `EvaluationTypeOrmRepository`, resolver `versionId` del protocolo, invocar `QuotaEvaluatorValidatorService` y `RandomRiskSelectorService`, calcular `deadlineDate` con `BusinessDayCalculator` (15 días hábiles), persistir y despachar evento `evaluator.assigned`.
+  * *Cambio requerido*: Conectar con `EvaluationTypeOrmRepository`, resolver `versionId` del protocolo, invocar `QuotaEvaluatorValidatorService` y `RandomRiskSelectorService`, registrar `fecha_asignacion` sin fijar plazo de entrega (tarea queda "Pendiente de convocatoria" según RF-12.7(a)), persistir y despachar evento `evaluator.assigned`.
 * **[`ReassignEvaluatorUseCase`](file:///C:/Users/Usuario/Desktop/8vo/API%20II/CEISH-ESPOCH/src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts)**:
   * *Acción*: **ADAPTAR**.
   * *Responsabilidad actual*: Orquestación de sustitución inmutable.
@@ -247,7 +247,7 @@ Conforme a [`informe-brecha-evaluacion.md`](file:///C:/Users/Usuario/Desktop/8vo
     ]
   }
   ```
-* **Respuesta (201 Created):** Lista de las 4 asignaciones con fechas límites (15 días hábiles) e indicación de los 2 designados para el Anexo 10.
+* **Respuesta (201 Created):** Lista de las 4 asignaciones con estado "Pendiente de convocatoria" (sin fecha de entrega hasta que el protocolo se agende en convocatoria, según RF-12.7(a)) e indicación de los 2 designados para el Anexo 10.
 
 ### 2. Reasignar Evaluador (Inmutable por Vencimiento / COI)
 * **Ruta:** `POST /evaluations/reassign`
@@ -262,7 +262,7 @@ Conforme a [`informe-brecha-evaluacion.md`](file:///C:/Users/Usuario/Desktop/8vo
     "observation": "Declaración voluntaria de cercanía académica con el coinvestigador."
   }
   ```
-* **Respuesta (200 OK):** Detalle de la asignación saliente marcada, la nueva asignación creada con 15 días hábiles y el registro de bitácora generado.
+* **Respuesta (200 OK):** Detalle de la asignación saliente marcada, la nueva asignación creada con la `fecha_entrega_evaluacion` heredada de la convocatoria vigente (o "Pendiente de convocatoria" si no está agendado, RF-12.7(e)) y el registro de bitácora generado.
 
 ### 3. Consultar Estado de Completitud
 * **Ruta:** `GET /evaluations/completion-status/:protocolId`
@@ -359,3 +359,15 @@ Fase 5: Validación y Verificación (QA)
 * `TSK-03` y `TSK-04` desbloquean la capa de aplicación (`TSK-05`, `TSK-06`, `TSK-07`).
 * `TSK-08` y `TSK-09` requieren los use cases completados.
 * `TSK-10` y `TSK-11` certifican el cierre bajo el **Definition of Done** de [`docs/doc_base/constitution_v2.md`](file:///C:/Users/Usuario/Desktop/8vo/API%20II/CEISH-ESPOCH/docs/doc_base/constitution_v2.md).
+
+---
+
+## 15. Parámetros Configurables del Flujo 002 (RF-12.7)
+
+Los siguientes parámetros son leídos de la configuración del sistema y no deben estar hardcodeados en el código:
+
+| Parámetro | Valor inicial | Descripción |
+|---|---|---|
+| `plazo_revision_oficio_dias` | 8 días laborables | Tiempo mínimo de revisión informado en el oficio de asignación. No es una fecha límite; si la `fecha_reunion` queda a menos de este número de días desde `fecha_asignacion`, se muestra advertencia no bloqueante (RF-12.7(c)). |
+| `dias_max_sin_convocatoria` | 8 días laborables | Umbral para alertar a Secretaría (con copia a Presidencia) cuando un protocolo-versión tiene pares asignados pero no ha sido agendado en convocatoria (RF-12.7(d)). |
+| `dias_alerta_normativo_sin_convocatoria` | pendiente de confirmación | Proximidad al `fecha_plazo_normativo` que activa la alerta de "riesgo de vencimiento normativo sin convocatoria" (RF-12.7(d)). Aplica RF-ALR. |

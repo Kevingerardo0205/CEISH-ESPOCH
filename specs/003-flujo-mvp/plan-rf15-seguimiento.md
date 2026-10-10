@@ -1,6 +1,6 @@
 # Plan de Arquitectura y Diseño Técnico: RF-15 Seguimiento Post-Aprobación, Agenda de Entregables, Anexo 18 y Anexo 8
 
-**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.1.0, HU-015, RF-15.1, RF-15.2)  
+**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.4.1, HU-015, RF-15.1, RF-15.2)  
 **Proyecto:** CEISH-ESPOCH Backend  
 **Documento Target:** `specs/003-flujo-mvp/plan-rf15-seguimiento.md`  
 **Cumplimiento Constitucional:** `docs/doc_base/constitution.md` y `AGENTS.md` (Arquitectura Hexagonal, NestJS, TypeORM, PostgreSQL, cero dependencias no autorizadas).
@@ -13,7 +13,7 @@
 |---|---|---|
 | **RF-15.1 (EARS 1)**: Pre-llenado de Agenda y Edición por Presidencia | Sección 3 (Algoritmo A), Sección 2 (Modelos) y Sección 4 (Endpoints) | Pre-cálculo de fechas sugeridas (Inicio 30 días, Avances, Cierre Anexo 8 a 60 días, Renovación a 60 días antes) con edición libre por Presidencia. |
 | **RF-15.1 (EARS 2)**: Recepción de Entregables Oficiales (Anexo 18 y Anexo 8) | Sección 2 (Módulos), Sección 3 (Modelo JSON) y Sección 4 (Contrato API) | Recepción y validación estricta de Anexo 18 (Informe de Avance) para seguimiento periódico y Anexo 8 (Informe Final) para cierre. |
-| **RF-15.1 / RF-15.2 (EARS 3)**: Alertas Parametrizadas y Período de Gracia de 30 Días | Sección 3 (Algoritmos B y C), Sección 5 (Decisiones) y Sección 6 (Estrategia TDD) | Alertas preventivas por tipo de hito (7/1 día para inicio, 90/60/15 para renovación) y cambio automático a `VENCIDO`/`SUSPENDIDO` con 30 días de gracia. |
+| **RF-15.1 / RF-15.2 (EARS 3)**: Alertas Parametrizadas y Período de Gracia de 30 Días | Sección 3 (Algoritmos B y C), Sección 5 (Decisiones) y Sección 6 (Estrategia TDD) | Alertas preventivas según RF-ALR (`alerta_offsets_dias` [7, 1] para hitos generales; `alerta_renovacion_offsets_dias` [90, 60, 15] para renovación) y cambio automático a `VENCIDO`/`SUSPENDIDO` con 30 días de gracia. |
 
 ---
 

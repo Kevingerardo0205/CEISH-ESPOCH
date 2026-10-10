@@ -1,6 +1,6 @@
 # Plan de Arquitectura y Diseño Técnico: RF-14 Ciclo Multiversión e Inmutabilidad de Aprobados
 
-**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.1.0, HU-014, RF-14)  
+**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.4.1, HU-014, RF-14)  
 **Proyecto:** CEISH-ESPOCH Backend  
 **Documento Target:** `specs/003-flujo-mvp/plan-rf14-multiversion.md`  
 **Cumplimiento Constitucional:** `docs/doc_base/constitution.md` y `AGENTS.md` (Arquitectura Hexagonal, NestJS, TypeORM, PostgreSQL, cero dependencias no autorizadas).
@@ -11,7 +11,7 @@
 
 | Criterio EARS / Requisito | Ubicación en este Plan | Descripción de Cobertura |
 |---|---|---|
-| **RF-14.1 (EARS 1)**: Auto-Generación de Versión Mayor (v1.0 ➔ v2.0) y 30 Días Hábiles | Sección 3 (Algoritmo A), Sección 4 (Contrato API) y Sección 5 (Decisiones Técnicas) | Incremento secuencial del entero `numero_version` en BD y asignación del plazo normativo de 30 días hábiles. |
+| **RF-14.1 (EARS 1)**: Auto-Generación de Versión Mayor (v1.0 ➔ v2.0) y `plazo_condicion_dias` Días Hábiles | Sección 3 (Algoritmo A), Sección 4 (Contrato API) y Sección 5 (Decisiones Técnicas) | Incremento secuencial del entero `numero_version` en BD y asignación del plazo normativo de `plazo_condicion_dias` días hábiles (inicial 30). |
 | **RF-14.1 (EARS 2)**: Inmutabilidad y Congelamiento Documental (🔒) | Sección 3 (Algoritmo B), Sección 2 (Modelos) y Sección 4 (Endpoints) | Congelamiento estricto de requisitos `APROBADO` / `NO_APLICA` y reseteo a `NO_PRESENTADO` únicamente para los observados/rechazados. |
 | **RF-14.1 (EARS 3)**: Incremento Dinámico sin Límite Duro y Formateo `v${numero_version}.0` | Sección 3 (Algoritmo C), Sección 2 (Mapeo JSON) y Sección 5 (Decisiones Técnicas) | Permite versiones v3.0, v4.0 indefinidas hasta dictamen explícito de `RECHAZADO` y proyecta la versión como `vX.0` en la presentación. |
 

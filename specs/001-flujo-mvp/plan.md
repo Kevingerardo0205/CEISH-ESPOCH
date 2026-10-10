@@ -1,6 +1,6 @@
 # Plan de Arquitectura y Diseño Técnico: Backend CEISH-ESPOCH
 
-**Código de Especificación Activa:** `specs/001-flujo-mvp/spec.md` (v3.2.0)  
+**Código de Especificación Activa:** `specs/001-flujo-mvp/spec.md` (v3.3.1)  
 **Ubicación del Plan:** `specs/001-flujo-mvp/plan.md`  
 **Estado:** Aprobado  
 
@@ -156,7 +156,7 @@ Representación del modelo de dominio serializado para un Protocolo de Investiga
 
 ### Especificación Formal del Algoritmo
 
-Para garantizar el cumplimiento de los 15 días hábiles de subsanación documental (`RF-07.1`) y los 30 días hábiles para subsanación mayor tras dictamen del Pleno (`RF-14.1`), se implementa un algoritmo puro en la capa de `domain` que calcula la fecha de vencimiento omitiendo fines de semana y días feriados parametrizados.
+Para garantizar el cumplimiento de `plazo_subsanacion_documental_dias` días hábiles de subsanación documental (`RF-07.1`) y `plazo_condicion_dias` días hábiles para subsanación mayor tras dictamen del Pleno (`RF-14.1`), se implementa un algoritmo puro en la capa de `domain` que calcula la fecha de vencimiento omitiendo fines de semana y días feriados parametrizados.
 
 $$\text{DeadlineDate} = f(\text{StartDate}, \text{TargetBusinessDays}, \text{HolidaysSet})$$
 
@@ -182,7 +182,7 @@ export class BusinessDayCalculator {
     while (addedDays < businessDaysToAdd) {
       currentDate.setUTCDate(currentDate.getUTCDate() + 1);
       const dayOfWeek = currentDate.getUTCDay(); // 0 = Domingo, 6 = Sábado
-      const dateString = currentDate.toISOString().split('T')[0];
+      const dateString = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Guayaquil' }).format(currentDate); // YYYY-MM-DD en zona ECT
 
       const isWeekend = dayOfWeek === 0 || dayOfWeek === 6;
       const isHoliday = holidaySet.has(dateString);
@@ -211,7 +211,7 @@ De acuerdo a `AGENTS.md` y la Constitución, el sistema expone comandos de conso
 
 #### 1. **Ejecución del Archivado Automático por Vencimiento (Cron Job)**
 - **Comando:** `npm run cli:archive-expired`
-- **Descripción:** Evalúa los trámites en estado `INCOMPLETO_REQUIERE_SUBSANACION` (15 días) y `SUBSANACION_PLENO_PENDIENTE` (30 días). Si `current_date > deadline_date`, actualiza el estado a `ARCHIVADO_POR_VENCIMIENTO`.
+- **Descripción:** Evalúa los trámites en estado `INCOMPLETO_REQUIERE_SUBSANACION` (`plazo_subsanacion_documental_dias` días hábiles) y `SUBSANACION_PLENO_PENDIENTE` (`plazo_condicion_dias` días hábiles). Si `current_date > deadline_date`, actualiza el estado a `ARCHIVADO_POR_VENCIMIENTO`.
 - **Salida Exito (Código Exit: 0):**
   ```json
   {
@@ -223,6 +223,7 @@ De acuerdo a `AGENTS.md` y la Constitución, el sistema expone comandos de conso
     ]
   }
   ```
+  > **Nota:** La razón `"15_DAYS_EXCEEDED"` referencia el umbral `plazo_subsanacion_documental_dias`; renombrar en PR de código cuando se aplique RF-07.1 con el parámetro.
 - **Salida Error (Código Exit: 1):**
   ```json
   {
@@ -287,8 +288,8 @@ flowchart TD
 
 ### 1. **Pruebas Unitarias (`npm test`)**
 - **Módulos Críticos:**
-  - `deadline-calculator.spec.ts`: Verifica el salto exacto de feriados y fines de semana para los 15 y 30 días hábiles (`RF-07.1`, `RF-14.1`).
-  - `quota-validator.spec.ts`: Verifica que se rechace la asignación si se intenta registrar 2 evaluadores de `SOCIEDAD_CIVIL` o `JURIDICO` (`RF-12.1`).
+  - `deadline-calculator.spec.ts`: Verifica el salto exacto de feriados y fines de semana para `plazo_subsanacion_documental_dias` y `plazo_condicion_dias` días hábiles (`RF-07.1`, `RF-14.1`).
+  - `quota-validator.spec.ts`: Verifica que se rechace la asignación si se intenta registrar más de 1 evaluador por perfil (`JURIDICO`, `SOCIEDAD_CIVIL`, `METODOLOGICO`, `SALUD`), y que la cuota exacta sea 4 evaluadores (1 por perfil) (`RF-12.1`).
   - `atomic-code-generator.spec.ts`: Formateo correcto del código `CEISH-ESPOCH-[SIGLA]-[SECUENCIAL]-[AÑO]` (`RF-06.1`).
 
 ### 2. **Pruebas End-to-End (`npm run test:e2e`)**

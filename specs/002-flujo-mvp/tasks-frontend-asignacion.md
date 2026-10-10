@@ -1,6 +1,6 @@
 # Lista de Tareas Frontend Delta: Módulo de Asignación y Evaluación Par (Brownfield SDD)
 
-**Código de Especificación Activa:** `specs/002-flujo-mvp/spec.md` (v1.0.0 — Flujo 002: Asignación y Evaluación Par)  
+**Código de Especificación Activa:** `specs/002-flujo-mvp/spec.md` (v1.1.0 — Flujo 002: Asignación y Evaluación Par)  
 **Ubicación del Plan Frontend:** `specs/002-flujo-mvp/plan-frontend-asignacion.md`  
 **Ubicación de Tareas Frontend:** `specs/002-flujo-mvp/tasks-frontend-asignacion.md`  
 **Documento de Reconciliación:** `specs/002-flujo-mvp/reconciliation-frontend-asignacion.md`  

@@ -2,7 +2,7 @@
 
 ## 1. Propósito y Marco Metodológico
 
-El propósito de este documento es auditar, contrastar y reconciliar de manera exhaustiva el estado real del backend en el repositorio **CEISH-ESPOCH** frente a la especificación técnica [`specs/003-flujo-mvp/spec.md`](file:///C:/Users/Usuario/Desktop/8vo/API%20II/CEISH-ESPOCH/specs/003-flujo-mvp/spec.md) (Versión 1.3.0) y sus planes/tareas asociados.
+El propósito de este documento es auditar, contrastar y reconciliar de manera exhaustiva el estado real del backend en el repositorio **CEISH-ESPOCH** frente a la especificación técnica [`specs/003-flujo-mvp/spec.md`](file:///C:/Users/Usuario/Desktop/8vo/API%20II/CEISH-ESPOCH/specs/003-flujo-mvp/spec.md) (Versión 1.4.1) y sus planes/tareas asociados.
 
 Siguiendo las directrices de la [`constitution_v2.md`](file:///C:/Users/Usuario/Desktop/8vo/API%20II/CEISH-ESPOCH/docs/doc_base/constitution_v2.md) para entornos Brownfield (Spec-Driven Development / SDD), esta auditoría se fundamenta en **evidencia técnica real e inmutable** extraída de la base de datos PostgreSQL, del código fuente, del compilador TypeScript y de la ejecución de pruebas.
 
@@ -54,10 +54,10 @@ Siguiendo las directrices de la [`constitution_v2.md`](file:///C:/Users/Usuario/
 |---|---|---|---|---|
 | **RF-09.1: Numeración Concurrente (`001-2026`)** | Funcional en memoria/QueryRunner básico, pero sin tabla de control ni `UNIQUE` constraint en PostgreSQL. | Numeración anual atómica garantizada con tabla `evaluacion.secuencias_convocatoria`, `UNIQUE(anio_lectivo, numero_secuencial)` y reintentos ante `23505`/`40001`. | Falta tabla de secuencias, constraint DB y retry handler. | **MODIFICAR / REFACTORIZAR** |
 | **RF-09.2: Orden del Día en 4 Secciones** | La tabla `convocatoria_protocolos` solo acepta `protocolVersionIds` y no soporta reportes ni secciones. | Modelo estructurado de `AgendaItem` con `AgendaSectionType` (I, II, III, IV) y `AgendaItemType`. | Falta modelo discriminado de agenda y DTO con `followUpReportIds`. | **ADAPTAR / MODIFICAR** |
-| **RF-09.1: Validación de 3 Fechas** | Implementada en `MeetingDatesVO` y `CalculateMeetingDatesService`. | Validación dura de precedencia (`evalDeadline < meetingDate`) y sugerencia de jueves previo. | Ninguna brecha (100% verde en unit tests). | **REUTILIZAR** |
+| **RF-09.1: Validación de 3 Fechas** | Implementada en `MeetingDatesVO` y `CalculateMeetingDatesService`. | Validación dura de precedencia (`evalDeadline > meetingDate`, entrega DESPUÉS de la reunión) y cálculo de +2 días hábiles a las 12:00 ECT. | Brecha: código implementa regla vieja (`<` y jueves previo); pendiente de PR de código. | **MODIFICAR (pendiente de código)** |
 | **RF-09.1: Generación de PDF Orden del Día** | `PdfGeneratorService.generateCallPdf` existente pero desconectado del caso de uso. | Adaptador real `MeetingPdfGeneratorAdapter` integrado que renderiza las 4 secciones normativas. | Integrar puerto con servicio real y diseñar plantilla 4 secciones. | **MODIFICAR / ADAPTAR** |
-| **RF-13.1: Observaciones Multilínea (15d)** | Implementado en `ProtocolRequirementOrmEntity.observations` y `ReceptionService.finalizarRevision`. | Correo único consolidado con lista estructurada y 15 días hábiles. | Validar despacho en integración. | **REUTILIZAR / VERIFICAR** |
-| **RF-14.1: Multiversión v1.0➔v2.0 (30d)** | Implementado en `ResolutionsService.createResolution` con congelamiento de aprobados y 30 días. | Versión mayor `vX.0` en respuestas REST y plazo normativo de 30 días hábiles. | Asegurar proyección `vX.0` en DTOs. | **REUTILIZAR / VERIFICAR** |
+| **RF-13.1: Observaciones Multilínea (`plazo_subsanacion_documental_dias`)** | Implementado en `ProtocolRequirementOrmEntity.observations` y `ReceptionService.finalizarRevision`. | Correo único consolidado con lista estructurada y `plazo_subsanacion_documental_dias` días hábiles. | Validar despacho en integración. | **REUTILIZAR / VERIFICAR** |
+| **RF-14.1: Multiversión v1.0➔v2.0 (`plazo_condicion_dias`)** | Implementado en `ResolutionsService.createResolution` con congelamiento de aprobados y `plazo_condicion_dias` días (inicial 30). | Versión mayor `vX.0` en respuestas REST y plazo normativo de `plazo_condicion_dias` días hábiles. | Asegurar proyección `vX.0` en DTOs. | **REUTILIZAR / VERIFICAR** |
 | **RF-15.1: Agenda Entregables Post-Aprobación** | Metadatos en `catalogos.tipos_estudio`. `src/modules/follow-up/` como scaffolding vacío. | Entidades `seguimiento.agenda_entregables` e `informes_seguimiento` con use cases de pre-cálculo y edición. | Implementar submódulo `follow-up`. | **CREAR** en `follow-up/` |
 | **RF-15.2: Elevación a Pleno de Informes** | No existe conexión entre entregables y convocatorias. | Informes presentados pasan a estado `PRESENTADO` y se listan para la Sección III del Pleno. | Integración entre `follow-up` y `evaluations`. | **CREAR / ADAPTAR** |
 
@@ -100,7 +100,7 @@ Se evaluaron formalmente 5 opciones:
 ### 4.5 Pronunciamiento del Seguimiento en Pleno (RF-15.2)
 - **Requisito Confirmado**: El Pleno emite 4 desenlaces posibles sobre un informe de seguimiento:
   1. `APROBADO`: Informe satisfactorio; la investigación continúa su curso regular.
-  2. `OBSERVADO`: Se solicitan aclaraciones al Investigador en un plazo de 15 días hábiles.
+  2. `OBSERVADO`: Se solicitan aclaraciones al Investigador en un plazo de 15 días hábiles (valor del PET, por confirmar).
   3. `CONVALIDADO`: Se aprueba tras subsanar observaciones previas.
   4. `CIERRE_DEFINITIVO`: Aplica para el Informe Final (Anexo 8), concluyendo el aval ético y archivando el estudio con éxito.
 

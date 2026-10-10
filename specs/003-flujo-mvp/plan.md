@@ -1,6 +1,6 @@
 # Plan de Arquitectura y Diseño Técnico Brownfield: Flujo 003 — Convocatorias a Pleno, Subsanaciones y Seguimiento Post-Aprobación
 
-**Código de Especificación:** `specs/003-flujo-mvp/spec.md` (v1.3.0)  
+**Código de Especificación:** `specs/003-flujo-mvp/spec.md` (v1.4.1)  
 **Ubicación del Plan:** `specs/003-flujo-mvp/plan.md`  
 **Estado:** Aprobado para Planificación Técnica  
 **Documentos de Referencia:** `docs/doc_base/constitution_v2.md`, `specs/003-flujo-mvp/reconciliation.md`, `AGENTS.md`, `GEMINI.md`  
@@ -12,9 +12,9 @@
 
 El Sprint 003 impacta a 6 bounded contexts interconectados bajo Arquitectura Hexagonal y DDD:
 - `evaluations`: Convocatorias a sesiones del Pleno (`RF-09`), agendamiento clasificado en 4 secciones (Evaluaciones iniciales/subsanaciones vs. Informes de seguimiento), numeración atómica correlativa anual (`001-2026`) con estrategia Opción E (tabla `secuencias_convocatoria` + `UNIQUE` constraint + retry handler `23505`/`40001`), precedencia de 3 fechas normativas y generación del PDF oficial del Orden del Día.
-- `reception`: Observaciones multilínea por requisito en checklist documental y despacho de notificación consolidada única de 15 días hábiles (`RF-13`).
+- `reception`: Observaciones multilínea por requisito en checklist documental y despacho de notificación consolidada única de `plazo_subsanacion_documental_dias` días hábiles (`RF-13`).
 - `protocols`: Modelado de checklist, cálculo de plazos de subsanación y metadatos de versiones.
-- `resolutions`: Ciclo multiversión v1.0 ➔ v2.0 tras dictamen "Requiere Subsanación", congelamiento inmutable (🔒) de requisitos aprobados y plazo de 30 días hábiles (`RF-14`).
+- `resolutions`: Ciclo multiversión v1.0 ➔ v2.0 tras dictamen "Requiere Subsanación", congelamiento inmutable (🔒) de requisitos aprobados y plazo de `plazo_condicion_dias` días hábiles (`RF-14`).
 - `follow-up`: Módulo de seguimiento post-aprobación (`RF-15`), pre-llenado de agenda sugerida editable por Presidencia, recepción de Informes de Inicio, Avances periódicos (Anexo 18) y Cierre Final (Anexo 8), elevación a Pleno y auditoría de 30 días de gracia.
 - `notifications`: Plantillas HTML y envío de correos vía `IEmailServicePort`.
 
@@ -23,7 +23,7 @@ src/
 ├── shared/
 │   ├── utils/
 │   │   ├── pdf-generator.service.ts         # [MODIFICAR] Plantilla Orden del Día clasificado
-│   │   └── deadline-calculator.service.ts   # [REUTILIZAR] Cálculo de 15 y 30 días hábiles
+│   │   └── deadline-calculator.service.ts   # [REUTILIZAR] Cálculo de `plazo_subsanacion_documental_dias` y `plazo_condicion_dias` días hábiles
 │   └── enums/
 │       └── agenda-section.enum.ts           # [CREAR] Enumerador de secciones del Orden del Día
 └── modules/
@@ -41,10 +41,10 @@ src/
     │   ├── application/
     │   │   ├── dtos/
     │   │   │   ├── create-meeting.dto.ts    # [MODIFICAR] Soporte para followUpReportIds
-    │   │   │   └── calculate-eval-date.dto.ts # [REUTILIZAR] Pre-cálculo de jueves previo
+    │   │   │   └── calculate-eval-date.dto.ts # [MODIFICAR – pendiente de código] Pre-cálculo de fecha de entrega: +2 días hábiles tras la reunión a las 12:00 ECT
     │   │   └── services/
     │   │       ├── create-meeting.use-case.ts # [MODIFICAR] Inclusión de puntos de seguimiento
-    │   │       └── calculate-meeting-dates.service.ts # [REUTILIZAR] Lógica de jueves previo
+    │   │       └── calculate-meeting-dates.service.ts # [MODIFICAR – pendiente de código] Lógica de fecha de entrega: +2 días hábiles tras la reunión a las 12:00 ECT
     │   └── infrastructure/
     │       ├── database/entities/
     │       │   ├── convocatoria.orm-entity.ts # [REUTILIZAR] Mapeo a evaluacion.convocatorias
@@ -59,14 +59,14 @@ src/
     │   │   ├── dtos/
     │   │   │   └── validate-document.dto.ts # [REUTILIZAR] Soporta observations multilínea
     │   │   └── services/
-    │   │       └── reception.service.ts     # [REUTILIZAR / VERIFICAR] Consolidación de observaciones (15d)
+    │   │       └── reception.service.ts     # [REUTILIZAR / VERIFICAR] Consolidación de observaciones (`plazo_subsanacion_documental_dias`)
     │   └── infrastructure/
     │       └── controllers/
     │           └── reception.controller.ts  # [REUTILIZAR] Endpoint /api/reception/protocols/:id/finalize
     ├── resolutions/
     │   ├── application/
     │   │   └── services/
-    │   │       └── resolutions.service.ts   # [REUTILIZAR / VERIFICAR] Creación de v2.0 con 30 días hábiles
+    │   │       └── resolutions.service.ts   # [REUTILIZAR / VERIFICAR] Creación de v2.0 con `plazo_condicion_dias` días hábiles
     │   └── infrastructure/
     │       └── controllers/
     │           └── resolutions.controller.ts # [REUTILIZAR] Endpoint /api/resolutions
@@ -107,14 +107,14 @@ src/
 ## 2. Flujo Actual (As-Is)
 
 1. **Convocatorias (`RF-09`)**:
-   - `MeetingsController` y `CreateMeetingUseCase` crean sesiones asignando número correlativo `001-2026` mediante transacción `SERIALIZABLE` y validan `fecha_entrega_evaluacion < fecha_reunion`.
+   - `MeetingsController` y `CreateMeetingUseCase` crean sesiones asignando número correlativo `001-2026` mediante transacción `SERIALIZABLE` y validan `fecha_entrega_evaluacion > fecha_reunion` (entrega DESPUÉS de la reunión, +2 días hábiles a las 12:00 ECT según RF-09.1). **Nota:** el código actual implementa la regla vieja (`<` y jueves previo); pendiente de PR de código.
    - Sin embargo, el endpoint únicamente recibe una lista plana de IDs de protocolos (`protocolVersionIds`) y no distingue si el protocolo entra para dictamen ético inicial, subsanación, o conocimiento de un informe de seguimiento (Inicio, Avance, Cierre).
    - El PDF generado no segmenta el Orden del Día en las 4 secciones normativas reglamentarias.
 2. **Observaciones Multilínea (`RF-13`)**:
    - La tabla `public.protocolo_requisitos` y `recepcion.validaciones_documento` ya disponen de la columna `observaciones text`.
    - `ReceptionService.finalizarRevision` compila las observaciones en la notificación de faltantes/observados calculando el plazo hábil.
 3. **Ciclo Multiversión (`RF-14`)**:
-   - `ResolutionsService.createResolution()` genera la nueva versión `numero_version + 1` en `evaluacion.versiones_protocolo` al emitir resolución de "Requiere Subsanación", congela los requisitos aprobados y asigna 30 días hábiles.
+   - `ResolutionsService.createResolution()` genera la nueva versión `numero_version + 1` en `evaluacion.versiones_protocolo` al emitir resolución de "Requiere Subsanación", congela los requisitos aprobados y asigna `plazo_condicion_dias` días hábiles (inicial 30).
 4. **Seguimiento Post-Aprobación (`RF-15`)**:
    - El módulo `src/modules/follow-up/` se encuentra como scaffolding vacío. No existen tablas en PostgreSQL para `seguimiento.agenda_entregables` ni `seguimiento.informes_seguimiento`.
    - La entrega de Informes de Inicio, Avance (Anexo 18) y Cierre Final (Anexo 8) no se procesa de forma estructurada ni se conecta con la bandeja de convocatorias de la Secretaría.
@@ -179,16 +179,16 @@ sequenceDiagram
 | Componente / Archivo | Clasificación | Responsabilidad Actual | Cambio Requerido / Motivo |
 |---|---|---|---|
 | `src/modules/evaluations/domain/value-objects/meeting-number.vo.ts` | **REUTILIZAR** | Formateo y validación de `001-2026`. | Ninguno. Totalmente probado y conforme a spec. |
-| `src/modules/evaluations/domain/value-objects/meeting-dates.vo.ts` | **REUTILIZAR** | Validación dura `fecha_entrega_evaluacion < fecha_reunion`. | Ninguno. Totalmente probado y conforme a spec. |
-| `src/modules/evaluations/application/services/calculate-meeting-dates.service.ts` | **REUTILIZAR** | Auto-cálculo del jueves previo a las 23:59:59. | Ninguno. Cubre los requisitos de fecha sugerida. |
+| `src/modules/evaluations/domain/value-objects/meeting-dates.vo.ts` | **MODIFICAR (pendiente de código)** | Validación dura `fecha_entrega_evaluacion > fecha_reunion` (entrega DESPUÉS de la reunión). | Cambiar validación: regla actual es `<` (vieja); nueva regla es `>`. Pendiente PR de código. |
+| `src/modules/evaluations/application/services/calculate-meeting-dates.service.ts` | **MODIFICAR (pendiente de código)** | Auto-cálculo de `fecha_entrega_evaluacion` como +2 días hábiles tras la reunión a las 12:00 ECT (America/Guayaquil). | Reemplazar lógica de "jueves previo a las 23:59:59"; nueva regla: `fecha_reunion + entrega_evaluacion_dias_habiles_tras_reunion` días hábiles a `entrega_evaluacion_hora_corte`. Pendiente PR de código. |
 | `src/modules/evaluations/domain/ports/meeting-repository.port.ts` | **MODIFICAR** | Define contrato de persistencia de convocatorias. | Extender la interfaz `CreateMeetingParams` para incluir `followUpReportIds: number[]` opcionales. |
 | `src/modules/evaluations/application/dtos/create-meeting.dto.ts` | **MODIFICAR** | DTO de entrada para agendamiento. | Añadir validación para `followUpReportIds` (array de enteros opcional). |
 | `src/modules/evaluations/application/services/create-meeting.use-case.ts` | **MODIFICAR** | Orquestación de creación de convocatoria. | Procesar tanto protocolos de evaluación (Sección II) como reportes de seguimiento (Sección III). |
 | `src/modules/evaluations/infrastructure/database/entities/convocatoria-protocolo.orm-entity.ts` | **MODIFICAR** | Mapea ítems de agenda a la convocatoria. | Añadir columnas `tipo_punto_agenda` (Enum) e `informe_seguimiento_id` (FK nullable). |
 | `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` | **MODIFICAR** | Persistencia TypeORM con `SERIALIZABLE`. | Persistir items clasificados de evaluación y de seguimiento en la misma transacción atómica. |
 | `src/shared/utils/pdf-generator.service.ts` | **MODIFICAR** | Generación de PDFs del sistema. | Añadir método `generateMeetingAgendaPdf()` estructurado en las 4 secciones normativas. |
-| `src/modules/reception/application/services/reception.service.ts` | **REUTILIZAR / VERIFICAR** | Recepción y auditoría de checklist. | Validar que el despacho de correo consolidado incluya lista estructurada y 15 días hábiles. |
-| `src/modules/resolutions/application/services/resolutions.service.ts` | **REUTILIZAR / VERIFICAR** | Emisión de resolución y generación v2.0. | Confirmar congelamiento inmutable (🔒) de aprobados y 30 días hábiles. |
+| `src/modules/reception/application/services/reception.service.ts` | **REUTILIZAR / VERIFICAR** | Recepción y auditoría de checklist. | Validar que el despacho de correo consolidado incluya lista estructurada y `plazo_subsanacion_documental_dias` días hábiles. |
+| `src/modules/resolutions/application/services/resolutions.service.ts` | **REUTILIZAR / VERIFICAR** | Emisión de resolución y generación v2.0. | Confirmar congelamiento inmutable (🔒) de aprobados y `plazo_condicion_dias` días hábiles. |
 | `src/modules/follow-up/` (Todo el submódulo) | **CREAR** | Scaffolding vacío. | Implementar entidades de dominio, DTOs, Use Cases, entidades ORM y controlador para RF-15. |
 
 ---
@@ -343,7 +343,7 @@ sequenceDiagram
      - **III. Conocimiento y Pronunciamiento de Informes de Seguimiento** (Código, Título, Tipo de Informe: Inicio / Avance Anexo 18 / Cierre Anexo 8).
      - **IV. Asuntos Varios**.
 3. **Notificaciones Consolidadas de Observaciones (RF-13)**:
-   - Envío de un correo único al Investigador con lista formateada (Requisito + Observación), fecha límite a 15 días hábiles y enlace directo (`/reception/protocols/:id/remedy`).
+   - Envío de un correo único al Investigador con lista formateada (Requisito + Observación), fecha límite según `plazo_subsanacion_documental_dias` y enlace directo (`/reception/protocols/:id/remedy`).
 
 ---
 
@@ -351,10 +351,10 @@ sequenceDiagram
 
 | Método | Ruta | Guard / Permisos | Request DTO | Response HTTP | Requisito |
 |---|---|---|---|---|---|
-| `POST` | `/api/evaluations/meetings/calculate-eval-date` | `JwtAuthGuard` | `CalculateEvalDateDto` | `200 OK` (jueves previo sugerido) | RF-09.1 |
+| `POST` | `/api/evaluations/meetings/calculate-eval-date` | `JwtAuthGuard` | `CalculateEvalDateDto` | `200 OK` (+2 días hábiles tras la reunión a las 12:00 ECT) | RF-09.1 |
 | `POST` | `/api/evaluations/meetings` | `JwtAuthGuard`, `RolesGuard('SECRETARIA', 'ADMIN')` | `CreateMeetingDto` | `201 Created` (`001-2026`, PDF URL, warnings) | RF-09.1, RF-09.2 |
 | `GET` | `/api/evaluations/meetings/:id` | `JwtAuthGuard` | N/A | `200 OK` (Convocatoria con 4 secciones) | RF-09.2 |
-| `POST` | `/api/reception/protocols/:id/finalize` | `JwtAuthGuard`, `RolesGuard('SECRETARIA')` | `FinalizeReviewDto` | `200 OK` (Correo consolidado 15d) | RF-13.1 |
+| `POST` | `/api/reception/protocols/:id/finalize` | `JwtAuthGuard`, `RolesGuard('SECRETARIA')` | `FinalizeReviewDto` | `200 OK` (Correo consolidado `plazo_subsanacion_documental_dias`) | RF-13.1 |
 | `POST` | `/api/resolutions` | `JwtAuthGuard`, `RolesGuard('PRESIDENTE')` | `CreateResolutionDto` | `201 Created` (v2.0 generada, 30d) | RF-14.1 |
 | `GET` | `/api/follow-up/protocols/:id/schedule` | `JwtAuthGuard` | N/A | `200 OK` (Agenda de entregables) | RF-15.1 |
 | `PUT` | `/api/follow-up/protocols/:id/schedule` | `JwtAuthGuard`, `RolesGuard('PRESIDENTE')` | `ConfigureScheduleDto` | `200 OK` (Agenda actualizada) | RF-15.1 |
@@ -369,13 +369,13 @@ Siguiendo el mandato de la Constitución (`npm test`, `npm run test:e2e`, `npm r
 
 ### 8.1 Pruebas Unitarias (`npm test`)
 1. **Convocatorias (`evaluations`)**:
-   - `meeting-dates.vo.spec.ts`: Validar error si `evalSubmissionDeadline >= meetingDate`.
-   - `calculate-meeting-dates.service.spec.ts`: Validar cálculo de jueves previo a las 23:59:59.
+   - `meeting-dates.vo.spec.ts`: Validar error si `evalSubmissionDeadline <= meetingDate` (entrega debe ser DESPUÉS de la reunión).
+   - `calculate-meeting-dates.service.spec.ts`: Validar cálculo de +2 días hábiles tras la reunión a las 12:00 ECT (America/Guayaquil), no "jueves previo".
    - `create-meeting.use-case.spec.ts`: Validar creación con items de evaluación (Sección II) y de seguimiento (Sección III), numeración `001-2026` y warnings si excede plazo normativo.
 2. **Observaciones (`reception`)**:
-   - `reception.service.spec.ts`: Validar que observaciones multilínea se consoliden en un solo payload para notificación con fecha límite a 15 días hábiles.
+   - `reception.service.spec.ts`: Validar que observaciones multilínea se consoliden en un solo payload para notificación con fecha límite según `plazo_subsanacion_documental_dias`.
 3. **Ciclo Multiversión (`resolutions`)**:
-   - `resolutions.service.spec.ts`: Validar que dictamen "Requiere Subsanación" incremente a v2.0, congele requisitos aprobados y compute 30 días hábiles.
+   - `resolutions.service.spec.ts`: Validar que dictamen "Requiere Subsanación" incremente a v2.0, congele requisitos aprobados y compute `plazo_condicion_dias` días hábiles (inicial 30).
 4. **Seguimiento (`follow-up`)**:
    - `generate-schedule.use-case.spec.ts`: Validar pre-cálculo sugerido para estudios de 12 y 24 meses.
    - `process-deliverable.use-case.spec.ts`: Validar recepción de Anexo 18 y cambio de estado a `PRESENTADO`.
@@ -405,7 +405,7 @@ Siguiendo el mandato de la Constitución (`npm test`, `npm run test:e2e`, `npm r
 |---|---|---|
 | **Concurrencia en Convocatorias** | Números duplicados (ej. dos `001-2026`). | Aislamiento transaccional `SERIALIZABLE` con bloqueo coercitivo `FOR UPDATE` en TypeORM `QueryRunner`. |
 | **Pérdida de inmutabilidad en v2.0** | Investigador altera documentos ya aprobados. | Validación dura en `uploadDocument` y `createResolution` que bloquea la mutación de requisitos con estado `APROBADO` o `NO_APLICA`. |
-| **Vencimiento inadvertido en Seguimiento** | Suspensión injustificada de investigaciones. | Cron automatizado con alertas preventivas por hito (7/1 días, 90/60/15 días) y periodo de gracia normativo de 30 días. |
+| **Vencimiento inadvertido en Seguimiento** | Suspensión injustificada de investigaciones. | Cron automatizado con alertas preventivas por hito según RF-ALR (`alerta_offsets_dias` [7, 1] para hitos generales; `alerta_renovacion_offsets_dias` [90, 60, 15] para renovación) y periodo de gracia normativo de 30 días. |
 
 ---
 

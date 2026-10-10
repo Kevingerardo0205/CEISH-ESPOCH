@@ -2,9 +2,10 @@
 
 **Código de Especificación:** `specs/003-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 1.4.0  
+**Versión:** 1.4.1  
 **Estado:** Aprobado  
-**Historial:** 2026-10-10 — alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)
+**Historial:** 2026-10-10 — v1.4.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
+**Historial:** 2026-10-10 — v1.4.1: RF-ALR renovación cambia a `alerta_renovacion_offsets_dias` [90, 60, 15]; HU-015 EARS 3 usa el parámetro
 
 ---
 
@@ -151,14 +152,14 @@ Especificar las reglas operativas, funcionales y de integridad para:
 ---
 
 ### RF-ALR: Alertas de Plazo por Correo y Notificación Interna
-- **RF-ALR.a**: Para cada hito con plazo (documentos faltantes, aprobado con condición, informe de inicio, seguimiento, informe final, renovación, entrega del evaluador), el sistema debe enviar: un aviso al abrirse el plazo con la fecha límite, recordatorios según `alerta_offsets_dias` del hito, un aviso el día del vencimiento y otro al ejecutarse su consecuencia (archivado, suspendido o inicio de gracia).
+- **RF-ALR.a**: Para cada hito con plazo (documentos faltantes, aprobado con condición, informe de inicio, seguimiento, informe final, renovación, entrega del evaluador), el sistema debe enviar: un aviso al abrirse el plazo con la fecha límite, recordatorios según `alerta_offsets_dias` del hito (para renovación: `alerta_renovacion_offsets_dias`), un aviso el día del vencimiento y otro al ejecutarse su consecuencia (archivado, suspendido o inicio de gracia).
 - **RF-ALR.b**: Los avisos se envían por correo y como notificación interna. Los destinatarios por hito son parametrizables (investigador, Secretaría, Presidencia). Valores iniciales:
   - Documentos faltantes: al notificar; 7 y 1 días antes; vence = archivo; investigador con copia a Secretaría.
   - Aprobado con condición (`plazo_condicion_dias`, inicial 30 días hábiles): al notificar la carta; 7 y 1; vence = archivo; investigador con copia a Secretaría.
   - Informe de inicio: al aprobar; 7 y 1; vence = vencido/suspendido y 30 días de gracia; investigador y Secretaría.
   - Seguimiento: al fijar el calendario; 7 y 1; vence = vencido/suspendido y gracia; investigador y Secretaría.
   - Informe final: al abrirse; 7 y 1; vence = vencido/suspendido y gracia; investigador y Secretaría.
-  - Renovación: 3 meses antes del vencimiento; 60 días antes (fecha límite del investigador) y recordatorio final; investigador y Secretaría.
+  - Renovación (`alerta_renovacion_offsets_dias` [90, 60, 15]): aviso a 90 días antes del vencimiento (equivale a "3 meses antes"), aviso a 60 días antes (fecha límite para presentar la solicitud) y aviso a 15 días antes (recordatorio final); investigador y Secretaría.
 - **RF-ALR.c**: Un proceso diario debe evaluar los plazos. Cada alerta se envía una sola vez; el sistema registra las enviadas para evitar duplicados.
 - **RF-ALR.d**: El correo debe incluir el código del protocolo, el hito, la fecha límite y un enlace al sistema, sin contenido confidencial del protocolo.
 - **RF-ALR.e**: Si el envío falla, reintentar y dejar el fallo en auditoría; la notificación interna queda disponible igualmente.

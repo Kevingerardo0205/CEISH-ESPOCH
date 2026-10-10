@@ -1,6 +1,6 @@
 # Plan de Tareas de Implementación: CEISH-ESPOCH Backend (RF-12 a RF-19)
 
-**Código de Especificación Activa:** `specs/001-flujo-mvp/spec.md` (v3.2.0)  
+**Código de Especificación Activa:** `specs/001-flujo-mvp/spec.md` (v3.3.1)  
 **Ubicación de Plan:** `specs/001-flujo-mvp/plan.md`  
 **Ubicación de Tareas:** `specs/001-flujo-mvp/tasks.md`  
 **Alcance Solicitado:** Tareas de granularidad fina (20-30 min) desde el **Requerimiento Funcional 12 en adelante** (`RF-12` a `RF-19`).
@@ -17,11 +17,11 @@
 
 - [ ] **TSK-12.2**: Implementar el servicio de dominio `QuotaValidatorService` para verificar cuotas de evaluadores por protocolo.
   - **Requisitos cubiertos:** `RF-12.1`
-  - **Hecho cuando:** La función de validación retorna `false` o lanza un error explicativo en español cuando se intenta asignar un 2do evaluador `JURIDICO` o `SOCIEDAD_CIVIL` al mismo protocolo.
+  - **Hecho cuando:** La función de validación retorna `false` o lanza un error explicativo en español cuando se intenta asignar un 2do evaluador de cualquier perfil (`JURIDICO`, `SOCIEDAD_CIVIL`, `METODOLOGICO`, `SALUD`) al mismo protocolo.
 
 - [ ] **TSK-12.3**: Crear las pruebas unitarias en `src/modules/evaluations/domain/services/quota-validator.service.spec.ts`.
   - **Requisitos cubiertos:** `RF-12.1`
-  - **Hecho cuando:** `npm test` ejecuta los casos de prueba probando asignaciones válidas (1 Jurídico, 1 Sociedad Civil, 2 Ética) y rechaza combinaciones excedidas.
+  - **Hecho cuando:** `npm test` ejecuta los casos de prueba probando asignaciones válidas (1 Jurídico, 1 Sociedad Civil, 1 Metodológico, 1 Salud) y rechaza combinaciones excedidas o incompletas.
 
 - [ ] **TSK-13.1**: Extender la entidad `ChecklistItemOrmEntity` para soportar campo de observación multilínea (`observationText`).
   - **Requisitos cubiertos:** `RF-13.1`, `RF-18.3`
@@ -43,9 +43,9 @@
   - **Requisitos cubiertos:** `RF-14.1`, `RF-04.2`
   - **Hecho cuando:** Los requisitos previamente calificados como `APPROVED` mantengan `isLocked = true` en v2.0 y los observados cambien a `NO_PRESENTADO` para re-subida.
 
-- [ ] **TSK-14.3**: Integrar el cálculo de 30 días hábiles en `VersioningService`.
+- [ ] **TSK-14.3**: Integrar el cálculo de `plazo_condicion_dias` días hábiles en `VersioningService`.
   - **Requisitos cubiertos:** `RF-14.1`, `RF-07.1`
-  - **Hecho meidante:** Invocación a `BusinessDayCalculator.calculateDeadline` con 30 días hábiles asignando `correctionDeadlineDate`.
+  - **Hecho cuando:** Invocación a `BusinessDayCalculator.calculateDeadline` con `plazo_condicion_dias` (inicial 30 días hábiles) asignando `correctionDeadlineDate`.
 
 ---
 

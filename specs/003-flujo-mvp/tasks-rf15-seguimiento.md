@@ -1,6 +1,6 @@
 # Desglose de Tareas de Implementación (TDD): RF-15 Seguimiento Post-Aprobación, Anexo 18 y Anexo 8
 
-**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.1.0, HU-015, RF-15.1, RF-15.2)  
+**Especificación de Referencia:** `specs/003-flujo-mvp/spec.md` (Versión 1.4.1, HU-015, RF-15.1, RF-15.2)  
 **Plan Técnico de Referencia:** `specs/003-flujo-mvp/plan-rf15-seguimiento.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
 **Documento Target:** `specs/003-flujo-mvp/tasks-rf15-seguimiento.md`  
@@ -12,7 +12,7 @@
 - `[P]`: Tarea ejecutable en paralelo con otras del mismo bloque (sin dependencias cruzadas).
 - `EARS 1`: Pre-llenado de agenda (Inicio 30 días, Avances, Renovación 60 días antes, Cierre 60 días) y edición libre por Presidencia.
 - `EARS 2`: Recepción de Anexo 18 (Avances) y Anexo 8 (Cierre Final).
-- `EARS 3`: Alertas preventivas parametrizadas (7/1 día para inicio, 90/60/15 para renovación) y cambio a `VENCIDO`/`SUSPENDIDO` con 30 días de gracia.
+- `EARS 3`: Alertas preventivas parametrizadas según RF-ALR (`alerta_offsets_dias` [7, 1] para hitos generales; `alerta_renovacion_offsets_dias` [90, 60, 15] para renovación) y cambio a `VENCIDO`/`SUSPENDIDO` con 30 días de gracia.
 
 ---
 
@@ -63,7 +63,7 @@
 - **Cobertura Plan**: Sección 4 (Algoritmos), `EARS 2`
 
 ### Task T007 [P]
-- **Descripción**: Escribir prueba unitaria en ROJO para la auditoría de alertas preventivas por hito (`7/1` para inicio; `90/60/15` para renovación) y el paso a `VENCIDO`/`SUSPENDIDO` con activación del contador de 30 días de gracia.
+- **Descripción**: Escribir prueba unitaria en ROJO para la auditoría de alertas preventivas por hito según RF-ALR (`alerta_offsets_dias` [7, 1] para hitos generales; `alerta_renovacion_offsets_dias` [90, 60, 15] para renovación) y el paso a `VENCIDO`/`SUSPENDIDO` con activación del contador de 30 días de gracia.
 - **Archivos Afectados**: `src/modules/follow-up/application/services/audit-deliverable-grace.service.spec.ts`
 - **Dependencias**: T001
 - **Cobertura Plan**: Sección 4 (Algoritmos B y C), `EARS 3`
@@ -139,3 +139,31 @@
 - **Archivos Afectados**: Todo el proyecto.
 - **Dependencias**: T016
 - **Cobertura Plan**: Sección 7 (Definition of Done), Constitución del Proyecto
+
+---
+
+## Fase 6: Nuevas Tareas RF-ALR (Pendientes de código)
+
+### Task TSK-015-N01 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N01`
+- **Requisito Relacionado**: `RF-ALR`, `RF-15.2`
+- **Criterio EARS**: `EARS 3`
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/modules/follow-up/application/services/audit-deliverable-grace.service.ts`
+- **Dependencias**: `T011`
+- **Descripción**: Conectar `AuditDeliverableGraceService` con el sistema centralizado de alertas RF-ALR: para hitos generales (INFORME_INICIO, INFORME_AVANCE, INFORME_FINAL_CIERRE) usar `alerta_offsets_dias` [7, 1]; para el hito `RENOVACION_AVAL` usar `alerta_renovacion_offsets_dias` [90, 60, 15]. Los offsets deben leerse desde la configuración del sistema, no estar hardcodeados. Usar `Intl.DateTimeFormat` con zona `America/Guayaquil` para comparaciones de fecha (nunca `.toISOString().split('T')[0]`).
+- **Tests**: `audit-deliverable-grace.service.spec.ts`.
+- **Criterio "Hecho cuando:"**: Tests confirman que un hito general dispara alertas a 7 y 1 días, y el hito de renovación dispara alertas a 90, 60 y 15 días, leyendo ambos parámetros desde configuración.
+
+### Task TSK-015-N02 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N02`
+- **Requisito Relacionado**: `RF-ALR`, `RF-16.1`
+- **Criterio EARS**: `EARS 3`
+- **Acción**: `CREAR`
+- **Archivos Afectados**:
+  - `src/modules/follow-up/application/services/renewal-alert.service.ts`
+- **Dependencias**: `TSK-015-N01`
+- **Descripción**: Implementar servicio dedicado `RenewalAlertService` que procesa los tres avisos de renovación definidos en `alerta_renovacion_offsets_dias` [90, 60, 15]: (i) aviso a 90 días — equivale al anterior "3 meses antes"; (ii) aviso a 60 días — fecha límite para presentar la solicitud; (iii) aviso a 15 días — recordatorio final. Notificar a Investigador y Secretaría en cada disparo. Ver RF-16.1 en `specs/001-flujo-mvp/spec.md` v3.3.1.
+- **Tests**: `renewal-alert.service.spec.ts`.
+- **Criterio "Hecho cuando:"**: Tests unitarios validan los tres avisos con los offsets del parámetro, la lista de destinatarios (Investigador + Secretaría) y que el aviso a 90 días reemplaza la lógica antigua de "3 meses antes".
