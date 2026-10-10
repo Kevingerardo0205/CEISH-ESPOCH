@@ -17,6 +17,10 @@ import { InvestigatorOrmEntity } from './investigator.entity.orm';
 import { ParticipatingInstitutionOrmEntity } from './participating-institution.entity.orm';
 import { ProtocolRequirementOrmEntity } from './protocol-requirement.entity.orm';
 import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
+import {
+  PLAZO_NORMATIVO_EXPEDITA_DIAS,
+  PLAZO_NORMATIVO_PLENO_DIAS,
+} from '../../../../shared/deadlines/deadline-rules';
 import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
 import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 
@@ -174,7 +178,10 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
 
   get responseDeadline(): Date | undefined {
     if (!this.reception?.receptionDate || !this.reviewType) return undefined;
-    const days = this.reviewType === ReviewType.EXPEDITA ? 45 : 60;
+    const days =
+      this.reviewType === ReviewType.EXPEDITA
+        ? PLAZO_NORMATIVO_EXPEDITA_DIAS
+        : PLAZO_NORMATIVO_PLENO_DIAS;
     const result = new Date(this.reception.receptionDate);
     let count = 0;
     while (count < days) {

@@ -7,6 +7,10 @@ import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
+import {
+  PLAZO_REVISION_OFICIO_DIAS,
+  PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS,
+} from '../../../../shared/deadlines/deadline-rules';
 
 // Internal type — carries the catalog profileId resolved by the adapter.
 // Never appears in the public API contract; not a DTO class.
@@ -31,7 +35,9 @@ export interface IEvaluationRepository {
   saveAssignmentsTransaction?(
     assignments: Partial<EvaluationAssignmentOrmEntity>[],
   ): Promise<EvaluationAssignmentOrmEntity[]>;
-  findVersionById?(id: number): Promise<{ id: number; protocolId: number } | null>;
+  findVersionById?(
+    id: number,
+  ): Promise<{ id: number; protocolId: number } | null>;
   findVersionByProtocolId?(
     protocolId: number,
   ): Promise<{ id: number; protocolId: number } | null>;
@@ -71,7 +77,11 @@ export class AssignEvaluatorsUseCase {
     // del comité para un eventual flujo de asignación parcial de 1-2 miembros en revisiones expeditas.
     // 3. Determinar días hábiles según reviewType (8 para EXPEDITA, 15 para PLENO / por defecto)
     const daysToAdd =
-      standardFullDays ?? (dto.reviewType === ReviewType.EXPEDITA ? 8 : 15);
+      // TODO PR-B: PLENO usa PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS — contradice spec-002 RF-12.7(a) (sin plazo hasta convocatoria)
+      standardFullDays ??
+      (dto.reviewType === ReviewType.EXPEDITA
+        ? PLAZO_REVISION_OFICIO_DIAS
+        : PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS);
 
     // 4. Calcular la fecha límite de entrega respetando días hábiles (YYYY-MM-DD para columnas PostgreSQL date)
     const deadlineDate = BusinessDayCalculator.calculateDeadlineDateString({
@@ -123,7 +133,10 @@ export class AssignEvaluatorsUseCase {
           : parseInt(rawProtocolId, 10);
 
       // a) Validate explicitly supplied versionId before any DB write
-      if (dto.versionId !== undefined && this.evaluationRepository.findVersionById) {
+      if (
+        dto.versionId !== undefined &&
+        this.evaluationRepository.findVersionById
+      ) {
         const existing = await this.evaluationRepository.findVersionById(
           dto.versionId,
         );
