@@ -22,6 +22,7 @@ export interface IReassignmentRepository {
     evaluatorId: number | string,
     profileId: number,
   ): Promise<boolean>;
+  findActiveConvocatoriaDeadline?(versionId: number): Promise<string | null>;
   executeReassignmentTransaction?(params: {
     outgoingAssignmentId: number;
     outgoingStatusId: number;
@@ -88,8 +89,6 @@ export class ReassignEvaluatorUseCase {
   public async execute(
     dto: ReassignEvaluatorDto,
     adminUserId: number | string,
-    standardFullDays: number = 15,
-    holidays: string[] = [],
   ): Promise<ReassignmentResult> {
     // 1. Buscar la asignación saliente
     const numAssignmentId =
@@ -129,7 +128,7 @@ export class ReassignEvaluatorUseCase {
         evaluatorId: orm.evaluatorId,
         evaluatorProfile: profile,
         isAssignedForAnnex10: orm.isAssignedForAnnex10 ?? false,
-        deadlineDate: orm.deadline ?? '',
+        deadlineDate: orm.deadline ?? null,
         status: orm.statusId,
       });
     }
@@ -182,7 +181,14 @@ export class ReassignEvaluatorUseCase {
       }
     }
 
-    // 2. Invocar al servicio de dominio para realizar la sustitución inmutable y reinicio de plazo
+    // 2. Heredar fecha_entrega_evaluacion de la convocatoria activa (RF-12.7(e))
+    const convocatoriaDeadline = this.reassignmentRepository
+      .findActiveConvocatoriaDeadline
+      ? await this.reassignmentRepository.findActiveConvocatoriaDeadline(
+          rawVersionId,
+        )
+      : null;
+
     const newAssignmentId =
       typeof dto.currentAssignmentId === 'number'
         ? undefined
@@ -200,8 +206,7 @@ export class ReassignEvaluatorUseCase {
         replacementEvaluatorProfile: dto.replacementEvaluatorProfile,
         reason: dto.reason,
         adminUserId,
-        standardFullDays,
-        holidays,
+        deadline: convocatoriaDeadline,
         newAssignmentId,
         historyId,
         justification: dto.reasonDescription,

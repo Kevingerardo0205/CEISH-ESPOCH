@@ -229,14 +229,16 @@ export class ResendEmailAdapter implements IEmailServicePort {
     email: string,
     name: string,
     protocolCode: string,
-    deadline: Date,
+    deadline: Date | null,
   ): Promise<void> {
     try {
-      const formattedDate = deadline.toLocaleDateString('es-EC', {
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      });
+      const formattedDate = deadline
+        ? deadline.toLocaleDateString('es-EC', {
+            year: 'numeric',
+            month: 'long',
+            day: 'numeric',
+          })
+        : 'Se informará al agendar la convocatoria';
 
       const data = await this.resend.emails.send({
         from: this.fromEmail,

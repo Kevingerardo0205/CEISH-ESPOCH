@@ -77,7 +77,7 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
       reasonDescription: 'El evaluador es familiar del investigador principal.',
     };
 
-    const result = await useCase.execute(dto, 1, 15, []);
+    const result = await useCase.execute(dto, 1);
 
     // 1. Busca la asignación saliente
     expect(repositoryMock.findAssignmentById).toHaveBeenCalledWith(101);
@@ -97,6 +97,7 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
     );
     expect(result.newAssignment.evaluatorId).toBe(25);
     expect(result.newAssignment.isAssignedForAnnex10).toBe(true);
+    expect(result.newAssignment.deadlineDate).toBeNull();
 
     // 3. Dispara el evento de notificación para el evaluador entrante
     expect(eventEmitterMock.emit).toHaveBeenCalledWith(
@@ -108,6 +109,43 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
         isReassignment: true,
       }),
     );
+  });
+
+  it('should inherit fechaEntregaEvaluacion from active convocatoria when available (RF-12.7(e), TSK-002-N02)', async () => {
+    repositoryMock.findActiveConvocatoriaDeadline = jest
+      .fn()
+      .mockResolvedValue('2026-10-14');
+
+    const dto: ReassignEvaluatorDto = {
+      currentAssignmentId: 101,
+      replacementEvaluatorId: 25,
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.CONFLICTO_INTERES,
+    };
+
+    const result = await useCase.execute(dto, 1);
+
+    expect(repositoryMock.findActiveConvocatoriaDeadline).toHaveBeenCalledWith(
+      99,
+    );
+    expect(result.newAssignment.deadlineDate).toBe('2026-10-14');
+  });
+
+  it('should set deadlineDate null when no active convocatoria exists (RF-12.7(e), TSK-002-N02)', async () => {
+    repositoryMock.findActiveConvocatoriaDeadline = jest
+      .fn()
+      .mockResolvedValue(null);
+
+    const dto: ReassignEvaluatorDto = {
+      currentAssignmentId: 101,
+      replacementEvaluatorId: 25,
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.VENCIMIENTO,
+    };
+
+    const result = await useCase.execute(dto, 1);
+
+    expect(result.newAssignment.deadlineDate).toBeNull();
   });
 
   it('should throw error when trying to replace with a heterogeneous profile', async () => {

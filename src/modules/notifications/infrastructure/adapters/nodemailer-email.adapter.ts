@@ -165,15 +165,22 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     email: string,
     name: string,
     protocolCode: string,
-    deadline: Date,
+    deadline: Date | null,
   ): Promise<void> {
+    const formattedDate = deadline
+      ? deadline.toLocaleDateString('es-EC', {
+          year: 'numeric',
+          month: 'long',
+          day: 'numeric',
+        })
+      : 'Se informará al agendar la convocatoria';
     await this.sendMailWithRetry({
       to: email,
       subject: `Nueva Asignación de Evaluación: ${protocolCode}`,
       html: templates.getEvaluationAssignmentTemplate(
         name,
         protocolCode,
-        deadline.toLocaleDateString(),
+        formattedDate,
       ),
     });
   }
@@ -237,7 +244,7 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
           from: this.fromEmail,
           ...mailOptions,
         });
-        console.log(`Email enviado exitosamente a ${mailOptions.to}`);
+        console.log(`Email enviado exitosamente a ${String(mailOptions.to)}`);
         return;
       } catch (error) {
         if (i === retries - 1) throw error;

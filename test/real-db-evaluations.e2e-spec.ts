@@ -166,16 +166,16 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
     // Limpiar datos previos de prueba de forma acotada
     await dataSource.query(`
-      UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 998, 999);
-      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 998, 999) OR protocolo_id IN (991, 992, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
-      DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 998, 999));
-      DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999)));
-      DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
-      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
-      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
-      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999);
-      DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 998, 999);
-      DELETE FROM public.protocolos WHERE id IN (991, 992, 998, 999);
+      UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 996, 997, 998, 999);
+      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+      DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999));
+      DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999)));
+      DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
+      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
+      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
+      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999);
+      DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 996, 997, 998, 999);
+      DELETE FROM public.protocolos WHERE id IN (991, 992, 996, 997, 998, 999);
       DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
       DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
       DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%';
@@ -304,16 +304,16 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     try {
       if (dataSource && dataSource.isInitialized) {
         await dataSource.query(`
-          UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 998, 999);
-          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 998, 999) OR protocolo_id IN (991, 992, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
-          DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 998, 999));
-          DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999)));
-          DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
-          DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
-          DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999));
-          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 998, 999);
-          DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 998, 999);
-          DELETE FROM public.protocolos WHERE id IN (991, 992, 998, 999);
+          UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 996, 997, 998, 999);
+          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+          DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999));
+          DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999)));
+          DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
+          DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
+          DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
+          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999);
+          DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 996, 997, 998, 999);
+          DELETE FROM public.protocolos WHERE id IN (991, 992, 996, 997, 998, 999);
           DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
           DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
           DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%';
@@ -364,7 +364,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         ORDER BY id ASC;
       `);
         expect(expeditaRows.length).toBe(4);
-        expect(expeditaRows[0].fecha_limite_str).toBe('2026-03-12');
+        expect(expeditaRows[0].fecha_limite_str).toBeNull();
 
         const plenoRows = await dataSource.query(`
         SELECT id, fecha_limite::text AS fecha_limite_str 
@@ -373,7 +373,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         ORDER BY id ASC;
       `);
         expect(plenoRows.length).toBe(4);
-        expect(plenoRows[0].fecha_limite_str).toBe('2026-03-23');
+        expect(plenoRows[0].fecha_limite_str).toBeNull();
       } finally {
         jest.useRealTimers();
       }
@@ -605,7 +605,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
         expect(resReassign.status).toBe(201);
 
-        // Verificar SQL: asignación previa pasa a estado 27 (REASIGNED_COI) y nueva asignación creada con fecha_limite
+        // Verificar SQL: asignación previa pasa a estado 27 (REASIGNED_COI) y nueva asignación creada
         const oldAsg = await dataSource.query(`
           SELECT id, estado_id FROM evaluacion.asignaciones_evaluacion WHERE id = ${asgToReassign[0].id};
         `);
@@ -617,7 +617,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           WHERE version_id = 992 AND evaluador_id = 905;
         `);
         expect(newAsg.length).toBe(1);
-        expect(newAsg[0].fecha_limite_str).toBe('2026-03-23');
+        expect(newAsg[0].fecha_limite_str).toBeNull();
 
         // Verificar registro en historial
         const history = await dataSource.query(`
@@ -837,6 +837,236 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       for (const row of rows) {
         expect(row.fecha_limite_str).toBe('2026-10-14');
       }
+    });
+
+    it('6b. asignar via endpoint → fecha_limite NULL; POST /meetings → fecha_limite propagado (RF-12.7(a)+(b))', async () => {
+      // Sembrar protocolo 997 limpio para este test
+      await dataSource.query(`
+        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+        VALUES (997, 'Protocolo B2 Deadline Test', 901, 10, 'PLENO')
+        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+        VALUES (997, 997, 1, 10)
+        ON CONFLICT (id) DO NOTHING;
+        UPDATE public.protocolos SET version_actual_id = 997 WHERE id = 997;
+        DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 997;
+      `);
+
+      // 1. Asignar evaluadores vía endpoint legacy
+      const resAssign = await request(app.getHttpServer())
+        .post('/api/evaluations/protocols/997/assign-peer-evaluators')
+        .set('x-user-id', '901')
+        .send({ evaluatorIds: [901, 902, 903, 904] });
+      expect(resAssign.status).toBe(201);
+
+      // 2. Verificar que fecha_limite es NULL en la BD (RF-12.7(a))
+      const assignedRows = await dataSource.query(`
+        SELECT id, fecha_limite::text AS fecha_limite_str
+        FROM evaluacion.asignaciones_evaluacion
+        WHERE version_id = 997 AND estado_id = ${AssignmentStatus.ASSIGNED}
+        ORDER BY id ASC;
+      `);
+      expect(assignedRows.length).toBe(4);
+      for (const row of assignedRows) {
+        expect(row.fecha_limite_str).toBeNull();
+      }
+
+      // 3. Crear convocatoria que incluye versión 997
+      const resMeeting = await request(app.getHttpServer())
+        .post('/api/evaluations/meetings')
+        .set('x-user-id', '901')
+        .send({
+          sessionType: 'ORDINARIA',
+          meetingDate: '2026-10-20T09:00:00.000Z',
+          evalSubmissionDeadline: '2026-10-24T17:00:00.000Z',
+          protocolVersionIds: [997],
+        });
+      expect([200, 201]).toContain(resMeeting.status);
+
+      // 4. Verificar que fecha_limite se propagó a las asignaciones ASIGNADO (RF-12.7(b))
+      const updatedRows = await dataSource.query(`
+        SELECT id, fecha_limite::text AS fecha_limite_str
+        FROM evaluacion.asignaciones_evaluacion
+        WHERE version_id = 997 AND estado_id = ${AssignmentStatus.ASSIGNED}
+        ORDER BY id ASC;
+      `);
+      expect(updatedRows.length).toBe(4);
+      for (const row of updatedRows) {
+        expect(row.fecha_limite_str).toBe('2026-10-24');
+      }
+    });
+  });
+
+  describe('7. RF-12.7(a)+(e): estadoConvocatoria y herencia de deadline (TSK-002-N04, TSK-002-N02)', () => {
+    let convocatoriaId996: string;
+
+    beforeAll(async () => {
+      await dataSource.query(`
+        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+        VALUES (996, 'Protocolo estadoConvocatoria Test', 901, 10, 'PLENO')
+        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+        VALUES (996, 996, 1, 10)
+        ON CONFLICT (id) DO NOTHING;
+        UPDATE public.protocolos SET version_actual_id = 996 WHERE id = 996;
+        DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 996;
+      `);
+      const resAssign = await request(app.getHttpServer())
+        .post('/api/evaluations/protocols/996/assign-peer-evaluators')
+        .set('x-user-id', '901')
+        .send({ evaluatorIds: [901, 902, 903, 904] });
+      if (resAssign.status !== 201) {
+        throw new Error(
+          `Seed 996: asignación falló ${resAssign.status} ${JSON.stringify(resAssign.body)}`,
+        );
+      }
+    }, 30000);
+
+    afterAll(async () => {
+      if (dataSource && dataSource.isInitialized) {
+        if (convocatoriaId996) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [convocatoriaId996],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [convocatoriaId996],
+          );
+        }
+        await dataSource.query(`
+          UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 996;
+          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id = 996;
+          DELETE FROM evaluacion.asignacion_historial
+            WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 996)
+               OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 996);
+          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 996;
+          DELETE FROM public.versiones_protocolo WHERE id = 996;
+          DELETE FROM public.protocolos WHERE id = 996;
+        `);
+      }
+    });
+
+    it('7a. GET /submit/protocol/996 sin convocatoria → estadoConvocatoria "Pendiente de convocatoria"', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/evaluations/submit/protocol/996')
+        .set('x-user-id', '901');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body.length).toBeGreaterThan(0);
+      for (const assignment of res.body as any[]) {
+        expect(assignment.estadoConvocatoria).toBe('Pendiente de convocatoria');
+        expect(assignment.assignedAt).toBeDefined();
+      }
+    });
+
+    it('7b. POST /meetings con versión 996 → GET /submit/protocol/996 → estadoConvocatoria "Con plazo asignado"', async () => {
+      const resMeeting = await request(app.getHttpServer())
+        .post('/api/evaluations/meetings')
+        .set('x-user-id', '901')
+        .send({
+          sessionType: 'ORDINARIA',
+          meetingDate: '2026-11-03T09:00:00.000Z',
+          evalSubmissionDeadline: '2026-11-10T17:00:00.000Z',
+          protocolVersionIds: [996],
+        });
+      if (![200, 201].includes(resMeeting.status)) {
+        throw new Error(
+          `POST /meetings 996 falló: ${resMeeting.status} ${JSON.stringify(resMeeting.body)}`,
+        );
+      }
+      convocatoriaId996 = resMeeting.body.id ?? resMeeting.body.data?.id;
+      expect(convocatoriaId996).toBeDefined();
+
+      const res = await request(app.getHttpServer())
+        .get('/api/evaluations/submit/protocol/996')
+        .set('x-user-id', '901');
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect((res.body as any[]).length).toBeGreaterThan(0);
+      for (const assignment of res.body as any[]) {
+        expect(assignment.estadoConvocatoria).toBe('Con plazo asignado');
+      }
+    });
+
+    it('7c. Reasignar con convocatoria PROGRAMADA → nueva asignación hereda fecha_limite "2026-11-10" (RF-12.7(e))', async () => {
+      const asgRows = await dataSource.query(`
+        SELECT id FROM evaluacion.asignaciones_evaluacion
+        WHERE version_id = 996 AND evaluador_id = 901 AND estado_id = ${AssignmentStatus.ASSIGNED}
+        LIMIT 1;
+      `);
+      if (!asgRows.length) {
+        throw new Error(
+          'No se encontró asignación ASSIGNED de 901 en versión 996 para 7c',
+        );
+      }
+
+      const resReassign = await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .set('x-user-id', '901')
+        .send({
+          currentAssignmentId: asgRows[0].id,
+          reason: 'CONFLICTO_INTERES',
+          reasonDescription:
+            'Test 7c: herencia de deadline con convocatoria PROGRAMADA.',
+          replacementEvaluatorId: 905,
+          replacementEvaluatorProfile: EvaluatorProfile.SALUD,
+        });
+      expect(resReassign.status).toBe(201);
+
+      const newAsg = await dataSource.query(`
+        SELECT fecha_limite::text AS fecha_limite_str
+        FROM evaluacion.asignaciones_evaluacion
+        WHERE version_id = 996 AND evaluador_id = 905 AND estado_id = ${AssignmentStatus.ASSIGNED}
+        LIMIT 1;
+      `);
+      expect(newAsg.length).toBe(1);
+      expect(newAsg[0].fecha_limite_str).toBe('2026-11-10');
+    });
+
+    it('7d. Convocatoria CANCELADA → reasignar → fecha_limite NULL (RF-12.7(e) caso negativo)', async () => {
+      if (!convocatoriaId996) {
+        throw new Error('convocatoriaId996 no disponible; test 7b falló.');
+      }
+      // Cancelar la convocatoria por SQL (excluye PROGRAMADA/EN_CURSO del filtro de herencia)
+      await dataSource.query(
+        `UPDATE evaluacion.convocatorias SET estado = 'CANCELADA' WHERE id = $1`,
+        [convocatoriaId996],
+      );
+
+      // 905 quedó ASSIGNED en 7c; 901 quedó REASIGNED_COI (no activo), por lo que puede volver como reemplazo
+      const asgRows = await dataSource.query(`
+        SELECT id FROM evaluacion.asignaciones_evaluacion
+        WHERE version_id = 996 AND evaluador_id = 905 AND estado_id = ${AssignmentStatus.ASSIGNED}
+        LIMIT 1;
+      `);
+      if (!asgRows.length) {
+        throw new Error(
+          'No se encontró asignación ASSIGNED de 905 en versión 996 para 7d',
+        );
+      }
+
+      const resReassign = await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .set('x-user-id', '901')
+        .send({
+          currentAssignmentId: asgRows[0].id,
+          reason: 'CONFLICTO_INTERES',
+          reasonDescription:
+            'Test 7d: sin herencia cuando convocatoria CANCELADA.',
+          replacementEvaluatorId: 901,
+          replacementEvaluatorProfile: EvaluatorProfile.SALUD,
+        });
+      expect(resReassign.status).toBe(201);
+
+      const newAsg = await dataSource.query(`
+        SELECT fecha_limite::text AS fecha_limite_str
+        FROM evaluacion.asignaciones_evaluacion
+        WHERE version_id = 996 AND evaluador_id = 901 AND estado_id = ${AssignmentStatus.ASSIGNED}
+        LIMIT 1;
+      `);
+      expect(newAsg.length).toBe(1);
+      expect(newAsg[0].fecha_limite_str).toBeNull();
     });
   });
 

@@ -53,7 +53,7 @@ export abstract class IEmailServicePort {
     email: string,
     name: string,
     protocolCode: string,
-    deadline: Date,
+    deadline: Date | null,
   ): Promise<void>;
   abstract sendEvaluationSubmitted(
     email: string,

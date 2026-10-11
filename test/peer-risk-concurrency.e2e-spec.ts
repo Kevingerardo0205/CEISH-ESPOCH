@@ -12,8 +12,6 @@ import { EvaluatorAssignmentAdapterService } from '../src/modules/evaluations/ap
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/shared/guards/roles.guard';
 import { PermissionsGuard } from '../src/shared/guards/permissions.guard';
-import { BusinessDayCalculator } from '../src/shared/services/deadline-calculator.service';
-import { ReviewType } from '../src/modules/protocols/domain/enums/review-type.enum';
 
 describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
   let app: INestApplication;
@@ -55,21 +53,12 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
 
   const mockAssignmentAdapterService = {
     adaptAndAssign: jest.fn().mockImplementation((protocolId: number) => {
-      // Simula la resolución real de plazos según reviewType
-      const reviewType =
-        protocolId === 10 ? ReviewType.EXPEDITA : ReviewType.PLENO;
-      const days = reviewType === ReviewType.EXPEDITA ? 8 : 15;
-      const deadline = BusinessDayCalculator.calculateDeadline({
-        startDate: new Date(),
-        businessDaysToAdd: days,
-        holidays: [],
-      });
-
+      // RF-12.7(a): fecha_limite = null hasta la convocatoria
       return [
-        { id: 1, protocolId, evaluatorId: 10, deadlineDate: deadline },
-        { id: 2, protocolId, evaluatorId: 20, deadlineDate: deadline },
-        { id: 3, protocolId, evaluatorId: 30, deadlineDate: deadline },
-        { id: 4, protocolId, evaluatorId: 40, deadlineDate: deadline },
+        { id: 1, protocolId, evaluatorId: 10, deadlineDate: null },
+        { id: 2, protocolId, evaluatorId: 20, deadlineDate: null },
+        { id: 3, protocolId, evaluatorId: 30, deadlineDate: null },
+        { id: 4, protocolId, evaluatorId: 40, deadlineDate: null },
       ];
     }),
   };
@@ -184,12 +173,8 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
     });
   });
 
-  describe('Scenario 2: Paridad de plazos reales en POST /protocols/:id/assign-peer-evaluators', () => {
-    it('debe calcular exactamente 8 días hábiles para EXPEDITA y 15 días hábiles para PLENO con reloj fijo', async () => {
-      jest.useFakeTimers();
-      // Lunes 2 de marzo de 2026 10:00:00 UTC (05:00 ECT)
-      jest.setSystemTime(new Date('2026-03-02T10:00:00.000Z'));
-
+  describe('Scenario 2: Contrato del endpoint POST /protocols/:id/assign-peer-evaluators cuando el adapter devuelve deadlineDate null (RF-12.7(a))', () => {
+    it('el endpoint retorna deadlineDate null cuando el adapter devuelve null (contrato HTTP, no integración real)', async () => {
       // 1. Protocolo Expedita (ID 10)
       const resExpedita = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/10/assign-peer-evaluators')
@@ -199,9 +184,7 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
 
       const expeditaData = resExpedita.body.data || resExpedita.body;
       expect(expeditaData).toHaveLength(4);
-      expect(new Date(expeditaData[0].deadlineDate).toISOString()).toBe(
-        '2026-03-12T00:00:00.000Z',
-      );
+      expect(expeditaData[0].deadlineDate).toBeNull();
 
       // 2. Protocolo Pleno (ID 20)
       const resPleno = await request(app.getHttpServer())
@@ -212,18 +195,10 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
 
       const plenoData = resPleno.body.data || resPleno.body;
       expect(plenoData).toHaveLength(4);
-      expect(new Date(plenoData[0].deadlineDate).toISOString()).toBe(
-        '2026-03-23T00:00:00.000Z',
-      );
-
-      jest.useRealTimers();
+      expect(plenoData[0].deadlineDate).toBeNull();
     });
 
-    it('debe calcular fecha exacta cruzando fin de semana cuando la asignación ocurre en jueves a las 20:00 ECT', async () => {
-      jest.useFakeTimers();
-      // Jueves 5 de marzo de 2026 a las 20:00 ECT (UTC-5)
-      jest.setSystemTime(new Date('2026-03-05T20:00:00-05:00'));
-
+    it('el endpoint retorna deadlineDate null independientemente del momento de la petición (contrato HTTP)', async () => {
       const resExpedita = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/10/assign-peer-evaluators')
         .set('Authorization', 'Bearer valid-token')
@@ -232,12 +207,7 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
 
       const expeditaData = resExpedita.body.data || resExpedita.body;
       expect(expeditaData).toHaveLength(4);
-      // 8 días hábiles desde jueves 5 -> martes 17 de marzo (2026-03-17)
-      expect(new Date(expeditaData[0].deadlineDate).toISOString()).toBe(
-        '2026-03-17T00:00:00.000Z',
-      );
-
-      jest.useRealTimers();
+      expect(expeditaData[0].deadlineDate).toBeNull();
     });
   });
 });

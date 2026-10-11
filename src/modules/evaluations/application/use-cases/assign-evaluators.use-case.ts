@@ -2,15 +2,10 @@ import { BadRequestException } from '@nestjs/common';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import { QuotaEvaluatorValidatorService } from '../../domain/services/quota-evaluator-validator.service';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
-import { BusinessDayCalculator } from '../../../../shared/services/deadline-calculator.service';
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
-import {
-  PLAZO_REVISION_OFICIO_DIAS,
-  PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS,
-} from '../../../../shared/deadlines/deadline-rules';
 
 // Internal type — carries the catalog profileId resolved by the adapter.
 // Never appears in the public API contract; not a DTO class.
@@ -54,12 +49,10 @@ export class AssignEvaluatorsUseCase {
   ) {}
 
   /**
-   * Caso de uso para la asignación atómica de evaluadores pares [RF-12.1, RF-12.2, RF-12.6]
+   * Caso de uso para la asignación atómica de evaluadores pares [RF-12.1, RF-12.2, RF-12.6, RF-12.7(a)]
    */
   public async execute(
     dto: AssignEvaluatorsCommand,
-    standardFullDays?: number,
-    holidays: string[] = [],
   ): Promise<EvaluationAssignmentEntity[]> {
     // 1. Validar la cuota exacta de 4 perfiles obligatorios (1 de cada uno)
     QuotaEvaluatorValidatorService.validateQuota(dto.evaluators);
@@ -69,28 +62,7 @@ export class AssignEvaluatorsUseCase {
       RandomRiskSelectorService.selectAnnex10Evaluators(dto.evaluators);
     const annex10Set = new Set(annex10EvaluatorIds);
 
-    // NOTA NORMATIVA: Según el PET (líneas 726, 819) y la normativa CEISH, una revisión EXPEDITA
-    // requiere únicamente 1 o 2 miembros evaluadores (habitualmente perfil metodológico y salud/ético).
-    // Actualmente, la interfaz del frontend envía y requiere la selección de los 4 evaluadores
-    // obligatorios para todos los flujos. Por compatibilidad con la interfaz, hoy se asignan los 4
-    // evaluadores con el plazo normativo reducido (8 días hábiles), quedando pendiente la decisión
-    // del comité para un eventual flujo de asignación parcial de 1-2 miembros en revisiones expeditas.
-    // 3. Determinar días hábiles según reviewType (8 para EXPEDITA, 15 para PLENO / por defecto)
-    const daysToAdd =
-      // TODO PR-B: PLENO usa PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS — contradice spec-002 RF-12.7(a) (sin plazo hasta convocatoria)
-      standardFullDays ??
-      (dto.reviewType === ReviewType.EXPEDITA
-        ? PLAZO_REVISION_OFICIO_DIAS
-        : PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS);
-
-    // 4. Calcular la fecha límite de entrega respetando días hábiles (YYYY-MM-DD para columnas PostgreSQL date)
-    const deadlineDate = BusinessDayCalculator.calculateDeadlineDateString({
-      startDate: new Date(),
-      businessDaysToAdd: daysToAdd,
-      holidays,
-    });
-
-    // 4. Instanciar las entidades puras de dominio
+    // 3. Instanciar las entidades puras de dominio (RF-12.7(a): fecha_limite queda null hasta la convocatoria)
     const assignmentEntities = dto.evaluators.map((item, index) => {
       const generatedId =
         typeof dto.protocolId === 'number'
@@ -106,7 +78,7 @@ export class AssignEvaluatorsUseCase {
         evaluatorId: item.evaluatorId,
         evaluatorProfile: item.profile,
         isAssignedForAnnex10,
-        deadlineDate,
+        deadlineDate: null,
       });
     });
 
@@ -188,7 +160,7 @@ export class AssignEvaluatorsUseCase {
           profileId: dtoItem?.profileId,
           statusId: AssignmentStatus.ASSIGNED,
           isAssignedForAnnex10: entity.isAssignedForAnnex10,
-          deadline: entity.deadlineDate,
+          deadline: null,
         };
       });
       const ormEntities =
@@ -210,7 +182,7 @@ export class AssignEvaluatorsUseCase {
           evaluatorId: orm.evaluatorId,
           evaluatorProfile: resolvedProfile,
           isAssignedForAnnex10: orm.isAssignedForAnnex10 ?? false,
-          deadlineDate: orm.deadline ?? deadlineDate,
+          deadlineDate: orm.deadline ?? null,
           status: orm.statusId,
         });
       });
