@@ -236,7 +236,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** El objeto literal de respuesta en `evaluations.service.ts:1453-1464` actualmente omite `assignedAt` y no indica si el evaluador está "Pendiente de convocatoria". Añadir `assignedAt` (fecha de asignación, ya disponible en `asignaciones_evaluacion.fecha_asignacion`) y `estadoConvocatoria: 'Pendiente de convocatoria' | 'Con plazo asignado'` derivado de si `deadline === null`. No se necesita migración: `fecha_asignacion` ya existe como `@CreateDateColumn` y `fecha_limite` ya es `nullable: true` (verificado en Paso 1 (a) y (g)).
   - **Hecho cuando:** La respuesta del endpoint de asignaciones incluya `assignedAt` y `estadoConvocatoria` para cada asignación; prueba unitaria verifica ambos campos.
 
-- [ ] **TSK-002-N05**: Implementar aviso suave no bloqueante RF-12.7(c) al crear convocatoria — `fecha_reunion` a menos de `PLAZO_REVISION_OFICIO_DIAS` de la `fecha_asignacion` activa más antigua.
+- [x] **TSK-002-N05**: Implementar aviso suave no bloqueante RF-12.7(c) al crear convocatoria — `fecha_reunion` a menos de `PLAZO_REVISION_OFICIO_DIAS` de la `fecha_asignacion` activa más antigua.
   - **Requisito relacionado:** `RF-12.7(c)`
   - **PR:** PR-B1 (`feat/meeting-delivery-after-session`)
   - **Criterio EARS:** `EARS (RF-12.6)`

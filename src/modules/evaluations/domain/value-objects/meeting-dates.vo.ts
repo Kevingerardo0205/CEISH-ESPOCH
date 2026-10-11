@@ -11,9 +11,9 @@ export class MeetingDatesValueObject {
       );
     }
 
-    if (evalSubmissionDeadline.getTime() >= meetingDate.getTime()) {
+    if (evalSubmissionDeadline.getTime() <= meetingDate.getTime()) {
       throw new BadRequestException(
-        `FECHA_EVALUACION_INVALIDA: La fecha límite de entrega de evaluaciones (${evalSubmissionDeadline.toISOString()}) debe ser estrictamente menor que la fecha de la reunión (${meetingDate.toISOString()}).`,
+        `FECHA_EVALUACION_INVALIDA: La fecha de entrega (${evalSubmissionDeadline.toISOString()}) debe ser estrictamente posterior a la fecha de reunión (${meetingDate.toISOString()}).`,
       );
     }
 

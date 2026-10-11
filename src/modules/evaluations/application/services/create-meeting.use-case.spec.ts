@@ -19,6 +19,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
   beforeEach(() => {
     repositoryMock = {
       saveMeetingWithAtomicNumber: jest.fn(),
+      getOldestAssignedDates: jest.fn().mockResolvedValue([]),
       findById: jest.fn(),
       findAll: jest.fn(),
       findPendingProtocols: jest.fn(),
@@ -55,7 +56,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       anioLectivo: 2026,
       tipoSession: SessionType.ORDINARIA,
       fechaReunion: meetingDate,
-      fechaEntregaEvaluacion: new Date('2026-10-08T23:59:59.999Z'),
+      fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'), // +2 días hábiles a las 12:00 ECT
       estado: ConvocatoriaStatus.PROGRAMADA,
     };
 
@@ -67,6 +68,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     const result = await useCase.execute(params);
 
     expect(result.meetingNumber).toBe('001-2026');
+    expect(result.warnings).toEqual([]);
     expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalled();
     expect(pdfGeneratorMock.generateAgendaPdf).toHaveBeenCalledWith('meet-001');
   });
@@ -86,7 +88,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       anioLectivo: 2026,
       tipoSession: SessionType.ORDINARIA,
       fechaReunion: meetingDate,
-      fechaEntregaEvaluacion: new Date('2026-10-08T23:59:59.999Z'),
+      fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
       estado: ConvocatoriaStatus.PROGRAMADA,
     };
 
@@ -98,6 +100,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     const result = await useCase.execute(params);
 
     expect(result.meetingNumber).toBe('002-2026');
+    expect(result.warnings).toEqual([]);
     expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalled();
   });
 
@@ -114,9 +117,9 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     expect(repositoryMock.saveMeetingWithAtomicNumber).not.toHaveBeenCalled();
   });
 
-  it('should throw BadRequestException when hard precedence constraint (evalDate >= meetingDate) is violated', async () => {
+  it('should throw BadRequestException when hard precedence constraint (evalDate <= meetingDate) is violated', async () => {
     const meetingDate = new Date('2026-10-15T09:00:00.000Z');
-    const invalidEvalDate = new Date('2026-10-16T09:00:00.000Z'); // Posterior
+    const invalidEvalDate = new Date('2026-10-14T09:00:00.000Z'); // ANTES de la reunión
     const params = {
       sessionType: SessionType.ORDINARIA,
       meetingDate,
@@ -125,5 +128,46 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     };
 
     await expect(useCase.execute(params)).rejects.toThrow(BadRequestException);
+  });
+
+  it('should include soft warning when assignment review time is less than PLAZO_REVISION_OFICIO_DIAS', async () => {
+    const meetingDate = new Date('2026-10-15T09:00:00.000Z');
+    // 3 días hábiles de revisión disponibles (12, 13, 14 oct — se excluye el día de reunión 15)
+    const recentAssignment = new Date('2026-10-10T14:00:00.000Z');
+    const params = {
+      sessionType: SessionType.ORDINARIA,
+      meetingDate,
+      protocolVersionIds: [137],
+    };
+
+    repositoryMock.getOldestAssignedDates.mockResolvedValueOnce([
+      {
+        protocolVersionId: 137,
+        protocolCode: 'PROT-001',
+        oldestAssignmentDate: recentAssignment,
+      },
+    ]);
+
+    const savedEntity: MeetingEntity = {
+      id: 'meet-003',
+      numeroConvocatoria: '003-2026',
+      anioLectivo: 2026,
+      tipoSession: SessionType.ORDINARIA,
+      fechaReunion: meetingDate,
+      fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
+      estado: ConvocatoriaStatus.PROGRAMADA,
+    };
+
+    repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue(
+      '/storage/pdf/003-2026.pdf',
+    );
+
+    const result = await useCase.execute(params);
+
+    expect(result.meetingNumber).toBe('003-2026');
+    expect(result.warnings.length).toBeGreaterThan(0);
+    expect(result.warnings[0]).toContain('ADVERTENCIA_PLAZO_REVISION');
+    expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalled();
   });
 });

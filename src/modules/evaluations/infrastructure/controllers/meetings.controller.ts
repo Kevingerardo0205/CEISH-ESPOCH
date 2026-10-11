@@ -241,6 +241,7 @@ export class MeetingsController {
         evalSubmissionDeadline: dto.evalSubmissionDeadline,
         agendaPdfUrl: result.pdfUrl,
       },
+      advertencias: result.warnings,
     };
   }
 

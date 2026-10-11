@@ -1,4 +1,6 @@
 import { CalculateMeetingDatesService } from './calculate-meeting-dates.service';
+import type { AssignmentDeadlineSnapshot } from '../../domain/ports/meeting-repository.port';
+import { PLAZO_REVISION_OFICIO_DIAS } from '../../../../shared/deadlines/deadline-rules';
 
 describe('CalculateMeetingDatesService', () => {
   let service: CalculateMeetingDatesService;
@@ -7,64 +9,141 @@ describe('CalculateMeetingDatesService', () => {
     service = new CalculateMeetingDatesService();
   });
 
-  it('should calculate suggested deadline for a meeting starting on Thursday at 20:00 ECT (strictly prior Thursday)', () => {
-    // Jueves 15 de Octubre de 2026 a las 20:00 ECT (UTC-5) -> 2026-10-16T01:00:00.000Z
-    const thursdayMeetingDate = new Date('2026-10-16T01:00:00.000Z');
+  describe('calculateSuggestedEvalDeadline (RF-09.1)', () => {
+    it('should return meetingDate + 2 business days at 12:00 ECT when meeting is on Thursday', () => {
+      // Jueves 15 de Octubre de 2026 a las 20:00 ECT (UTC-5) -> 2026-10-16T01:00:00.000Z
+      const thursdayMeetingDate = new Date('2026-10-16T01:00:00.000Z');
 
-    const deadline =
-      service.calculateSuggestedEvalDeadline(thursdayMeetingDate);
+      const deadline =
+        service.calculateSuggestedEvalDeadline(thursdayMeetingDate);
 
-    // Jueves estrictamente previo es el 8 de Octubre de 2026 a las 23:59:59.999 ECT -> 2026-10-09T04:59:59.999Z
-    expect(deadline.toISOString()).toBe('2026-10-09T04:59:59.999Z');
-  });
+      // +1: Viernes 2026-10-16, +2: Lunes 2026-10-19 (salta fin de semana)
+      // Lunes 2026-10-19 a las 12:00 ECT = 17:00 UTC
+      expect(deadline.toISOString()).toBe('2026-10-19T17:00:00.000Z');
+    });
 
-  it('should calculate suggested deadline for a meeting on a Saturday (Thursday of that same week)', () => {
-    // Sábado 17 de Octubre de 2026 a las 10:00 ECT (UTC-5) -> 2026-10-17T15:00:00.000Z
-    const saturdayMeetingDate = new Date('2026-10-17T15:00:00.000Z');
+    it('should return meetingDate + 2 business days at 12:00 ECT when meeting is on Saturday', () => {
+      // Sábado 17 de Octubre de 2026 a las 10:00 ECT -> 2026-10-17T15:00:00.000Z
+      const saturdayMeetingDate = new Date('2026-10-17T15:00:00.000Z');
 
-    const deadline =
-      service.calculateSuggestedEvalDeadline(saturdayMeetingDate);
+      const deadline =
+        service.calculateSuggestedEvalDeadline(saturdayMeetingDate);
 
-    // Jueves previo de la misma semana es el 15 de Octubre de 2026 a las 23:59:59.999 ECT -> 2026-10-16T04:59:59.999Z
-    expect(deadline.toISOString()).toBe('2026-10-16T04:59:59.999Z');
-  });
+      // +1: Lunes 2026-10-19 (salta domingo), +2: Martes 2026-10-20
+      // Martes 2026-10-20 a las 12:00 ECT = 17:00 UTC
+      expect(deadline.toISOString()).toBe('2026-10-20T17:00:00.000Z');
+    });
 
-  it('should calculate suggested deadline for a meeting on a Monday (Thursday of previous week)', () => {
-    // Lunes 19 de Octubre de 2026 a las 09:00 ECT -> 2026-10-19T14:00:00.000Z
-    const mondayMeetingDate = new Date('2026-10-19T14:00:00.000Z');
+    it('should return meetingDate + 2 business days at 12:00 ECT when meeting is on Monday', () => {
+      // Lunes 19 de Octubre de 2026 a las 09:00 ECT -> 2026-10-19T14:00:00.000Z
+      const mondayMeetingDate = new Date('2026-10-19T14:00:00.000Z');
 
-    const deadline = service.calculateSuggestedEvalDeadline(mondayMeetingDate);
+      const deadline =
+        service.calculateSuggestedEvalDeadline(mondayMeetingDate);
 
-    // Jueves previo es el 15 de Octubre de 2026 a las 23:59:59.999 ECT -> 2026-10-16T04:59:59.999Z
-    expect(deadline.toISOString()).toBe('2026-10-16T04:59:59.999Z');
-  });
+      // +1: Martes 2026-10-20, +2: Miércoles 2026-10-21
+      // Miércoles 2026-10-21 a las 12:00 ECT = 17:00 UTC
+      expect(deadline.toISOString()).toBe('2026-10-21T17:00:00.000Z');
+    });
 
-  it('should format legacy call deadline without day-shift under both UTC and America/Guayaquil', () => {
-    const originalTz = process.env.TZ;
-    try {
-      for (const tz of ['UTC', 'America/Guayaquil']) {
-        process.env.TZ = tz;
-        // Jueves 12 de marzo de 2026 a las 20:00 hora de Ecuador (UTC-5)
-        const callDate = new Date('2026-03-12T20:00:00-05:00');
-        const deadline = new Date(callDate);
-        deadline.setDate(deadline.getDate() - 1);
-        while (deadline.getDay() !== 4) {
-          deadline.setDate(deadline.getDate() - 1);
+    it('should produce a deadline strictly AFTER the meeting date', () => {
+      const meetingDate = new Date('2026-04-22T10:00:00.000Z');
+      const deadline = service.calculateSuggestedEvalDeadline(meetingDate);
+      expect(deadline.getTime()).toBeGreaterThan(meetingDate.getTime());
+    });
+
+    it('should be timezone-safe: same calendar date under UTC and America/Guayaquil (TSK-009-N01)', () => {
+      const originalTz = process.env.TZ;
+      const deadlines: string[] = [];
+      try {
+        for (const tz of ['UTC', 'America/Guayaquil']) {
+          process.env.TZ = tz;
+          const meetingDate = new Date('2026-10-15T14:00:00.000Z'); // Jueves 09:00 ECT
+          const deadline = service.calculateSuggestedEvalDeadline(meetingDate);
+          const dateStr = new Intl.DateTimeFormat('en-CA', {
+            timeZone: 'America/Guayaquil',
+            year: 'numeric',
+            month: '2-digit',
+            day: '2-digit',
+          }).format(deadline);
+          deadlines.push(dateStr);
         }
-        deadline.setHours(23, 59, 59, 999);
-
-        // toCalendarDateString siempre debe dar el jueves 5 de marzo en Ecuador
-        const dateStr = new Intl.DateTimeFormat('en-CA', {
-          timeZone: 'America/Guayaquil',
-          year: 'numeric',
-          month: '2-digit',
-          day: '2-digit',
-        }).format(deadline);
-
-        expect(dateStr).toBe('2026-03-05');
+      } finally {
+        process.env.TZ = originalTz;
       }
-    } finally {
-      process.env.TZ = originalTz;
-    }
+      expect(deadlines[0]).toBe(deadlines[1]);
+    });
+  });
+
+  describe('evaluateSoftWarnings', () => {
+    it('should return empty array when meeting is within normative deadline and no assignment snapshots', () => {
+      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
+      const protocols = [
+        {
+          protocolCode: 'PROT-001',
+          normativeDeadline: new Date('2026-11-01T09:00:00.000Z'),
+        },
+      ];
+
+      const warnings = service.evaluateSoftWarnings(meetingDate, protocols);
+      expect(warnings).toEqual([]);
+    });
+
+    it('should warn when meeting date exceeds normative deadline', () => {
+      const meetingDate = new Date('2026-11-15T09:00:00.000Z');
+      const protocols = [
+        {
+          protocolCode: 'PROT-002',
+          normativeDeadline: new Date('2026-11-01T09:00:00.000Z'),
+        },
+      ];
+
+      const warnings = service.evaluateSoftWarnings(meetingDate, protocols);
+      expect(warnings.length).toBe(1);
+      expect(warnings[0]).toContain('ADVERTENCIA');
+      expect(warnings[0]).toContain('PROT-002');
+    });
+
+    it('should warn when assignment review time is less than PLAZO_REVISION_OFICIO_DIAS (TSK-002-N05)', () => {
+      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
+      // 3 días hábiles de revisión disponibles (12, 13, 14 oct — se excluye el día de reunión 15)
+      const recentAssignment = new Date('2026-10-10T14:00:00.000Z');
+      const assignments: AssignmentDeadlineSnapshot[] = [
+        {
+          protocolVersionId: 137,
+          protocolCode: 'PROT-003',
+          oldestAssignmentDate: recentAssignment,
+        },
+      ];
+
+      const warnings = service.evaluateSoftWarnings(
+        meetingDate,
+        [],
+        assignments,
+      );
+      expect(warnings.length).toBe(1);
+      expect(warnings[0]).toContain('ADVERTENCIA_PLAZO_REVISION');
+      expect(warnings[0]).toContain(String(PLAZO_REVISION_OFICIO_DIAS));
+    });
+
+    it('should not warn when assignment review time meets PLAZO_REVISION_OFICIO_DIAS', () => {
+      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
+      // Asignada 10 días hábiles antes (suficiente — PLAZO_REVISION_OFICIO_DIAS = 8)
+      const earlyAssignment = new Date('2026-10-01T14:00:00.000Z');
+      const assignments: AssignmentDeadlineSnapshot[] = [
+        {
+          protocolVersionId: 140,
+          protocolCode: 'PROT-004',
+          oldestAssignmentDate: earlyAssignment,
+        },
+      ];
+
+      const warnings = service.evaluateSoftWarnings(
+        meetingDate,
+        [],
+        assignments,
+      );
+      expect(warnings).toEqual([]);
+    });
   });
 });

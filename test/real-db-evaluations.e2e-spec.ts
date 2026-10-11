@@ -3,8 +3,10 @@ process.env.DB_NAME = process.env.TEST_DB_NAME || 'ceish_test_db';
 process.env.DB_HOST =
   process.env.TEST_DB_HOST || process.env.DB_HOST || 'localhost';
 process.env.DB_PORT = process.env.TEST_DB_PORT || process.env.DB_PORT || '3100';
-if (process.env.TEST_DB_USER) process.env.DB_USERNAME = process.env.TEST_DB_USER;
-if (process.env.TEST_DB_PASSWORD) process.env.DB_PASSWORD = process.env.TEST_DB_PASSWORD;
+if (process.env.TEST_DB_USER)
+  process.env.DB_USERNAME = process.env.TEST_DB_USER;
+if (process.env.TEST_DB_PASSWORD)
+  process.env.DB_PASSWORD = process.env.TEST_DB_PASSWORD;
 
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ExecutionContext } from '@nestjs/common';
@@ -54,8 +56,10 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       process.env.TEST_DB_HOST || process.env.DB_HOST || 'localhost';
     process.env.DB_PORT =
       process.env.TEST_DB_PORT || process.env.DB_PORT || '3100';
-    if (process.env.TEST_DB_USER) process.env.DB_USERNAME = process.env.TEST_DB_USER;
-    if (process.env.TEST_DB_PASSWORD) process.env.DB_PASSWORD = process.env.TEST_DB_PASSWORD;
+    if (process.env.TEST_DB_USER)
+      process.env.DB_USERNAME = process.env.TEST_DB_USER;
+    if (process.env.TEST_DB_PASSWORD)
+      process.env.DB_PASSWORD = process.env.TEST_DB_PASSWORD;
 
     const moduleFixture: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -798,6 +802,44 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     });
   });
 
+  describe('6. Propagación de fecha_limite a asignaciones ASIGNADO al crear convocatoria (TSK-009-N03/N05, TSK-002-N05)', () => {
+    it('6a. POST /api/evaluations/meetings propaga evalSubmissionDeadline a asignaciones ASIGNADO de las versiones agendadas', async () => {
+      // Insertar asignación ASIGNADO para versión 991, evaluador 905 (aún no asignado a 991)
+      await dataSource.query(`
+        INSERT INTO evaluacion.asignaciones_evaluacion (
+          version_id, evaluador_id, estado_id, es_asignado_anexo_10, fecha_asignacion
+        ) VALUES (991, 905, ${AssignmentStatus.ASSIGNED}, false, NOW());
+      `);
+
+      const meetingPayload = {
+        sessionType: 'ORDINARIA',
+        meetingDate: '2026-10-08T09:00:00.000Z',
+        evalSubmissionDeadline: '2026-10-14T17:00:00.000Z', // 12:00 ECT = 17:00 UTC → '2026-10-14'
+        protocolVersionIds: [991],
+      };
+
+      const resCreate = await request(app.getHttpServer())
+        .post('/api/evaluations/meetings')
+        .set('x-user-id', '901')
+        .send(meetingPayload);
+
+      expect([200, 201]).toContain(resCreate.status);
+
+      // Verificar SQL: todas las asignaciones ASIGNADO de versión 991 tienen fecha_limite = '2026-10-14'
+      const rows = await dataSource.query(`
+        SELECT id, fecha_limite::text AS fecha_limite_str
+        FROM evaluacion.asignaciones_evaluacion
+        WHERE version_id = 991
+          AND estado_id = ${AssignmentStatus.ASSIGNED}
+        ORDER BY id ASC;
+      `);
+      expect(rows.length).toBeGreaterThan(0);
+      for (const row of rows) {
+        expect(row.fecha_limite_str).toBe('2026-10-14');
+      }
+    });
+  });
+
   describe('5. Pruebas de Humo de Places y Calls por Supertest', () => {
     let createdPlaceId: string;
 
@@ -889,7 +931,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         .send({
           sessionType: 'ORDINARIA',
           meetingDate: '2026-03-20T15:00:00.000Z',
-          evalSubmissionDeadline: '2026-03-19T23:59:59.999Z',
+          evalSubmissionDeadline: '2026-03-24T17:00:00.000Z', // +2 días hábiles a las 12:00 ECT
           locationId: placeId,
           protocolVersionIds: [991],
         });

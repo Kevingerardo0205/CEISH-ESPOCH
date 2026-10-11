@@ -1,10 +1,9 @@
-import { DataSource } from 'typeorm';
+/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+
 import { MeetingTypeOrmRepository } from './meeting-typeorm.repository';
-import {
-  SessionType,
-  ConvocatoriaStatus,
-} from '../database/entities/convocatoria.orm-entity';
+import { SessionType } from '../database/entities/convocatoria.orm-entity';
 import { ConflictException, NotFoundException } from '@nestjs/common';
+import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 
 describe('MeetingTypeOrmRepository (T013 / Option E)', () => {
   let repository: MeetingTypeOrmRepository;
@@ -170,5 +169,37 @@ describe('MeetingTypeOrmRepository (T013 / Option E)', () => {
     ).rejects.toThrow(ConflictException);
 
     expect(queryRunnerMock.rollbackTransaction).toHaveBeenCalledTimes(3);
+  });
+
+  it('should update fecha_limite for ASSIGNED evaluations of agendated protocol versions (TSK-009-N03)', async () => {
+    queryRunnerMock.query
+      .mockResolvedValueOnce([{ ultimo_secuencial: 2 }]) // secuencial
+      .mockResolvedValueOnce([]); // UPDATE asignaciones
+
+    const createdMeeting = {
+      id: 'meet-002',
+      numeroConvocatoria: '002-2026',
+      anioLectivo: 2026,
+    };
+    queryRunnerMock.manager.save.mockResolvedValueOnce(createdMeeting);
+
+    const evalDeadline = new Date('2026-10-19T17:00:00.000Z'); // 2026-10-19 12:00 ECT
+    const params = {
+      sessionType: SessionType.ORDINARIA,
+      meetingDate: new Date('2026-10-15T09:00:00.000Z'),
+      protocolVersionIds: [137, 138],
+    };
+
+    await repository.saveMeetingWithAtomicNumber(params, '2026', evalDeadline);
+
+    // El UPDATE debe haberse llamado con la fecha de calendario en ECT
+    const updateCall = queryRunnerMock.query.mock.calls.find(
+      (c: unknown[]) =>
+        typeof c[0] === 'string' && c[0].includes('SET fecha_limite'),
+    );
+    expect(updateCall).toBeDefined();
+    expect(updateCall[1][0]).toBe('2026-10-19'); // YYYY-MM-DD en ECT
+    expect(updateCall[1][1]).toEqual([137, 138]);
+    expect(updateCall[1][2]).toBe(AssignmentStatus.ASSIGNED);
   });
 });

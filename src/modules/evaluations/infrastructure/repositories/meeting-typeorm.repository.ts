@@ -8,6 +8,7 @@ import {
   IMeetingRepositoryPort,
   CreateMeetingParams,
   FindMeetingsOptions,
+  AssignmentDeadlineSnapshot,
 } from '../../domain/ports/meeting-repository.port';
 import { MeetingEntity } from '../../domain/entities/meeting.entity';
 import {
@@ -22,6 +23,8 @@ import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/pr
 import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
 import { MeetingNumberValueObject } from '../../domain/value-objects/meeting-number.vo';
 import { AgendaItemType } from '../../../../shared/enums/agenda-section.enum';
+import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
+import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
 
 @Injectable()
 export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
@@ -119,6 +122,18 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
           }
         }
 
+        // 5. Propagar fecha_limite a las asignaciones ASSIGNED de los protocolos agendados
+        if (params.protocolVersionIds && params.protocolVersionIds.length > 0) {
+          const fechaLimite = toCalendarDateString(evalSubmissionDeadline);
+          await queryRunner.query(
+            `UPDATE evaluacion.asignaciones_evaluacion
+             SET fecha_limite = $1
+             WHERE version_id = ANY($2)
+               AND estado_id = $3`,
+            [fechaLimite, params.protocolVersionIds, AssignmentStatus.ASSIGNED],
+          );
+        }
+
         await queryRunner.commitTransaction();
         return savedMeeting;
       } catch (error: unknown) {
@@ -155,6 +170,34 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
     throw new ConflictException(
       'CONFLICTO_CONCURRENCIA: Se excedió el número máximo de reintentos para asignar el correlativo de convocatoria.',
     );
+  }
+
+  async getOldestAssignedDates(
+    protocolVersionIds: number[],
+  ): Promise<AssignmentDeadlineSnapshot[]> {
+    if (!protocolVersionIds.length) return [];
+    const rows: Array<{
+      protocolVersionId: string | number;
+      protocolCode: string;
+      oldestAssignmentDate: string | Date;
+    }> = await this.dataSource.query(
+      `SELECT
+         ae.version_id        AS "protocolVersionId",
+         COALESCE(p.codigo_ceish, p.id::text) AS "protocolCode",
+         MIN(ae.fecha_asignacion) AS "oldestAssignmentDate"
+       FROM evaluacion.asignaciones_evaluacion ae
+       JOIN public.versiones_protocolo vp ON vp.id = ae.version_id
+       JOIN public.protocolos p          ON p.id  = vp.protocolo_id
+       WHERE ae.version_id = ANY($1)
+         AND ae.estado_id  = $2
+       GROUP BY ae.version_id, p.codigo_ceish, p.id`,
+      [protocolVersionIds, AssignmentStatus.ASSIGNED],
+    );
+    return rows.map((row) => ({
+      protocolVersionId: Number(row.protocolVersionId),
+      protocolCode: String(row.protocolCode),
+      oldestAssignmentDate: new Date(row.oldestAssignmentDate),
+    }));
   }
 
   async findById(id: string): Promise<MeetingEntity | null> {

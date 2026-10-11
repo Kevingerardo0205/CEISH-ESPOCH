@@ -139,7 +139,7 @@
 - **Tests**: `npm run test -- src/modules/evaluations/infrastructure/database/entities/convocatoria.orm-entity.spec.ts`.
 - **Criterio "Hecho cuando:"**: La migración se ejecuta limpiamente sin pérdida de datos históricos y la restricción `UNIQUE` queda activa en PostgreSQL.
 
-### Task TSK-009-002 [P] - [ ] PENDIENTE (REABIERTA: spec v1.4.1 RF-09.1, pendiente de código)
+### Task TSK-009-002 [P] - [x] COMPLETADA
 - **ID Único**: `TSK-009-002`
 - **Requisito Relacionado**: `RF-09.1`
 - **Criterio EARS**: `EARS 1`, `EARS 2`
@@ -205,7 +205,7 @@
 
 ## Fase 2: Aplicación, Use Cases y PDF Oficial
 
-### Task TSK-009-006 - [ ] PENDIENTE (REABIERTA: spec v1.4.1 RF-09.1, pendiente de código)
+### Task TSK-009-006 - [x] COMPLETADA
 - **ID Único**: `TSK-009-006`
 - **Requisito Relacionado**: `RF-09.1`, `RF-09.2`, `RF-15.2`
 - **Criterio EARS**: `EARS 1`, `EARS 2`, `EARS 3`, `EARS 4`
@@ -305,7 +305,7 @@
 
 ## Fase 4: Nuevas Tareas RF-09.1 y RF-09.3 (Pendientes de código)
 
-### Task TSK-009-N01 - [ ] PENDIENTE
+### Task TSK-009-N01 - [x] COMPLETADA
 - **ID Único**: `TSK-009-N01`
 - **Requisito Relacionado**: `RF-09.1`
 - **Criterio EARS**: `EARS 2`
@@ -331,7 +331,7 @@
 - **Tests**: `meeting-reminders.service.spec.ts`.
 - **Criterio "Hecho cuando:"**: Tests unitarios validan los tres momentos de recordatorio y el registro de incumplimiento al cierre.
 
-### Task TSK-009-N03 - [ ] PENDIENTE
+### Task TSK-009-N03 - [x] COMPLETADA
 - **ID Único**: `TSK-009-N03`
 - **Requisito Relacionado**: `RF-09.1`, `RF-12.7(b)`
 - **PR**: PR-B1 (`feat/meeting-delivery-after-session`)
@@ -363,7 +363,7 @@
 - **Tests**: Verificar migración `up`/`down`; prueba unitaria confirma que los valores se persisten en la convocatoria.
 - **Criterio "Hecho cuando:"**: La tabla `evaluacion.convocatorias` tiene las dos columnas nuevas con sus valores por defecto, y el repositorio las lee al calcular `fecha_limite` en TSK-009-N03 (o lo hace de forma directa en el mismo PR-C).
 
-### Task TSK-009-N05 - [ ] PENDIENTE
+### Task TSK-009-N05 - [x] COMPLETADA
 - **ID Único**: `TSK-009-N05`
 - **Requisito Relacionado**: `RF-09.1`, `RF-12.7(b)`
 - **PR**: PR-B1 (`feat/meeting-delivery-after-session`)

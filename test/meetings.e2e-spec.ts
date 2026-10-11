@@ -66,6 +66,7 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
         Promise.resolve({ id, ...data }),
       ),
     deletePlace: jest.fn().mockResolvedValue(undefined),
+    getOldestAssignedDates: jest.fn().mockResolvedValue([]),
   };
 
   const mockPdfGenerator = {
@@ -144,11 +145,11 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
   });
 
   describe('POST /api/evaluations/meetings', () => {
-    it('debe rechazar con HTTP 400 si la fecha de entrega de evaluacion es posterior o igual a la fecha de reunion', async () => {
+    it('debe rechazar con HTTP 400 si la fecha de entrega de evaluacion es anterior o igual a la fecha de reunion', async () => {
       const invalidPayload = {
         sessionType: 'ORDINARIA',
         meetingDate: '2026-04-10T10:00:00.000Z',
-        evalSubmissionDeadline: '2026-04-11T10:00:00.000Z', // posterior
+        evalSubmissionDeadline: '2026-04-09T10:00:00.000Z', // anterior a la reunión
         protocolVersionIds: [137],
       };
 
@@ -167,7 +168,7 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
       const emptyAgendaPayload = {
         sessionType: 'ORDINARIA',
         meetingDate: '2026-04-16T10:00:00.000Z',
-        evalSubmissionDeadline: '2026-04-09T23:59:59.999Z',
+        evalSubmissionDeadline: '2026-04-21T17:00:00.000Z', // posterior a la reunión
         protocolVersionIds: [],
         followUpReportIds: [],
       };
@@ -187,7 +188,7 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
       const validPayload = {
         sessionType: 'ORDINARIA',
         meetingDate: '2026-04-16T10:00:00.000Z',
-        evalSubmissionDeadline: '2026-04-09T23:59:59.999Z',
+        evalSubmissionDeadline: '2026-04-21T17:00:00.000Z', // +2 días hábiles a las 12:00 ECT
         protocolVersionIds: [137],
         followUpReportIds: [45],
       };
@@ -202,6 +203,33 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
       expect(data).toHaveProperty('meetingNumber');
       expect(data.meetingNumber).toMatch(/^\d{3}-2026$/);
       expect(data).toHaveProperty('agendaPdfUrl');
+      expect(response.body).toHaveProperty('advertencias');
+      expect(Array.isArray(response.body.advertencias)).toBe(true);
+    });
+
+    it('debe calcular automáticamente una fecha de entrega POSTERIOR a la reunión cuando no se provee (TSK-009-N05)', async () => {
+      const meetingDate = '2026-04-22T10:00:00.000Z';
+      const validPayload = {
+        sessionType: 'ORDINARIA',
+        meetingDate,
+        protocolVersionIds: [137],
+      };
+
+      const response = await request(app.getHttpServer())
+        .post('/api/evaluations/meetings')
+        .send(validPayload)
+        .expect(201);
+
+      expect(response.body).toHaveProperty('advertencias');
+      expect(Array.isArray(response.body.advertencias)).toBe(true);
+      // El repositorio mock captura evalDeadline — verificar que sea posterior a meetingDate
+      const capturedCall = (
+        meetingRepositoryMock.saveMeetingWithAtomicNumber as jest.Mock
+      ).mock.calls.at(-1);
+      const capturedEvalDeadline: Date = capturedCall[2];
+      expect(capturedEvalDeadline.getTime()).toBeGreaterThan(
+        new Date(meetingDate).getTime(),
+      );
     });
   });
 
@@ -211,7 +239,7 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
       const validPayload = {
         sessionType: 'ORDINARIA',
         meetingDate: '2026-05-20T09:00:00.000Z',
-        evalSubmissionDeadline: '2026-05-14T23:59:59.000Z',
+        evalSubmissionDeadline: '2026-05-22T17:00:00.000Z', // posterior a la reunión
         protocolVersionIds: [140],
       };
 
@@ -251,7 +279,7 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
       const validPayload = {
         sessionType: 'EXTRAORDINARIA',
         meetingDate: '2026-06-18T10:00:00.000Z',
-        evalSubmissionDeadline: '2026-06-11T23:59:59.000Z',
+        evalSubmissionDeadline: '2026-06-22T17:00:00.000Z', // posterior a la reunión
         followUpReportIds: [50],
       };
 
