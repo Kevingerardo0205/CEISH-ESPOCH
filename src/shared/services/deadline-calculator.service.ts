@@ -124,4 +124,54 @@ export class BusinessDayCalculator {
   public static calculateDeadlineInstant(input: CalculateDeadlineInput): Date {
     return this.calculateDetailedDeadline(input).deadlineInstant;
   }
+
+  /**
+   * Cuenta días hábiles entre dos fechas (ambos extremos excluidos en ECT).
+   * Devuelve el número de días hábiles en el intervalo abierto (from, to).
+   */
+  public static countBusinessDays(
+    from: Date,
+    to: Date,
+    holidays?: string[],
+  ): number {
+    const holidaySet = new Set(holidays ?? []);
+    const ecuadorShiftMs = this.ECUADOR_OFFSET_HOURS * 60 * 60 * 1000;
+    const localFrom = new Date(from.getTime() + ecuadorShiftMs);
+    const localTo = new Date(to.getTime() + ecuadorShiftMs);
+
+    let year = localFrom.getUTCFullYear();
+    let month = localFrom.getUTCMonth();
+    let day = localFrom.getUTCDate();
+
+    const endYear = localTo.getUTCFullYear();
+    const endMonth = localTo.getUTCMonth();
+    const endDay = localTo.getUTCDate();
+
+    let count = 0;
+    while (true) {
+      const next = new Date(Date.UTC(year, month, day + 1));
+      year = next.getUTCFullYear();
+      month = next.getUTCMonth();
+      day = next.getUTCDate();
+
+      // Intervalo abierto: excluir 'to'
+      if (
+        year > endYear ||
+        (year === endYear && month > endMonth) ||
+        (year === endYear && month === endMonth && day >= endDay)
+      ) {
+        break;
+      }
+
+      const dow = next.getUTCDay();
+      const monthStr = String(month + 1).padStart(2, '0');
+      const dayStr = String(day).padStart(2, '0');
+      const dateStr = `${year}-${monthStr}-${dayStr}`;
+
+      if (dow !== 0 && dow !== 6 && !holidaySet.has(dateStr)) {
+        count++;
+      }
+    }
+    return count;
+  }
 }

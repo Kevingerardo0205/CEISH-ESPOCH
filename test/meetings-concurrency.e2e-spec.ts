@@ -45,6 +45,7 @@ describe('Convocatorias Concurrency Stress Tests (e2e) - [TSK-009-009 / EARS 1]'
     findPendingProtocols: jest.fn(),
     findAllPlaces: jest.fn(),
     findPlaceById: jest.fn(),
+    getOldestAssignedDates: jest.fn().mockResolvedValue([]),
     createPlace: jest.fn(),
     updatePlace: jest.fn(),
     deletePlace: jest.fn(),
@@ -107,7 +108,7 @@ describe('Convocatorias Concurrency Stress Tests (e2e) - [TSK-009-009 / EARS 1]'
   const generateMeetingPayload = (index: number) => ({
     sessionType: 'ORDINARIA',
     meetingDate: '2026-11-12T09:00:00.000Z',
-    evalSubmissionDeadline: '2026-11-05T23:59:59.000Z',
+    evalSubmissionDeadline: '2026-11-14T17:00:00.000Z', // +2 días hábiles a las 12:00 ECT
     followUpReportIds: [100 + index],
   });
 

@@ -35,6 +35,7 @@ describe('MeetingsController (T017 / RF-09)', () => {
       findPendingProtocols: jest.fn(),
       findAllPlaces: jest.fn(),
       findPlaceById: jest.fn(),
+      getOldestAssignedDates: jest.fn().mockResolvedValue([]),
       createPlace: jest.fn(),
       updatePlace: jest.fn(),
       deletePlace: jest.fn(),
@@ -104,6 +105,7 @@ describe('MeetingsController (T017 / RF-09)', () => {
         id: 'meet-001',
         meetingNumber: '001-2026',
         pdfUrl: '/api/evaluations/meetings/meet-001/pdf',
+        warnings: [],
       });
 
       const result = await controller.createMeeting(dto);

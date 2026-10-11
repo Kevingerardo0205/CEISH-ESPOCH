@@ -1,5 +1,12 @@
 import { MeetingEntity } from '../entities/meeting.entity';
 
+/** Datos mínimos de asignación activa por protocolo-versión para evaluar el plazo de revisión (TSK-002-N05). */
+export interface AssignmentDeadlineSnapshot {
+  protocolVersionId: number;
+  protocolCode: string;
+  oldestAssignmentDate: Date;
+}
+
 export interface CreateMeetingParams {
   sessionType: string;
   meetingDate: Date;
@@ -32,6 +39,14 @@ export interface IMeetingRepositoryPort {
     meetingNumber: string,
     evalSubmissionDeadline: Date,
   ): Promise<MeetingEntity>;
+
+  /**
+   * Devuelve la fecha de asignación más antigua por versión de protocolo para
+   * las asignaciones en estado ASIGNADO. Usa solo versiones con asignaciones activas.
+   */
+  getOldestAssignedDates(
+    protocolVersionIds: number[],
+  ): Promise<AssignmentDeadlineSnapshot[]>;
 
   findById(id: string): Promise<MeetingEntity | null>;
 

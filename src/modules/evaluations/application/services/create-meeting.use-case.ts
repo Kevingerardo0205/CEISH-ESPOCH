@@ -21,6 +21,7 @@ export class CreateMeetingUseCase {
     id: string;
     meetingNumber: string;
     pdfUrl: string;
+    warnings: string[];
   }> {
     // 1. Validar que exista al menos un punto en el Orden del Día (evaluación o seguimiento)
     const hasProtocols =
@@ -43,28 +44,45 @@ export class CreateMeetingUseCase {
         params.meetingDate,
       );
 
-    // 3. Validar restricción dura de precedencia mediante Value Object
+    // 3. Validar restricción dura: fecha de entrega debe ser estrictamente posterior a la reunión
     const datesVo = new MeetingDatesValueObject(
       params.meetingDate,
       evalDeadline,
     );
 
-    // 4. Persistir atómicamente asignando el siguiente número correlativo (001-2026)
+    // 4. Obtener snapshots de asignación activa más antigua por versión (TSK-002-N05)
+    const assignmentSnapshots = hasProtocols
+      ? await this.meetingRepository.getOldestAssignedDates(
+          params.protocolVersionIds!,
+        )
+      : [];
+
+    // 5. Evaluar advertencias no bloqueantes (plazo normativo y plazo de revisión de oficio)
+    // TODO PR-B3: `protocols` queda vacío porque `responseDeadline` es un getter calculado
+    //   en ProtocolOrmEntity (no columna almacenada); requiere cargar la relación `reception`.
+    const warnings = this.calculateDatesService.evaluateSoftWarnings(
+      params.meetingDate,
+      [],
+      assignmentSnapshots,
+    );
+
+    // 6. Persistir atómicamente asignando el siguiente número correlativo (001-2026)
     const academicYear = params.meetingDate.getFullYear();
     const savedMeeting =
       await this.meetingRepository.saveMeetingWithAtomicNumber(
         params,
-        `${academicYear}`, // Pasa año para secuencial
+        `${academicYear}`,
         datesVo.evalSubmissionDeadline,
       );
 
-    // 5. Generar PDF del Orden del Día
+    // 7. Generar PDF del Orden del Día
     const pdfUrl = await this.pdfGenerator.generateAgendaPdf(savedMeeting.id);
 
     return {
       id: savedMeeting.id,
       meetingNumber: savedMeeting.numeroConvocatoria,
       pdfUrl,
+      warnings,
     };
   }
 }
