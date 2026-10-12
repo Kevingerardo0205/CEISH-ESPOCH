@@ -5,16 +5,13 @@ import {
   ReassignmentReason,
 } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../enums/assignment-status.enum';
-import { BusinessDayCalculator } from '../../../../shared/services/deadline-calculator.service';
-
 export interface ExecuteReassignmentParams {
   currentAssignment: EvaluationAssignmentEntity;
   replacementEvaluatorId: number | string;
   replacementEvaluatorProfile: EvaluatorProfile;
   reason: ReassignmentReason;
   adminUserId: number | string;
-  standardFullDays: number;
-  holidays: string[];
+  deadline?: string | null;
   newAssignmentId?: number | string;
   historyId?: number | string;
   justification?: string;
@@ -29,7 +26,8 @@ export interface ReassignmentResult {
 export class EvaluatorReassignmentService {
   /**
    * Ejecuta la reasignación inmutable de un evaluador sustituido por VENCIMIENTO o CONFLICTO_INTERES.
-   * Exige estricta homogeneidad de perfil y reinicia el plazo operativo completo a 15 días hábiles. [RF-12.3]
+   * Exige estricta homogeneidad de perfil. El reemplazante hereda la fecha_entrega_evaluacion
+   * de la convocatoria activa (RF-12.7(e)); si el protocolo no está agendado, queda null. [RF-12.3]
    */
   public static executeReassignment(
     params: ExecuteReassignmentParams,
@@ -49,19 +47,13 @@ export class EvaluatorReassignmentService {
 
     currentAssignment.markAsReassigned(outgoingStatus);
 
-    const newDeadline = BusinessDayCalculator.calculateDeadlineDateString({
-      startDate: new Date(),
-      businessDaysToAdd: params.standardFullDays,
-      holidays: params.holidays,
-    });
-
     const newAssignment = new EvaluationAssignmentEntity({
       id: params.newAssignmentId,
       protocolId: currentAssignment.protocolId,
       evaluatorId: params.replacementEvaluatorId,
       evaluatorProfile: params.replacementEvaluatorProfile,
       isAssignedForAnnex10: currentAssignment.isAssignedForAnnex10,
-      deadlineDate: newDeadline,
+      deadlineDate: params.deadline ?? null,
       status: AssignmentStatus.ASSIGNED,
     });
 

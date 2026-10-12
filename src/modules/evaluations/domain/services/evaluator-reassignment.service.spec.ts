@@ -23,8 +23,6 @@ describe('EvaluatorReassignmentService (TSK-002-07)', () => {
       replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
       reason: ReassignmentReason.CONFLICTO_INTERES,
       adminUserId: 15,
-      standardFullDays: 15,
-      holidays: [],
       newAssignmentId: 102,
       historyId: 1,
     });
@@ -35,12 +33,13 @@ describe('EvaluatorReassignmentService (TSK-002-07)', () => {
     );
     expect(result.outgoingAssignment.status).toBe(27);
 
-    // 2. Asignación entrante conserva el perfil y la bandera de Anexo 10
+    // 2. Asignación entrante conserva el perfil y la bandera de Anexo 10; deadline null (RF-12.7(e) sin convocatoria)
     expect(result.newAssignment.evaluatorId).toBe(404);
     expect(result.newAssignment.evaluatorProfile).toBe(
       EvaluatorProfile.JURIDICO,
     );
     expect(result.newAssignment.isAssignedForAnnex10).toBe(true);
+    expect(result.newAssignment.deadlineDate).toBeNull();
     expect(result.newAssignment.status).toBe(AssignmentStatus.ASSIGNED);
     expect(result.newAssignment.status).toBe(6);
 
@@ -60,8 +59,6 @@ describe('EvaluatorReassignmentService (TSK-002-07)', () => {
         replacementEvaluatorProfile: EvaluatorProfile.SOCIEDAD_CIVIL,
         reason: ReassignmentReason.VENCIMIENTO,
         adminUserId: 15,
-        standardFullDays: 15,
-        holidays: [],
         newAssignmentId: 103,
         historyId: 2,
       }),

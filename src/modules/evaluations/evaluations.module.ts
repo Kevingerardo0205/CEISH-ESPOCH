@@ -128,7 +128,7 @@ import { EvaluatorAssignmentAdapterService } from './application/services/evalua
               options.to,
               'Evaluador',
               options.subject,
-              new Date(),
+              null,
             );
           },
         }),

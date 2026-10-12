@@ -96,14 +96,9 @@ import { DocxGeneratorService } from '../../../../shared/utils/docx-generator.se
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
 import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
-import {
-  BusinessDayCalculator,
-  endOfDayGuayaquil,
-} from '../../../../shared/services/deadline-calculator.service';
+import { endOfDayGuayaquil } from '../../../../shared/services/deadline-calculator.service';
 import {
   PLAZO_CONDICION_DIAS,
-  PLAZO_REVISION_OFICIO_DIAS,
-  PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS,
   EVALUADOR_URGENTE_UMBRAL_DIAS,
 } from '../../../../shared/deadlines/deadline-rules';
 
@@ -935,16 +930,7 @@ export class EvaluationsService {
     //         (asignaciones_evaluacion — la tabla que alimenta el flujo
     //          de dictámenes éticos, my-assignments, submit, etc.)
     // ──────────────────────────────────────────────────────────────────
-    const reviewType = protocol.reviewType || ReviewType.PLENO;
-    // TODO PR-B: PLENO usa PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS — contradice spec-002 RF-12.7(a)
-    const deadline = BusinessDayCalculator.calculateDeadlineDateString({
-      startDate: new Date(),
-      businessDaysToAdd:
-        reviewType === ReviewType.EXPEDITA
-          ? PLAZO_REVISION_OFICIO_DIAS
-          : PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS,
-      holidays: [],
-    });
+    const deadline: string | null = null;
 
     const createdAssignments: EvaluationAssignmentOrmEntity[] = [];
     for (const candidate of evaluatorCandidates) {
@@ -975,7 +961,7 @@ export class EvaluationsService {
             evaluator.institutionalEmail,
             evaluator.fullName,
             protocol.ceishCode || `PROTOCOLO-${protocolId}`,
-            new Date(deadline),
+            null,
           )
           .catch((e) =>
             console.error(
@@ -1213,28 +1199,6 @@ export class EvaluationsService {
                   protocol.isRiskLevelDesignated = true;
                   protocol.statusId = 13; // EN EVALUACIÓN
                   await protocolOrmRepo.save(protocol);
-
-                  // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion usando BusinessDayCalculator (YYYY-MM-DD para columna date)
-                  // TODO PR-B: PLENO usa PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS — contradice spec-002 RF-12.7(a)
-                  const daysToAdd =
-                    reviewType === ReviewType.EXPEDITA
-                      ? PLAZO_REVISION_OFICIO_DIAS
-                      : PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS;
-                  const newDeadline =
-                    BusinessDayCalculator.calculateDeadlineDateString({
-                      startDate: new Date(),
-                      businessDaysToAdd: daysToAdd,
-                      holidays: [],
-                    });
-                  const allVersionAssignments = await evalAssignmentRepo.find({
-                    where: { versionId: canonicalAssignment.versionId },
-                  });
-                  for (const a of allVersionAssignments) {
-                    if (a.statusId === +AssignmentStatus.ASSIGNED) {
-                      a.deadline = newDeadline;
-                      await evalAssignmentRepo.save(a);
-                    }
-                  }
                 }
               } else {
                 // Discrepancia: El sistema pasa el protocolo a estado 16 (DISCREPANCIA_RIESGO)
@@ -1336,35 +1300,6 @@ export class EvaluationsService {
             protocol.statusId = 13; // Volver a estado 'EN EVALUACIÓN' al resolver discrepancias
 
             await protocolOrmRepo.save(protocol);
-
-            // Recalcular deadline para TODOS los evaluadores en asignaciones_evaluacion
-            const version =
-              await this.evaluationRepository.findVersionByProtocolId(
-                protocol.id,
-                1,
-              );
-            if (version) {
-              const newDeadline =
-                BusinessDayCalculator.calculateDeadlineDateString({
-                  startDate: new Date(),
-                  // TODO PR-B: PLENO usa PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS — contradice spec-002 RF-12.7(a)
-                  businessDaysToAdd:
-                    reviewType === ReviewType.EXPEDITA
-                      ? PLAZO_REVISION_OFICIO_DIAS
-                      : PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS,
-                  holidays: [],
-                });
-              const assignmentsToUpdate =
-                await this.evaluationRepository.findAssignmentsByVersionId(
-                  version.id,
-                );
-              for (const a of assignmentsToUpdate) {
-                if (a.statusId === +AssignmentStatus.ASSIGNED) {
-                  a.deadline = newDeadline;
-                  await this.evaluationRepository.saveAssignment(a);
-                }
-              }
-            }
           }
         } else {
           // Discrepancia: El sistema no debe consolidar automáticamente al mayor,
@@ -1460,6 +1395,10 @@ export class EvaluationsService {
       reviewType: protocol.reviewType || 'PLENO',
       isRiskEvaluator: riskEvaluatorIds.includes(a.evaluatorId),
       deadline: a.deadline,
+      assignedAt: a.assignedAt ?? null,
+      estadoConvocatoria: a.deadline
+        ? 'Con plazo asignado'
+        : 'Pendiente de convocatoria',
       evaluationDate: a.actualSubmissionDate || null,
     }));
   }

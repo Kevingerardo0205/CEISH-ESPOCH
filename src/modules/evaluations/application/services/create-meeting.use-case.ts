@@ -58,8 +58,7 @@ export class CreateMeetingUseCase {
       : [];
 
     // 5. Evaluar advertencias no bloqueantes (plazo normativo y plazo de revisión de oficio)
-    // TODO PR-B3: `protocols` queda vacío porque `responseDeadline` es un getter calculado
-    //   en ProtocolOrmEntity (no columna almacenada); requiere cargar la relación `reception`.
+    // TODO (tarea TSK-009-N06): pasar los plazos normativos reales; requiere cargar la relación reception para obtener responseDeadline.
     const warnings = this.calculateDatesService.evaluateSoftWarnings(
       params.meetingDate,
       [],

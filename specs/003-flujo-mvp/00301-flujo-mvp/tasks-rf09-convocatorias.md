@@ -377,3 +377,16 @@
   - **Nota**: La línea `:616` (test de reasignación COI sin convocatoria activa; aserta `'2026-03-23'` LEGACY) pertenece a **TSK-002-N07** (PR-B2), no a este PR. Las líneas `:363` y `:372` también pertenecen a TSK-002-N07.
 - **Tests**: `npm run test:e2e -- test/real-db-evaluations.e2e-spec.ts`.
 - **Criterio "Hecho cuando:"**: Nueva assertion en verde: después de crear convocatoria con `fechaEntregaEvaluacion = '2026-10-14T17:00:00Z'`, las asignaciones activas del protocolo agendado tienen `fecha_limite = '2026-10-14'` en BD.
+
+### Task TSK-009-N06 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N06`
+- **Requisito Relacionado**: `RF-09.1`
+- **PR**: PR-C (`feat/deadline-alerts`)
+- **Criterio EARS**: Advertencia suave cuando `fecha_entrega_evaluacion` supera el plazo normativo del protocolo.
+- **Archivos Afectados**:
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts`
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts`
+- **Dependencias**: `TSK-009-N03`, `TSK-009-N04`
+- **Descripción**: Emitir advertencia suave (`warnings`) cuando la `fecha_entrega_evaluacion` de la convocatoria supera el plazo normativo de respuesta (`responseDeadline`) de algún protocolo agendado. El `responseDeadline` es un getter calculado en `ProtocolOrmEntity` que requiere cargar la relación `reception`. Actualmente `create-meeting.use-case.ts` pasa `protocols: []` porque `responseDeadline` no está disponible sin esa carga. Esta tarea debe: (1) cargar la relación `reception` en `findPendingProtocols` o en `getOldestAssignedDates`; (2) pasar los protocolos reales a `evaluateSoftWarnings`.
+- **Tests**: Test E2E en `test/real-db-evaluations.e2e-spec.ts`: crear convocatoria con protocolo cuyo `responseDeadline` es anterior a la fecha de entrega → respuesta incluye la advertencia normativa.
+- **Criterio "Hecho cuando:"**: Crear una convocatoria con protocolo cuyo plazo normativo es anterior a `fecha_entrega_evaluacion` retorna un warning en el campo `advertencias`; los protocolos con plazo normativo posterior no generan warning.

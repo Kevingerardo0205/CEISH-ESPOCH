@@ -93,7 +93,7 @@ Las tareas marcadas con `[x]` certifican componentes previamente implementados y
 
 ## 3. Fase 2: Dominio y Métodos Transaccionales de Repositorio (Delta)
 
-- [ ] **TSK-002-07**: Adaptar servicio de reasignación y entidades de dominio puras a identificadores numéricos. (REABIERTA: spec v1.1.0 RF-12.7(e), pendiente de código)
+- [x] **TSK-002-07**: Adaptar servicio de reasignación y entidades de dominio puras a identificadores numéricos. (REABIERTA: spec v1.1.0 RF-12.7(e), pendiente de código)
   - **Requisito relacionado:** `RF-12.3`, `RF-12.7(e)`
   - **Criterio EARS:** `EARS (RF-12.3)` (Reasignación Inmutable por Motivo y homogeneidad de perfil).
   - **Acción:** `ADAPTAR`
@@ -117,7 +117,7 @@ Las tareas marcadas con `[x]` certifican componentes previamente implementados y
 
 ## 4. Fase 3: Casos de Uso y Orquestación de Aplicación (Delta)
 
-- [ ] **TSK-002-09**: Adaptar `AssignEvaluatorsUseCase` y DTOs de asignación con tipado numérico. (REABIERTA: spec v1.1.0 RF-12.7(a), pendiente de código)
+- [x] **TSK-002-09**: Adaptar `AssignEvaluatorsUseCase` y DTOs de asignación con tipado numérico. (REABIERTA: spec v1.1.0 RF-12.7(a), pendiente de código)
   - **Requisito relacionado:** `RF-12.1`, `RF-12.2`, `RF-12.6`, `RF-12.7(a)`
   - **Criterio EARS:** `EARS (RF-12.1)`, `EARS (RF-12.2)`, `EARS (RF-12.6)`
   - **Acción:** `ADAPTAR`
@@ -127,7 +127,7 @@ Las tareas marcadas con `[x]` certifican componentes previamente implementados y
   - **Pruebas necesarias:** `npm test -- assign-evaluators.use-case.spec.ts`
   - **Hecho cuando:** La prueba unitaria simule la asignación completa de 4 evaluadores con estado "Pendiente de convocatoria" retornando las entidades persistidas y confirmando la emisión de los eventos.
 
-- [ ] **TSK-002-10**: Adaptar `ReassignEvaluatorUseCase` y DTOs de reasignación con tipado numérico. (REABIERTA: spec v1.1.0 RF-12.7(e), pendiente de código)
+- [x] **TSK-002-10**: Adaptar `ReassignEvaluatorUseCase` y DTOs de reasignación con tipado numérico. (REABIERTA: spec v1.1.0 RF-12.7(e), pendiente de código)
   - **Requisito relacionado:** `RF-12.3`, `RF-12.6`, `RF-12.7(e)`
   - **Criterio EARS:** `EARS (RF-12.3)`, `EARS (RF-12.6)`
   - **Acción:** `ADAPTAR`
@@ -211,13 +211,13 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 
 ## 8. Nuevas Tareas Pendientes (RF-12.7)
 
-- [ ] **TSK-002-N01**: Implementar RF-12.7(a) — asignación sin plazo + "Pendiente de convocatoria".
+- [x] **TSK-002-N01**: Implementar RF-12.7(a) — asignación sin plazo + "Pendiente de convocatoria".
   - **Requisito relacionado:** `RF-12.7(a)`
   - **Criterio EARS:** `EARS (RF-12.6)` (notificación indica que la fecha de entrega se informará al agendar)
   - **Descripción:** Al asignar evaluadores, registrar `fecha_asignacion` y NO fijar `fecha_entrega_evaluacion`. El estado de la tarea del evaluador debe mostrarse como "Pendiente de convocatoria". El oficio de asignación indica `plazo_revision_oficio_dias` como tiempo de referencia (no fecha límite).
   - **Hecho cuando:** Prueba unitaria y E2E confirmen que la asignación retorna `fecha_entrega_evaluacion: null` y el mensaje "Pendiente de convocatoria".
 
-- [ ] **TSK-002-N02**: Implementar RF-12.7(e) — reasignación hereda `fecha_entrega_evaluacion` vigente.
+- [x] **TSK-002-N02**: Implementar RF-12.7(e) — reasignación hereda `fecha_entrega_evaluacion` vigente.
   - **Requisito relacionado:** `RF-12.7(e)`
   - **Criterio EARS:** `EARS (RF-12.3)`
   - **Descripción:** Al reasignar, el reemplazante hereda la `fecha_entrega_evaluacion` de la convocatoria activa. Si el protocolo no está agendado, queda "Pendiente de convocatoria". No hay reinicio de plazo.
@@ -229,7 +229,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** Cron diario que lista protocolos-versión con pares asignados y sin convocatoria. Alerta a Secretaría/Presidencia cuando transcurran `dias_max_sin_convocatoria` (inicial 8) días laborables desde la `fecha_asignacion` activa más antigua, o cuando `fecha_plazo_normativo` esté a `dias_alerta_normativo_sin_convocatoria` o menos. La reasignación NO reinicia la antigüedad.
   - **Hecho cuando:** Prueba unitaria del cron valide las dos condiciones de alerta; alerta deja de emitirse al agendar.
 
-- [ ] **TSK-002-N04**: Exponer `assignedAt` y estado semántico de convocatoria en el response de asignaciones.
+- [x] **TSK-002-N04**: Exponer `assignedAt` y estado semántico de convocatoria en el response de asignaciones.
   - **Requisito relacionado:** `RF-12.7(a)`, `RF-12.7(b)`
   - **PR:** PR-B2 (`feat/assignment-without-deadline`)
   - **Criterio EARS:** `EARS (RF-12.6)` (el oficio informa estado de convocatoria al evaluador)
@@ -254,7 +254,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** **Verificado (`evaluations.service.ts:226-228`)**: el código ya tolera `deadline === null` — `const deadline = a.deadline ? endOfDayGuayaquil(a.deadline) : null` + `let isUrgent = false` (default), sobreescrito solo dentro del `if (deadline) { ... }`. No se necesita cambio adicional para el null check. En PR-B3 confirmar con Secretaría el valor del umbral `EVALUADOR_URGENTE_UMBRAL_DIAS = 2` y eliminar el `TODO PR-B` del código.
   - **Hecho cuando:** Prueba unitaria verifica: (a) `deadline = null` → `isUrgent = false`; (b) `deadline = mañana` → `isUrgent = true`; (c) `deadline = en 5 días` → `isUrgent = false`.
 
-- [ ] **TSK-002-N07**: PR-B2 — actualizar tests E2E que asertan `fecha_limite` legado al asignar (sin convocatoria).
+- [x] **TSK-002-N07**: PR-B2 — actualizar tests E2E que asertan `fecha_limite` legado al asignar (sin convocatoria).
   - **Requisito relacionado:** `RF-12.7(a)`
   - **PR:** PR-B2 (`feat/assignment-without-deadline`)
   - **Criterio EARS:** aplica RF-12.7(a)

@@ -14,6 +14,8 @@ import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity
 
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
+import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
+import { ConvocatoriaStatus } from '../database/entities/convocatoria.orm-entity';
 
 @Injectable()
 export class EvaluationTypeOrmRepository implements IEvaluationRepository {
@@ -71,6 +73,26 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
       },
       relations: ['evaluator', 'profile', 'version', 'version.protocol'],
     });
+  }
+
+  async findActiveConvocatoriaDeadline(
+    versionId: number,
+  ): Promise<string | null> {
+    // Solo convocatorias vigentes: PROGRAMADA o EN_CURSO excluye CANCELADA y CONCLUIDA
+    const rows: Array<{ fecha_entrega_evaluacion: Date | null }> =
+      await this.dataSource.query(
+        `SELECT c.fecha_entrega_evaluacion
+         FROM evaluacion.convocatorias c
+         JOIN evaluacion.convocatoria_protocolos cp ON cp.convocatoria_id = c.id
+         WHERE cp.version_id = $1
+           AND c.fecha_entrega_evaluacion IS NOT NULL
+           AND c.estado IN ($2, $3)
+         ORDER BY c.fecha_reunion DESC
+         LIMIT 1`,
+        [versionId, ConvocatoriaStatus.PROGRAMADA, ConvocatoriaStatus.EN_CURSO],
+      );
+    if (!rows.length || !rows[0].fecha_entrega_evaluacion) return null;
+    return toCalendarDateString(new Date(rows[0].fecha_entrega_evaluacion));
   }
 
   async saveAssignmentsTransaction(
