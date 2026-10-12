@@ -3,8 +3,6 @@ import {
   NotFoundException,
   BadRequestException,
   ConflictException,
-  Inject,
-  forwardRef,
   ForbiddenException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -740,6 +738,7 @@ export class ReceptionService {
     if (document.requirementId) {
       let newStatus: RequirementStatus;
 
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-enum-comparison
       if (statusId === DocumentValidationStatus.APROBADO) {
         newStatus = RequirementStatus.APROBADO;
       } else {

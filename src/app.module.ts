@@ -7,7 +7,7 @@ import {
 import { APP_FILTER, APP_INTERCEPTOR } from '@nestjs/core';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { AuditInterceptor } from './shared/interceptors/audit.interceptor';
-import { TypeOrmModule } from '@nestjs/typeorm';
+import { TypeOrmModule, TypeOrmModuleOptions } from '@nestjs/typeorm';
 import databaseConfig from './config/database.config';
 import appConfig from './config/app.config';
 import { ProtocolsModule } from './modules/protocols/protocols.module';
@@ -35,8 +35,8 @@ import { SistemaModule } from './modules/sistema/sistema.module';
     }),
     TypeOrmModule.forRootAsync({
       inject: [ConfigService],
-      useFactory: (configService: ConfigService) => {
-        const config = configService.get('database');
+      useFactory: (configService: ConfigService): TypeOrmModuleOptions => {
+        const config = configService.get<TypeOrmModuleOptions>('database');
         if (!config) {
           throw new Error('Database configuration not found');
         }
