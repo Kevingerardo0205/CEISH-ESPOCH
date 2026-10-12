@@ -18,6 +18,7 @@
 - Commits sin líneas `Co-Authored-By` ni `Claude-Session`, salvo que el usuario lo pida.
 - No leas ni modifiques `.env`; no imprimas secretos. No toques `package*.json`. No publiques artefactos ni generes HTML.
 - Todo lo que no ejecutes, márcalo "NO EJECUTADO". No inventes salidas.
+- No ejecutar prettier ni ningún formateador sobre archivos `.md` de `specs/` (provoca churn masivo de formato); editar con cambios mínimos y localizados.
 
 ## Al terminar cualquier tarea
 - Ejecuta y reporta salida real: `npx tsc --noEmit`, `npm test`, `npx jest --config ./test/jest-e2e.json --forceExit --runInBand`.

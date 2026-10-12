@@ -264,3 +264,26 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `test/real-db-evaluations.e2e-spec.ts:616`: test de **reasignación COI** — verifica `fecha_limite` de la nueva asignación (evaluador 905, version 992) después de `POST /api/evaluations/reassign`. El test no crea convocatoria activa; valor LEGACY `'2026-03-23'` (15 días). Después de PR-B2 (sin convocatoria activa), valor esperado: `null`.
     - `test/peer-risk-concurrency.e2e-spec.ts:202,215,236`: asertan `deadlineDate` absoluto basado en cálculo de 8/15 días. Después de PR-B2, `deadlineDate` = `null` en el response.
   - **Hecho cuando:** Las cuatro aserciones pasan en verde con `deadline = null` para contextos sin convocatoria activa y sin referencias al valor LEGACY.
+
+- [ ] **TSK-002-N08**: Eliminar `calculateEvaluatorDeadline` y `PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS` (código muerto tras PR-B2).
+  - **Requisito relacionado:** `RF-12.7(a)` — la asignación no calcula `fecha_limite`; el método contradice la spec.
+  - **PR:** PR de limpieza independiente (`chore/remove-dead-evaluator-deadline`).
+  - **Grep de callers (ejecutado):**
+    - `calculateEvaluatorDeadline`: definición en `src/modules/protocols/application/services/protocol-deadline.service.ts:62`. Sin callers de producción. Mock muerto en `src/modules/evaluations/application/services/submit-peer-risk.spec.ts:47,101`.
+    - `PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS`: definición en `src/shared/deadlines/deadline-rules.ts:25`. Importado y usado solo en `src/modules/protocols/application/services/protocol-deadline.service.ts:7,70` (dentro de `calculateEvaluatorDeadline`).
+  - **Acción**: ELIMINAR (no hay callers de producción; la función y la constante son código muerto).
+  - **Archivos afectados:**
+    - `src/modules/protocols/application/services/protocol-deadline.service.ts` — eliminar el método `calculateEvaluatorDeadline` y el import de `PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS`.
+    - `src/shared/deadlines/deadline-rules.ts` — eliminar `PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS`.
+    - `src/modules/evaluations/application/services/submit-peer-risk.spec.ts` — eliminar el mock muerto `calculateEvaluatorDeadline`.
+  - **Tests:** `npm test` verde tras las eliminaciones; `npx tsc --noEmit` sin errores.
+  - **Hecho cuando:** `calculateEvaluatorDeadline` y `PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS` no aparecen en `git grep` de `src/`; todos los tests pasan.
+
+- [ ] **TSK-002-N09**: Rediseñar el puente de correos de asignación en `evaluations.module.ts` (~línea 131).
+  - **Requisito relacionado:** `RF-12.7` — notificación al evaluador al ser asignado.
+  - **PR:** PR-C3 o posterior (después de TSK-009-N04).
+  - **Descripción:** El puente actual envía nombre fijo `"Evaluador"`, usa `protocolCode` como asunto y descarta el HTML de la plantilla. Criterios de aceptación: (a) nombre real del evaluador en el campo `name`; (b) asunto tomado de la plantilla `getEvaluationAssignmentTemplate`; (c) cuerpo HTML generado por la plantilla, no texto plano; (d) prueba unitaria que verifique los tres puntos anteriores mockeando `IEmailServicePort`.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/evaluations.module.ts` (~línea 131) — MODIFICAR el bridge de correos.
+    - Test nuevo a definir (ubicación: junto al servicio que llame al bridge).
+  - **Hecho cuando:** El correo de asignación incluye nombre real, asunto de plantilla y cuerpo HTML; la prueba pasa en verde.

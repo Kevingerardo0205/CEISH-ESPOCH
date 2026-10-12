@@ -446,9 +446,13 @@ graph TD
 |---|---|---|---|---|
 | PR-A | `refactor/deadline-rules` | todos los plazos | Centralizar constantes de plazos en `src/shared/deadlines/deadline-rules.ts`. Sin cambio de valores en ejecución. Constantes LEGACY preservan valores de código cuando difieren del spec. | ✅ Mergeado (a8c3969) |
 | PR-B1 | `feat/meeting-delivery-after-session` | RF-09.1, RF-12.7(b), RF-12.7(c) | Al crear convocatoria, sobrescribir `fecha_limite` en cada asignación activa (estado ASIGNADO) de los protocolos agendados con `ConvocatoriaOrmEntity.fechaEntregaEvaluacion` convertida a YYYY-MM-DD en ECT. Usa solo constantes de `deadline-rules.ts` (N=`ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION`, H=`ENTREGA_EVALUACION_HORA_CORTE`). Incluye aviso suave (TSK-002-N05): si `fecha_reunion` está a menos de `PLAZO_REVISION_OFICIO_DIAS` días hábiles de la `fecha_asignacion` activa más antigua de algún protocolo agendado, el response incluye advertencia no bloqueante. | ✅ Mergeado |
-| PR-B2 | `feat/assignment-without-deadline` | RF-12.7(a), RF-12.7(e) | Eliminar la fijación de `fecha_limite` al asignar evaluadores — queda `null` ("Pendiente de convocatoria"). PR-B1 ya propaga la fecha al crear la convocatoria; PR-B2 elimina el plazo previo que el código ponía en la asignación. Exponer `assignedAt` y estado semántico en el response. Reasignación hereda `fechaEntregaEvaluacion` vigente. | ✅ Completado en este PR |
-| PR-B3 | `fix/documental-subsanation-30d` | RF-07.1, RF-13, RF-09.1 | Cambiar plazo de subsanación documental de 15 a 30 días hábiles. Umbral `EVALUADOR_URGENTE_UMBRAL_DIAS` aplica solo cuando existe `fecha_limite` definida. Actualizar tests E2E afectados. | ✅ Completado en este PR |
-| PR-C | `feat/deadline-alerts` | RF-ALR, RF-12.7(d), RF-09.3, RF-CAL, RF-15 | Alertas diarias de plazo, alerta protocolo sin convocatoria, recordatorios RF-09.3, biblioteca interna de feriados Ecuador, tabla `sistema.parametros_sistema` (prerequisito para parametrizar offsets), módulo `follow-up` completo. TSK-009-N06: advertencia suave cuando `fecha_entrega_evaluacion` supera el plazo normativo; requiere cargar relación `reception` en `CreateMeetingUseCase` para pasar plazos normativos reales a `evaluateSoftWarnings`. | 🔲 Pendiente |
+| PR-B2 | `feat/assignment-without-deadline` | RF-12.7(a), RF-12.7(e) | Eliminar la fijación de `fecha_limite` al asignar evaluadores — queda `null` ("Pendiente de convocatoria"). PR-B1 ya propaga la fecha al crear la convocatoria; PR-B2 elimina el plazo previo que el código ponía en la asignación. Exponer `assignedAt` y estado semántico en el response. Reasignación hereda `fechaEntregaEvaluacion` vigente. | ✅ Mergeado |
+| PR-B3 | `fix/documental-subsanation-30d` | RF-07.1, RF-13, RF-09.1 | Cambiar plazo de subsanación documental de 15 a 30 días hábiles. Umbral `EVALUADOR_URGENTE_UMBRAL_DIAS` aplica solo cuando existe `fecha_limite` definida. Actualizar tests E2E afectados. | ✅ Mergeado |
+| PR-C1 | `feat/system-params` | RF-CAL | Tabla `sistema.parametros_sistema` (TSK-015-N03) y lectura de constantes de `deadline-rules.ts` desde BD con fallback al valor hardcodeado. | 🔲 Pendiente |
+| PR-C2 | `feat/ecuador-holidays` | RF-CAL | Feriados de Ecuador (TSK-015-N04) integrados en `BusinessDayCalculator`. | 🔲 Pendiente |
+| PR-C3 | `feat/convocatoria-params` | RF-09.1 | Copia de parámetros de entrega a la convocatoria (TSK-009-N04, migración). | 🔲 Pendiente |
+| PR-C4 | `feat/deadline-warnings` | RF-09.1, RF-12.7(d) | Advertencia de plazo normativo al crear convocatoria (TSK-009-N06) y alerta de protocolos con pares sin convocatoria (TSK-002-N03). | 🔲 Pendiente |
+| PR-C5 | `feat/deadline-alerts` | RF-ALR, RF-09.3, RF-15 | Alertas y recordatorios por offset de plazo (TSK-015-N01, TSK-015-N02) y módulo de seguimiento RF-15. | 🔲 Pendiente |
 
 ### 13.2 Decisiones Técnicas Verificadas (Paso 1 de planificación, solo lectura de `src/`)
 
@@ -465,3 +469,15 @@ graph TD
 | No existe endpoint para remover un protocolo de una convocatoria | Confirmado. Gap pendiente de decisión de diseño en PR-C. | `meetings.controller.ts` |
 | El response de asignaciones es un objeto literal inline (sin DTO formal); `assignedAt` no se expone actualmente | Confirmado. PR-B2 debe añadir `assignedAt` y estado semántico (TSK-002-N04). | `evaluations.service.ts:1453-1464` |
 | Tests E2E hardcodean `fecha_limite` con valores de 8/15 días hábiles — romperán con PR-B1 y PR-B2 | Confirmado. PR-B2 actualiza líneas 363,372 y `peer-risk-concurrency:202,215,236` (deadline→null). PR-B1 actualiza línea 616 y añade assertion post-convocatoria. | `real-db-evaluations.e2e-spec.ts:363,372,616`, `peer-risk-concurrency.e2e-spec.ts:202,215,236` |
+
+## 14. Decisiones Abiertas
+
+Pendientes de confirmar con presidente/secretaria:
+
+- **Actor para editar parámetros**: reuniones con interesados señalan presidente/secretaria; Casos de Uso ACT-08 indica Administrador TI. Pendiente definir actor y si la v1 tiene endpoint/pantalla o solo BD. _Pendiente de confirmar con presidente/secretaria._
+- **Entrega los miércoles a las 12:00**: hora de corte y día fijo no están formalizados en spec. _Pendiente de confirmar con presidente/secretaria._
+- **Días laborables vs días calendario**: si el cómputo de plazos aplica días hábiles (sin fines de semana ni feriados) o días corridos. _Pendiente de confirmar con presidente/secretaria._
+- **Umbral de urgencia de 2 días** (`EVALUADOR_URGENTE_UMBRAL_DIAS = 2`): valor provisional, no ratificado en reunión. _Pendiente de confirmar con presidente/secretaria._
+- **Retirar un protocolo de una convocatoria**: no existe endpoint ni decisión de diseño; comportamiento (cancelar asignaciones, restaurar estado) no está definido. _Pendiente de confirmar con presidente/secretaria._
+- **Plazo OBSERVADO 15 días (PET)**: `PLAZO_GRACIA_SEGUIMIENTO_DIAS = 30` existe, pero el plazo del estado OBSERVADO (15 d hábiles según PET) no tiene constante ni confirmación. _Pendiente de confirmar con presidente/secretaria._
+- **`dias_alerta_normativo_sin_convocatoria`**: sin valor definido en spec ni en código. _Pendiente de confirmar con presidente/secretaria._
