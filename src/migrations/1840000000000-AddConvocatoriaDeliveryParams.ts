@@ -1,8 +1,6 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class AddConvocatoriaDeliveryParams1840000000000
-  implements MigrationInterface
-{
+export class AddConvocatoriaDeliveryParams1840000000000 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
     const result: { exists: boolean }[] = await queryRunner.query(`

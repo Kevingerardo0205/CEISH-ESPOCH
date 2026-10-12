@@ -14,6 +14,10 @@ export interface CreateMeetingParams {
   locationId?: string;
   protocolVersionIds?: number[];
   followUpReportIds?: number[];
+  /** Snapshot del parámetro entrega_evaluacion_dias_habiles_tras_reunion usado al crear (TSK-009-N04). */
+  entregaDiasHabiles?: number;
+  /** Snapshot de ENTREGA_EVALUACION_HORA_CORTE usado al crear (TSK-009-N04). */
+  entregaHoraCorte?: string;
 }
 
 export interface FindMeetingsOptions {

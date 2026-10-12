@@ -1287,6 +1287,118 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     });
   });
 
+  describe('9. Convocatoria delivery params snapshot (TSK-009-N04)', () => {
+    it('9a. Crear convocatoria persiste entregaDiasHabiles=2 y HoraCorte="12:00" con defaults', async () => {
+      const systemParams = app.get(SystemParamsService);
+      await systemParams.refresh();
+
+      let meetingId: string | undefined;
+      try {
+        const res = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .set('x-user-id', '901')
+          .send({
+            sessionType: 'ORDINARIA',
+            meetingDate: '2026-11-10T09:00:00.000Z',
+            protocolVersionIds: [991],
+          });
+        expect([200, 201]).toContain(res.status);
+        meetingId = (res.body.data?.id ?? res.body.id) as string;
+        expect(meetingId).toBeTruthy();
+
+        const rows: Array<{
+          entrega_evaluacion_dias_habiles_tras_reunion: number;
+          entrega_evaluacion_hora_corte: string;
+        }> = await dataSource.query(
+          `SELECT entrega_evaluacion_dias_habiles_tras_reunion,
+                  entrega_evaluacion_hora_corte
+           FROM evaluacion.convocatorias WHERE id = $1`,
+          [meetingId],
+        );
+        expect(rows.length).toBe(1);
+        expect(rows[0].entrega_evaluacion_dias_habiles_tras_reunion).toBe(2);
+        expect(rows[0].entrega_evaluacion_hora_corte).toBe('12:00');
+      } finally {
+        if (meetingId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [meetingId],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [meetingId],
+          );
+        }
+      }
+    });
+
+    it('9b. UPDATE entrega a 3, refresh(), crear convocatoria, snapshot=3 y fecha usa 3 días hábiles; restaura 2', async () => {
+      const systemParams = app.get(SystemParamsService);
+      let meetingId: string | undefined;
+      try {
+        await dataSource.query(
+          `UPDATE sistema.parametros_sistema SET valor='3' WHERE clave='entrega_evaluacion_dias_habiles_tras_reunion'`,
+        );
+        await systemParams.refresh();
+        expect(systemParams.get(SP_ENTREGA_EVALUACION_DIAS)).toBe(3);
+
+        // Lunes 2026-11-16 + 3 días hábiles = Jueves 2026-11-19 a las 12:00 ECT (17:00 UTC)
+        const res = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .set('x-user-id', '901')
+          .send({
+            sessionType: 'ORDINARIA',
+            meetingDate: '2026-11-16T09:00:00.000Z',
+            protocolVersionIds: [991],
+          });
+        expect([200, 201]).toContain(res.status);
+        meetingId = (res.body.data?.id ?? res.body.id) as string;
+        expect(meetingId).toBeTruthy();
+
+        const rows: Array<{
+          entrega_evaluacion_dias_habiles_tras_reunion: number;
+          entrega_evaluacion_hora_corte: string;
+          fecha_entrega_evaluacion: string;
+        }> = await dataSource.query(
+          `SELECT entrega_evaluacion_dias_habiles_tras_reunion,
+                  entrega_evaluacion_hora_corte,
+                  fecha_entrega_evaluacion
+           FROM evaluacion.convocatorias WHERE id = $1`,
+          [meetingId],
+        );
+        expect(rows.length).toBe(1);
+        expect(rows[0].entrega_evaluacion_dias_habiles_tras_reunion).toBe(3);
+        expect(rows[0].entrega_evaluacion_hora_corte).toBe('12:00');
+
+        // Verificar fecha: Lunes 2026-11-16 + 3 días hábiles = Jueves 2026-11-19 en ECT
+        const fechaEntrega = new Date(rows[0].fecha_entrega_evaluacion);
+        const fechaECT = new Intl.DateTimeFormat('en-CA', {
+          timeZone: 'America/Guayaquil',
+          year: 'numeric',
+          month: '2-digit',
+          day: '2-digit',
+        }).format(fechaEntrega);
+        expect(fechaECT).toBe('2026-11-19');
+      } finally {
+        if (meetingId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [meetingId],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [meetingId],
+          );
+        }
+        await dataSource.query(
+          `UPDATE sistema.parametros_sistema SET valor='2' WHERE clave='entrega_evaluacion_dias_habiles_tras_reunion'`,
+        );
+        await systemParams.refresh();
+        expect(systemParams.get(SP_ENTREGA_EVALUACION_DIAS)).toBe(2);
+      }
+    });
+  });
+
   describe('8. SystemParamsService — parámetros desde BD (TSK-015-N03)', () => {
     it('8a. refresh() carga los 4 parámetros sembrados; get() devuelve valor de BD', async () => {
       const systemParams = app.get(SystemParamsService);
