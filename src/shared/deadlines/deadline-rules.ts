@@ -17,13 +17,6 @@ export const PLAZO_CONDICION_DIAS = 30 as const;
 /** RF-12.7(c) (spec-002): Días hábiles de plazo de entrega para revisión EXPEDITA tras asignación. */
 export const PLAZO_REVISION_OFICIO_DIAS = 8 as const;
 
-/**
- * Plazo legado de entrega para revisión PLENO (días hábiles).
- * TODO PR-B: contradice spec-002 RF-12.7(a) — la asignación PLENO no tiene plazo
- *            hasta la convocatoria ("Pendiente de convocatoria").
- */
-export const PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS = 15 as const;
-
 /** RF-CAL (spec-001): Plazo normativo total para revisión EXPEDITA (días hábiles). */
 export const PLAZO_NORMATIVO_EXPEDITA_DIAS = 45 as const;
 
