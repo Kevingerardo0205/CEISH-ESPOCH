@@ -107,6 +107,21 @@ describe('ProtocolDeadlineService', () => {
       expect(serviceWith20.getSubmissionDias()).toBe(20);
     });
 
+    it('getCondicionDias() returns 20 when SystemParam returns 20', () => {
+      expect(serviceWith20.getCondicionDias()).toBe(20);
+    });
+
+    it('calculateSubsanacionDeadline adds exactly 20 business days', () => {
+      // Monday 2026-03-02 + 20 biz days = Monday 2026-03-30
+      // Week 1: 3,4,5,6,9 Mar (5); Week 2: 10,11,12,13,16 Mar (5=10);
+      // Week 3: 17,18,19,20,23 Mar (5=15); Week 4: 24,25,26,27,30 Mar (5=20) → 30 Mar
+      const start = new Date('2026-03-02T12:00:00.000Z');
+      const result = serviceWith20.calculateSubsanacionDeadline(start);
+      expect(result.getUTCFullYear()).toBe(2026);
+      expect(result.getUTCMonth()).toBe(2); // March (0-indexed)
+      expect(result.getUTCDate()).toBe(30);
+    });
+
     it('calculateSubmissionDeadline adds exactly 20 business days', () => {
       // Monday 2026-03-02 + 20 biz days = Monday 2026-03-30
       // Week 1: 3,4,5,6,9 Mar (5); Week 2: 10,11,12,13,16 Mar (5=10);

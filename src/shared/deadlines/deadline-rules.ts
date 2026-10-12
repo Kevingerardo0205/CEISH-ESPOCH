@@ -14,7 +14,7 @@ export const PLAZO_SUBSANACION_DOCUMENTAL_DIAS = 30 as const;
 /** RF-14.1 (spec-003): Días hábiles para subsanar una versión mayor (APROBADO_CON_CONDICIONES). */
 export const PLAZO_CONDICION_DIAS = 30 as const;
 
-/** RF-12.7(c) (spec-002): Días hábiles de plazo de entrega para revisión EXPEDITA tras asignación. */
+/** RF-12.7(c) (spec-002): Mínimo de días hábiles entre recepción del oficio y la reunión; incumplimiento genera advertencia no bloqueante. */
 export const PLAZO_REVISION_OFICIO_DIAS = 8 as const;
 
 /** RF-CAL (spec-001): Plazo normativo total para revisión EXPEDITA (días hábiles). */

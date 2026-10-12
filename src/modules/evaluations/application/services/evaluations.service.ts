@@ -97,7 +97,6 @@ import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
 import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
 import { endOfDayGuayaquil } from '../../../../shared/services/deadline-calculator.service';
-import { PLAZO_CONDICION_DIAS } from '../../../../shared/deadlines/deadline-rules';
 import {
   SystemParamsService,
   SP_EVALUADOR_URGENTE_UMBRAL,
@@ -664,7 +663,7 @@ export class EvaluationsService {
       );
       await this.evaluationRepository.saveVersion({
         id: assignment.versionId,
-        correctionDeadlineDays: PLAZO_CONDICION_DIAS,
+        correctionDeadlineDays: this.deadlineService.getCondicionDias(),
         correctionDeadlineDate: deadlineDate,
       });
     }
