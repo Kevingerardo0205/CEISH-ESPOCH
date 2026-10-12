@@ -1,7 +1,7 @@
 import { Injectable } from '@nestjs/common';
 import { ReviewType } from '../../domain/enums/review-type.enum';
 import {
-  PLAZO_SUBSANACION_DOCUMENTAL_LEGACY_DIAS,
+  PLAZO_SUBSANACION_DOCUMENTAL_DIAS,
   PLAZO_CONDICION_DIAS,
   PLAZO_REVISION_OFICIO_DIAS,
   PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS,
@@ -29,13 +29,12 @@ export class ProtocolDeadlineService {
   }
 
   /**
-   * Deadline for missing requirements (15 business days)
+   * Deadline for missing requirements (30 business days, RF-07.1 / RF-13)
    */
   calculateSubmissionDeadline(receptionDate: Date = new Date()): Date {
-    // TODO PR-B: contradice spec-001 RF-07.1 — plazo_subsanacion_documental_dias = 30
     return this.addBusinessDays(
       receptionDate,
-      PLAZO_SUBSANACION_DOCUMENTAL_LEGACY_DIAS,
+      PLAZO_SUBSANACION_DOCUMENTAL_DIAS,
     );
   }
 

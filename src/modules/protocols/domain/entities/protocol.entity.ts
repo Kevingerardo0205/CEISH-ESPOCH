@@ -30,7 +30,7 @@ export class Protocol {
     // Reception Status Fields
     public readonly receptionStatus: ReceptionStatus = ReceptionStatus.PENDIENTE_SUBSANACION,
     public readonly missingRequirements?: string,
-    public readonly submissionDeadline?: Date, // 15 business days for missing requirements
+    public readonly submissionDeadline?: Date, // 30 business days for missing requirements (RF-07.1)
     public readonly responseDeadline?: Date, // 45 or 60 business days
 
     // Notifications and Certificates

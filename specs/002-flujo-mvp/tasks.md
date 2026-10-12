@@ -247,7 +247,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** Al crear la convocatoria, por cada protocolo-versión incluido, si el número de días hábiles entre la **fecha de asignación activa más antigua** de ese protocolo y `fecha_reunion` es menor que `PLAZO_REVISION_OFICIO_DIAS` (= 8, de `deadline-rules.ts`), la respuesta incluye una advertencia no bloqueante. La convocatoria se crea igualmente (HTTP 201); no se modifica ningún valor en BD. La advertencia se genera en `calculate-meeting-dates.service.ts` (método `evaluateSoftWarnings`) y se propaga en el response como `advertencias: [{ protocolVersionId, mensaje }]`.
   - **Hecho cuando:** Prueba unitaria verifica: (a) si `diasHabilesEntre(fechaAsignacionMasAntigua, fechaReunion) < PLAZO_REVISION_OFICIO_DIAS`, el response del create-meeting incluye la advertencia para ese protocolo; (b) si `>= PLAZO_REVISION_OFICIO_DIAS`, sin advertencia; (c) la convocatoria se crea con HTTP 201 en ambos casos.
 
-- [ ] **TSK-002-N06**: PR-B3 — `EVALUADOR_URGENTE_UMBRAL_DIAS` aplicable solo cuando existe `fecha_limite`.
+- [x] **TSK-002-N06**: PR-B3 — `EVALUADOR_URGENTE_UMBRAL_DIAS` aplicable solo cuando existe `fecha_limite`.
   - **Requisito relacionado:** `RF-09.1`
   - **PR:** PR-B3 (`fix/documental-subsanation-30d`)
   - **Criterio EARS:** aplica RF-09.1

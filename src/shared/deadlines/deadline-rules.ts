@@ -5,21 +5,11 @@
  *                  specs/003-flujo-mvp/spec.md (v1.4.1) RF-09.1, RF-14.1, RF-15.1, RF-16.1, RF-ALR
  *
  * PR-A: refactor sólo — ningún valor en ejecución cambia.
- * Constantes LEGACY preservan el valor actual del código cuando difiere del spec.
- * Las contradicciones se marcan con TODO PR-B en los sitios de uso.
+ * Constantes LEGACY preservan el valor histórico cuando el código difería del spec.
  */
 
-/**
- * RF-07.1 / RF-13 (spec-001/spec-003): plazo_subsanacion_documental_dias = 30 días hábiles.
- * No se usa donde el código aún tiene el valor legado; ver PLAZO_SUBSANACION_DOCUMENTAL_LEGACY_DIAS.
- */
+/** RF-07.1 / RF-13 (spec-001/spec-003): plazo_subsanacion_documental_dias = 30 días hábiles. */
 export const PLAZO_SUBSANACION_DOCUMENTAL_DIAS = 30 as const;
-
-/**
- * Valor actual del código para subsanar documentos faltantes (días hábiles).
- * TODO PR-B: contradice spec-001 RF-07.1 que fija plazo_subsanacion_documental_dias = 30.
- */
-export const PLAZO_SUBSANACION_DOCUMENTAL_LEGACY_DIAS = 15 as const;
 
 /** RF-14.1 (spec-003): Días hábiles para subsanar una versión mayor (APROBADO_CON_CONDICIONES). */
 export const PLAZO_CONDICION_DIAS = 30 as const;
@@ -50,9 +40,8 @@ export const ENTREGA_EVALUACION_HORA_CORTE = '12:00' as const;
 export const ENTREGA_EVALUACION_ZONA_HORARIA = 'America/Guayaquil' as const;
 
 /**
- * Umbral en días restantes para marcar una asignación como urgente en la UI.
- * Sin definición en el spec; valor hoy hardcodeado.
- * TODO PR-B: urgente solo si existe fecha de entrega definida según RF-09.1.
+ * Umbral en días restantes para marcar una asignación como urgente en la UI (RF-09.1).
+ * Solo aplica cuando existe `fecha_limite`; con deadline null la urgencia es false.
  */
 export const EVALUADOR_URGENTE_UMBRAL_DIAS = 2 as const;
 
