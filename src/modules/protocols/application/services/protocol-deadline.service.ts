@@ -3,8 +3,6 @@ import { ReviewType } from '../../domain/enums/review-type.enum';
 import {
   PLAZO_SUBSANACION_DOCUMENTAL_DIAS,
   PLAZO_CONDICION_DIAS,
-  PLAZO_REVISION_OFICIO_DIAS,
-  PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS,
   PLAZO_NORMATIVO_EXPEDITA_DIAS,
   PLAZO_NORMATIVO_PLENO_DIAS,
 } from '../../../../shared/deadlines/deadline-rules';
@@ -52,23 +50,6 @@ export class ProtocolDeadlineService {
         ? PLAZO_NORMATIVO_EXPEDITA_DIAS
         : PLAZO_NORMATIVO_PLENO_DIAS;
     return this.addBusinessDays(receptionDate, days);
-  }
-
-  /**
-   * Evaluator assignment deadline
-   * Expedita: 8 business days
-   * Pleno: 15 business days
-   */
-  calculateEvaluatorDeadline(
-    reviewType: ReviewType,
-    assignmentDate: Date = new Date(),
-  ): Date {
-    // TODO PR-B: PLENO usa PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS — contradice spec-002 RF-12.7(a) (sin plazo hasta convocatoria)
-    const days =
-      reviewType === ReviewType.EXPEDITA
-        ? PLAZO_REVISION_OFICIO_DIAS
-        : PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS;
-    return this.addBusinessDays(assignmentDate, days);
   }
 
   /**

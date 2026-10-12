@@ -265,7 +265,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `test/peer-risk-concurrency.e2e-spec.ts:202,215,236`: asertan `deadlineDate` absoluto basado en cálculo de 8/15 días. Después de PR-B2, `deadlineDate` = `null` en el response.
   - **Hecho cuando:** Las cuatro aserciones pasan en verde con `deadline = null` para contextos sin convocatoria activa y sin referencias al valor LEGACY.
 
-- [ ] **TSK-002-N08**: Eliminar `calculateEvaluatorDeadline` y `PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS` (código muerto tras PR-B2).
+- [x] **TSK-002-N08**: Eliminar `calculateEvaluatorDeadline` y `PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS` (código muerto tras PR-B2).
   - **Requisito relacionado:** `RF-12.7(a)` — la asignación no calcula `fecha_limite`; el método contradice la spec.
   - **PR:** PR de limpieza independiente (`chore/remove-dead-evaluator-deadline`).
   - **Grep de callers (ejecutado):**

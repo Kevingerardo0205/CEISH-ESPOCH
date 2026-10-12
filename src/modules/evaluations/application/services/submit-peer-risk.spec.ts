@@ -44,7 +44,6 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
   };
   let mockRiskLevelRepo: { findOne: jest.Mock };
   let mockProtocolOrmRepo: { findOne: jest.Mock; save: jest.Mock };
-  let mockDeadlineService: { calculateEvaluatorDeadline: jest.Mock };
   let mockQueryBuilder: {
     setLock: jest.Mock;
     where: jest.Mock;
@@ -97,12 +96,6 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       findOne: jest.fn(),
       save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
     };
-    mockDeadlineService = {
-      calculateEvaluatorDeadline: jest
-        .fn()
-        .mockReturnValue(new Date('2026-04-01')),
-    };
-
     const mockManager = {
       getRepository: jest.fn().mockImplementation((entity) => {
         if (entity === EvaluationAssignmentOrmEntity)
@@ -134,7 +127,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
           },
         },
         { provide: IProtocolRepository, useValue: {} },
-        { provide: ProtocolDeadlineService, useValue: mockDeadlineService },
+        { provide: ProtocolDeadlineService, useValue: {} },
         { provide: IEmailServicePort, useValue: {} },
         { provide: ConflictOfInterestService, useValue: {} },
         {
