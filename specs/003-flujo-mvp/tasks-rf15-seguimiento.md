@@ -199,3 +199,35 @@
   - **Fuente oficial de feriados Ecuador**: **Pendiente de verificar** — obtener lista oficial de feriados nacionales del Ecuador para años 2026+ desde fuente gubernamental (IESS, MRL u otra).
 - **Tests**: Prueba unitaria con feriado conocido: si 2026-11-02 (Día de los Difuntos) es feriado y la fecha límite caería en ese día, el cálculo lo debe saltar.
 - **Criterio "Hecho cuando:"**: `BusinessDayCalculator.calculateDeadlineDateString({ ..., holidays: ['2026-11-02'] })` salta el 2 de noviembre; la lista de feriados 2026 está sembrada y `EcuadorHolidaysService.getHolidays(year)` retorna el array correcto.
+
+### Task TSK-015-N05 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N05`
+- **Requisito Relacionado**: `RF-CAL` (spec-001), `RF-07.1`, `RF-09.1`, `RF-12.7`, `RF-14.1`, `RF-15`
+- **PR**: PR-C1 (`feat/system-params`), dependiente de TSK-015-N03
+- **Criterio EARS**: Cuando `SystemParamsService` esté disponible, las constantes parametrizables de `deadline-rules.ts` se leen desde `sistema.parametros_sistema` con fallback al valor hardcodeado.
+- **Acción**: `MODIFICAR`
+- **Descripción**: Definir cuáles constantes de `deadline-rules.ts` son parametrizables vía BD y cuáles permanecen como constantes estáticas en código.
+  - **Parametrizables (leer de BD via `SystemParamsService`, fallback al valor actual):**
+    - `PLAZO_SUBSANACION_DOCUMENTAL_DIAS = 30` (RF-07.1 / RF-13)
+    - `PLAZO_CONDICION_DIAS = 30` (RF-14.1)
+    - `PLAZO_REVISION_OFICIO_DIAS = 8` (RF-12.7(c))
+    - `PLAZO_NORMATIVO_EXPEDITA_DIAS = 45` (RF-CAL)
+    - `PLAZO_NORMATIVO_PLENO_DIAS = 60` (RF-CAL)
+    - `ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION = 2` (RF-09.1)
+    - `EVALUADOR_URGENTE_UMBRAL_DIAS = 2` (RF-09.1) — valor provisional, **pendiente de confirmar con presidente/secretaria**
+    - `ALERTA_OFFSETS_DIAS = [7, 1]` (RF-ALR)
+    - `ALERTA_RENOVACION_OFFSETS_DIAS = [90, 60, 15]` (RF-16.1)
+    - `PLAZO_GRACIA_SEGUIMIENTO_DIAS = 30` (RF-15.2)
+    - `PLAZO_INFORME_INICIO_DIAS = 30` (RF-15.1)
+    - `DIAS_MAX_SIN_CONVOCATORIA = 8` (RF-12.7(d))
+    - **`DIAS_ALERTA_NORMATIVO_SIN_CONVOCATORIA`**: sin valor definido aún — **parametrizable, valor pendiente de confirmación con presidente/secretaria**.
+    - **Plazo OBSERVADO (estado RF-15.2)**: referenciado como 15 días hábiles en el PET, no tiene constante en `deadline-rules.ts` aún — **parametrizable, valor pendiente de confirmación con presidente/secretaria**.
+  - **No parametrizables (constantes de diseño fijas en código):**
+    - `ENTREGA_EVALUACION_HORA_CORTE = '12:00'` — parte del protocolo de entrega, cambiar requeriría coordinación con frontend.
+    - `ENTREGA_EVALUACION_ZONA_HORARIA = 'America/Guayaquil'` — constante geográfica institucional.
+- **Dependencias**: `TSK-015-N03` (SystemParamsService debe existir primero)
+- **Archivos afectados:**
+  - `src/shared/deadlines/deadline-rules.ts` — los valores hardcodeados pasan a ser fallback.
+  - Servicios que usen las constantes parametrizables — inyectar `SystemParamsService` donde sea necesario.
+- **Tests**: Prueba unitaria: si `SystemParamsService.get('PLAZO_SUBSANACION_DOCUMENTAL_DIAS')` retorna `20`, el servicio usa `20`; si retorna `null`, usa el fallback `30`.
+- **Criterio "Hecho cuando:"**: Al menos las constantes listadas se leen desde BD en runtime; la prueba de fallback pasa en verde; `npx tsc --noEmit` limpio.
