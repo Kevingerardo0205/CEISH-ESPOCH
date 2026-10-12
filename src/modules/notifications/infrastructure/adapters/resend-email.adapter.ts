@@ -107,6 +107,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
     protocolTitle: string,
     missingItems: string,
     deadline: Date,
+    plazo: number,
   ): Promise<void> {
     try {
       const data = await this.resend.emails.send({
@@ -118,6 +119,7 @@ export class ResendEmailAdapter implements IEmailServicePort {
           protocolTitle,
           missingItems,
           deadline.toLocaleDateString(),
+          plazo,
         ),
       });
       console.log('Notificación de documentación incompleta enviada:', data);

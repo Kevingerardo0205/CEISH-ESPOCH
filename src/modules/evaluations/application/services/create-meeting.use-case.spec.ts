@@ -5,10 +5,19 @@ import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-reposito
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
 import { CalculateMeetingDatesService } from './calculate-meeting-dates.service';
 import {
+  SystemParamsService,
+  SystemParamKey,
+  SYSTEM_PARAM_FALLBACKS,
+} from '../../../sistema/application/services/system-params.service';
+import {
   SessionType,
   ConvocatoriaStatus,
 } from '../../infrastructure/database/entities/convocatoria.orm-entity';
 import type { MeetingEntity } from '../../domain/entities/meeting.entity';
+
+const mockSystemParams = {
+  get: (clave: SystemParamKey) => SYSTEM_PARAM_FALLBACKS[clave],
+} as unknown as SystemParamsService;
 
 describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
   let useCase: CreateMeetingUseCase;
@@ -32,7 +41,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     pdfGeneratorMock = {
       generateAgendaPdf: jest.fn(),
     };
-    calculateDatesService = new CalculateMeetingDatesService();
+    calculateDatesService = new CalculateMeetingDatesService(mockSystemParams);
 
     useCase = new CreateMeetingUseCase(
       repositoryMock,

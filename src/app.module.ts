@@ -25,6 +25,7 @@ import { setEncryptionService } from './shared/encryption/encryption.transformer
 import { DosDefenseMiddleware } from './shared/middleware/dos-defense.middleware';
 import { ThrottleExceptionFilter } from './shared/filters/throttle-exception.filter';
 import { StorageModule } from './shared/storage/storage.module';
+import { SistemaModule } from './modules/sistema/sistema.module';
 
 @Module({
   imports: [
@@ -57,6 +58,7 @@ import { StorageModule } from './shared/storage/storage.module';
         limit: 100,
       },
     ]),
+    SistemaModule,
     AuthModule,
     AuditModule,
     ProtocolsModule,

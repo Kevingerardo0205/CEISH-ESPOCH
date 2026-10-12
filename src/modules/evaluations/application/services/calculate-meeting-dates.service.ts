@@ -1,9 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { BusinessDayCalculator } from '../../../../shared/services/deadline-calculator.service';
 import {
-  ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION,
-  PLAZO_REVISION_OFICIO_DIAS,
-} from '../../../../shared/deadlines/deadline-rules';
+  SystemParamsService,
+  SP_ENTREGA_EVALUACION_DIAS,
+  SP_PLAZO_REVISION_OFICIO,
+} from '../../../sistema/application/services/system-params.service';
 import type { AssignmentDeadlineSnapshot } from '../../domain/ports/meeting-repository.port';
 
 export interface ProtocolNormativeSnapshot {
@@ -13,15 +14,19 @@ export interface ProtocolNormativeSnapshot {
 
 @Injectable()
 export class CalculateMeetingDatesService {
+  constructor(private readonly systemParams: SystemParamsService) {}
+
   /**
    * Calcula la fecha de entrega de evaluaciones sugerida:
    * meetingDate + ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION días hábiles a las 12:00 ECT.
+   * Días configurables vía SystemParams (fallback: ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION).
    */
   calculateSuggestedEvalDeadline(meetingDate: Date): Date {
+    const dias = this.systemParams.get(SP_ENTREGA_EVALUACION_DIAS);
     const { deadlineDateString } =
       BusinessDayCalculator.calculateDetailedDeadline({
         startDate: meetingDate,
-        businessDaysToAdd: ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION,
+        businessDaysToAdd: dias,
         holidays: [], // TODO TSK-015-N04
       });
     // 12:00 ECT (UTC-5) = 17:00 UTC
@@ -40,6 +45,7 @@ export class CalculateMeetingDatesService {
     assignments?: AssignmentDeadlineSnapshot[],
   ): string[] {
     const warnings: string[] = [];
+    const plazoRevision = this.systemParams.get(SP_PLAZO_REVISION_OFICIO);
 
     for (const protocol of protocols) {
       if (meetingDate.getTime() > protocol.normativeDeadline.getTime()) {
@@ -55,9 +61,9 @@ export class CalculateMeetingDatesService {
           assignment.oldestAssignmentDate,
           meetingDate,
         );
-        if (businessDays < PLAZO_REVISION_OFICIO_DIAS) {
+        if (businessDays < plazoRevision) {
           warnings.push(
-            `ADVERTENCIA_PLAZO_REVISION: El protocolo ${assignment.protocolCode} (versión ${assignment.protocolVersionId}) tiene solo ${businessDays} días hábiles de revisión antes de la reunión (mínimo requerido: ${PLAZO_REVISION_OFICIO_DIAS}).`,
+            `ADVERTENCIA_PLAZO_REVISION: El protocolo ${assignment.protocolCode} (versión ${assignment.protocolVersionId}) tiene solo ${businessDays} días hábiles de revisión antes de la reunión (mínimo requerido: ${plazoRevision}).`,
           );
         }
       }

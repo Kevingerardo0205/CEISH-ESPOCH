@@ -21,6 +21,11 @@ import { DocxGeneratorService } from '../../../../shared/utils/docx-generator.se
 import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
+import {
+  SystemParamsService,
+  SystemParamKey,
+  SYSTEM_PARAM_FALLBACKS,
+} from '../../../sistema/application/services/system-params.service';
 
 describe('EvaluationsService - submitPeerRiskLevel', () => {
   let service: EvaluationsService;
@@ -163,6 +168,12 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
         { provide: DocxGeneratorService, useValue: {} },
         { provide: IStorageService, useValue: {} },
         { provide: DataSource, useValue: mockDataSource },
+        {
+          provide: SystemParamsService,
+          useValue: {
+            get: (clave: SystemParamKey) => SYSTEM_PARAM_FALLBACKS[clave],
+          },
+        },
       ],
     }).compile();
 

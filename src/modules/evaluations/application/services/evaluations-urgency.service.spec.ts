@@ -22,6 +22,11 @@ import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity
 import { InvestigatorProfileOrmEntity } from '../../../auth/infrastructure/database/investigator-profile.entity.orm';
 import { EvaluatorProfileUserOrmEntity } from '../../infrastructure/database/evaluator-profile-user.entity.orm';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
+import {
+  SystemParamsService,
+  SystemParamKey,
+  SYSTEM_PARAM_FALLBACKS,
+} from '../../../sistema/application/services/system-params.service';
 
 describe('EvaluationsService.getMyAssignments — isUrgent (TSK-002-N06, RF-09.1)', () => {
   let service: EvaluationsService;
@@ -67,6 +72,12 @@ describe('EvaluationsService.getMyAssignments — isUrgent (TSK-002-N06, RF-09.1
         { provide: DocxGeneratorService, useValue: {} },
         { provide: IStorageService, useValue: {} },
         { provide: DataSource, useValue: {} },
+        {
+          provide: SystemParamsService,
+          useValue: {
+            get: (clave: SystemParamKey) => SYSTEM_PARAM_FALLBACKS[clave],
+          },
+        },
       ],
     }).compile();
     service = module.get<EvaluationsService>(EvaluationsService);
@@ -131,5 +142,89 @@ describe('EvaluationsService.getMyAssignments — isUrgent (TSK-002-N06, RF-09.1
     ]);
     const result = await service.getMyAssignments(1);
     expect(result).toHaveLength(0);
+  });
+});
+
+describe('EvaluationsService.getMyAssignments — isUrgent con umbral=5 (TSK-015-N05)', () => {
+  let serviceWith5: EvaluationsService;
+  let mockFindAssignments5: jest.Mock;
+
+  // NOW: 2026-10-15 12:00 ECT (17:00 UTC)
+  const NOW = new Date('2026-10-15T17:00:00.000Z');
+
+  beforeAll(async () => {
+    mockFindAssignments5 = jest.fn();
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EvaluationsService,
+        {
+          provide: IEvaluationRepository,
+          useValue: { findAssignmentsByEvaluatorId: mockFindAssignments5 },
+        },
+        { provide: IProtocolRepository, useValue: {} },
+        { provide: ProtocolDeadlineService, useValue: {} },
+        { provide: IEmailServicePort, useValue: {} },
+        { provide: ConflictOfInterestService, useValue: {} },
+        {
+          provide: getRepositoryToken(EvaluationAssignmentOrmEntity),
+          useValue: {},
+        },
+        { provide: getRepositoryToken(RiskProposalOrmEntity), useValue: {} },
+        {
+          provide: getRepositoryToken(PeerRiskAssignmentOrmEntity),
+          useValue: {},
+        },
+        { provide: getRepositoryToken(RiskLevelOrmEntity), useValue: {} },
+        { provide: getRepositoryToken(ProtocolOrmEntity), useValue: {} },
+        { provide: getRepositoryToken(UserOrmEntity), useValue: {} },
+        {
+          provide: getRepositoryToken(InvestigatorProfileOrmEntity),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(EvaluatorProfileUserOrmEntity),
+          useValue: {},
+        },
+        { provide: PdfGeneratorService, useValue: {} },
+        { provide: DocxGeneratorService, useValue: {} },
+        { provide: IStorageService, useValue: {} },
+        { provide: DataSource, useValue: {} },
+        {
+          provide: SystemParamsService,
+          useValue: {
+            get: (clave: SystemParamKey) =>
+              clave === 'evaluador_urgente_umbral_dias'
+                ? 5
+                : SYSTEM_PARAM_FALLBACKS[clave],
+          },
+        },
+      ],
+    }).compile();
+    serviceWith5 = module.get<EvaluationsService>(EvaluationsService);
+  });
+
+  beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    jest.setSystemTime(NOW);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+    mockFindAssignments5.mockReset();
+  });
+
+  it('vence en 5 días (2026-10-20) → isUrgent TRUE con umbral=5 (diffDays=5 ≤ 5)', async () => {
+    // Con umbral=2 (test c del bloque anterior) este mismo deadline da isUrgent=false
+    mockFindAssignments5.mockResolvedValue([
+      {
+        statusId: AssignmentStatus.ASSIGNED,
+        version: null,
+        deadline: '2026-10-20',
+      },
+    ]);
+    const result = await serviceWith5.getMyAssignments(1);
+    expect(result).toHaveLength(1);
+    expect(result[0].isUrgent).toBe(true);
+    expect(result[0].isExpired).toBe(false);
   });
 });

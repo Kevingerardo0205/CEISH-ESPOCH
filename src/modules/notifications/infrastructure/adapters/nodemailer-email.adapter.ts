@@ -76,6 +76,7 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     protocolTitle: string,
     missingItems: string,
     deadline: Date,
+    plazo: number,
   ): Promise<void> {
     await this.sendMailWithRetry({
       to: email,
@@ -85,6 +86,7 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
         protocolTitle,
         missingItems,
         deadline.toLocaleDateString(),
+        plazo,
       ),
     });
   }

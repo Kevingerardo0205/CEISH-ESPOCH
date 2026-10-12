@@ -1,11 +1,27 @@
+import { Test, TestingModule } from '@nestjs/testing';
 import { ProtocolDeadlineService } from './protocol-deadline.service';
 import { ReviewType } from '../../domain/enums/review-type.enum';
+import {
+  SystemParamsService,
+  SystemParamKey,
+  SYSTEM_PARAM_FALLBACKS,
+} from '../../../sistema/application/services/system-params.service';
+
+const mockSystemParams = {
+  get: (clave: SystemParamKey) => SYSTEM_PARAM_FALLBACKS[clave],
+} as unknown as SystemParamsService;
 
 describe('ProtocolDeadlineService', () => {
   let service: ProtocolDeadlineService;
 
-  beforeEach(() => {
-    service = new ProtocolDeadlineService();
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        ProtocolDeadlineService,
+        { provide: SystemParamsService, useValue: mockSystemParams },
+      ],
+    }).compile();
+    service = module.get<ProtocolDeadlineService>(ProtocolDeadlineService);
   });
 
   describe('calculateSubmissionDeadline (RF-07.1, RF-13, TSK-013-N01)', () => {
@@ -68,6 +84,38 @@ describe('ProtocolDeadlineService', () => {
       );
       const pleno = service.calculateResponseDeadline(ReviewType.PLENO, base);
       expect(pleno.getTime()).toBeGreaterThan(expedita.getTime());
+    });
+  });
+
+  describe('wiring: non-default SystemParam value (TSK-015-N05)', () => {
+    let serviceWith20: ProtocolDeadlineService;
+
+    beforeEach(async () => {
+      const mockWith20 = {
+        get: () => 20,
+      } as unknown as SystemParamsService;
+      const module = await Test.createTestingModule({
+        providers: [
+          ProtocolDeadlineService,
+          { provide: SystemParamsService, useValue: mockWith20 },
+        ],
+      }).compile();
+      serviceWith20 = module.get(ProtocolDeadlineService);
+    });
+
+    it('getSubmissionDias() returns 20 when SystemParam returns 20', () => {
+      expect(serviceWith20.getSubmissionDias()).toBe(20);
+    });
+
+    it('calculateSubmissionDeadline adds exactly 20 business days', () => {
+      // Monday 2026-03-02 + 20 biz days = Monday 2026-03-30
+      // Week 1: 3,4,5,6,9 Mar (5); Week 2: 10,11,12,13,16 Mar (5=10);
+      // Week 3: 17,18,19,20,23 Mar (5=15); Week 4: 24,25,26,27,30 Mar (5=20) → 30 Mar
+      const start = new Date('2026-03-02T12:00:00.000Z');
+      const result = serviceWith20.calculateSubmissionDeadline(start);
+      expect(result.getUTCFullYear()).toBe(2026);
+      expect(result.getUTCMonth()).toBe(2); // March (0-indexed)
+      expect(result.getUTCDate()).toBe(30);
     });
   });
 });

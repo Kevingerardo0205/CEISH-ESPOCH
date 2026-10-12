@@ -342,6 +342,7 @@ export class ReceptionService {
       reception.statusId = 11;
       reception.completionDeadlineDate =
         this.deadlineService.calculateSubmissionDeadline(now);
+      const plazo = this.deadlineService.getSubmissionDias();
       const missingList = missingRequirements.join('\n');
       reception.missingItemsList = missingList;
       reception.hasMissingItems = true;
@@ -355,6 +356,7 @@ export class ReceptionService {
           protocol.title || 'Sin Título',
           missingList,
           reception.completionDeadlineDate,
+          plazo,
         )
         .catch((e) => console.error('Error enviando email incompleto:', e));
 
