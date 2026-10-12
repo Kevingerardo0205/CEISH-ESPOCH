@@ -23,6 +23,7 @@ export abstract class IEmailServicePort {
     protocolTitle: string,
     missingItems: string,
     deadline: Date,
+    plazo: number,
   ): Promise<void>;
 
   abstract sendReceptionComplete(

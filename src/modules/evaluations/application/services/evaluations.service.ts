@@ -97,10 +97,11 @@ import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
 import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
 import { endOfDayGuayaquil } from '../../../../shared/services/deadline-calculator.service';
+import { PLAZO_CONDICION_DIAS } from '../../../../shared/deadlines/deadline-rules';
 import {
-  PLAZO_CONDICION_DIAS,
-  EVALUADOR_URGENTE_UMBRAL_DIAS,
-} from '../../../../shared/deadlines/deadline-rules';
+  SystemParamsService,
+  SP_EVALUADOR_URGENTE_UMBRAL,
+} from '../../../sistema/application/services/system-params.service';
 
 export interface PendingPeerRiskAssignmentItem {
   id: number;
@@ -145,6 +146,7 @@ export class EvaluationsService {
     @Inject(IStorageService)
     private readonly storageService: IStorageService,
     private readonly dataSource: DataSource,
+    private readonly systemParams: SystemParamsService,
   ) {}
 
   private readonly logger = new Logger(EvaluationsService.name);
@@ -227,7 +229,9 @@ export class EvaluationsService {
           const diffTime = deadline.getTime() - now.getTime();
           diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
           isExpired = diffTime < 0;
-          isUrgent = !isExpired && diffDays <= EVALUADOR_URGENTE_UMBRAL_DIAS;
+          isUrgent =
+            !isExpired &&
+            diffDays <= this.systemParams.get(SP_EVALUADOR_URGENTE_UMBRAL);
         }
 
         const isRiskDesignated = a.version?.protocol?.isRiskLevelDesignated;

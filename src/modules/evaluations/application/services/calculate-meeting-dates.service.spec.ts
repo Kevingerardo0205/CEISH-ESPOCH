@@ -1,12 +1,30 @@
+import { Test, TestingModule } from '@nestjs/testing';
 import { CalculateMeetingDatesService } from './calculate-meeting-dates.service';
 import type { AssignmentDeadlineSnapshot } from '../../domain/ports/meeting-repository.port';
 import { PLAZO_REVISION_OFICIO_DIAS } from '../../../../shared/deadlines/deadline-rules';
+import {
+  SystemParamsService,
+  SystemParamKey,
+  SYSTEM_PARAM_FALLBACKS,
+} from '../../../sistema/application/services/system-params.service';
+
+const mockSystemParams = {
+  get: (clave: SystemParamKey) => SYSTEM_PARAM_FALLBACKS[clave],
+} as unknown as SystemParamsService;
 
 describe('CalculateMeetingDatesService', () => {
   let service: CalculateMeetingDatesService;
 
-  beforeEach(() => {
-    service = new CalculateMeetingDatesService();
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        CalculateMeetingDatesService,
+        { provide: SystemParamsService, useValue: mockSystemParams },
+      ],
+    }).compile();
+    service = module.get<CalculateMeetingDatesService>(
+      CalculateMeetingDatesService,
+    );
   });
 
   describe('calculateSuggestedEvalDeadline (RF-09.1)', () => {
@@ -144,6 +162,59 @@ describe('CalculateMeetingDatesService', () => {
         assignments,
       );
       expect(warnings).toEqual([]);
+    });
+  });
+
+  describe('wiring: non-default SystemParam values (TSK-015-N05)', () => {
+    it('ENTREGA=3: calculateSuggestedEvalDeadline adds 3 business days at 12:00 ECT', async () => {
+      const mockWith3 = {
+        get: (clave: SystemParamKey) =>
+          clave === 'entrega_evaluacion_dias_habiles_tras_reunion'
+            ? 3
+            : SYSTEM_PARAM_FALLBACKS[clave],
+      } as unknown as SystemParamsService;
+      const module = await Test.createTestingModule({
+        providers: [
+          CalculateMeetingDatesService,
+          { provide: SystemParamsService, useValue: mockWith3 },
+        ],
+      }).compile();
+      const svc = module.get(CalculateMeetingDatesService);
+
+      // Thursday 2026-10-15 → +3 biz: Fri +1, Mon +2, Tue +3 = 2026-10-20 17:00 UTC
+      const thursdayMeeting = new Date('2026-10-16T01:00:00.000Z');
+      const deadline = svc.calculateSuggestedEvalDeadline(thursdayMeeting);
+      expect(deadline.toISOString()).toBe('2026-10-20T17:00:00.000Z');
+    });
+
+    it('PLAZO_REVISION=10: warning text mentions 10 and fires when < 10 biz days', async () => {
+      const mockWith10 = {
+        get: (clave: SystemParamKey) =>
+          clave === 'plazo_revision_oficio_dias'
+            ? 10
+            : SYSTEM_PARAM_FALLBACKS[clave],
+      } as unknown as SystemParamsService;
+      const module = await Test.createTestingModule({
+        providers: [
+          CalculateMeetingDatesService,
+          { provide: SystemParamsService, useValue: mockWith10 },
+        ],
+      }).compile();
+      const svc = module.get(CalculateMeetingDatesService);
+
+      // 3 biz days available — would NOT warn with default 8, DOES warn with 10
+      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
+      const recentAssignment = new Date('2026-10-10T14:00:00.000Z');
+      const assignments: AssignmentDeadlineSnapshot[] = [
+        {
+          protocolVersionId: 200,
+          protocolCode: 'PROT-X',
+          oldestAssignmentDate: recentAssignment,
+        },
+      ];
+      const warnings = svc.evaluateSoftWarnings(meetingDate, [], assignments);
+      expect(warnings.length).toBe(1);
+      expect(warnings[0]).toContain('10');
     });
   });
 });

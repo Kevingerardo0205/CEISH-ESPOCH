@@ -1,14 +1,19 @@
 import { Injectable } from '@nestjs/common';
 import { ReviewType } from '../../domain/enums/review-type.enum';
 import {
-  PLAZO_SUBSANACION_DOCUMENTAL_DIAS,
   PLAZO_CONDICION_DIAS,
   PLAZO_NORMATIVO_EXPEDITA_DIAS,
   PLAZO_NORMATIVO_PLENO_DIAS,
 } from '../../../../shared/deadlines/deadline-rules';
+import {
+  SystemParamsService,
+  SP_PLAZO_SUBSANACION_DOCUMENTAL,
+} from '../../../sistema/application/services/system-params.service';
 
 @Injectable()
 export class ProtocolDeadlineService {
+  constructor(private readonly systemParams: SystemParamsService) {}
+
   /**
    * Calculates a date adding business days (skipping weekends)
    */
@@ -26,14 +31,17 @@ export class ProtocolDeadlineService {
     return result;
   }
 
+  /** Lee de BD los días hábiles de plazo para subsanación (fallback: PLAZO_SUBSANACION_DOCUMENTAL_DIAS). */
+  getSubmissionDias(): number {
+    return this.systemParams.get(SP_PLAZO_SUBSANACION_DOCUMENTAL);
+  }
+
   /**
-   * Deadline for missing requirements (30 business days, RF-07.1 / RF-13)
+   * Deadline for missing requirements (RF-07.1 / RF-13).
+   * Días configurables vía SystemParams; por defecto 30.
    */
   calculateSubmissionDeadline(receptionDate: Date = new Date()): Date {
-    return this.addBusinessDays(
-      receptionDate,
-      PLAZO_SUBSANACION_DOCUMENTAL_DIAS,
-    );
+    return this.addBusinessDays(receptionDate, this.getSubmissionDias());
   }
 
   /**

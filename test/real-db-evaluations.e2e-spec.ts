@@ -27,6 +27,14 @@ import { AuditService } from '../src/modules/audit/application/services/audit.se
 import { IStorageService } from '../src/shared/storage/domain/ports/storage.service.port';
 import { PdfGeneratorService } from '../src/shared/utils/pdf-generator.service';
 import { DocxGeneratorService } from '../src/shared/utils/docx-generator.service';
+import {
+  SystemParamsService,
+  SP_PLAZO_SUBSANACION_DOCUMENTAL,
+  SP_PLAZO_REVISION_OFICIO,
+  SP_ENTREGA_EVALUACION_DIAS,
+  SP_EVALUADOR_URGENTE_UMBRAL,
+} from '../src/modules/sistema/application/services/system-params.service';
+import { ProtocolDeadlineService } from '../src/modules/protocols/application/services/protocol-deadline.service';
 
 describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)', () => {
   let app: INestApplication;
@@ -1274,6 +1282,41 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         await request(app.getHttpServer())
           .delete(`/api/evaluations/calls/places/${placeId}`)
           .set('x-user-id', '901');
+      }
+    });
+  });
+
+  describe('8. SystemParamsService — parámetros desde BD (TSK-015-N03)', () => {
+    it('8a. refresh() carga los 4 parámetros sembrados; get() devuelve valor de BD', async () => {
+      const systemParams = app.get(SystemParamsService);
+      await systemParams.refresh();
+
+      expect(systemParams.get(SP_PLAZO_SUBSANACION_DOCUMENTAL)).toBe(30);
+      expect(systemParams.get(SP_PLAZO_REVISION_OFICIO)).toBe(8);
+      expect(systemParams.get(SP_ENTREGA_EVALUACION_DIAS)).toBe(2);
+      expect(systemParams.get(SP_EVALUADOR_URGENTE_UMBRAL)).toBe(2);
+    });
+
+    it('8b. UPDATE plazo_subsanacion a 5, refresh(), calcula 5 días hábiles, restaura 30', async () => {
+      const systemParams = app.get(SystemParamsService);
+      const deadlineService = app.get(ProtocolDeadlineService);
+      try {
+        await dataSource.query(
+          `UPDATE sistema.parametros_sistema SET valor='5' WHERE clave='plazo_subsanacion_documental_dias'`,
+        );
+        await systemParams.refresh();
+
+        // Lunes 2026-10-12 + 5 días hábiles = Lunes 2026-10-19
+        const fixedDate = new Date('2026-10-12T12:00:00.000Z');
+        const result = deadlineService.calculateSubmissionDeadline(fixedDate);
+        expect(result.getUTCFullYear()).toBe(2026);
+        expect(result.getUTCMonth()).toBe(9); // October (0-indexed)
+        expect(result.getUTCDate()).toBe(19);
+      } finally {
+        await dataSource.query(
+          `UPDATE sistema.parametros_sistema SET valor='30' WHERE clave='plazo_subsanacion_documental_dias'`,
+        );
+        await systemParams.refresh();
       }
     });
   });

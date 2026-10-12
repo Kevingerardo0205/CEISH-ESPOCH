@@ -168,7 +168,7 @@
 - **Tests**: `renewal-alert.service.spec.ts`.
 - **Criterio "Hecho cuando:"**: Tests unitarios validan los tres avisos con los offsets del parámetro, la lista de destinatarios (Investigador + Secretaría) y que el aviso a 90 días reemplaza la lógica antigua de "3 meses antes".
 
-### Task TSK-015-N03 - [ ] PENDIENTE
+### Task TSK-015-N03 - [x] COMPLETADO (PR-C1 feat/system-params)
 - **ID Único**: `TSK-015-N03`
 - **Requisito Relacionado**: `RF-ALR`, `RF-CAL`, `RF-12.7(c)`, `RF-12.7(d)`
 - **Criterio EARS**: `EARS 3`
@@ -183,6 +183,7 @@
   - Feriados del Ecuador 2026: **Pendiente de verificar** — lista oficial de feriados a obtener de fuente autorizada (IESS/gobierno) antes de sembrar.
 - **Tests**: Prueba unitaria del servicio de lectura de parámetros; verificación de migración (`up`/`down`).
 - **Criterio "Hecho cuando:"**: `SystemParamsService.get(key)` retorna el valor sembrado, la tabla `sistema.parametros_sistema` existe en PostgreSQL con al menos los 5 parámetros iniciales, y `TSK-015-N01` puede consumir los offsets sin hardcodeo.
+- **Nota v1**: los cambios por BD requieren reiniciar el backend (caché en memoria); sin endpoint de edición ni recarga en vivo.
 
 ### Task TSK-015-N04 - [ ] PENDIENTE
 - **ID Único**: `TSK-015-N04`
@@ -200,26 +201,28 @@
 - **Tests**: Prueba unitaria con feriado conocido: si 2026-11-02 (Día de los Difuntos) es feriado y la fecha límite caería en ese día, el cálculo lo debe saltar.
 - **Criterio "Hecho cuando:"**: `BusinessDayCalculator.calculateDeadlineDateString({ ..., holidays: ['2026-11-02'] })` salta el 2 de noviembre; la lista de feriados 2026 está sembrada y `EcuadorHolidaysService.getHolidays(year)` retorna el array correcto.
 
-### Task TSK-015-N05 - [ ] PENDIENTE
+### Task TSK-015-N05 - [~] EN PROGRESO (PR-C1 feat/system-params — C1 cableado parcial)
 - **ID Único**: `TSK-015-N05`
 - **Requisito Relacionado**: `RF-CAL` (spec-001), `RF-07.1`, `RF-09.1`, `RF-12.7`, `RF-14.1`, `RF-15`
 - **PR**: PR-C1 (`feat/system-params`), dependiente de TSK-015-N03
+- **Estado C1 (cableado):** `plazo_subsanacion_documental_dias`, `plazo_revision_oficio_dias`, `entrega_evaluacion_dias_habiles_tras_reunion`, `evaluador_urgente_umbral_dias` → cableados y funcionando con fallback. Email template recibe `plazo` dinámico.
+- **Pendiente C2+:** `PLAZO_CONDICION_DIAS`, `PLAZO_NORMATIVO_*` (requieren refactor de ORM entity); alertas y feriados.
 - **Criterio EARS**: Cuando `SystemParamsService` esté disponible, las constantes parametrizables de `deadline-rules.ts` se leen desde `sistema.parametros_sistema` con fallback al valor hardcodeado.
 - **Acción**: `MODIFICAR`
 - **Descripción**: Definir cuáles constantes de `deadline-rules.ts` son parametrizables vía BD y cuáles permanecen como constantes estáticas en código.
   - **Parametrizables (leer de BD via `SystemParamsService`, fallback al valor actual):**
-    - `PLAZO_SUBSANACION_DOCUMENTAL_DIAS = 30` (RF-07.1 / RF-13)
-    - `PLAZO_CONDICION_DIAS = 30` (RF-14.1)
-    - `PLAZO_REVISION_OFICIO_DIAS = 8` (RF-12.7(c))
-    - `PLAZO_NORMATIVO_EXPEDITA_DIAS = 45` (RF-CAL)
-    - `PLAZO_NORMATIVO_PLENO_DIAS = 60` (RF-CAL)
-    - `ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION = 2` (RF-09.1)
-    - `EVALUADOR_URGENTE_UMBRAL_DIAS = 2` (RF-09.1) — valor provisional, **pendiente de confirmar con presidente/secretaria**
-    - `ALERTA_OFFSETS_DIAS = [7, 1]` (RF-ALR)
-    - `ALERTA_RENOVACION_OFFSETS_DIAS = [90, 60, 15]` (RF-16.1)
-    - `PLAZO_GRACIA_SEGUIMIENTO_DIAS = 30` (RF-15.2)
-    - `PLAZO_INFORME_INICIO_DIAS = 30` (RF-15.1)
-    - `DIAS_MAX_SIN_CONVOCATORIA = 8` (RF-12.7(d))
+    - `plazo_subsanacion_documental_dias` = 30 (RF-07.1 / RF-13) — fallback: `PLAZO_SUBSANACION_DOCUMENTAL_DIAS`
+    - `plazo_condicion_dias` = 30 (RF-14.1) — fallback: `PLAZO_CONDICION_DIAS`
+    - `plazo_revision_oficio_dias` = 8 (RF-12.7(c)) — fallback: `PLAZO_REVISION_OFICIO_DIAS`
+    - `plazo_normativo_expedita_dias` = 45 (RF-CAL) — fallback: `PLAZO_NORMATIVO_EXPEDITA_DIAS`
+    - `plazo_normativo_pleno_dias` = 60 (RF-CAL) — fallback: `PLAZO_NORMATIVO_PLENO_DIAS`
+    - `entrega_evaluacion_dias_habiles_tras_reunion` = 2 (RF-09.1) — fallback: `ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION`
+    - `evaluador_urgente_umbral_dias` = 2 (RF-09.1) — valor provisional, **pendiente de confirmar con presidente/secretaria** — fallback: `EVALUADOR_URGENTE_UMBRAL_DIAS`
+    - `alerta_offsets_dias` = [7, 1] (RF-ALR)
+    - `alerta_renovacion_offsets_dias` = [90, 60, 15] (RF-16.1)
+    - `plazo_gracia_seguimiento_dias` = 30 (RF-15.2) — fallback: `PLAZO_GRACIA_SEGUIMIENTO_DIAS`
+    - `plazo_informe_inicio_dias` = 30 (RF-15.1) — fallback: `PLAZO_INFORME_INICIO_DIAS`
+    - `dias_max_sin_convocatoria` = 8 (RF-12.7(d)) — fallback: `DIAS_MAX_SIN_CONVOCATORIA`
     - **`DIAS_ALERTA_NORMATIVO_SIN_CONVOCATORIA`**: sin valor definido aún — **parametrizable, valor pendiente de confirmación con presidente/secretaria**.
     - **Plazo OBSERVADO (estado RF-15.2)**: referenciado como 15 días hábiles en el PET, no tiene constante en `deadline-rules.ts` aún — **parametrizable, valor pendiente de confirmación con presidente/secretaria**.
   - **No parametrizables (constantes de diseño fijas en código):**
@@ -229,5 +232,5 @@
 - **Archivos afectados:**
   - `src/shared/deadlines/deadline-rules.ts` — los valores hardcodeados pasan a ser fallback.
   - Servicios que usen las constantes parametrizables — inyectar `SystemParamsService` donde sea necesario.
-- **Tests**: Prueba unitaria: si `SystemParamsService.get('PLAZO_SUBSANACION_DOCUMENTAL_DIAS')` retorna `20`, el servicio usa `20`; si retorna `null`, usa el fallback `30`.
+- **Tests**: Prueba unitaria: si `SystemParamsService.get('plazo_subsanacion_documental_dias')` retorna `20`, el servicio usa `20`; si retorna `null`, usa el fallback `30`.
 - **Criterio "Hecho cuando:"**: Al menos las constantes listadas se leen desde BD en runtime; la prueba de fallback pasa en verde; `npx tsc --noEmit` limpio.
