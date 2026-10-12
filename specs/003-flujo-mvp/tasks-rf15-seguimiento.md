@@ -182,7 +182,7 @@
   - Parámetros mínimos a sembrar: `alerta_offsets_dias` ([7, 1]), `alerta_renovacion_offsets_dias` ([90, 60, 15]), `plazo_gracia_seguimiento_dias` (30), `dias_max_sin_convocatoria` (8), `plazo_revision_oficio_dias` (8).
   - Feriados del Ecuador 2026: **Pendiente de verificar** — lista oficial de feriados a obtener de fuente autorizada (IESS/gobierno) antes de sembrar.
 - **Tests**: Prueba unitaria del servicio de lectura de parámetros; verificación de migración (`up`/`down`).
-- **Criterio "Hecho cuando:"**: `SystemParamsService.get(key)` retorna el valor sembrado, la tabla `sistema.parametros_sistema` existe en PostgreSQL con al menos los 5 parámetros iniciales, y `TSK-015-N01` puede consumir los offsets sin hardcodeo.
+- **Criterio "Hecho cuando:"**: `SystemParamsService.get(key)` retorna el valor sembrado para los parámetros numéricos; la tabla `sistema.parametros_sistema` existe con los 5 parámetros del flujo de evaluación: `plazo_subsanacion_documental_dias`, `plazo_revision_oficio_dias`, `entrega_evaluacion_dias_habiles_tras_reunion`, `evaluador_urgente_umbral_dias` (PR-C1) y `plazo_condicion_dias` (PR-C2). Los parámetros tipo array (`alerta_offsets_dias`, `alerta_renovacion_offsets_dias`) se difieren a `TSK-015-N01`, que extenderá el esquema de valor para soportar arrays.
 - **Nota v1**: los cambios por BD requieren reiniciar el backend (caché en memoria); sin endpoint de edición ni recarga en vivo.
 
 ### Task TSK-015-N04 - [ ] PENDIENTE
@@ -201,30 +201,33 @@
 - **Tests**: Prueba unitaria con feriado conocido: si 2026-11-02 (Día de los Difuntos) es feriado y la fecha límite caería en ese día, el cálculo lo debe saltar.
 - **Criterio "Hecho cuando:"**: `BusinessDayCalculator.calculateDeadlineDateString({ ..., holidays: ['2026-11-02'] })` salta el 2 de noviembre; la lista de feriados 2026 está sembrada y `EcuadorHolidaysService.getHolidays(year)` retorna el array correcto.
 
-### Task TSK-015-N05 - [~] EN PROGRESO (PR-C1 feat/system-params — C1 cableado parcial)
+### Task TSK-015-N05 - [~] EN PROGRESO (PR-C1 y PR-C2 — C2 cableado parcial)
 - **ID Único**: `TSK-015-N05`
 - **Requisito Relacionado**: `RF-CAL` (spec-001), `RF-07.1`, `RF-09.1`, `RF-12.7`, `RF-14.1`, `RF-15`
-- **PR**: PR-C1 (`feat/system-params`), dependiente de TSK-015-N03
+- **PR**: PR-C1 (`feat/system-params`) y PR-C2 (`feat/system-params-followup`), dependiente de TSK-015-N03
 - **Estado C1 (cableado):** `plazo_subsanacion_documental_dias`, `plazo_revision_oficio_dias`, `entrega_evaluacion_dias_habiles_tras_reunion`, `evaluador_urgente_umbral_dias` → cableados y funcionando con fallback. Email template recibe `plazo` dinámico.
-- **Pendiente C2+:** `PLAZO_CONDICION_DIAS`, `PLAZO_NORMATIVO_*` (requieren refactor de ORM entity); alertas y feriados.
+- **Estado C2 (cableado):** `plazo_condicion_dias` → cableado en `ProtocolDeadlineService.getCondicionDias()` y consumido por `calculateSubsanacionDeadline()`, `resolutions.service.ts` y `evaluations.service.ts`. La constante `PLAZO_CONDICION_DIAS` ya no se usa directamente en el flujo canónico (queda solo en `deadline-rules.ts` como fallback y en `calls.service.ts` como deuda legacy).
+- **Pendiente C3+ (plazos normativos):** `plazo_normativo_expedita_dias` y `plazo_normativo_pleno_dias` requieren un PR independiente: hay que retirar el getter `responseDeadline` del ORM entity `ProtocolOrmEntity` (lógica de negocio en infraestructura) y migrar sus llamadores, incluyendo `calls.service.ts` (actualmente fuera de límites). No está atado a feriados ni a C3.
+- **Pendiente C5 (alertas, seguimiento):** alertas (`alerta_offsets_dias`, `alerta_renovacion_offsets_dias`) y otros parámetros de seguimiento.
+- **Nota sobre entrega de evaluación (RF-09.1):** La entrega es `reunión + 2 días hábiles a las 12:00 America/Guayaquil` para cualquier día de la semana, incluidas reuniones extraordinarias. Los feriados quedan excluidos del cálculo hasta `TSK-015-N04`.
 - **Criterio EARS**: Cuando `SystemParamsService` esté disponible, las constantes parametrizables de `deadline-rules.ts` se leen desde `sistema.parametros_sistema` con fallback al valor hardcodeado.
 - **Acción**: `MODIFICAR`
 - **Descripción**: Definir cuáles constantes de `deadline-rules.ts` son parametrizables vía BD y cuáles permanecen como constantes estáticas en código.
   - **Parametrizables (leer de BD via `SystemParamsService`, fallback al valor actual):**
-    - `plazo_subsanacion_documental_dias` = 30 (RF-07.1 / RF-13) — fallback: `PLAZO_SUBSANACION_DOCUMENTAL_DIAS`
-    - `plazo_condicion_dias` = 30 (RF-14.1) — fallback: `PLAZO_CONDICION_DIAS`
-    - `plazo_revision_oficio_dias` = 8 (RF-12.7(c)) — fallback: `PLAZO_REVISION_OFICIO_DIAS`
-    - `plazo_normativo_expedita_dias` = 45 (RF-CAL) — fallback: `PLAZO_NORMATIVO_EXPEDITA_DIAS`
-    - `plazo_normativo_pleno_dias` = 60 (RF-CAL) — fallback: `PLAZO_NORMATIVO_PLENO_DIAS`
-    - `entrega_evaluacion_dias_habiles_tras_reunion` = 2 (RF-09.1) — fallback: `ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION`
-    - `evaluador_urgente_umbral_dias` = 2 (RF-09.1) — valor provisional, **pendiente de confirmar con presidente/secretaria** — fallback: `EVALUADOR_URGENTE_UMBRAL_DIAS`
-    - `alerta_offsets_dias` = [7, 1] (RF-ALR)
-    - `alerta_renovacion_offsets_dias` = [90, 60, 15] (RF-16.1)
-    - `plazo_gracia_seguimiento_dias` = 30 (RF-15.2) — fallback: `PLAZO_GRACIA_SEGUIMIENTO_DIAS`
-    - `plazo_informe_inicio_dias` = 30 (RF-15.1) — fallback: `PLAZO_INFORME_INICIO_DIAS`
-    - `dias_max_sin_convocatoria` = 8 (RF-12.7(d)) — fallback: `DIAS_MAX_SIN_CONVOCATORIA`
-    - **`DIAS_ALERTA_NORMATIVO_SIN_CONVOCATORIA`**: sin valor definido aún — **parametrizable, valor pendiente de confirmación con presidente/secretaria**.
-    - **Plazo OBSERVADO (estado RF-15.2)**: referenciado como 15 días hábiles en el PET, no tiene constante en `deadline-rules.ts` aún — **parametrizable, valor pendiente de confirmación con presidente/secretaria**.
+    - `plazo_subsanacion_documental_dias` = 30 (RF-07.1 / RF-13) — fallback: `PLAZO_SUBSANACION_DOCUMENTAL_DIAS` ✅ C1
+    - `plazo_condicion_dias` = 30 (RF-14.1) — fallback: `PLAZO_CONDICION_DIAS` ✅ C2
+    - `plazo_revision_oficio_dias` = 8 (RF-12.7(c)) — fallback: `PLAZO_REVISION_OFICIO_DIAS` ✅ C1
+    - `plazo_normativo_expedita_dias` = 45 (RF-CAL) — fallback: `PLAZO_NORMATIVO_EXPEDITA_DIAS` 🔲 PR independiente (ver nota C3+)
+    - `plazo_normativo_pleno_dias` = 60 (RF-CAL) — fallback: `PLAZO_NORMATIVO_PLENO_DIAS` 🔲 PR independiente (ver nota C3+)
+    - `entrega_evaluacion_dias_habiles_tras_reunion` = 2 (RF-09.1) — fallback: `ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION` ✅ C1
+    - `evaluador_urgente_umbral_dias` = 2 (RF-09.1) — valor provisional, **pendiente de confirmar con presidente/secretaria** — fallback: `EVALUADOR_URGENTE_UMBRAL_DIAS` ✅ C1
+    - `alerta_offsets_dias` = [7, 1] (RF-ALR) 🔲 C5 (TSK-015-N01, requiere soporte array)
+    - `alerta_renovacion_offsets_dias` = [90, 60, 15] (RF-16.1) 🔲 C5 (TSK-015-N01, requiere soporte array)
+    - `plazo_gracia_seguimiento_dias` = 30 (RF-15.2) — fallback: `PLAZO_GRACIA_SEGUIMIENTO_DIAS` 🔲 C5
+    - `plazo_informe_inicio_dias` = 30 (RF-15.1) — fallback: `PLAZO_INFORME_INICIO_DIAS` 🔲 C5
+    - `dias_max_sin_convocatoria` = 8 (RF-12.7(d)) — fallback: `DIAS_MAX_SIN_CONVOCATORIA` 🔲 C4
+    - **`DIAS_ALERTA_NORMATIVO_SIN_CONVOCATORIA`**: sin valor definido aún — **parametrizable, valor pendiente de confirmación con presidente/secretaria** 🔲 C4
+    - **Plazo OBSERVADO (estado RF-15.2)**: 30 días hábiles (decisión del proyecto; el PET dice "no mayor a treinta días" sin precisar hábiles; confirmar con la secretaria). Clave prevista: `plazo_observaciones_seguimiento_dias`. A sembrar y cablear en C5. **No sembrar en C2.**
   - **No parametrizables (constantes de diseño fijas en código):**
     - `ENTREGA_EVALUACION_HORA_CORTE = '12:00'` — parte del protocolo de entrega, cambiar requeriría coordinación con frontend.
     - `ENTREGA_EVALUACION_ZONA_HORARIA = 'America/Guayaquil'` — constante geográfica institucional.
@@ -232,5 +235,5 @@
 - **Archivos afectados:**
   - `src/shared/deadlines/deadline-rules.ts` — los valores hardcodeados pasan a ser fallback.
   - Servicios que usen las constantes parametrizables — inyectar `SystemParamsService` donde sea necesario.
-- **Tests**: Prueba unitaria: si `SystemParamsService.get('plazo_subsanacion_documental_dias')` retorna `20`, el servicio usa `20`; si retorna `null`, usa el fallback `30`.
+- **Tests**: Prueba unitaria: si `SystemParamsService.get('plazo_subsanacion_documental_dias')` retorna `20`, el servicio usa `20`; si retorna `null`, usa el fallback `30`. Ídem para `plazo_condicion_dias`.
 - **Criterio "Hecho cuando:"**: Al menos las constantes listadas se leen desde BD en runtime; la prueba de fallback pasa en verde; `npx tsc --noEmit` limpio.
