@@ -33,6 +33,7 @@ import {
   SP_PLAZO_REVISION_OFICIO,
   SP_ENTREGA_EVALUACION_DIAS,
   SP_EVALUADOR_URGENTE_UMBRAL,
+  SP_PLAZO_CONDICION,
 } from '../src/modules/sistema/application/services/system-params.service';
 import { ProtocolDeadlineService } from '../src/modules/protocols/application/services/protocol-deadline.service';
 
@@ -1315,6 +1316,30 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       } finally {
         await dataSource.query(
           `UPDATE sistema.parametros_sistema SET valor='30' WHERE clave='plazo_subsanacion_documental_dias'`,
+        );
+        await systemParams.refresh();
+      }
+    });
+
+    it('8c. UPDATE plazo_condicion_dias a 20, refresh(), calcula 20 días hábiles, restaura 30', async () => {
+      const systemParams = app.get(SystemParamsService);
+      const deadlineService = app.get(ProtocolDeadlineService);
+      try {
+        await dataSource.query(
+          `UPDATE sistema.parametros_sistema SET valor='20' WHERE clave='plazo_condicion_dias'`,
+        );
+        await systemParams.refresh();
+        expect(systemParams.get(SP_PLAZO_CONDICION)).toBe(20);
+
+        // Lunes 2026-03-02 + 20 días hábiles = Lunes 2026-03-30
+        const fixedDate = new Date('2026-03-02T12:00:00.000Z');
+        const result = deadlineService.calculateSubsanacionDeadline(fixedDate);
+        expect(result.getUTCFullYear()).toBe(2026);
+        expect(result.getUTCMonth()).toBe(2); // March (0-indexed)
+        expect(result.getUTCDate()).toBe(30);
+      } finally {
+        await dataSource.query(
+          `UPDATE sistema.parametros_sistema SET valor='30' WHERE clave='plazo_condicion_dias'`,
         );
         await systemParams.refresh();
       }

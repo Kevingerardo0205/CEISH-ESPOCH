@@ -1,13 +1,13 @@
 import { Injectable } from '@nestjs/common';
 import { ReviewType } from '../../domain/enums/review-type.enum';
 import {
-  PLAZO_CONDICION_DIAS,
   PLAZO_NORMATIVO_EXPEDITA_DIAS,
   PLAZO_NORMATIVO_PLENO_DIAS,
 } from '../../../../shared/deadlines/deadline-rules';
 import {
   SystemParamsService,
   SP_PLAZO_SUBSANACION_DOCUMENTAL,
+  SP_PLAZO_CONDICION,
 } from '../../../sistema/application/services/system-params.service';
 
 @Injectable()
@@ -36,6 +36,11 @@ export class ProtocolDeadlineService {
     return this.systemParams.get(SP_PLAZO_SUBSANACION_DOCUMENTAL);
   }
 
+  /** Lee de BD los días hábiles para subsanar una versión mayor (fallback: PLAZO_CONDICION_DIAS). */
+  getCondicionDias(): number {
+    return this.systemParams.get(SP_PLAZO_CONDICION);
+  }
+
   /**
    * Deadline for missing requirements (RF-07.1 / RF-13).
    * Días configurables vía SystemParams; por defecto 30.
@@ -61,9 +66,10 @@ export class ProtocolDeadlineService {
   }
 
   /**
-   * Deadline for correcting observations (30 business days)
+   * Deadline for correcting observations (RF-14.1).
+   * Días configurables vía SystemParams; por defecto 30.
    */
   calculateSubsanacionDeadline(evaluationDate: Date = new Date()): Date {
-    return this.addBusinessDays(evaluationDate, PLAZO_CONDICION_DIAS);
+    return this.addBusinessDays(evaluationDate, this.getCondicionDias());
   }
 }

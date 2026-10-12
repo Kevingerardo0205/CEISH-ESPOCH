@@ -17,7 +17,6 @@ import { AssignmentStatus } from '../../../evaluations/domain/enums/assignment-s
 import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
 import { ProtocolRequirementOrmEntity } from '../../../protocols/infrastructure/database/protocol-requirement.entity.orm';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
-import { PLAZO_CONDICION_DIAS } from '../../../../shared/deadlines/deadline-rules';
 import { RequirementStatus } from '../../../protocols/domain/enums/requirement-status.enum';
 import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
@@ -223,7 +222,7 @@ export class ResolutionsService {
             versionNumber: nextVersionNumber,
             submissionDate: new Date(),
             statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL, // Nueva versión inicia en 21 (EN_CONTROL_DOCUMENTAL)
-            correctionDeadlineDays: PLAZO_CONDICION_DIAS,
+            correctionDeadlineDays: this.deadlineService.getCondicionDias(),
             correctionDeadlineDate: deadlineDate,
           } as any,
         );
