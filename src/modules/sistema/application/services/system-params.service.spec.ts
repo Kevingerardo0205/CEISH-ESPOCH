@@ -4,6 +4,7 @@ import {
   SystemParamsService,
   SP_PLAZO_SUBSANACION_DOCUMENTAL,
   SP_PLAZO_REVISION_OFICIO,
+  SP_PLAZO_CONDICION,
   SYSTEM_PARAM_FALLBACKS,
 } from './system-params.service';
 import { SystemParamOrmEntity } from '../../infrastructure/database/system-param.entity.orm';
@@ -11,6 +12,7 @@ import { SystemParamOrmEntity } from '../../infrastructure/database/system-param
 const FALLBACK_SUBSANACION =
   SYSTEM_PARAM_FALLBACKS[SP_PLAZO_SUBSANACION_DOCUMENTAL];
 const FALLBACK_REVISION = SYSTEM_PARAM_FALLBACKS[SP_PLAZO_REVISION_OFICIO];
+const FALLBACK_CONDICION = SYSTEM_PARAM_FALLBACKS[SP_PLAZO_CONDICION];
 
 describe('SystemParamsService (TSK-015-N03)', () => {
   let service: SystemParamsService;
@@ -116,6 +118,18 @@ describe('SystemParamsService (TSK-015-N03)', () => {
     expect(warnSpy).toHaveBeenCalledWith(
       expect.stringContaining('CLAVE_DESCONOCIDA'),
     );
+  });
+
+  it('(7b) get(SP_PLAZO_CONDICION) retorna valor de BD tras refresh()', async () => {
+    mockRepo.find.mockResolvedValue([
+      { clave: SP_PLAZO_CONDICION, valor: '20', tipoDato: 'INTEGER' },
+    ]);
+    await service.refresh();
+    expect(service.get(SP_PLAZO_CONDICION)).toBe(20);
+  });
+
+  it('(7c) get(SP_PLAZO_CONDICION) retorna fallback cuando la clave no está en BD', () => {
+    expect(service.get(SP_PLAZO_CONDICION)).toBe(FALLBACK_CONDICION);
   });
 
   it('(8) get() advierte solo una vez por clave faltante, no en llamadas siguientes', () => {
