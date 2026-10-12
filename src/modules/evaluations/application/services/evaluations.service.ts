@@ -227,7 +227,6 @@ export class EvaluationsService {
           const diffTime = deadline.getTime() - now.getTime();
           diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
           isExpired = diffTime < 0;
-          // TODO PR-B: umbral sin definición en spec; urgente solo si existe fecha de entrega (RF-09.1)
           isUrgent = !isExpired && diffDays <= EVALUADOR_URGENTE_UMBRAL_DIAS;
         }
 

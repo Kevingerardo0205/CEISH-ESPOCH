@@ -119,7 +119,7 @@
 
 ## Fase 6: Nueva Tarea RF-07.1 — Corrección de Plazo de Subsanación Documental (PR-B3)
 
-### Task TSK-013-N01 - [ ] PENDIENTE
+### Task TSK-013-N01 - [x] COMPLETADO
 - **ID Único**: `TSK-013-N01`
 - **Requisito Relacionado**: `RF-07.1` (spec-001 v3.3.1), `RF-13` (spec-003 v1.4.1)
 - **Criterio EARS**: `EARS 2`

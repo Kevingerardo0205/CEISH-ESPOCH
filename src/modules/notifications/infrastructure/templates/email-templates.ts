@@ -110,7 +110,7 @@ export const getReceptionIncompleteTemplate = (
   <p>Se ha revisado su protocolo: <strong>${protocolTitle}</strong></p>
   <p>Se han encontrado las siguientes observaciones o documentos faltantes:</p>
   <div style="background-color: #fff4f4; border-left: 4px solid #CC0000; padding: 15px; margin: 20px 0; font-family: monospace; white-space: pre-wrap;">${missingItems}</div>
-  <p>Tiene un plazo de <strong>15 días laborables</strong> (hasta el <strong>${deadline}</strong>) para subsanar estas observaciones en la plataforma.</p>
+  <p>Tiene un plazo de <strong>30 días hábiles</strong> (hasta el <strong>${deadline}</strong>) para subsanar estas observaciones en la plataforma.</p>
   <a href="https://ceish-espoch.edu.ec/dashboard" class="button">Subsanar en el Sistema</a>
 `);
 
