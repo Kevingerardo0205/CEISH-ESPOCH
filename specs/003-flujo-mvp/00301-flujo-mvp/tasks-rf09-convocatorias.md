@@ -408,3 +408,17 @@
 - **Descripción**: Emitir advertencia suave (`warnings`) cuando la `fecha_entrega_evaluacion` de la convocatoria supera el plazo normativo de algún protocolo agendado. Implementado con un método de puerto aditivo `findNormativeDeadlineInputs` que retorna datos crudos `{ protocolCode, reviewType, receptionDate }`. El cálculo del plazo normativo (45 días hábiles EXPEDITA, 60 días PLENO/ENSAYO_CLINICO) se realiza en capa `application/` mediante `CalculateMeetingDatesService.computeNormativeDeadline()` estático. Protocolo sin `receptionDate` o `reviewType` omite advertencia con `logger.warn`.
 - **Tests**: Test E2E describe 10 en `test/real-db-evaluations.e2e-spec.ts`: protocolos 993 (receptionDate 2025-01-01 → advertencia) y 994 (receptionDate 2026-12-01 → sin advertencia). Tests unitarios en `calculate-meeting-dates.service.spec.ts` y `create-meeting.use-case.spec.ts`.
 - **Criterio "Hecho cuando:"**: Crear una convocatoria con protocolo cuyo plazo normativo es anterior a `fecha_entrega_evaluacion` retorna un warning en el campo `advertencias`; los protocolos con plazo normativo posterior no generan warning.
+
+### Task TSK-009-N07 - [x] COMPLETADA (PR-T1)
+- **ID Único**: `TSK-009-N07`
+- **Requisito Relacionado**: higiene de tests (no RF funcional)
+- **PR**: PR-T1 (`test/e2e-cleanup-hygiene`)
+- **Criterio EARS**: Cuando se ejecutan 3 corridas E2E consecutivas, el COUNT de `evaluacion.convocatorias` es idéntico al baseline antes y después de cada corrida.
+- **Acción**: `MODIFICAR` (tests)
+- **Archivos Afectados**:
+  - `test/real-db-evaluations.e2e-spec.ts` (orden de DELETE en `beforeAll`/`afterAll` global; `try/finally` con DELETE por `convocatoria_id` en describes 6a y 6b)
+- **Dependencias**: ninguna
+- **Descripción**: Corregir el leak de filas en `evaluacion.convocatorias` producido por los describes 6a y 6b de `real-db-evaluations.e2e-spec.ts`. El fix tiene dos partes: (1) invertir el orden de DELETE en los bloques de limpieza `beforeAll`/`afterAll` global para que `evaluacion.convocatorias` se borre antes que `evaluacion.convocatoria_protocolos` (la FK es ON DELETE CASCADE); (2) añadir `try/finally` en cada `it` de 6a y 6b con DELETE explícito por `convocatoria_id`, patrón idéntico al de 9a/9b.
+  - **Nota de riesgo residual**: el endpoint legacy `POST /api/evaluations/calls` genera `numero_convocatoria` con COUNT+1 no atómico y puede acumular filas espurias bajo carga. Ese problema es independiente y queda fuera de alcance de esta tarea.
+- **Tests**: `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` (real-db-evaluations.e2e-spec.ts). Verificar con `SELECT COUNT(*) FROM evaluacion.convocatorias` antes y después de cada corrida.
+- **Criterio "Hecho cuando:"**: El COUNT de `evaluacion.convocatorias` es idéntico antes y después de 3 corridas E2E consecutivas (TZ=UTC, TZ=America/Guayaquil, TZ=UTC).
