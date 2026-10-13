@@ -450,8 +450,8 @@ graph TD
 | PR-B3 | `fix/documental-subsanation-30d` | RF-07.1, RF-13, RF-09.1 | Cambiar plazo de subsanación documental de 15 a 30 días hábiles. Umbral `EVALUADOR_URGENTE_UMBRAL_DIAS` aplica solo cuando existe `fecha_limite` definida. Actualizar tests E2E afectados. | ✅ Mergeado |
 | PR-C1 | `feat/system-params` | RF-CAL | Tabla `sistema.parametros_sistema` (TSK-015-N03) y lectura de constantes de `deadline-rules.ts` desde BD con fallback al valor hardcodeado. | ✅ Mergeado |
 | PR-C2 | `feat/system-params-followup` | RF-CAL, RF-14.1 | Cablear `plazo_condicion_dias` (TSK-015-N05 C2): semilla, `getCondicionDias()` en `ProtocolDeadlineService`, wiring en `resolutions.service` y `evaluations.service`. Corregir comentario de `PLAZO_REVISION_OFICIO_DIAS`. Actualizar spec N03/N05. | ✅ Mergeado |
-| PR-C3 | `feat/convocatoria-params` | RF-09.1 | Copia de parámetros de entrega a la convocatoria (TSK-009-N04, migración). | 🔨 En revisión |
-| PR-C4 | `feat/deadline-warnings` | RF-09.1, RF-12.7(d) | Advertencia de plazo normativo al crear convocatoria (TSK-009-N06) y alerta de protocolos con pares sin convocatoria (TSK-002-N03). | 🔲 Pendiente |
+| PR-C3 | `feat/convocatoria-params` | RF-09.1 | Copia de parámetros de entrega a la convocatoria (TSK-009-N04, migración). | ✅ Mergeado |
+| PR-C4 | `feat/deadline-warnings` | RF-09.1, RF-12.7(d) | Advertencia de plazo normativo al crear convocatoria (TSK-009-N06) y alerta de protocolos con pares sin convocatoria (TSK-002-N03). | 🔨 En progreso |
 | PR-C5 | `feat/deadline-alerts` | RF-ALR, RF-09.3, RF-15 | Alertas y recordatorios por offset de plazo (TSK-015-N01, TSK-015-N02) y módulo de seguimiento RF-15. | 🔲 Pendiente |
 | PR-C6 | `feat/ecuador-holidays` | RF-CAL | Feriados de Ecuador (TSK-015-N04) integrados en `BusinessDayCalculator`. | 🔲 Pendiente |
 

@@ -349,7 +349,7 @@
 - **Tests**: Ver TSK-009-N05 para la tarea específica de actualizar `test/real-db-evaluations.e2e-spec.ts:616` y añadir assertion post-convocatoria.
 - **Criterio "Hecho cuando:"**: Al crear una convocatoria cuya `fechaEntregaEvaluacion = '2026-10-14T17:00:00Z'` (= miércoles 12:00 ECT), las asignaciones activas del protocolo agendado tienen `fecha_limite = '2026-10-14'` en BD. Test E2E verifica el valor exacto.
 
-### Task TSK-009-N04 - [~] EN PROGRESO (PR-C3 feat/convocatoria-params)
+### Task TSK-009-N04 - [x] COMPLETADA (PR-C3)
 - **ID Único**: `TSK-009-N04`
 - **Requisito Relacionado**: `RF-09.1`
 - **PR**: PR-C3 (`feat/convocatoria-params`)
