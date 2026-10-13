@@ -176,8 +176,9 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     // Limpiar datos previos de prueba de forma acotada
     await dataSource.query(`
       UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 996, 997, 998, 999);
-      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+      -- convocatorias primero: la FK convocatoria_protocolos→convocatorias es ON DELETE CASCADE
       DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999));
+      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
       DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999)));
       DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
       DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
@@ -314,8 +315,9 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       if (dataSource && dataSource.isInitialized) {
         await dataSource.query(`
           UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 996, 997, 998, 999);
-          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+          -- convocatorias primero: la FK convocatoria_protocolos→convocatorias es ON DELETE CASCADE
           DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999));
+          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
           DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999)));
           DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
           DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
@@ -827,24 +829,39 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         protocolVersionIds: [991],
       };
 
-      const resCreate = await request(app.getHttpServer())
-        .post('/api/evaluations/meetings')
-        .set('x-user-id', '901')
-        .send(meetingPayload);
+      let meetingId: string | undefined;
+      try {
+        const resCreate = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .set('x-user-id', '901')
+          .send(meetingPayload);
 
-      expect([200, 201]).toContain(resCreate.status);
+        expect([200, 201]).toContain(resCreate.status);
+        meetingId = (resCreate.body.data?.id ?? resCreate.body.id) as string;
 
-      // Verificar SQL: todas las asignaciones ASIGNADO de versión 991 tienen fecha_limite = '2026-10-14'
-      const rows = await dataSource.query(`
-        SELECT id, fecha_limite::text AS fecha_limite_str
-        FROM evaluacion.asignaciones_evaluacion
-        WHERE version_id = 991
-          AND estado_id = ${AssignmentStatus.ASSIGNED}
-        ORDER BY id ASC;
-      `);
-      expect(rows.length).toBeGreaterThan(0);
-      for (const row of rows) {
-        expect(row.fecha_limite_str).toBe('2026-10-14');
+        // Verificar SQL: todas las asignaciones ASIGNADO de versión 991 tienen fecha_limite = '2026-10-14'
+        const rows = await dataSource.query(`
+          SELECT id, fecha_limite::text AS fecha_limite_str
+          FROM evaluacion.asignaciones_evaluacion
+          WHERE version_id = 991
+            AND estado_id = ${AssignmentStatus.ASSIGNED}
+          ORDER BY id ASC;
+        `);
+        expect(rows.length).toBeGreaterThan(0);
+        for (const row of rows) {
+          expect(row.fecha_limite_str).toBe('2026-10-14');
+        }
+      } finally {
+        if (meetingId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [meetingId],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [meetingId],
+          );
+        }
       }
     });
 
@@ -862,46 +879,61 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       `);
 
       // 1. Asignar evaluadores vía endpoint legacy
-      const resAssign = await request(app.getHttpServer())
-        .post('/api/evaluations/protocols/997/assign-peer-evaluators')
-        .set('x-user-id', '901')
-        .send({ evaluatorIds: [901, 902, 903, 904] });
-      expect(resAssign.status).toBe(201);
+      let meetingId: string | undefined;
+      try {
+        const resAssign = await request(app.getHttpServer())
+          .post('/api/evaluations/protocols/997/assign-peer-evaluators')
+          .set('x-user-id', '901')
+          .send({ evaluatorIds: [901, 902, 903, 904] });
+        expect(resAssign.status).toBe(201);
 
-      // 2. Verificar que fecha_limite es NULL en la BD (RF-12.7(a))
-      const assignedRows = await dataSource.query(`
-        SELECT id, fecha_limite::text AS fecha_limite_str
-        FROM evaluacion.asignaciones_evaluacion
-        WHERE version_id = 997 AND estado_id = ${AssignmentStatus.ASSIGNED}
-        ORDER BY id ASC;
-      `);
-      expect(assignedRows.length).toBe(4);
-      for (const row of assignedRows) {
-        expect(row.fecha_limite_str).toBeNull();
-      }
+        // 2. Verificar que fecha_limite es NULL en la BD (RF-12.7(a))
+        const assignedRows = await dataSource.query(`
+          SELECT id, fecha_limite::text AS fecha_limite_str
+          FROM evaluacion.asignaciones_evaluacion
+          WHERE version_id = 997 AND estado_id = ${AssignmentStatus.ASSIGNED}
+          ORDER BY id ASC;
+        `);
+        expect(assignedRows.length).toBe(4);
+        for (const row of assignedRows) {
+          expect(row.fecha_limite_str).toBeNull();
+        }
 
-      // 3. Crear convocatoria que incluye versión 997
-      const resMeeting = await request(app.getHttpServer())
-        .post('/api/evaluations/meetings')
-        .set('x-user-id', '901')
-        .send({
-          sessionType: 'ORDINARIA',
-          meetingDate: '2026-10-20T09:00:00.000Z',
-          evalSubmissionDeadline: '2026-10-24T17:00:00.000Z',
-          protocolVersionIds: [997],
-        });
-      expect([200, 201]).toContain(resMeeting.status);
+        // 3. Crear convocatoria que incluye versión 997
+        const resMeeting = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .set('x-user-id', '901')
+          .send({
+            sessionType: 'ORDINARIA',
+            meetingDate: '2026-10-20T09:00:00.000Z',
+            evalSubmissionDeadline: '2026-10-24T17:00:00.000Z',
+            protocolVersionIds: [997],
+          });
+        expect([200, 201]).toContain(resMeeting.status);
+        meetingId = (resMeeting.body.data?.id ?? resMeeting.body.id) as string;
 
-      // 4. Verificar que fecha_limite se propagó a las asignaciones ASIGNADO (RF-12.7(b))
-      const updatedRows = await dataSource.query(`
-        SELECT id, fecha_limite::text AS fecha_limite_str
-        FROM evaluacion.asignaciones_evaluacion
-        WHERE version_id = 997 AND estado_id = ${AssignmentStatus.ASSIGNED}
-        ORDER BY id ASC;
-      `);
-      expect(updatedRows.length).toBe(4);
-      for (const row of updatedRows) {
-        expect(row.fecha_limite_str).toBe('2026-10-24');
+        // 4. Verificar que fecha_limite se propagó a las asignaciones ASIGNADO (RF-12.7(b))
+        const updatedRows = await dataSource.query(`
+          SELECT id, fecha_limite::text AS fecha_limite_str
+          FROM evaluacion.asignaciones_evaluacion
+          WHERE version_id = 997 AND estado_id = ${AssignmentStatus.ASSIGNED}
+          ORDER BY id ASC;
+        `);
+        expect(updatedRows.length).toBe(4);
+        for (const row of updatedRows) {
+          expect(row.fecha_limite_str).toBe('2026-10-24');
+        }
+      } finally {
+        if (meetingId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [meetingId],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [meetingId],
+          );
+        }
       }
     });
   });
