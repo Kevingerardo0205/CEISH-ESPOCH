@@ -454,6 +454,7 @@ graph TD
 | PR-C4 | `feat/deadline-warnings` | RF-09.1 | Advertencia de plazo normativo al crear convocatoria (TSK-009-N06). TSK-002-N03 movida a PR-C5 (requiere `@nestjs/schedule` no instalado). | 🔨 En progreso |
 | PR-C5 | `feat/deadline-alerts` | RF-ALR, RF-09.3, RF-12.7(d), RF-15 | Alertas y recordatorios por offset de plazo (TSK-015-N01, TSK-015-N02), alerta de protocolos con pares sin convocatoria (TSK-002-N03, requiere `@nestjs/schedule`) y módulo de seguimiento RF-15. | 🔲 Pendiente |
 | PR-C6 | `feat/ecuador-holidays` | RF-CAL | Feriados de Ecuador (TSK-015-N04) integrados en `BusinessDayCalculator`. | 🔲 Pendiente |
+| PR-T1 | `test/e2e-cleanup-hygiene` | — | Higiene de tests E2E (TSK-E2E-H01): corregir orden de DELETE en `afterAll`/`beforeAll` de `real-db-evaluations.e2e-spec.ts` para que `COUNT(evaluacion.convocatorias)` sea estable por corrida. | 🔨 En progreso |
 
 ### 13.2 Decisiones Técnicas Verificadas (Paso 1 de planificación, solo lectura de `src/`)
 
