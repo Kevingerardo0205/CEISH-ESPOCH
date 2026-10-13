@@ -223,7 +223,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** Al reasignar, el reemplazante hereda la `fecha_entrega_evaluacion` de la convocatoria activa. Si el protocolo no está agendado, queda "Pendiente de convocatoria". No hay reinicio de plazo.
   - **Hecho cuando:** Prueba unitaria confirme herencia de fecha y E2E valide la ruta de reasignación con y sin convocatoria activa.
 
-- [ ] **TSK-002-N03**: Implementar RF-12.7(d) — alerta de protocolos sin convocatoria tras `dias_max_sin_convocatoria`.
+- [ ] **TSK-002-N03**: Implementar RF-12.7(d) — alerta de protocolos sin convocatoria tras `dias_max_sin_convocatoria`. Movida a PR-C5; requiere @nestjs/schedule.
   - **Requisito relacionado:** `RF-12.7(d)`
   - **Criterio EARS:** aplica RF-ALR
   - **Descripción:** Cron diario que lista protocolos-versión con pares asignados y sin convocatoria. Alerta a Secretaría/Presidencia cuando transcurran `dias_max_sin_convocatoria` (inicial 8) días laborables desde la `fecha_asignacion` activa más antigua, o cuando `fecha_plazo_normativo` esté a `dias_alerta_normativo_sin_convocatoria` o menos. La reasignación NO reinicia la antigüedad.
