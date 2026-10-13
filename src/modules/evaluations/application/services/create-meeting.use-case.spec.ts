@@ -29,6 +29,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     repositoryMock = {
       saveMeetingWithAtomicNumber: jest.fn(),
       getOldestAssignedDates: jest.fn().mockResolvedValue([]),
+      findNormativeDeadlineInputs: jest.fn().mockResolvedValue([]),
       findById: jest.fn(),
       findAll: jest.fn(),
       findPendingProtocols: jest.fn(),
@@ -183,6 +184,129 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     const evalDeadline =
       repositoryMock.saveMeetingWithAtomicNumber.mock.calls[0][2];
     expect(evalDeadline.toISOString()).toBe('2026-11-06T17:00:00.000Z');
+  });
+
+  it('(TSK-009-N06) advertencia ADVERTENCIA_PLAZO_NORMATIVO cuando receptionDate antigua → evalDeadline supera plazo normativo', async () => {
+    // receptionDate = 2025-01-01: normativeDeadline ≈ 45 biz days → ~2025-03-05
+    // meetingDate = 2026-10-15, evalDeadline auto ≈ 2026-10-19 >> 2025-03-05 → WARNING
+    const meetingDate = new Date('2026-10-15T14:00:00.000Z');
+    const params = {
+      sessionType: SessionType.ORDINARIA,
+      meetingDate,
+      protocolVersionIds: [137],
+    };
+
+    repositoryMock.findNormativeDeadlineInputs.mockResolvedValueOnce([
+      {
+        protocolVersionId: 137,
+        protocolCode: 'PROT-EXPEDITA',
+        reviewType: 'EXPEDITA',
+        receptionDate: new Date('2025-01-01T05:00:00.000Z'),
+      },
+    ]);
+
+    const savedEntity: MeetingEntity = {
+      id: 'meet-n06-1',
+      numeroConvocatoria: '050-2026',
+      anioLectivo: 2026,
+      tipoSession: SessionType.ORDINARIA,
+      fechaReunion: meetingDate,
+      fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
+      estado: ConvocatoriaStatus.PROGRAMADA,
+    };
+
+    repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue('/pdf/050-2026.pdf');
+
+    const result = await useCase.execute(params);
+
+    const normativeWarnings = result.warnings.filter((w) =>
+      w.includes('ADVERTENCIA_PLAZO_NORMATIVO'),
+    );
+    expect(normativeWarnings.length).toBe(1);
+    expect(normativeWarnings[0]).toContain('PROT-EXPEDITA');
+  });
+
+  it('(TSK-009-N06) sin advertencia normativa cuando receptionDate reciente → evalDeadline anterior al plazo', async () => {
+    // receptionDate = 2026-10-01: normativeDeadline ≈ 45 biz days → ~2026-12-03
+    // evalDeadline ≈ 2026-10-19 < 2026-12-03 → NO warning
+    const meetingDate = new Date('2026-10-15T14:00:00.000Z');
+    const params = {
+      sessionType: SessionType.ORDINARIA,
+      meetingDate,
+      protocolVersionIds: [137],
+    };
+
+    repositoryMock.findNormativeDeadlineInputs.mockResolvedValueOnce([
+      {
+        protocolVersionId: 137,
+        protocolCode: 'PROT-RECIENTE',
+        reviewType: 'EXPEDITA',
+        receptionDate: new Date('2026-10-01T05:00:00.000Z'),
+      },
+    ]);
+
+    const savedEntity: MeetingEntity = {
+      id: 'meet-n06-2',
+      numeroConvocatoria: '051-2026',
+      anioLectivo: 2026,
+      tipoSession: SessionType.ORDINARIA,
+      fechaReunion: meetingDate,
+      fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
+      estado: ConvocatoriaStatus.PROGRAMADA,
+    };
+
+    repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue('/pdf/051-2026.pdf');
+
+    const result = await useCase.execute(params);
+
+    const normativeWarnings = result.warnings.filter((w) =>
+      w.includes('ADVERTENCIA_PLAZO_NORMATIVO'),
+    );
+    expect(normativeWarnings.length).toBe(0);
+  });
+
+  it('(TSK-009-N06) sin advertencia normativa cuando receptionDate es undefined (omite protocolo, emite logger.warn)', async () => {
+    const meetingDate = new Date('2026-10-15T14:00:00.000Z');
+    const params = {
+      sessionType: SessionType.ORDINARIA,
+      meetingDate,
+      protocolVersionIds: [137],
+    };
+
+    repositoryMock.findNormativeDeadlineInputs.mockResolvedValueOnce([
+      {
+        protocolVersionId: 137,
+        protocolCode: 'PROT-SIN-RECEPCION',
+        reviewType: 'EXPEDITA',
+        receptionDate: undefined,
+      },
+    ]);
+
+    const savedEntity: MeetingEntity = {
+      id: 'meet-n06-3',
+      numeroConvocatoria: '052-2026',
+      anioLectivo: 2026,
+      tipoSession: SessionType.ORDINARIA,
+      fechaReunion: meetingDate,
+      fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
+      estado: ConvocatoriaStatus.PROGRAMADA,
+    };
+
+    repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue('/pdf/052-2026.pdf');
+
+    const result = await useCase.execute(params);
+
+    const normativeWarnings = result.warnings.filter((w) =>
+      w.includes('ADVERTENCIA_PLAZO_NORMATIVO'),
+    );
+    expect(normativeWarnings.length).toBe(0);
+    expect(
+      result.warnings.filter((w) => w.includes('ADVERTENCIA_PLAZO_REVISION'))
+        .length,
+    ).toBe(0);
   });
 
   it('should include soft warning when assignment review time is less than PLAZO_REVISION_OFICIO_DIAS', async () => {

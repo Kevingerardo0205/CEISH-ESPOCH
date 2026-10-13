@@ -1457,4 +1457,111 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       }
     });
   });
+
+  describe('10. Advertencia de plazo normativo al crear convocatoria (TSK-009-N06)', () => {
+    it('10a. Protocolo EXPEDITA con plazo normativo vencido genera ADVERTENCIA_PLAZO_NORMATIVO', async () => {
+      // Protocolo 993: EXPEDITA, recepcion 2025-01-01 -> plazo norm. ~2025-03-05 (45 dias habiles)
+      // Meeting 2026-12-07 -> evalDeadline 2026-12-09 >> plazo normativo -> ADVERTENCIA
+      let meetingId: string | undefined;
+      try {
+        await dataSource.query(`
+          INSERT INTO public.protocolos (id, titulo, investigador_principal_id, nivel_riesgo_id, estado_id, tipo_revision)
+          VALUES (993, 'Test Normativo Vencido', 901, ${expeditaRiskId}, 10, 'EXPEDITA')
+          ON CONFLICT (id) DO UPDATE SET tipo_revision = 'EXPEDITA', nivel_riesgo_id = ${expeditaRiskId};
+          INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+          VALUES (993, 993, 1, 10) ON CONFLICT (id) DO NOTHING;
+          UPDATE public.protocolos SET version_actual_id = 993 WHERE id = 993;
+        `);
+        await dataSource.query(
+          `INSERT INTO recepcion.recepciones (version_id, fecha_recepcion, estado_id)
+           VALUES (993, '2025-01-01 00:00:00', 10)
+           ON CONFLICT (version_id) DO UPDATE SET fecha_recepcion = '2025-01-01 00:00:00'`,
+        );
+
+        const res = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .set('x-user-id', '901')
+          .send({
+            sessionType: 'ORDINARIA',
+            meetingDate: '2026-12-07T14:00:00.000Z',
+            protocolVersionIds: [993],
+          });
+        expect([200, 201]).toContain(res.status);
+        meetingId = (res.body.data?.id ?? res.body.id) as string;
+        expect(meetingId).toBeTruthy();
+
+        const advertencias: string[] = res.body.advertencias ?? [];
+        const normativaWarning = advertencias.find((w: string) =>
+          w.includes('ADVERTENCIA_PLAZO_NORMATIVO'),
+        );
+        expect(normativaWarning).toBeDefined();
+        expect(normativaWarning).toContain('993');
+      } finally {
+        if (meetingId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [meetingId],
+          );
+        }
+        await dataSource.query(`
+          DELETE FROM recepcion.recepciones WHERE version_id = 993;
+          UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 993;
+          DELETE FROM public.versiones_protocolo WHERE id = 993;
+          DELETE FROM public.protocolos WHERE id = 993;
+        `);
+      }
+    });
+
+    it('10b. Protocolo EXPEDITA con plazo normativo vigente no genera advertencia normativa', async () => {
+      // Protocolo 994: EXPEDITA, recepcion 2026-12-01 -> plazo norm. ~2027-02-02 (45 dias habiles)
+      // Meeting 2026-12-14 -> evalDeadline 2026-12-16 << plazo normativo -> SIN advertencia
+      let meetingId: string | undefined;
+      try {
+        await dataSource.query(`
+          INSERT INTO public.protocolos (id, titulo, investigador_principal_id, nivel_riesgo_id, estado_id, tipo_revision)
+          VALUES (994, 'Test Normativo Vigente', 901, ${expeditaRiskId}, 10, 'EXPEDITA')
+          ON CONFLICT (id) DO UPDATE SET tipo_revision = 'EXPEDITA', nivel_riesgo_id = ${expeditaRiskId};
+          INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+          VALUES (994, 994, 1, 10) ON CONFLICT (id) DO NOTHING;
+          UPDATE public.protocolos SET version_actual_id = 994 WHERE id = 994;
+        `);
+        await dataSource.query(
+          `INSERT INTO recepcion.recepciones (version_id, fecha_recepcion, estado_id)
+           VALUES (994, '2026-12-01 00:00:00', 10)
+           ON CONFLICT (version_id) DO UPDATE SET fecha_recepcion = '2026-12-01 00:00:00'`,
+        );
+
+        const res = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .set('x-user-id', '901')
+          .send({
+            sessionType: 'ORDINARIA',
+            meetingDate: '2026-12-14T14:00:00.000Z',
+            protocolVersionIds: [994],
+          });
+        expect([200, 201]).toContain(res.status);
+        meetingId = (res.body.data?.id ?? res.body.id) as string;
+        expect(meetingId).toBeTruthy();
+
+        const advertencias: string[] = res.body.advertencias ?? [];
+        const normativaWarning = advertencias.find((w: string) =>
+          w.includes('ADVERTENCIA_PLAZO_NORMATIVO'),
+        );
+        expect(normativaWarning).toBeUndefined();
+      } finally {
+        if (meetingId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [meetingId],
+          );
+        }
+        await dataSource.query(`
+          DELETE FROM recepcion.recepciones WHERE version_id = 994;
+          UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 994;
+          DELETE FROM public.versiones_protocolo WHERE id = 994;
+          DELETE FROM public.protocolos WHERE id = 994;
+        `);
+      }
+    });
+  });
 });

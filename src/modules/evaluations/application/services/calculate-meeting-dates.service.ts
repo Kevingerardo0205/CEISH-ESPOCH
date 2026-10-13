@@ -1,10 +1,18 @@
 import { Injectable } from '@nestjs/common';
-import { BusinessDayCalculator } from '../../../../shared/services/deadline-calculator.service';
+import {
+  BusinessDayCalculator,
+  endOfDayGuayaquil,
+} from '../../../../shared/services/deadline-calculator.service';
 import {
   SystemParamsService,
   SP_ENTREGA_EVALUACION_DIAS,
   SP_PLAZO_REVISION_OFICIO,
 } from '../../../sistema/application/services/system-params.service';
+import {
+  PLAZO_NORMATIVO_EXPEDITA_DIAS,
+  PLAZO_NORMATIVO_PLENO_DIAS,
+} from '../../../../shared/deadlines/deadline-rules';
+import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
 import type { AssignmentDeadlineSnapshot } from '../../domain/ports/meeting-repository.port';
 
 export interface ProtocolNormativeSnapshot {
@@ -15,6 +23,30 @@ export interface ProtocolNormativeSnapshot {
 @Injectable()
 export class CalculateMeetingDatesService {
   constructor(private readonly systemParams: SystemParamsService) {}
+
+  /**
+   * Calcula el plazo normativo de revisión a partir del tipo de revisión y la fecha de recepción.
+   * Retorna fin de día en ECT del último día hábil del plazo (45 días EXPEDITA, 60 días PLENO/ENSAYO_CLINICO).
+   * Retorna undefined si falta reviewType o receptionDate.
+   * TODO TSK-015-N04: integrar feriados de Ecuador en el cálculo.
+   */
+  static computeNormativeDeadline(
+    reviewType: string | undefined,
+    receptionDate: Date | undefined,
+  ): Date | undefined {
+    if (!reviewType || !receptionDate) return undefined;
+    const days =
+      (reviewType as ReviewType) === ReviewType.EXPEDITA
+        ? PLAZO_NORMATIVO_EXPEDITA_DIAS
+        : PLAZO_NORMATIVO_PLENO_DIAS;
+    const { deadlineDateString } =
+      BusinessDayCalculator.calculateDetailedDeadline({
+        startDate: receptionDate,
+        businessDaysToAdd: days,
+        holidays: [],
+      });
+    return endOfDayGuayaquil(deadlineDateString);
+  }
 
   /** Expone el valor actual de SP_ENTREGA_EVALUACION_DIAS para snapshot en convocatoria (TSK-009-N04). */
   getEntregaDias(): number {
@@ -41,21 +73,30 @@ export class CalculateMeetingDatesService {
 
   /**
    * Evalúa advertencias suaves no bloqueantes:
-   * - Si la fecha de reunión excede el plazo normativo de algún protocolo.
-   * - Si el número de días hábiles desde la asignación más antigua es menor que PLAZO_REVISION_OFICIO_DIAS.
+   * - Si evalDeadline excede el plazo normativo de algún protocolo (TSK-009-N06).
+   * - Si el número de días hábiles desde la asignación más antigua es menor que
+   *   PLAZO_REVISION_OFICIO_DIAS (TSK-002-N05).
    */
   evaluateSoftWarnings(
     meetingDate: Date,
     protocols: ProtocolNormativeSnapshot[],
-    assignments?: AssignmentDeadlineSnapshot[],
+    assignments: AssignmentDeadlineSnapshot[] | undefined,
+    evalDeadline: Date,
   ): string[] {
     const warnings: string[] = [];
     const plazoRevision = this.systemParams.get(SP_PLAZO_REVISION_OFICIO);
+    const formatECT = (d: Date): string =>
+      new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Guayaquil',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(d);
 
     for (const protocol of protocols) {
-      if (meetingDate.getTime() > protocol.normativeDeadline.getTime()) {
+      if (evalDeadline.getTime() > protocol.normativeDeadline.getTime()) {
         warnings.push(
-          `ADVERTENCIA: La fecha de reunión (${meetingDate.toISOString()}) excede el plazo normativo (${protocol.normativeDeadline.toISOString()}) del protocolo ${protocol.protocolCode}.`,
+          `ADVERTENCIA_PLAZO_NORMATIVO: El protocolo ${protocol.protocolCode} tiene fecha de entrega (${formatECT(evalDeadline)}) posterior a su plazo normativo (${formatECT(protocol.normativeDeadline)}).`,
         );
       }
     }

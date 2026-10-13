@@ -349,7 +349,7 @@
 - **Tests**: Ver TSK-009-N05 para la tarea específica de actualizar `test/real-db-evaluations.e2e-spec.ts:616` y añadir assertion post-convocatoria.
 - **Criterio "Hecho cuando:"**: Al crear una convocatoria cuya `fechaEntregaEvaluacion = '2026-10-14T17:00:00Z'` (= miércoles 12:00 ECT), las asignaciones activas del protocolo agendado tienen `fecha_limite = '2026-10-14'` en BD. Test E2E verifica el valor exacto.
 
-### Task TSK-009-N04 - [~] EN PROGRESO (PR-C3 feat/convocatoria-params)
+### Task TSK-009-N04 - [x] COMPLETADA (PR-C3)
 - **ID Único**: `TSK-009-N04`
 - **Requisito Relacionado**: `RF-09.1`
 - **PR**: PR-C3 (`feat/convocatoria-params`)
@@ -388,15 +388,23 @@
 - **Tests**: `npm run test:e2e -- test/real-db-evaluations.e2e-spec.ts`.
 - **Criterio "Hecho cuando:"**: Nueva assertion en verde: después de crear convocatoria con `fechaEntregaEvaluacion = '2026-10-14T17:00:00Z'`, las asignaciones activas del protocolo agendado tienen `fecha_limite = '2026-10-14'` en BD.
 
-### Task TSK-009-N06 - [ ] PENDIENTE
+### Task TSK-009-N06 - [x] COMPLETADA (PR-C4)
 - **ID Único**: `TSK-009-N06`
 - **Requisito Relacionado**: `RF-09.1`
 - **PR**: PR-C4 (`feat/deadline-warnings`)
 - **Criterio EARS**: Advertencia suave cuando `fecha_entrega_evaluacion` supera el plazo normativo del protocolo.
 - **Archivos Afectados**:
-  - `src/modules/evaluations/application/services/create-meeting.use-case.ts`
-  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts`
+  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts` (MODIFICAR — método `findNormativeDeadlineInputs` + interfaz `NormativeDeadlineInput`)
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` (MODIFICAR — implementación de `findNormativeDeadlineInputs`)
+  - `src/modules/evaluations/application/services/calculate-meeting-dates.service.ts` (MODIFICAR — `computeNormativeDeadline` estático + parámetro `evalDeadline` en `evaluateSoftWarnings`)
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR — paso 4b: obtener inputs y construir snapshots normativos)
+  - `src/modules/evaluations/application/services/calculate-meeting-dates.service.spec.ts` (MODIFICAR — tests `computeNormativeDeadline` y `evaluateSoftWarnings` con `evalDeadline`)
+  - `src/modules/evaluations/application/services/create-meeting.use-case.spec.ts` (MODIFICAR — tests advertencia normativa con mocks)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` (MODIFICAR — mock `findNormativeDeadlineInputs`)
+  - `test/meetings.e2e-spec.ts` (MODIFICAR — mock `findNormativeDeadlineInputs`)
+  - `test/meetings-concurrency.e2e-spec.ts` (MODIFICAR — mock `findNormativeDeadlineInputs`)
+  - `test/real-db-evaluations.e2e-spec.ts` (MODIFICAR — describe 10: protocolo 993/994 con receptionDate antigua/reciente)
 - **Dependencias**: `TSK-009-N03`, `TSK-009-N04`
-- **Descripción**: Emitir advertencia suave (`warnings`) cuando la `fecha_entrega_evaluacion` de la convocatoria supera el plazo normativo de respuesta (`responseDeadline`) de algún protocolo agendado. El `responseDeadline` es un getter calculado en `ProtocolOrmEntity` que requiere cargar la relación `reception`. Actualmente `create-meeting.use-case.ts` pasa `protocols: []` porque `responseDeadline` no está disponible sin esa carga. Esta tarea debe: (1) cargar la relación `reception` en `findPendingProtocols` o en `getOldestAssignedDates`; (2) pasar los protocolos reales a `evaluateSoftWarnings`.
-- **Tests**: Test E2E en `test/real-db-evaluations.e2e-spec.ts`: crear convocatoria con protocolo cuyo `responseDeadline` es anterior a la fecha de entrega → respuesta incluye la advertencia normativa.
+- **Descripción**: Emitir advertencia suave (`warnings`) cuando la `fecha_entrega_evaluacion` de la convocatoria supera el plazo normativo de algún protocolo agendado. Implementado con un método de puerto aditivo `findNormativeDeadlineInputs` que retorna datos crudos `{ protocolCode, reviewType, receptionDate }`. El cálculo del plazo normativo (45 días hábiles EXPEDITA, 60 días PLENO/ENSAYO_CLINICO) se realiza en capa `application/` mediante `CalculateMeetingDatesService.computeNormativeDeadline()` estático. Protocolo sin `receptionDate` o `reviewType` omite advertencia con `logger.warn`.
+- **Tests**: Test E2E describe 10 en `test/real-db-evaluations.e2e-spec.ts`: protocolos 993 (receptionDate 2025-01-01 → advertencia) y 994 (receptionDate 2026-12-01 → sin advertencia). Tests unitarios en `calculate-meeting-dates.service.spec.ts` y `create-meeting.use-case.spec.ts`.
 - **Criterio "Hecho cuando:"**: Crear una convocatoria con protocolo cuyo plazo normativo es anterior a `fecha_entrega_evaluacion` retorna un warning en el campo `advertencias`; los protocolos con plazo normativo posterior no generan warning.

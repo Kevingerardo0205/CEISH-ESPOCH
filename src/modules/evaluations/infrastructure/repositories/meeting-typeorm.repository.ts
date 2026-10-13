@@ -9,6 +9,7 @@ import {
   CreateMeetingParams,
   FindMeetingsOptions,
   AssignmentDeadlineSnapshot,
+  NormativeDeadlineInput,
 } from '../../domain/ports/meeting-repository.port';
 import { MeetingEntity } from '../../domain/entities/meeting.entity';
 import {
@@ -206,6 +207,25 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       protocolVersionId: Number(row.protocolVersionId),
       protocolCode: String(row.protocolCode),
       oldestAssignmentDate: new Date(row.oldestAssignmentDate),
+    }));
+  }
+
+  async findNormativeDeadlineInputs(
+    protocolVersionIds: number[],
+  ): Promise<NormativeDeadlineInput[]> {
+    if (!protocolVersionIds.length) return [];
+    const versions = await this.dataSource
+      .getRepository(ProtocolVersionOrmEntity)
+      .createQueryBuilder('pv')
+      .innerJoinAndSelect('pv.protocol', 'p')
+      .leftJoinAndSelect('pv.reception', 'r')
+      .where('pv.id = ANY(:ids)', { ids: protocolVersionIds })
+      .getMany();
+    return versions.map((pv) => ({
+      protocolVersionId: pv.id,
+      protocolCode: pv.protocol?.ceishCode ?? String(pv.protocolId),
+      reviewType: pv.protocol?.reviewType,
+      receptionDate: pv.reception?.receptionDate,
     }));
   }
 
