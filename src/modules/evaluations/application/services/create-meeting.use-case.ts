@@ -6,6 +6,7 @@ import type {
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
 import { CalculateMeetingDatesService } from './calculate-meeting-dates.service';
 import { MeetingDatesValueObject } from '../../domain/value-objects/meeting-dates.vo';
+import { ENTREGA_EVALUACION_HORA_CORTE } from '../../../../shared/deadlines/deadline-rules';
 
 @Injectable()
 export class CreateMeetingUseCase {
@@ -66,10 +67,17 @@ export class CreateMeetingUseCase {
     );
 
     // 6. Persistir atómicamente asignando el siguiente número correlativo (001-2026)
+    // Snapshot de los parámetros de entrega usados (TSK-009-N04): getEntregaDias() es la
+    // misma fuente que usa calculateSuggestedEvalDeadline(), garantizando coherencia.
     const academicYear = params.meetingDate.getFullYear();
+    const repoParams: CreateMeetingParams = {
+      ...params,
+      entregaDiasHabiles: this.calculateDatesService.getEntregaDias(),
+      entregaHoraCorte: ENTREGA_EVALUACION_HORA_CORTE,
+    };
     const savedMeeting =
       await this.meetingRepository.saveMeetingWithAtomicNumber(
-        params,
+        repoParams,
         `${academicYear}`,
         datesVo.evalSubmissionDeadline,
       );

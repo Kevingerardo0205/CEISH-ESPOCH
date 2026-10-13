@@ -59,6 +59,21 @@ export class ConvocatoriaOrmEntity {
   })
   fechaEntregaEvaluacion: Date;
 
+  @Column({
+    name: 'entrega_evaluacion_dias_habiles_tras_reunion',
+    type: 'integer',
+    default: 2,
+  })
+  entregaEvaluacionDiasHabiles: number;
+
+  @Column({
+    name: 'entrega_evaluacion_hora_corte',
+    type: 'varchar',
+    length: 5,
+    default: '12:00',
+  })
+  entregaEvaluacionHoraCorte: string;
+
   @Column({ name: 'lugar_id', type: 'uuid', nullable: true })
   lugarId?: string;
 

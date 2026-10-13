@@ -188,7 +188,7 @@
 ### Task TSK-015-N04 - [ ] PENDIENTE
 - **ID Único**: `TSK-015-N04`
 - **Requisito Relacionado**: `RF-CAL`
-- **PR**: PR-C (`feat/deadline-alerts`)
+- **PR**: PR-C6 (`feat/ecuador-holidays`)
 - **Criterio EARS**: `EARS 3`
 - **Acción**: `CREAR`
 - **Archivos Afectados**:
@@ -207,7 +207,7 @@
 - **PR**: PR-C1 (`feat/system-params`) y PR-C2 (`feat/system-params-followup`), dependiente de TSK-015-N03
 - **Estado C1 (cableado):** `plazo_subsanacion_documental_dias`, `plazo_revision_oficio_dias`, `entrega_evaluacion_dias_habiles_tras_reunion`, `evaluador_urgente_umbral_dias` → cableados y funcionando con fallback. Email template recibe `plazo` dinámico.
 - **Estado C2 (cableado):** `plazo_condicion_dias` → cableado en `ProtocolDeadlineService.getCondicionDias()` y consumido por `calculateSubsanacionDeadline()`, `resolutions.service.ts` y `evaluations.service.ts`. La constante `PLAZO_CONDICION_DIAS` ya no se usa directamente en el flujo canónico (queda solo en `deadline-rules.ts` como fallback y en `calls.service.ts` como deuda legacy).
-- **Pendiente C3+ (plazos normativos):** `plazo_normativo_expedita_dias` y `plazo_normativo_pleno_dias` requieren un PR independiente: hay que retirar el getter `responseDeadline` del ORM entity `ProtocolOrmEntity` (lógica de negocio en infraestructura) y migrar sus llamadores, incluyendo `calls.service.ts` (actualmente fuera de límites). No está atado a feriados ni a C3.
+- **Pendiente (PR independiente, sin asignación aún — plazos normativos):** `plazo_normativo_expedita_dias` y `plazo_normativo_pleno_dias` requieren un PR independiente: hay que retirar el getter `responseDeadline` del ORM entity `ProtocolOrmEntity` (lógica de negocio en infraestructura) y migrar sus llamadores, incluyendo `calls.service.ts` (actualmente fuera de límites). No está atado a C3, C4, C5 ni C6.
 - **Pendiente C5 (alertas, seguimiento):** alertas (`alerta_offsets_dias`, `alerta_renovacion_offsets_dias`) y otros parámetros de seguimiento.
 - **Nota sobre entrega de evaluación (RF-09.1):** La entrega es `reunión + 2 días hábiles a las 12:00 America/Guayaquil` para cualquier día de la semana, incluidas reuniones extraordinarias. Los feriados quedan excluidos del cálculo hasta `TSK-015-N04`.
 - **Criterio EARS**: Cuando `SystemParamsService` esté disponible, las constantes parametrizables de `deadline-rules.ts` se leen desde `sistema.parametros_sistema` con fallback al valor hardcodeado.
@@ -217,8 +217,8 @@
     - `plazo_subsanacion_documental_dias` = 30 (RF-07.1 / RF-13) — fallback: `PLAZO_SUBSANACION_DOCUMENTAL_DIAS` ✅ C1
     - `plazo_condicion_dias` = 30 (RF-14.1) — fallback: `PLAZO_CONDICION_DIAS` ✅ C2
     - `plazo_revision_oficio_dias` = 8 (RF-12.7(c)) — fallback: `PLAZO_REVISION_OFICIO_DIAS` ✅ C1
-    - `plazo_normativo_expedita_dias` = 45 (RF-CAL) — fallback: `PLAZO_NORMATIVO_EXPEDITA_DIAS` 🔲 PR independiente (ver nota C3+)
-    - `plazo_normativo_pleno_dias` = 60 (RF-CAL) — fallback: `PLAZO_NORMATIVO_PLENO_DIAS` 🔲 PR independiente (ver nota C3+)
+    - `plazo_normativo_expedita_dias` = 45 (RF-CAL) — fallback: `PLAZO_NORMATIVO_EXPEDITA_DIAS` 🔲 PR independiente (sin asignación aún)
+    - `plazo_normativo_pleno_dias` = 60 (RF-CAL) — fallback: `PLAZO_NORMATIVO_PLENO_DIAS` 🔲 PR independiente (sin asignación aún)
     - `entrega_evaluacion_dias_habiles_tras_reunion` = 2 (RF-09.1) — fallback: `ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION` ✅ C1
     - `evaluador_urgente_umbral_dias` = 2 (RF-09.1) — valor provisional, **pendiente de confirmar con presidente/secretaria** — fallback: `EVALUADOR_URGENTE_UMBRAL_DIAS` ✅ C1
     - `alerta_offsets_dias` = [7, 1] (RF-ALR) 🔲 C5 (TSK-015-N01, requiere soporte array)

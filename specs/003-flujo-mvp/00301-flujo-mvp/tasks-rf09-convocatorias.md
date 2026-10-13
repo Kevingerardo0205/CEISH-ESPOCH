@@ -349,19 +349,29 @@
 - **Tests**: Ver TSK-009-N05 para la tarea específica de actualizar `test/real-db-evaluations.e2e-spec.ts:616` y añadir assertion post-convocatoria.
 - **Criterio "Hecho cuando:"**: Al crear una convocatoria cuya `fechaEntregaEvaluacion = '2026-10-14T17:00:00Z'` (= miércoles 12:00 ECT), las asignaciones activas del protocolo agendado tienen `fecha_limite = '2026-10-14'` en BD. Test E2E verifica el valor exacto.
 
-### Task TSK-009-N04 - [ ] PENDIENTE
+### Task TSK-009-N04 - [~] EN PROGRESO (PR-C3 feat/convocatoria-params)
 - **ID Único**: `TSK-009-N04`
 - **Requisito Relacionado**: `RF-09.1`
-- **PR**: PR-C (`feat/deadline-alerts`)
+- **PR**: PR-C3 (`feat/convocatoria-params`)
 - **Criterio EARS**: `EARS 2`
 - **Acción**: `CREAR` (migración + columnas)
 - **Archivos Afectados**:
-  - Migración TypeORM nueva (ej. `src/migrations/<ts>-AddConvocatoriaDeliveryParams.ts`)
+  - `src/migrations/1840000000000-AddConvocatoriaDeliveryParams.ts` (NUEVO)
   - `src/modules/evaluations/infrastructure/database/entities/convocatoria.orm-entity.ts`
-- **Dependencias**: `TSK-015-N03` (tabla `sistema.parametros_sistema` debe existir antes de migrar estos valores desde ahí)
-- **Descripción**: Persistir los parámetros de cálculo de fecha de entrega directamente en la tabla `evaluacion.convocatorias` para que cada convocatoria registre los valores con los que fue creada. Añadir columnas: `entrega_evaluacion_dias_habiles_tras_reunion INTEGER DEFAULT 2` y `entrega_evaluacion_hora_corte VARCHAR(5) DEFAULT '12:00'`. Poblarlas al crear la convocatoria desde `sistema.parametros_sistema` (o desde las constantes de `deadline-rules.ts` si `sistema.parametros_sistema` aún no tiene esos parámetros).
-- **Tests**: Verificar migración `up`/`down`; prueba unitaria confirma que los valores se persisten en la convocatoria.
-- **Criterio "Hecho cuando:"**: La tabla `evaluacion.convocatorias` tiene las dos columnas nuevas con sus valores por defecto, y el repositorio las lee al calcular `fecha_limite` en TSK-009-N03 (o lo hace de forma directa en el mismo PR-C).
+  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts`
+  - `src/modules/evaluations/application/services/calculate-meeting-dates.service.ts`
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts`
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts`
+  - `src/modules/evaluations/application/services/calculate-meeting-dates.service.spec.ts`
+  - `src/modules/evaluations/application/services/create-meeting.use-case.spec.ts`
+  - `test/real-db-evaluations.e2e-spec.ts`
+- **Dependencias**: `TSK-015-N03` (tabla `sistema.parametros_sistema` debe existir antes de leer parámetros desde ahí) — completada en PR-C1.
+- **Descripción**: Persistir los parámetros de cálculo de fecha de entrega directamente en la tabla `evaluacion.convocatorias` como trazabilidad de la regla usada al crear cada sesión. Columnas añadidas: `entrega_evaluacion_dias_habiles_tras_reunion INTEGER NOT NULL DEFAULT 2` y `entrega_evaluacion_hora_corte VARCHAR(5) NOT NULL DEFAULT '12:00'`. Al crear una convocatoria, `CalculateMeetingDatesService.getEntregaDias()` (misma fuente que `calculateSuggestedEvalDeadline`) provee el valor dinámico; `ENTREGA_EVALUACION_HORA_CORTE` (constante no parametrizable) provee la hora.
+  - **Registros existentes**: reciben los defaults automáticamente (equivale a los valores históricos hardcodeados). No se requiere backfill manual.
+  - **Snapshot inmutable**: la fecha `fechaEntregaEvaluacion` es la fuente que usa la reasignación de evaluadores. Editar `sistema.parametros_sistema` después de crear una convocatoria no altera retroactivamente su snapshot.
+  - **`entregaHoraCorte` es constante**: `ENTREGA_EVALUACION_HORA_CORTE = '12:00'` no es parametrizable vía BD (parte del protocolo institucional).
+- **Tests**: Unitarios: `getEntregaDias()` con mock=3, snapshot coherente con fecha calculada. E2E describe 9 (9a defaults, 9b con SP=3).
+- **Criterio "Hecho cuando:"**: La tabla `evaluacion.convocatorias` tiene las dos columnas nuevas; el repositorio las persiste al crear; `npm test` verde; E2E 9a y 9b pasan tras aplicar migración 1840000000000 en `ceish_test_db`.
 
 ### Task TSK-009-N05 - [x] COMPLETADA
 - **ID Único**: `TSK-009-N05`
@@ -381,7 +391,7 @@
 ### Task TSK-009-N06 - [ ] PENDIENTE
 - **ID Único**: `TSK-009-N06`
 - **Requisito Relacionado**: `RF-09.1`
-- **PR**: PR-C (`feat/deadline-alerts`)
+- **PR**: PR-C4 (`feat/deadline-warnings`)
 - **Criterio EARS**: Advertencia suave cuando `fecha_entrega_evaluacion` supera el plazo normativo del protocolo.
 - **Archivos Afectados**:
   - `src/modules/evaluations/application/services/create-meeting.use-case.ts`

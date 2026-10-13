@@ -165,6 +165,51 @@ describe('CalculateMeetingDatesService', () => {
     });
   });
 
+  describe('getEntregaDias (TSK-009-N04)', () => {
+    it('getEntregaDias() devuelve el valor de SP_ENTREGA_EVALUACION_DIAS del mock', () => {
+      // mockSystemParams retorna SYSTEM_PARAM_FALLBACKS[SP_ENTREGA_EVALUACION_DIAS] = 2
+      expect(service.getEntregaDias()).toBe(2);
+    });
+
+    it('getEntregaDias() devuelve 3 cuando SystemParam retorna 3', async () => {
+      const mockWith3 = {
+        get: (clave: SystemParamKey) =>
+          clave === 'entrega_evaluacion_dias_habiles_tras_reunion'
+            ? 3
+            : SYSTEM_PARAM_FALLBACKS[clave],
+      } as unknown as SystemParamsService;
+      const module = await Test.createTestingModule({
+        providers: [
+          CalculateMeetingDatesService,
+          { provide: SystemParamsService, useValue: mockWith3 },
+        ],
+      }).compile();
+      const svc = module.get(CalculateMeetingDatesService);
+      expect(svc.getEntregaDias()).toBe(3);
+    });
+
+    it('calculateSuggestedEvalDeadline usa el mismo valor que getEntregaDias()', async () => {
+      const mockWith3 = {
+        get: (clave: SystemParamKey) =>
+          clave === 'entrega_evaluacion_dias_habiles_tras_reunion'
+            ? 3
+            : SYSTEM_PARAM_FALLBACKS[clave],
+      } as unknown as SystemParamsService;
+      const module = await Test.createTestingModule({
+        providers: [
+          CalculateMeetingDatesService,
+          { provide: SystemParamsService, useValue: mockWith3 },
+        ],
+      }).compile();
+      const svc = module.get(CalculateMeetingDatesService);
+      // Lunes 2026-11-03 + 3 días hábiles = Jueves 2026-11-06 a las 12:00 ECT (17:00 UTC)
+      const monday = new Date('2026-11-03T14:00:00.000Z');
+      const deadline = svc.calculateSuggestedEvalDeadline(monday);
+      expect(svc.getEntregaDias()).toBe(3);
+      expect(deadline.toISOString()).toBe('2026-11-06T17:00:00.000Z');
+    });
+  });
+
   describe('wiring: non-default SystemParam values (TSK-015-N05)', () => {
     it('ENTREGA=3: calculateSuggestedEvalDeadline adds 3 business days at 12:00 ECT', async () => {
       const mockWith3 = {

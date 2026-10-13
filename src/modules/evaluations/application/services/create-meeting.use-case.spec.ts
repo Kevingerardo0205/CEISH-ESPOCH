@@ -139,6 +139,52 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     await expect(useCase.execute(params)).rejects.toThrow(BadRequestException);
   });
 
+  it('(TSK-009-N04) snapshot entregaDiasHabiles coincide con el calculado y hora es "12:00"', async () => {
+    // Mock que devuelve 3 para SP_ENTREGA_EVALUACION_DIAS
+    const mockWith3 = {
+      get: (clave: SystemParamKey) =>
+        clave === 'entrega_evaluacion_dias_habiles_tras_reunion'
+          ? 3
+          : SYSTEM_PARAM_FALLBACKS[clave],
+    } as unknown as SystemParamsService;
+    const svcWith3 = new CalculateMeetingDatesService(mockWith3);
+    const ucWith3 = new CreateMeetingUseCase(
+      repositoryMock,
+      pdfGeneratorMock,
+      svcWith3,
+    );
+
+    const meetingDate = new Date('2026-11-03T14:00:00.000Z'); // Lunes
+    const params = {
+      sessionType: SessionType.ORDINARIA,
+      meetingDate,
+      protocolVersionIds: [137],
+    };
+    // Lunes + 3 días hábiles = Jueves 2026-11-06 17:00 UTC
+    const savedEntity: MeetingEntity = {
+      id: 'meet-snap',
+      numeroConvocatoria: '010-2026',
+      anioLectivo: 2026,
+      tipoSession: SessionType.ORDINARIA,
+      fechaReunion: meetingDate,
+      fechaEntregaEvaluacion: new Date('2026-11-06T17:00:00.000Z'),
+      estado: ConvocatoriaStatus.PROGRAMADA,
+    };
+    repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue('/pdf/010-2026.pdf');
+
+    await ucWith3.execute(params);
+
+    const callArgs =
+      repositoryMock.saveMeetingWithAtomicNumber.mock.calls[0][0];
+    expect(callArgs.entregaDiasHabiles).toBe(3);
+    expect(callArgs.entregaHoraCorte).toBe('12:00');
+    // La fecha de entrega calculada también debe corresponder a 3 días hábiles
+    const evalDeadline =
+      repositoryMock.saveMeetingWithAtomicNumber.mock.calls[0][2];
+    expect(evalDeadline.toISOString()).toBe('2026-11-06T17:00:00.000Z');
+  });
+
   it('should include soft warning when assignment review time is less than PLAZO_REVISION_OFICIO_DIAS', async () => {
     const meetingDate = new Date('2026-10-15T09:00:00.000Z');
     // 3 días hábiles de revisión disponibles (12, 13, 14 oct — se excluye el día de reunión 15)

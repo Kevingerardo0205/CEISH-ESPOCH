@@ -16,13 +16,18 @@ export interface ProtocolNormativeSnapshot {
 export class CalculateMeetingDatesService {
   constructor(private readonly systemParams: SystemParamsService) {}
 
+  /** Expone el valor actual de SP_ENTREGA_EVALUACION_DIAS para snapshot en convocatoria (TSK-009-N04). */
+  getEntregaDias(): number {
+    return this.systemParams.get(SP_ENTREGA_EVALUACION_DIAS);
+  }
+
   /**
    * Calcula la fecha de entrega de evaluaciones sugerida:
    * meetingDate + ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION días hábiles a las 12:00 ECT.
    * Días configurables vía SystemParams (fallback: ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION).
    */
   calculateSuggestedEvalDeadline(meetingDate: Date): Date {
-    const dias = this.systemParams.get(SP_ENTREGA_EVALUACION_DIAS);
+    const dias = this.getEntregaDias();
     const { deadlineDateString } =
       BusinessDayCalculator.calculateDetailedDeadline({
         startDate: meetingDate,

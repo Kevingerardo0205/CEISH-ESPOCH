@@ -25,6 +25,10 @@ import { MeetingNumberValueObject } from '../../domain/value-objects/meeting-num
 import { AgendaItemType } from '../../../../shared/enums/agenda-section.enum';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
+import {
+  ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION,
+  ENTREGA_EVALUACION_HORA_CORTE,
+} from '../../../../shared/deadlines/deadline-rules';
 
 @Injectable()
 export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
@@ -75,6 +79,11 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
         meetingEntity.fechaEntregaEvaluacion = evalSubmissionDeadline;
         meetingEntity.lugarId = params.locationId;
         meetingEntity.estado = ConvocatoriaStatus.PROGRAMADA;
+        meetingEntity.entregaEvaluacionDiasHabiles =
+          params.entregaDiasHabiles ??
+          ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION;
+        meetingEntity.entregaEvaluacionHoraCorte =
+          params.entregaHoraCorte ?? ENTREGA_EVALUACION_HORA_CORTE;
 
         const savedMeeting = await queryRunner.manager.save(
           ConvocatoriaOrmEntity,
