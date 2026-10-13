@@ -7,6 +7,14 @@ export interface AssignmentDeadlineSnapshot {
   oldestAssignmentDate: Date;
 }
 
+/** Datos crudos por versión para calcular el plazo normativo de respuesta (TSK-009-N06). */
+export interface NormativeDeadlineInput {
+  protocolVersionId: number;
+  protocolCode: string;
+  reviewType: string | undefined;
+  receptionDate: Date | undefined;
+}
+
 export interface CreateMeetingParams {
   sessionType: string;
   meetingDate: Date;
@@ -51,6 +59,11 @@ export interface IMeetingRepositoryPort {
   getOldestAssignedDates(
     protocolVersionIds: number[],
   ): Promise<AssignmentDeadlineSnapshot[]>;
+
+  /** Devuelve datos crudos para calcular plazos normativos en application (TSK-009-N06). */
+  findNormativeDeadlineInputs(
+    protocolVersionIds: number[],
+  ): Promise<NormativeDeadlineInput[]>;
 
   findById(id: string): Promise<MeetingEntity | null>;
 

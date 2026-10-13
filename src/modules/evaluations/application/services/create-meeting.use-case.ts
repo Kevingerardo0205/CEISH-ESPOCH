@@ -1,15 +1,25 @@
-import { Injectable, Inject, BadRequestException } from '@nestjs/common';
+import {
+  Injectable,
+  Inject,
+  BadRequestException,
+  Logger,
+} from '@nestjs/common';
 import type {
   CreateMeetingParams,
   IMeetingRepositoryPort,
 } from '../../domain/ports/meeting-repository.port';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
-import { CalculateMeetingDatesService } from './calculate-meeting-dates.service';
+import {
+  CalculateMeetingDatesService,
+  type ProtocolNormativeSnapshot,
+} from './calculate-meeting-dates.service';
 import { MeetingDatesValueObject } from '../../domain/value-objects/meeting-dates.vo';
 import { ENTREGA_EVALUACION_HORA_CORTE } from '../../../../shared/deadlines/deadline-rules';
 
 @Injectable()
 export class CreateMeetingUseCase {
+  private readonly logger = new Logger(CreateMeetingUseCase.name);
+
   constructor(
     @Inject('IMeetingRepositoryPort')
     private readonly meetingRepository: IMeetingRepositoryPort,
@@ -58,12 +68,39 @@ export class CreateMeetingUseCase {
         )
       : [];
 
+    // 4b. Obtener datos crudos para calcular plazos normativos (TSK-009-N06)
+    const normativeInputs = hasProtocols
+      ? await this.meetingRepository.findNormativeDeadlineInputs(
+          params.protocolVersionIds!,
+        )
+      : [];
+
+    const normativeSnapshots: ProtocolNormativeSnapshot[] = normativeInputs
+      .map((input) => {
+        const normativeDeadline =
+          CalculateMeetingDatesService.computeNormativeDeadline(
+            input.reviewType,
+            input.receptionDate,
+          );
+        if (!normativeDeadline) {
+          this.logger.warn(
+            `TSK-009-N06: protocolo ${input.protocolCode} sin receptionDate o reviewType, omitiendo advertencia normativa.`,
+          );
+          return null;
+        }
+        return {
+          protocolCode: input.protocolCode,
+          normativeDeadline,
+        };
+      })
+      .filter((s): s is ProtocolNormativeSnapshot => s !== null);
+
     // 5. Evaluar advertencias no bloqueantes (plazo normativo y plazo de revisión de oficio)
-    // TODO (tarea TSK-009-N06): pasar los plazos normativos reales; requiere cargar la relación reception para obtener responseDeadline.
     const warnings = this.calculateDatesService.evaluateSoftWarnings(
       params.meetingDate,
-      [],
+      normativeSnapshots,
       assignmentSnapshots,
+      evalDeadline,
     );
 
     // 6. Persistir atómicamente asignando el siguiente número correlativo (001-2026)
