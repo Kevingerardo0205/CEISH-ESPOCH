@@ -176,8 +176,9 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     // Limpiar datos previos de prueba de forma acotada
     await dataSource.query(`
       UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 996, 997, 998, 999);
-      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+      -- convocatorias primero: la FK convocatoria_protocolos→convocatorias es ON DELETE CASCADE
       DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999));
+      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
       DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999)));
       DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
       DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
@@ -314,8 +315,9 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       if (dataSource && dataSource.isInitialized) {
         await dataSource.query(`
           UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 996, 997, 998, 999);
-          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+          -- convocatorias primero: la FK convocatoria_protocolos→convocatorias es ON DELETE CASCADE
           DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999));
+          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
           DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999)));
           DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
           DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 996, 997, 998, 999));
