@@ -163,9 +163,10 @@ describe('MeetingsController (T017 / RF-09)', () => {
       };
 
       meetingRepositoryMock.findById.mockResolvedValue(mockMeeting);
-      pdfGeneratorMock.generateAgendaPdf.mockResolvedValue(
-        '/api/evaluations/meetings/meet-001/pdf',
-      );
+      pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+        url: '/api/evaluations/meetings/meet-001/pdf',
+        buffer: Buffer.from('PDF'),
+      });
 
       const resMock = {
         set: jest.fn(),

@@ -143,9 +143,10 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         generateMeetingAnnouncementPdf: jest
           .fn()
           .mockResolvedValue(Buffer.from('%PDF-1.4 meeting')),
-        generateAgendaPdf: jest
-          .fn()
-          .mockResolvedValue(Buffer.from('%PDF-1.4 agenda')),
+        generateAgendaPdf: jest.fn().mockResolvedValue({
+          url: '/api/evaluations/meetings/mock-id/pdf',
+          buffer: Buffer.from('%PDF-1.4 agenda'),
+        }),
       })
       .compile();
 
@@ -331,7 +332,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           DELETE FROM public.protocolos WHERE id IN (991, 992, 996, 997, 998, 999);
           DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
           DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
-          DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%';
+          DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%' OR nombre LIKE 'TEST-N08-%';
         `);
       }
     } finally {
@@ -1844,6 +1845,121 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           );
         }
         await fixtureCleanup();
+      }
+    });
+  });
+
+  describe('TSK-009-N08 (COUNT=65): notificación por correo con PDF al crear convocatoria vía /meetings', () => {
+    it('TEST-N08-01: POST /api/evaluations/meetings retorna HTTP 201 y sendCallNotification es invocado con buffer correcto', async () => {
+      // Usa versión 991 (EXPEDITA) sembrada en beforeAll — nunca followUpReportIds
+      // para evitar el desfase ORM/BD (protocolo_id y fecha_plazo_normativo NOT NULL en DB)
+
+      const meetingDate = new Date(Date.now() + 14 * 24 * 60 * 60 * 1000); // +14 días
+      // evalDeadline = meetingDate + 3 días calendario (siempre posterior; no se calcul biz-days aquí)
+      const evalDeadline = new Date(
+        meetingDate.getTime() + 3 * 24 * 60 * 60 * 1000,
+      );
+
+      // Crear lugar de prueba (será limpiado en finally y en afterAll global)
+      const lugarRows = await dataSource.query(
+        `INSERT INTO evaluacion.lugares (nombre, es_virtual, activo)
+         VALUES ('TEST-N08-Sala', false, true) RETURNING id`,
+      );
+      const locationId: string = lugarRows[0].id as string;
+
+      // Controlar qué usuarios devuelve findByRoleCodes (sin depender del estado real de ceish_test_db)
+      const userRepo = app.get(IUserRepository);
+      const spyFindByRoles = jest
+        .spyOn(userRepo, 'findByRoleCodes')
+        .mockResolvedValue([
+          {
+            id: 9901,
+            fullName: 'TEST-N08 Miembro',
+            institutionalEmail: 'test-n08@example.invalid',
+          },
+        ]);
+
+      // IEmailServicePort está mockeado en beforeAll con jest.fn()
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+      const emailPort = app.get(IEmailServicePort) as unknown as {
+        sendCallNotification: jest.Mock;
+      };
+      emailPort.sendCallNotification.mockClear();
+
+      let convocatoriaId: string | undefined;
+      try {
+        const payload = {
+          sessionType: 'ORDINARIA',
+          meetingDate: meetingDate.toISOString(),
+          evalSubmissionDeadline: evalDeadline.toISOString(),
+          locationId,
+          protocolVersionIds: [991],
+        };
+
+        const res = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .send(payload)
+          .expect(201);
+
+        const data = res.body.data || res.body;
+        expect(data).toHaveProperty('id');
+        convocatoriaId = data.id as string;
+
+        // Sondeo hasta 3 s (cada 25 ms): esperar que notifyMembersAsync complete y llame sendCallNotification
+        // (la función hace llamadas reales a BD: findPlaceById — un solo setImmediate no basta)
+        const startMs = Date.now();
+        while (emailPort.sendCallNotification.mock.calls.length === 0) {
+          if (Date.now() - startMs > 3000) {
+            throw new Error(
+              'TEST-N08-01: sendCallNotification no fue invocado en 3 s — notifyMembersAsync falló silenciosamente',
+            );
+          }
+          await new Promise<void>((resolve) => setTimeout(resolve, 25));
+        }
+
+        // Verificar que se llamó exactamente una vez (un miembro mock)
+        expect(emailPort.sendCallNotification).toHaveBeenCalledTimes(1);
+        const args: unknown[] = emailPort.sendCallNotification.mock
+          .calls[0] as unknown[];
+        const [
+          email,
+          fullName,
+          callCode,
+          fechaReunion,
+          callTime,
+          placeName,
+          pdfBuffer,
+        ] = args;
+        expect(email).toBe('test-n08@example.invalid');
+        expect(fullName).toBe('TEST-N08 Miembro');
+        expect(typeof callCode).toBe('string');
+        expect(fechaReunion).toBeInstanceOf(Date);
+        expect(typeof callTime).toBe('string');
+        expect(placeName).toBe('TEST-N08-Sala');
+        expect(Buffer.isBuffer(pdfBuffer)).toBe(true);
+        expect((pdfBuffer as Buffer).toString()).toContain('%PDF-1.4');
+      } finally {
+        spyFindByRoles.mockRestore();
+        if (convocatoriaId) {
+          // Hijos antes que padres (FK convocatoria_protocolos→convocatorias)
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [convocatoriaId],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [convocatoriaId],
+          );
+        } else {
+          // Si el POST falló antes de devolver id, limpia por lugar_id
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE lugar_id = $1`,
+            [locationId],
+          );
+        }
+        await dataSource.query(`DELETE FROM evaluacion.lugares WHERE id = $1`, [
+          locationId,
+        ]);
       }
     });
   });

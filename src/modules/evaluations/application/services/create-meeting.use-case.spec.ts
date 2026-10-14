@@ -14,15 +14,21 @@ import {
   ConvocatoriaStatus,
 } from '../../infrastructure/database/entities/convocatoria.orm-entity';
 import type { MeetingEntity } from '../../domain/entities/meeting.entity';
+import type { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
+import type { IUserRepository } from '../../../auth/domain/ports/user.repository.port';
 
 const mockSystemParams = {
   get: (clave: SystemParamKey) => SYSTEM_PARAM_FALLBACKS[clave],
 } as unknown as SystemParamsService;
 
+const flushAsync = () => new Promise<void>((resolve) => setImmediate(resolve));
+
 describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
   let useCase: CreateMeetingUseCase;
   let repositoryMock: jest.Mocked<IMeetingRepositoryPort>;
   let pdfGeneratorMock: jest.Mocked<IMeetingPdfGeneratorPort>;
+  let emailServiceMock: jest.Mocked<IEmailServicePort>;
+  let userRepoMock: jest.Mocked<IUserRepository>;
   let calculateDatesService: CalculateMeetingDatesService;
 
   beforeEach(() => {
@@ -37,20 +43,59 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       findAll: jest.fn(),
       findPendingProtocols: jest.fn(),
       findAllPlaces: jest.fn(),
-      findPlaceById: jest.fn(),
+      findPlaceById: jest.fn().mockResolvedValue(null),
       createPlace: jest.fn(),
       updatePlace: jest.fn(),
       deletePlace: jest.fn(),
     };
     pdfGeneratorMock = {
-      generateAgendaPdf: jest.fn(),
+      generateAgendaPdf: jest.fn().mockResolvedValue({
+        url: '/api/evaluations/meetings/meet-001/pdf',
+        buffer: Buffer.from('PDF'),
+      }),
     };
+    emailServiceMock = {
+      sendCallNotification: jest.fn().mockResolvedValue(undefined),
+      sendPasswordReset: jest.fn(),
+      sendWelcomeEmail: jest.fn(),
+      sendEmailConfirmation: jest.fn(),
+      sendAccountInvitation: jest.fn(),
+      sendReceptionIncomplete: jest.fn(),
+      sendReceptionComplete: jest.fn(),
+      sendResolutionEmail: jest.fn(),
+      notifyPresidentNewProtocol: jest.fn(),
+      sendEvaluationAssignment: jest.fn(),
+      sendEvaluationSubmitted: jest.fn(),
+      sendUnscheduledProtocolsAlert: jest.fn(),
+    } as unknown as jest.Mocked<IEmailServicePort>;
+    userRepoMock = {
+      findByRoleCodes: jest.fn().mockResolvedValue([
+        {
+          id: 1,
+          fullName: 'Evaluador Uno',
+          institutionalEmail: 'eval1@espoch.edu.ec',
+        },
+        {
+          id: 2,
+          fullName: 'Presidente CEISH',
+          institutionalEmail: 'pres@espoch.edu.ec',
+        },
+      ]),
+      findByEmail: jest.fn(),
+      findById: jest.fn(),
+      findAll: jest.fn(),
+      save: jest.fn(),
+      update: jest.fn(),
+      findWithToken: jest.fn(),
+    } as unknown as jest.Mocked<IUserRepository>;
     calculateDatesService = new CalculateMeetingDatesService(mockSystemParams);
 
     useCase = new CreateMeetingUseCase(
       repositoryMock,
       pdfGeneratorMock,
       calculateDatesService,
+      emailServiceMock,
+      userRepoMock,
     );
   });
 
@@ -74,16 +119,17 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     };
 
     repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
-    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue(
-      '/storage/pdf/001-2026.pdf',
-    );
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+      url: '/api/evaluations/meetings/meet-001/pdf',
+      buffer: Buffer.from('PDF'),
+    });
 
     const result = await useCase.execute(params);
 
     expect(result.meetingNumber).toBe('001-2026');
     expect(result.warnings).toEqual([]);
+    expect(result.pdfUrl).toBe('/api/evaluations/meetings/meet-001/pdf');
     expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalled();
-    expect(pdfGeneratorMock.generateAgendaPdf).toHaveBeenCalledWith('meet-001');
   });
 
   it('should create a meeting successfully with follow-up reports when no protocol versions are specified', async () => {
@@ -106,9 +152,10 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     };
 
     repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
-    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue(
-      '/storage/pdf/002-2026.pdf',
-    );
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+      url: '/api/evaluations/meetings/meet-002/pdf',
+      buffer: Buffer.from('PDF'),
+    });
 
     const result = await useCase.execute(params);
 
@@ -156,6 +203,8 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       repositoryMock,
       pdfGeneratorMock,
       svcWith3,
+      emailServiceMock,
+      userRepoMock,
     );
 
     const meetingDate = new Date('2026-11-03T14:00:00.000Z'); // Lunes
@@ -175,7 +224,10 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       estado: ConvocatoriaStatus.PROGRAMADA,
     };
     repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
-    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue('/pdf/010-2026.pdf');
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+      url: '/api/evaluations/meetings/meet-snap/pdf',
+      buffer: Buffer.from('PDF'),
+    });
 
     await ucWith3.execute(params);
 
@@ -219,7 +271,10 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     };
 
     repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
-    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue('/pdf/050-2026.pdf');
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+      url: '/api/evaluations/meetings/meet-n06-1/pdf',
+      buffer: Buffer.from('PDF'),
+    });
 
     const result = await useCase.execute(params);
 
@@ -260,7 +315,10 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     };
 
     repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
-    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue('/pdf/051-2026.pdf');
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+      url: '/api/evaluations/meetings/meet-n06-2/pdf',
+      buffer: Buffer.from('PDF'),
+    });
 
     const result = await useCase.execute(params);
 
@@ -298,7 +356,10 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     };
 
     repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
-    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue('/pdf/052-2026.pdf');
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+      url: '/api/evaluations/meetings/meet-n06-3/pdf',
+      buffer: Buffer.from('PDF'),
+    });
 
     const result = await useCase.execute(params);
 
@@ -341,9 +402,10 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     };
 
     repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
-    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue(
-      '/storage/pdf/003-2026.pdf',
-    );
+    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+      url: '/api/evaluations/meetings/meet-003/pdf',
+      buffer: Buffer.from('PDF'),
+    });
 
     const result = await useCase.execute(params);
 
@@ -351,5 +413,144 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     expect(result.warnings.length).toBeGreaterThan(0);
     expect(result.warnings[0]).toContain('ADVERTENCIA_PLAZO_REVISION');
     expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalled();
+  });
+
+  describe('TSK-009-N08: notificación por correo con PDF (fire-and-forget)', () => {
+    const buildSavedEntity = (id = 'meet-n08'): MeetingEntity => ({
+      id,
+      numeroConvocatoria: '070-2026',
+      anioLectivo: 2026,
+      tipoSession: SessionType.ORDINARIA,
+      fechaReunion: new Date('2026-11-05T14:00:00.000Z'),
+      fechaEntregaEvaluacion: new Date('2026-11-07T17:00:00.000Z'),
+      estado: ConvocatoriaStatus.PROGRAMADA,
+    });
+
+    const baseParams = {
+      sessionType: SessionType.ORDINARIA,
+      meetingDate: new Date('2026-11-05T14:00:00.000Z'),
+      followUpReportIds: [99],
+    };
+
+    it('(a) éxito: sendCallNotification se invoca una vez por miembro con el buffer correcto', async () => {
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(
+        buildSavedEntity(),
+      );
+      const pdfBuffer = Buffer.from('MOCK-PDF');
+      pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+        url: '/api/evaluations/meetings/meet-n08/pdf',
+        buffer: pdfBuffer,
+      });
+      userRepoMock.findByRoleCodes.mockResolvedValue([
+        {
+          id: 10,
+          fullName: 'Eva Luador',
+          institutionalEmail: 'eva@espoch.edu.ec',
+        },
+        {
+          id: 20,
+          fullName: 'Pres CEISH',
+          institutionalEmail: 'pres@espoch.edu.ec',
+        },
+      ]);
+
+      await useCase.execute(baseParams);
+      await flushAsync();
+
+      expect(emailServiceMock.sendCallNotification).toHaveBeenCalledTimes(2);
+      const firstCall = (emailServiceMock.sendCallNotification as jest.Mock)
+        .mock.calls[0];
+      expect(firstCall[6]).toBe(pdfBuffer);
+    });
+
+    it('(b) falla de PDF: use case devuelve resultado sin lanzar, correo no enviado', async () => {
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(
+        buildSavedEntity('meet-n08-b'),
+      );
+      pdfGeneratorMock.generateAgendaPdf.mockRejectedValue(
+        new Error('PDF error'),
+      );
+
+      const result = await useCase.execute(baseParams);
+      await flushAsync();
+
+      expect(result.id).toBe('meet-n08-b');
+      expect(emailServiceMock.sendCallNotification).not.toHaveBeenCalled();
+    });
+
+    it('(c) falla de correo de un miembro: no revierte, los demás miembros reciben', async () => {
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(
+        buildSavedEntity('meet-n08-c'),
+      );
+      pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+        url: '/api/evaluations/meetings/meet-n08-c/pdf',
+        buffer: Buffer.from('PDF'),
+      });
+      userRepoMock.findByRoleCodes.mockResolvedValue([
+        {
+          id: 10,
+          fullName: 'Falla',
+          institutionalEmail: 'falla@espoch.edu.ec',
+        },
+        { id: 20, fullName: 'OK', institutionalEmail: 'ok@espoch.edu.ec' },
+      ]);
+      (emailServiceMock.sendCallNotification as jest.Mock)
+        .mockRejectedValueOnce(new Error('SMTP error'))
+        .mockResolvedValueOnce(undefined);
+
+      await expect(useCase.execute(baseParams)).resolves.not.toThrow();
+      await flushAsync();
+
+      expect(emailServiceMock.sendCallNotification).toHaveBeenCalledTimes(2);
+    });
+
+    it('(d) sin miembros activos: use case no lanza, correo no enviado', async () => {
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(
+        buildSavedEntity('meet-n08-d'),
+      );
+      pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
+        url: '/api/evaluations/meetings/meet-n08-d/pdf',
+        buffer: Buffer.from('PDF'),
+      });
+      userRepoMock.findByRoleCodes.mockResolvedValue([]);
+
+      await expect(useCase.execute(baseParams)).resolves.not.toThrow();
+      await flushAsync();
+
+      expect(emailServiceMock.sendCallNotification).not.toHaveBeenCalled();
+    });
+
+    it('(e) orden: saveMeetingWithAtomicNumber antes que generateAgendaPdf antes que sendCallNotification', async () => {
+      const callOrder: string[] = [];
+      repositoryMock.saveMeetingWithAtomicNumber.mockImplementation(
+        async () => {
+          callOrder.push('save');
+          return buildSavedEntity('meet-n08-e');
+        },
+      );
+      pdfGeneratorMock.generateAgendaPdf.mockImplementation(async () => {
+        callOrder.push('pdf');
+        return { url: '/pdf/e', buffer: Buffer.from('PDF') };
+      });
+      userRepoMock.findByRoleCodes.mockResolvedValue([
+        {
+          id: 1,
+          fullName: 'Miembro',
+          institutionalEmail: 'miembro@espoch.edu.ec',
+        },
+      ]);
+      (emailServiceMock.sendCallNotification as jest.Mock).mockImplementation(
+        async () => {
+          callOrder.push('email');
+        },
+      );
+
+      await useCase.execute(baseParams);
+      await flushAsync();
+
+      expect(callOrder[0]).toBe('save');
+      expect(callOrder[1]).toBe('pdf');
+      expect(callOrder[2]).toBe('email');
+    });
   });
 });
