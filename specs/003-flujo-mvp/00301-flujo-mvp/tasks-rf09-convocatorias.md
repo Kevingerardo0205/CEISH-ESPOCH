@@ -423,6 +423,28 @@
 - **Tests**: `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` (real-db-evaluations.e2e-spec.ts). Verificar con `SELECT COUNT(*) FROM evaluacion.convocatorias` antes y después de cada corrida.
 - **Criterio "Hecho cuando:"**: El COUNT de `evaluacion.convocatorias` es idéntico antes y después de 3 corridas E2E consecutivas (TZ=UTC, TZ=America/Guayaquil, TZ=UTC).
 
+### Task TSK-009-N09 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N09`
+- **Requisito Relacionado**: `RF-09.2` / `RF-15.2`
+- **PR**: PR-D1 (`feat/meeting-followup-guard`)
+- **Criterio EARS**: Guard fail-fast: cuando `POST /api/evaluations/meetings` recibe `followUpReportIds` no vacío, responde 400 con código `SEGUIMIENTO_NO_DISPONIBLE` y no persiste ninguna fila en `evaluacion.convocatorias`.
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR — guard al inicio de `execute()`)
+  - `src/modules/evaluations/application/dtos/create-meeting.dto.ts` (MODIFICAR — descripción del campo `followUpReportIds`)
+  - `src/modules/evaluations/application/services/create-meeting.use-case.spec.ts` (MODIFICAR — tests unitarios nuevos; reescritura de tests que usaban `followUpReportIds` como entrada válida)
+  - `test/meetings.e2e-spec.ts` (MODIFICAR — reemplazar `followUpReportIds` como entrada válida por `protocolVersionIds`)
+  - `test/meetings-concurrency.e2e-spec.ts` (MODIFICAR — ídem)
+  - `test/real-db-evaluations.e2e-spec.ts` (MODIFICAR — nuevo describe TSK-009-N09)
+- **Dependencias**: `TSK-009-N08`
+- **Descripción**: Mientras no exista `seguimiento.informes_seguimiento` (PR-F1), `CreateMeetingUseCase` debe rechazar cualquier request con `followUpReportIds` no vacío con `BadRequestException('SEGUIMIENTO_NO_DISPONIBLE: ...')`, sin tocar la BD. La validación actúa también cuando se mezclan `protocolVersionIds` + `followUpReportIds`. Arrays vacíos (`[]`) y `undefined` NO activan el guard. El campo se mantiene en el DTO (no es breaking change del contrato JSON); solo se actualiza su descripción Swagger.
+- **Tests**:
+  1. Unit: `followUpReportIds` no vacío → 400 con código; mocks de repo/pdf/email NO llamados.
+  2. Unit: mezcla `protocolVersionIds` + `followUpReportIds` → también 400; sin persistencia.
+  3. Unit: `followUpReportIds: []` y `undefined` + `protocolVersionIds` → pasa el guard, crea convocatoria.
+  4. E2E real-db: COUNT(*) de `evaluacion.convocatorias` idéntico antes y después; `finally` limpia cualquier fila espuria.
+- **Criterio "Hecho cuando:"**: `POST /api/evaluations/meetings` con `followUpReportIds` no vacío responde 400 con código `SEGUIMIENTO_NO_DISPONIBLE` y no persiste nada en BD. `npm test` verde. E2E pendiente de ejecución por el usuario.
+
 ### Task TSK-009-N08 - [ ] EN CURSO
 - **ID Único**: `TSK-009-N08`
 - **Requisito Relacionado**: `RF-09.1` (EARS criterio 4: notificación por correo con PDF al crear convocatoria)

@@ -127,3 +127,40 @@ Para respetar la integridad de los datos productivos/de prueba existentes:
 ### 6.2 Decisiones Pendientes de Confirmación Humana
 - **Política de Archivo de Datos Huérfanos**: Confirmar si el registro `e15834e2...` debe ser asignado como `000-2026` o eliminado físicamente antes de aplicar el constraint `NOT NULL`.
 - **Firma Electrónica de Actas**: Se mantiene fuera del alcance del MVP 3 según spec.
+
+---
+
+## 7. Desfase ORM/BD en `evaluacion.convocatoria_protocolos`
+
+Investigación realizada en PR-D1 (`feat/meeting-followup-guard`). Evidencia en código y BD confirmada por el equipo.
+
+### 7.1 Campos fantasma (sin `@Column`) en `ConvocatoriaProtocoloOrmEntity`
+
+Los siguientes campos están declarados como propiedades TypeScript en `convocatoria-protocolo.orm-entity.ts` pero **sin decorador `@Column`**: TypeORM los ignora silenciosamente en todo INSERT/UPDATE.
+
+| Propiedad TypeScript | Línea ORM | Columna esperada en BD | Existe en BD | Propietario del fix |
+|---|---|---|---|---|
+| `tipoPuntoAgenda?: AgendaItemType` | `:24` | `tipo_punto_agenda varchar(50)` | **No** | PR-F1 (migración 1855/1860) |
+| `informeSeguimientoId?: number \| null` | `:40` | `informe_seguimiento_id integer` | **No** | PR-F1 (migración 1855/1860) |
+
+**Impacto actual**: `meeting-typeorm.repository.ts:115-130` asigna estos campos en la instancia ORM, pero TypeORM no los incluye en el SQL generado. El INSERT procede sin ellos. Cuando `followUpReportIds` está presente, el INSERT también omite `protocolo_id` y `fecha_plazo_normativo` (NOT NULL en BD), lo que produce rollback y HTTP 500.
+
+**Fix temporal (PR-D1)**: guard en `CreateMeetingUseCase.execute()` que rechaza cualquier `followUpReportIds` no vacío con `BadRequestException('SEGUIMIENTO_NO_DISPONIBLE: ...')` antes de tocar la BD.
+
+**Fix definitivo (PR-F1)**: añadir `@Column({ name: 'tipo_punto_agenda', ... })` y `@Column({ name: 'informe_seguimiento_id', ... })` al ORM; aplicar migración que crea las columnas y relaja `protocolo_id`/`version_id`/`fecha_plazo_normativo` a nullable con CHECK.
+
+### 7.2 Columnas legacy sin mapear en el ORM
+
+Las siguientes columnas existen en `evaluacion.convocatoria_protocolos` (migración `1796000000000-AddCallsAndSessions.ts`) pero no tienen `@Column` en `ConvocatoriaProtocoloOrmEntity`. Ningún código de producción las lee ni escribe actualmente.
+
+| Columna en BD | Origen (migración 1796) | Estado en ORM | Código que la usa |
+|---|---|---|---|
+| `creado_en` | `1796:12` | Sin mapeo (ORM usa `created_at`) | Ninguno |
+| `actualizado_en` | `1796:13` | Sin mapeo (ORM usa `updated_at`) | Ninguno |
+| `eliminado_en` | `1796` | Sin mapeo (sin soft-delete en esta entidad) | Ninguno |
+| `version_protocolo_id` | `1796:57` + UNIQUE `uq_convocatoria_version` | Sin mapeo (ORM usa `version_id` añadido en refactor posterior) | Ninguno — ver nota UNIQUE abajo |
+| `fecha_reunion` | `1796:59` | Sin mapeo (columna homónima existe en `evaluacion.convocatorias`, sí mapeada ahí) | `evaluation.typeorm.repository.ts:90` lee `c.fecha_reunion` de `convocatorias`, no de esta tabla |
+| `fecha_entrega_evaluacion` | `1796:60` | Sin mapeo | `evaluation.typeorm.repository.ts:82-95` lee de `convocatorias`, no de esta tabla |
+| `resultado_id` | `1796:61` | Sin mapeo (mapeado en `EvaluacionOrmEntity`, no aquí) | Ninguno |
+
+**Nota sobre `uq_convocatoria_version`**: la migración `1796` crea un UNIQUE sobre `(convocatoria_id, version_protocolo_id)`. El ORM escribe en `version_id` (columna distinta), por lo que la constraint actúa sobre `version_protocolo_id = NULL` en cada fila nueva. Múltiples NULLs no violan UNIQUE en PostgreSQL, así que no hay error visible hoy, pero la constraint ya no garantiza unicidad real. El cleanup de esta constraint es responsabilidad de PR-F1.
