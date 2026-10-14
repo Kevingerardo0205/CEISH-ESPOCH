@@ -423,6 +423,26 @@
 - **Tests**: `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` (real-db-evaluations.e2e-spec.ts). Verificar con `SELECT COUNT(*) FROM evaluacion.convocatorias` antes y después de cada corrida.
 - **Criterio "Hecho cuando:"**: El COUNT de `evaluacion.convocatorias` es idéntico antes y después de 3 corridas E2E consecutivas (TZ=UTC, TZ=America/Guayaquil, TZ=UTC).
 
+### Task TSK-009-N08 - [x] MERGEADO (PR-X1, dev 699afcf)
+- **ID Único**: `TSK-009-N08`
+- **Requisito Relacionado**: `RF-09.1` (EARS criterio 4: notificación por correo con PDF al crear convocatoria)
+- **PR**: PR-X1 (`feat/meeting-notification-email`)
+- **Criterio EARS**: Cuando se crea una convocatoria vía `POST /api/evaluations/meetings`, todos los usuarios con rol `EVALUADOR` o `PRESIDENTE` reciben un correo con el PDF del orden del día adjunto.
+- **Archivos Afectados**:
+  - `src/modules/evaluations/domain/ports/meeting-pdf-generator.port.ts` (MODIFICAR — return type `Promise<string>` → `Promise<{ url: string; buffer: Buffer }>`)
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR — devolver `{ url, buffer }` en lugar de solo la URL)
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR — añadir inyección de `IEmailServicePort` e `IUserRepository`; paso 8 fire-and-forget `notifyMembersAsync`)
+  - `src/modules/evaluations/application/services/create-meeting.use-case.spec.ts` (MODIFICAR — mocks de email y users; tests TSK-009-N08 a/b/c/d/e)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` (MODIFICAR — actualizar mock de `generateAgendaPdf` a `{ url, buffer }`)
+  - `test/meetings.e2e-spec.ts` (MODIFICAR — mock `generateAgendaPdf` a `{ url, buffer }`; añadir `overrideProvider(IEmailServicePort)`)
+  - `test/meetings-concurrency.e2e-spec.ts` (MODIFICAR — ídem)
+  - `test/real-db-evaluations.e2e-spec.ts` (MODIFICAR — nuevo describe TSK-009-N08: correo y PDF mockeados, verificar `sendCallNotification` llamado)
+- **Dependencias**: `TSK-009-N07`
+- **Decisiones de paridad**: Flujo legacy `calls.service.ts:322-372` emite correo sincrónicamente. El flujo canónico `/meetings` lo hace fire-and-forget (void) post-commit para no bloquear la respuesta HTTP. Casos C2/C3/C5 descartados por no corresponder al flujo canónico. Caso C4 cubierto por `/api/resolutions` + RF-14. El flujo `/calls` sigue en paralelo sin modificación.
+- **Descripción**: Portar la notificación por correo con PDF adjunto a `CreateMeetingUseCase`. La URL del PDF es determinista (`/api/evaluations/meetings/${id}/pdf`) y se devuelve sin `await` del generador. La generación del PDF y el envío de correos se realizan en `notifyMembersAsync` (fire-and-forget): obtiene miembros con roles `EVALUADOR`/`PRESIDENTE` via `IUserRepository.findByRoleCodes`, genera el PDF, y envía correos vía `IEmailServicePort.sendCallNotification`. Errores en el paso asíncrono solo se loguean, nunca propagan al caller.
+- **Tests**: Tests unitarios (a–e) en `create-meeting.use-case.spec.ts`. Test E2E describe `TSK-009-N08` en `real-db-evaluations.e2e-spec.ts` (prefijo `TEST-N08-`, COUNT = 65). Tests de regresión en `meetings.e2e-spec.ts` y `meetings-concurrency.e2e-spec.ts`.
+- **Criterio "Hecho cuando:"**: `POST /api/evaluations/meetings` retorna HTTP 201 con `agendaPdfUrl`; tras la respuesta, `sendCallNotification` se invoca una vez por cada miembro activo con rol `EVALUADOR` o `PRESIDENTE`, con el buffer del PDF correcto. Fallos en PDF o correo no propagan error HTTP.
+
 ### Task TSK-009-N09 - [ ] PENDIENTE
 - **ID Único**: `TSK-009-N09`
 - **Requisito Relacionado**: `RF-09.2` / `RF-15.2`
@@ -444,23 +464,3 @@
   3. Unit: `followUpReportIds: []` y `undefined` + `protocolVersionIds` → pasa el guard, crea convocatoria.
   4. E2E real-db: COUNT(*) de `evaluacion.convocatorias` idéntico antes y después; `finally` limpia cualquier fila espuria.
 - **Criterio "Hecho cuando:"**: `POST /api/evaluations/meetings` con `followUpReportIds` no vacío responde 400 con código `SEGUIMIENTO_NO_DISPONIBLE` y no persiste nada en BD. `npm test` verde. E2E pendiente de ejecución por el usuario.
-
-### Task TSK-009-N08 - [ ] EN CURSO
-- **ID Único**: `TSK-009-N08`
-- **Requisito Relacionado**: `RF-09.1` (EARS criterio 4: notificación por correo con PDF al crear convocatoria)
-- **PR**: PR-X1 (`feat/meeting-notification-email`)
-- **Criterio EARS**: Cuando se crea una convocatoria vía `POST /api/evaluations/meetings`, todos los usuarios con rol `EVALUADOR` o `PRESIDENTE` reciben un correo con el PDF del orden del día adjunto.
-- **Archivos Afectados**:
-  - `src/modules/evaluations/domain/ports/meeting-pdf-generator.port.ts` (MODIFICAR — return type `Promise<string>` → `Promise<{ url: string; buffer: Buffer }>`)
-  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR — devolver `{ url, buffer }` en lugar de solo la URL)
-  - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR — añadir inyección de `IEmailServicePort` e `IUserRepository`; paso 8 fire-and-forget `notifyMembersAsync`)
-  - `src/modules/evaluations/application/services/create-meeting.use-case.spec.ts` (MODIFICAR — mocks de email y users; tests TSK-009-N08 a/b/c/d/e)
-  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` (MODIFICAR — actualizar mock de `generateAgendaPdf` a `{ url, buffer }`)
-  - `test/meetings.e2e-spec.ts` (MODIFICAR — mock `generateAgendaPdf` a `{ url, buffer }`; añadir `overrideProvider(IEmailServicePort)`)
-  - `test/meetings-concurrency.e2e-spec.ts` (MODIFICAR — ídem)
-  - `test/real-db-evaluations.e2e-spec.ts` (MODIFICAR — nuevo describe TSK-009-N08: correo y PDF mockeados, verificar `sendCallNotification` llamado)
-- **Dependencias**: `TSK-009-N07`
-- **Decisiones de paridad**: Flujo legacy `calls.service.ts:322-372` emite correo sincrónicamente. El flujo canónico `/meetings` lo hace fire-and-forget (void) post-commit para no bloquear la respuesta HTTP. Casos C2/C3/C5 descartados por no corresponder al flujo canónico. Caso C4 cubierto por `/api/resolutions` + RF-14. El flujo `/calls` sigue en paralelo sin modificación.
-- **Descripción**: Portar la notificación por correo con PDF adjunto a `CreateMeetingUseCase`. La URL del PDF es determinista (`/api/evaluations/meetings/${id}/pdf`) y se devuelve sin `await` del generador. La generación del PDF y el envío de correos se realizan en `notifyMembersAsync` (fire-and-forget): obtiene miembros con roles `EVALUADOR`/`PRESIDENTE` via `IUserRepository.findByRoleCodes`, genera el PDF, y envía correos vía `IEmailServicePort.sendCallNotification`. Errores en el paso asíncrono solo se loguean, nunca propagan al caller.
-- **Tests**: Tests unitarios (a–e) en `create-meeting.use-case.spec.ts`. Test E2E describe `TSK-009-N08` en `real-db-evaluations.e2e-spec.ts` (prefijo `TEST-N08-`, COUNT = 65). Tests de regresión en `meetings.e2e-spec.ts` y `meetings-concurrency.e2e-spec.ts`.
-- **Criterio "Hecho cuando:"**: `POST /api/evaluations/meetings` retorna HTTP 201 con `agendaPdfUrl`; tras la respuesta, `sendCallNotification` se invoca una vez por cada miembro activo con rol `EVALUADOR` o `PRESIDENTE`, con el buffer del PDF correcto. Fallos en PDF o correo no propagan error HTTP.

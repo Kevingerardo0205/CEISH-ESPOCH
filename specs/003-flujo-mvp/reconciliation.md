@@ -153,14 +153,16 @@ Los siguientes campos están declarados como propiedades TypeScript en `convocat
 
 Las siguientes columnas existen en `evaluacion.convocatoria_protocolos` (migración `1796000000000-AddCallsAndSessions.ts`) pero no tienen `@Column` en `ConvocatoriaProtocoloOrmEntity`. Ningún código de producción las lee ni escribe actualmente.
 
-| Columna en BD | Origen (migración 1796) | Estado en ORM | Código que la usa |
+| Columna en BD | Origen (migración) | Estado en ORM | Código que la usa |
 |---|---|---|---|
-| `creado_en` | `1796:12` | Sin mapeo (ORM usa `created_at`) | Ninguno |
-| `actualizado_en` | `1796:13` | Sin mapeo (ORM usa `updated_at`) | Ninguno |
-| `eliminado_en` | `1796` | Sin mapeo (sin soft-delete en esta entidad) | Ninguno |
-| `version_protocolo_id` | `1796:57` + UNIQUE `uq_convocatoria_version` | Sin mapeo (ORM usa `version_id` añadido en refactor posterior) | Ninguno — ver nota UNIQUE abajo |
+| `creado_en` | `1796:62` | Sin mapeo (ORM usa `created_at`) | Ninguno |
+| `actualizado_en` | `1796:63` | Sin mapeo (ORM usa `updated_at`) | Ninguno |
+| `eliminado_en` | NO VERIFICADO (no aparece en migración `1796` para esta tabla; no se encontró migración origen) | Sin mapeo (sin soft-delete en esta entidad) | Ninguno |
+| `version_protocolo_id` | `1796:57` | Sin mapeo (ORM usa `version_id` añadido en refactor posterior) | Ninguno — ver nota UNIQUE abajo |
 | `fecha_reunion` | `1796:59` | Sin mapeo (columna homónima existe en `evaluacion.convocatorias`, sí mapeada ahí) | `evaluation.typeorm.repository.ts:90` lee `c.fecha_reunion` de `convocatorias`, no de esta tabla |
-| `fecha_entrega_evaluacion` | `1796:60` | Sin mapeo | `evaluation.typeorm.repository.ts:82-95` lee de `convocatorias`, no de esta tabla |
+| `fecha_entrega_evaluacion` | `1796:60` | Sin mapeo | `evaluation.typeorm.repository.ts:84` lee de `convocatorias`, no de esta tabla |
 | `resultado_id` | `1796:61` | Sin mapeo (mapeado en `EvaluacionOrmEntity`, no aquí) | Ninguno |
 
-**Nota sobre `uq_convocatoria_version`**: la migración `1796` crea un UNIQUE sobre `(convocatoria_id, version_protocolo_id)`. El ORM escribe en `version_id` (columna distinta), por lo que la constraint actúa sobre `version_protocolo_id = NULL` en cada fila nueva. Múltiples NULLs no violan UNIQUE en PostgreSQL, así que no hay error visible hoy, pero la constraint ya no garantiza unicidad real. El cleanup de esta constraint es responsabilidad de PR-F1.
+**Nota sobre `uq_convocatoria_version`**: la migración `1796000000000-AddCallsAndSessions.ts:64` declara `CONSTRAINT uq_convocatoria_version UNIQUE (convocatoria_id, version_protocolo_id)`, pero esta constraint **NO está presente en la BD real** (`ceish_db` y `ceish_test_db`): `pg_constraint` devuelve únicamente PK + 3 FK (sin ningún UNIQUE ni CHECK). No se ha investigado por qué la migración no produjo la constraint en BD — puede haberse perdido en un `DROP TABLE IF EXISTS` y recreación, o haber fallado silenciosamente. Consecuencia real: **nada impide a nivel de BD insertar la misma versión dos veces en una convocatoria**; falta `UNIQUE (convocatoria_id, version_id)`. PR-F1 debe evaluar si añadirla.
+
+**Nota sobre protocolVersionIds duplicados en el use case**: si `protocolVersionIds` trae el mismo ID repetido, ni el use case (`create-meeting.use-case.ts:52-55`) ni el repositorio deduplicar. El loop `for...of` en `meeting-typeorm.repository.ts:98-121` itera sobre cada ocurrencia e inserta una fila por vez; la BD no rechaza porque no hay UNIQUE. Resultado: el mismo protocolo aparece dos veces en el Orden del Día con diferente `orden`. Es un bug latente a resolver en PR-F1.
