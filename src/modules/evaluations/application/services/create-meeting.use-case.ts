@@ -42,6 +42,13 @@ export class CreateMeetingUseCase {
     pdfUrl: string;
     warnings: string[];
   }> {
+    // Guard TSK-009-N09: followUpReportIds no disponible hasta PR-F1 (seguimiento.informes_seguimiento inexistente)
+    if (params.followUpReportIds && params.followUpReportIds.length > 0) {
+      throw new BadRequestException(
+        'SEGUIMIENTO_NO_DISPONIBLE: La sección III (informes de seguimiento) no está habilitada hasta completar RF-15. Use solo protocolVersionIds.',
+      );
+    }
+
     // 1. Validar que exista al menos un punto en el Orden del Día (evaluación o seguimiento)
     const hasProtocols =
       Array.isArray(params.protocolVersionIds) &&

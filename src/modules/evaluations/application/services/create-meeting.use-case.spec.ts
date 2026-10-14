@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/unbound-method */
+/* eslint-disable @typescript-eslint/unbound-method, @typescript-eslint/no-unnecessary-type-assertion */
 import { BadRequestException } from '@nestjs/common';
 import { CreateMeetingUseCase } from './create-meeting.use-case';
 import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-repository.port';
@@ -132,36 +132,96 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalled();
   });
 
-  it('should create a meeting successfully with follow-up reports when no protocol versions are specified', async () => {
-    const meetingDate = new Date('2026-10-15T09:00:00.000Z');
-    const params = {
-      sessionType: SessionType.ORDINARIA,
-      meetingDate,
-      locationId: 'loc-001',
-      followUpReportIds: [201, 202],
-    };
+  describe('TSK-009-N09: guard SEGUIMIENTO_NO_DISPONIBLE', () => {
+    it('(N09-a) followUpReportIds no vacío → rechaza con BadRequestException SEGUIMIENTO_NO_DISPONIBLE; repo/pdf/email no se invocan', async () => {
+      const params = {
+        sessionType: SessionType.ORDINARIA,
+        meetingDate: new Date('2026-10-15T09:00:00.000Z'),
+        followUpReportIds: [201, 202],
+      };
 
-    const savedEntity: MeetingEntity = {
-      id: 'meet-002',
-      numeroConvocatoria: '002-2026',
-      anioLectivo: 2026,
-      tipoSession: SessionType.ORDINARIA,
-      fechaReunion: meetingDate,
-      fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
-      estado: ConvocatoriaStatus.PROGRAMADA,
-    };
-
-    repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
-    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
-      url: '/api/evaluations/meetings/meet-002/pdf',
-      buffer: Buffer.from('PDF'),
+      await expect(useCase.execute(params)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(useCase.execute(params)).rejects.toThrow(
+        'SEGUIMIENTO_NO_DISPONIBLE',
+      );
+      expect(repositoryMock.saveMeetingWithAtomicNumber).not.toHaveBeenCalled();
+      expect(pdfGeneratorMock.generateAgendaPdf).not.toHaveBeenCalled();
+      expect(emailServiceMock.sendCallNotification).not.toHaveBeenCalled();
     });
 
-    const result = await useCase.execute(params);
+    it('(N09-b) mezcla protocolVersionIds + followUpReportIds → también rechaza, sin persistencia', async () => {
+      const params = {
+        sessionType: SessionType.ORDINARIA,
+        meetingDate: new Date('2026-10-15T09:00:00.000Z'),
+        protocolVersionIds: [137],
+        followUpReportIds: [99],
+      };
 
-    expect(result.meetingNumber).toBe('002-2026');
-    expect(result.warnings).toEqual([]);
-    expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalled();
+      await expect(useCase.execute(params)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(useCase.execute(params)).rejects.toThrow(
+        'SEGUIMIENTO_NO_DISPONIBLE',
+      );
+      expect(repositoryMock.saveMeetingWithAtomicNumber).not.toHaveBeenCalled();
+    });
+
+    it('(N09-c) followUpReportIds = [] + protocolVersionIds → pasa el guard y crea la convocatoria', async () => {
+      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
+      const params = {
+        sessionType: SessionType.ORDINARIA,
+        meetingDate,
+        protocolVersionIds: [137],
+        followUpReportIds: [],
+      };
+
+      const savedEntity: MeetingEntity = {
+        id: 'meet-n09-c',
+        numeroConvocatoria: '002-2026',
+        anioLectivo: 2026,
+        tipoSession: SessionType.ORDINARIA,
+        fechaReunion: meetingDate,
+        fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
+        estado: ConvocatoriaStatus.PROGRAMADA,
+      };
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+
+      const result = await useCase.execute(params);
+
+      expect(result.meetingNumber).toBe('002-2026');
+      expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
+    it('(N09-d) followUpReportIds = undefined + protocolVersionIds → pasa el guard y crea la convocatoria', async () => {
+      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
+      const params = {
+        sessionType: SessionType.ORDINARIA,
+        meetingDate,
+        protocolVersionIds: [137],
+      };
+
+      const savedEntity: MeetingEntity = {
+        id: 'meet-n09-d',
+        numeroConvocatoria: '003-2026',
+        anioLectivo: 2026,
+        tipoSession: SessionType.ORDINARIA,
+        fechaReunion: meetingDate,
+        fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
+        estado: ConvocatoriaStatus.PROGRAMADA,
+      };
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+
+      const result = await useCase.execute(params);
+
+      expect(result.meetingNumber).toBe('003-2026');
+      expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalledTimes(
+        1,
+      );
+    });
   });
 
   it('should throw BadRequestException when both protocolVersionIds and followUpReportIds are empty/missing', async () => {
@@ -429,7 +489,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     const baseParams = {
       sessionType: SessionType.ORDINARIA,
       meetingDate: new Date('2026-11-05T14:00:00.000Z'),
-      followUpReportIds: [99],
+      protocolVersionIds: [99],
     };
 
     it('(a) éxito: sendCallNotification se invoca una vez por miembro con el buffer correcto', async () => {
@@ -458,8 +518,10 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       await flushAsync();
 
       expect(emailServiceMock.sendCallNotification).toHaveBeenCalledTimes(2);
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
       const firstCall = (emailServiceMock.sendCallNotification as jest.Mock)
         .mock.calls[0];
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-member-access
       expect(firstCall[6]).toBe(pdfBuffer);
     });
 
@@ -522,15 +584,13 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
 
     it('(e) orden: saveMeetingWithAtomicNumber antes que generateAgendaPdf antes que sendCallNotification', async () => {
       const callOrder: string[] = [];
-      repositoryMock.saveMeetingWithAtomicNumber.mockImplementation(
-        async () => {
-          callOrder.push('save');
-          return buildSavedEntity('meet-n08-e');
-        },
-      );
-      pdfGeneratorMock.generateAgendaPdf.mockImplementation(async () => {
+      repositoryMock.saveMeetingWithAtomicNumber.mockImplementation(() => {
+        callOrder.push('save');
+        return Promise.resolve(buildSavedEntity('meet-n08-e'));
+      });
+      pdfGeneratorMock.generateAgendaPdf.mockImplementation(() => {
         callOrder.push('pdf');
-        return { url: '/pdf/e', buffer: Buffer.from('PDF') };
+        return Promise.resolve({ url: '/pdf/e', buffer: Buffer.from('PDF') });
       });
       userRepoMock.findByRoleCodes.mockResolvedValue([
         {
@@ -540,8 +600,9 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
         },
       ]);
       (emailServiceMock.sendCallNotification as jest.Mock).mockImplementation(
-        async () => {
+        () => {
           callOrder.push('email');
+          return Promise.resolve();
         },
       );
 
