@@ -443,7 +443,7 @@
 - **Tests**: Tests unitarios (a–e) en `create-meeting.use-case.spec.ts`. Test E2E describe `TSK-009-N08` en `real-db-evaluations.e2e-spec.ts` (prefijo `TEST-N08-`, COUNT = 65). Tests de regresión en `meetings.e2e-spec.ts` y `meetings-concurrency.e2e-spec.ts`.
 - **Criterio "Hecho cuando:"**: `POST /api/evaluations/meetings` retorna HTTP 201 con `agendaPdfUrl`; tras la respuesta, `sendCallNotification` se invoca una vez por cada miembro activo con rol `EVALUADOR` o `PRESIDENTE`, con el buffer del PDF correcto. Fallos en PDF o correo no propagan error HTTP.
 
-### Task TSK-009-N09 - [ ] PENDIENTE
+### Task TSK-009-N09 - [x] MERGEADO (PR-D1, dev 0b1e1e5)
 - **ID Único**: `TSK-009-N09`
 - **Requisito Relacionado**: `RF-09.2` / `RF-15.2`
 - **PR**: PR-D1 (`feat/meeting-followup-guard`)
@@ -464,3 +464,25 @@
   3. Unit: `followUpReportIds: []` y `undefined` + `protocolVersionIds` → pasa el guard, crea convocatoria.
   4. E2E real-db: COUNT(*) de `evaluacion.convocatorias` idéntico antes y después; `finally` limpia cualquier fila espuria.
 - **Criterio "Hecho cuando:"**: `POST /api/evaluations/meetings` con `followUpReportIds` no vacío responde 400 con código `SEGUIMIENTO_NO_DISPONIBLE` y no persiste nada en BD. `npm test` verde. E2E pendiente de ejecución por el usuario.
+
+### Task TSK-009-N10 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N10`
+- **Requisito Relacionado**: `RF-09.1` (integridad del Orden del Día)
+- **PR**: PR-D2 (`feat/meeting-version-unique`)
+- **Criterio EARS**: Guard fail-fast y constraint de BD: `protocolVersionIds` con elementos repetidos → 400 `VERSIONES_DUPLICADAS` listando los IDs repetidos; UNIQUE en BD como defensa en profundidad.
+- **Acción**: `MODIFICAR` (use case + ORM) / `CREAR` (migración)
+- **Archivos Afectados**:
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR — guard `VERSIONES_DUPLICADAS` al inicio de `execute()`, antes del guard `SEGUIMIENTO_NO_DISPONIBLE`)
+  - `src/migrations/1851000000000-AddUniqueConvocatoriaProtocolosVersion.ts` (CREAR — constraint `uq_convocatoria_protocolos_version UNIQUE (convocatoria_id, version_id)`; idempotente; pre-check que aborta si hay duplicados en BD)
+  - `src/modules/evaluations/infrastructure/database/entities/convocatoria-protocolo.orm-entity.ts` (MODIFICAR — `@Unique('uq_convocatoria_protocolos_version', ['convocatoriaId', 'versionId'])`)
+  - `src/modules/evaluations/application/services/create-meeting.use-case.spec.ts` (MODIFICAR — describe TSK-009-N10, tests N10-a/b/c)
+  - `test/real-db-evaluations.e2e-spec.ts` (MODIFICAR — describe TSK-009-N10, tests TEST-N10-01/02)
+- **Dependencias**: `TSK-009-N09`
+- **Descripción**: Cierra el bug latente diagnosticado en PR-D1: si `protocolVersionIds` contiene el mismo ID más de una vez, `CreateMeetingUseCase` debe lanzar `BadRequestException('VERSIONES_DUPLICADAS: ...')` listando los IDs repetidos, sin llegar a la BD. El guard actúa antes del guard `SEGUIMIENTO_NO_DISPONIBLE`. No se deduplica en silencio. La migración 1851 añade `UNIQUE (convocatoria_id, version_id)` en `evaluacion.convocatoria_protocolos` (constraint `uq_convocatoria_protocolos_version`) como defensa en profundidad: pre-verifica ausencia de duplicados, es idempotente y usa `DROP CONSTRAINT IF EXISTS` en `down()`.
+- **Tests**:
+  1. Unit (N10-a): `protocolVersionIds: [100, 101, 100]` → `BadRequestException` con `VERSIONES_DUPLICADAS` y `"100"` en el mensaje; repo/pdf/email NO llamados.
+  2. Unit (N10-b): `protocolVersionIds: [137, 138]` → no lanza excepción (pasa el guard).
+  3. Unit (N10-c): `protocolVersionIds: [137]` → no lanza excepción (pasa el guard).
+  4. E2E real-db (TEST-N10-01): `POST /api/evaluations/meetings` con `protocolVersionIds: [991, 991]` → 400 `VERSIONES_DUPLICADAS`; COUNT(*) de `evaluacion.convocatorias` idéntico antes y después.
+  5. E2E real-db (TEST-N10-02): inserción directa de dos filas con el mismo `(convocatoria_id, version_id)` en `evaluacion.convocatoria_protocolos` → error PostgreSQL código `23505`. **REQUIERE migración 1851 aplicada en `ceish_test_db` antes de ejecutar**.
+- **Criterio "Hecho cuando:"**: Guard rechaza 400 con `VERSIONES_DUPLICADAS` antes de tocar BD; migración 1851 crea el UNIQUE idempotentemente en ambas bases; `npm test` verde; E2E pendiente de ejecución por el usuario.
