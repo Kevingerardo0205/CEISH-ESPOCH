@@ -15,6 +15,18 @@ export interface NormativeDeadlineInput {
   receptionDate: Date | undefined;
 }
 
+/**
+ * Versión con asignación ASSIGNED activa y sin convocatoria "agendada"
+ * (cualquier estado salvo CANCELADA). Usada por UnscheduledProtocolsAlertService (TSK-002-N03).
+ */
+export interface UnscheduledVersionInfo {
+  versionId: number;
+  protocolCode: string;
+  oldestAssignmentDate: Date;
+  reviewType: string | undefined;
+  receptionDate: Date | undefined;
+}
+
 export interface CreateMeetingParams {
   sessionType: string;
   meetingDate: Date;
@@ -64,6 +76,16 @@ export interface IMeetingRepositoryPort {
   findNormativeDeadlineInputs(
     protocolVersionIds: number[],
   ): Promise<NormativeDeadlineInput[]>;
+
+  /**
+   * Devuelve versiones con al menos una asignación ASSIGNED que NO están en ninguna
+   * convocatoria "agendada" (agendada = estado <> CANCELADA; cubre PROGRAMADA, EN_CURSO y CONCLUIDA).
+   * Incluye fecha de asignación más antigua, reviewType y
+   * receptionDate para evaluar las dos condiciones de alerta (TSK-002-N03).
+   */
+  findAssignedVersionsWithoutScheduledMeeting(): Promise<
+    UnscheduledVersionInfo[]
+  >;
 
   findById(id: string): Promise<MeetingEntity | null>;
 

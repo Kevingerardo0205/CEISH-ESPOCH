@@ -30,6 +30,9 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       saveMeetingWithAtomicNumber: jest.fn(),
       getOldestAssignedDates: jest.fn().mockResolvedValue([]),
       findNormativeDeadlineInputs: jest.fn().mockResolvedValue([]),
+      findAssignedVersionsWithoutScheduledMeeting: jest
+        .fn()
+        .mockResolvedValue([]),
       findById: jest.fn(),
       findAll: jest.fn(),
       findPendingProtocols: jest.fn(),

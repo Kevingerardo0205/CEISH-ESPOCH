@@ -71,4 +71,10 @@ export abstract class IEmailServicePort {
     placeName: string,
     pdfBuffer: Buffer,
   ): Promise<void>;
+
+  abstract sendUnscheduledProtocolsAlert(
+    email: string,
+    name: string,
+    protocols: Array<{ code: string; reason: string }>,
+  ): Promise<void>;
 }

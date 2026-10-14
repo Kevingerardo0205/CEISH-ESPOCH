@@ -281,6 +281,28 @@ export class ResendEmailAdapter implements IEmailServicePort {
     }
   }
 
+  async sendUnscheduledProtocolsAlert(
+    email: string,
+    name: string,
+    protocols: Array<{ code: string; reason: string }>,
+  ): Promise<void> {
+    try {
+      const data = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject: `Alerta CEISH: ${protocols.length} protocolo(s) sin convocatoria programada`,
+        html: templates.getUnscheduledProtocolsAlertTemplate(name, protocols),
+      });
+      console.log('Alerta de protocolos sin convocatoria enviada:', data);
+    } catch (error) {
+      console.error(
+        'Error enviando alerta de protocolos sin convocatoria:',
+        error,
+      );
+      throw error;
+    }
+  }
+
   async sendCallNotification(
     email: string,
     name: string,

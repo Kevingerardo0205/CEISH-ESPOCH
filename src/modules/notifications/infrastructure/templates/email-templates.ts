@@ -1,3 +1,11 @@
+const esc = (s: string): string =>
+  s
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+
 export const getBaseTemplate = (content: string) => `
 <!DOCTYPE html>
 <html>
@@ -211,3 +219,32 @@ export const getCallNotificationTemplate = (
   <p>Por favor, ingrese al sistema para revisar los protocolos programados y preparar sus evaluaciones.</p>
   <a href="https://ceish-espoch.edu.ec/dashboard" class="button">Acceder al Sistema</a>
 `);
+
+export const getUnscheduledProtocolsAlertTemplate = (
+  name: string,
+  protocols: Array<{ code: string; reason: string }>,
+) => {
+  const rows = protocols
+    .map(
+      (p) =>
+        `<tr><td style="padding:6px 12px;border-bottom:1px solid #eee;">${esc(p.code)}</td>` +
+        `<td style="padding:6px 12px;border-bottom:1px solid #eee;">${esc(p.reason)}</td></tr>`,
+    )
+    .join('');
+  return getBaseTemplate(`
+  <h2>Alerta: protocolos con evaluadores asignados sin convocatoria</h2>
+  <p>Estimado(a) <strong>${esc(name)}</strong>,</p>
+  <p>El siguiente resumen lista los protocolos que tienen evaluadores asignados pero aún no han sido incluidos en una convocatoria programada:</p>
+  <table style="width:100%;border-collapse:collapse;margin-top:16px;">
+    <thead>
+      <tr style="background-color:#003366;color:white;">
+        <th style="padding:8px 12px;text-align:left;">Código de protocolo</th>
+        <th style="padding:8px 12px;text-align:left;">Motivo de alerta</th>
+      </tr>
+    </thead>
+    <tbody>${rows}</tbody>
+  </table>
+  <p style="margin-top:20px;">Por favor, programe una convocatoria para estos protocolos a la brevedad posible.</p>
+  <a href="https://ceish-espoch.edu.ec/dashboard" class="button">Ir al sistema</a>
+`);
+};

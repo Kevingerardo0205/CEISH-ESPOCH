@@ -202,6 +202,18 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
     });
   }
 
+  async sendUnscheduledProtocolsAlert(
+    email: string,
+    name: string,
+    protocols: Array<{ code: string; reason: string }>,
+  ): Promise<void> {
+    await this.sendMailWithRetry({
+      to: email,
+      subject: `Alerta CEISH: ${protocols.length} protocolo(s) sin convocatoria programada`,
+      html: templates.getUnscheduledProtocolsAlertTemplate(name, protocols),
+    });
+  }
+
   async sendCallNotification(
     email: string,
     name: string,

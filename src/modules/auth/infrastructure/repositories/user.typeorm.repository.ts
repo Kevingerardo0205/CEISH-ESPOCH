@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, FindOptionsWhere } from 'typeorm';
+import { Repository, FindOptionsWhere, DataSource } from 'typeorm';
 import { IUserRepository } from '../../domain/ports/user.repository.port';
 import { UserOrmEntity } from '../database/user.entity.orm';
 import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
@@ -13,6 +13,7 @@ export class UserTypeOrmRepository
   constructor(
     @InjectRepository(UserOrmEntity)
     private readonly userRepo: Repository<UserOrmEntity>,
+    private readonly dataSource: DataSource,
   ) {
     super(userRepo);
   }
@@ -97,5 +98,31 @@ export class UserTypeOrmRepository
         'isEmailVerified',
       ],
     });
+  }
+
+  async findByRoleCodes(
+    codes: string[],
+  ): Promise<
+    Array<{ id: number; fullName: string; institutionalEmail: string }>
+  > {
+    if (!codes.length) return [];
+    const rows: Array<{
+      id: number;
+      nombres_completos: string;
+      email_institucional: string;
+    }> = await this.dataSource.query(
+      `SELECT DISTINCT u.id, u.nombres_completos, u.email_institucional
+       FROM catalogos.usuarios u
+       JOIN catalogos.usuarios_roles ur ON ur.usuario_id = u.id
+       JOIN catalogos.roles r           ON r.id = ur.rol_id
+       WHERE r.codigo = ANY($1)
+         AND u.activo = true`,
+      [codes],
+    );
+    return rows.map((row) => ({
+      id: row.id,
+      fullName: row.nombres_completos,
+      institutionalEmail: row.email_institucional,
+    }));
   }
 }

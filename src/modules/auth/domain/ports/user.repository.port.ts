@@ -16,4 +16,10 @@ export abstract class IUserRepository {
   abstract findWithToken(
     where: Record<string, unknown>,
   ): Promise<UserOrmEntity[]>;
+  /** Devuelve usuarios activos cuyos roles incluyan alguno de los códigos dados. */
+  abstract findByRoleCodes(
+    codes: string[],
+  ): Promise<
+    Array<{ id: number; fullName: string; institutionalEmail: string }>
+  >;
 }
