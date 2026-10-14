@@ -36,6 +36,9 @@ import {
   SP_PLAZO_CONDICION,
 } from '../src/modules/sistema/application/services/system-params.service';
 import { ProtocolDeadlineService } from '../src/modules/protocols/application/services/protocol-deadline.service';
+import type { IMeetingRepositoryPort } from '../src/modules/evaluations/domain/ports/meeting-repository.port';
+import { IUserRepository } from '../src/modules/auth/domain/ports/user.repository.port';
+import { RoleCode } from '../src/modules/auth/domain/enums/role.enum';
 
 describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)', () => {
   let app: INestApplication;
@@ -108,6 +111,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         sendPasswordReset: jest.fn().mockResolvedValue(undefined),
         sendEmailVerification: jest.fn().mockResolvedValue(undefined),
         sendCallNotification: jest.fn().mockResolvedValue(undefined),
+        sendUnscheduledProtocolsAlert: jest.fn().mockResolvedValue(undefined),
       })
       .overrideProvider(IStorageService)
       .useValue({
@@ -1593,6 +1597,253 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           DELETE FROM public.versiones_protocolo WHERE id = 994;
           DELETE FROM public.protocolos WHERE id = 994;
         `);
+      }
+    });
+  });
+
+  // TSK-002-N03: findAssignedVersionsWithoutScheduledMeeting
+  // IDs únicos en el archivo: grep -n "9901\|9902\|9903" test/real-db-evaluations.e2e-spec.ts
+  // confirma que solo aparecen dentro de este describe.
+  describe('11. TSK-002-N03 findAssignedVersionsWithoutScheduledMeeting', () => {
+    const P_SIN = 9901; // protocolo/versión sin convocatoria
+    const P_CON = 9902; // protocolo/versión con convocatoria PROGRAMADA
+    const P_REA = 9903; // protocolo/versión para verificar MIN de fecha de reasignación
+    const P_CONC = 9904; // protocolo/versión en convocatoria CONCLUIDA (11e)
+    const P_CXL = 9905; // protocolo/versión en convocatoria CANCELADA (11f)
+
+    const fixtureCleanup = async () => {
+      await dataSource.query(`
+        UPDATE public.protocolos SET version_actual_id = NULL
+          WHERE id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+        DELETE FROM evaluacion.convocatoria_protocolos
+          WHERE version_id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+        DELETE FROM evaluacion.convocatorias
+          WHERE numero_convocatoria IN ('TEST-N03-CON', 'TEST-N03-CONC', 'TEST-N03-CXL');
+        DELETE FROM evaluacion.asignaciones_evaluacion
+          WHERE version_id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+        DELETE FROM recepcion.recepciones
+          WHERE version_id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+        DELETE FROM public.versiones_protocolo
+          WHERE id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+        DELETE FROM public.protocolos
+          WHERE id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+      `);
+    };
+
+    beforeEach(fixtureCleanup);
+    afterEach(fixtureCleanup);
+
+    it('11a. versión asignada sin convocatoria aparece en el resultado', async () => {
+      try {
+        await dataSource.query(`
+          INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+          VALUES (${P_SIN}, 'Test TSK-N03 SIN', 901, 10, 'EXPEDITA')
+          ON CONFLICT (id) DO NOTHING;
+          INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+          VALUES (${P_SIN}, ${P_SIN}, 1, 10) ON CONFLICT (id) DO NOTHING;
+          UPDATE public.protocolos SET version_actual_id = ${P_SIN} WHERE id = ${P_SIN};
+        `);
+        await dataSource.query(
+          `INSERT INTO evaluacion.asignaciones_evaluacion
+             (version_id, evaluador_id, estado_id, fecha_asignacion)
+           VALUES ($1, 901, $2, NOW() - INTERVAL '10 days')`,
+          [P_SIN, AssignmentStatus.ASSIGNED],
+        );
+
+        const repo = app.get<IMeetingRepositoryPort>('IMeetingRepositoryPort');
+        const result = await repo.findAssignedVersionsWithoutScheduledMeeting();
+        const found = result.find((r) => r.versionId === P_SIN);
+        expect(found).toBeDefined();
+        expect(found?.protocolCode).toBeTruthy();
+      } finally {
+        await fixtureCleanup();
+      }
+    });
+
+    it('11b. versión en convocatoria PROGRAMADA no aparece en el resultado', async () => {
+      let convocatoriaId: string | undefined;
+      try {
+        await dataSource.query(`
+          INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+          VALUES (${P_CON}, 'Test TSK-N03 CON', 901, 10, 'EXPEDITA')
+          ON CONFLICT (id) DO NOTHING;
+          INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+          VALUES (${P_CON}, ${P_CON}, 1, 10) ON CONFLICT (id) DO NOTHING;
+          UPDATE public.protocolos SET version_actual_id = ${P_CON} WHERE id = ${P_CON};
+        `);
+        await dataSource.query(
+          `INSERT INTO evaluacion.asignaciones_evaluacion
+             (version_id, evaluador_id, estado_id, fecha_asignacion)
+           VALUES ($1, 901, $2, NOW() - INTERVAL '10 days')`,
+          [P_CON, AssignmentStatus.ASSIGNED],
+        );
+        const convRows = await dataSource.query(
+          `INSERT INTO evaluacion.convocatorias (numero_convocatoria, estado)
+           VALUES ('TEST-N03-CON', 'PROGRAMADA') RETURNING id`,
+        );
+        convocatoriaId = convRows[0].id as string;
+        await dataSource.query(
+          `INSERT INTO evaluacion.convocatoria_protocolos
+             (convocatoria_id, protocolo_id, version_id, orden, fecha_plazo_normativo)
+           VALUES ($1, $2, $3, 1, NOW() + INTERVAL '30 days')`,
+          [convocatoriaId, P_CON, P_CON],
+        );
+
+        const repo = app.get<IMeetingRepositoryPort>('IMeetingRepositoryPort');
+        const result = await repo.findAssignedVersionsWithoutScheduledMeeting();
+        const found = result.find((r) => r.versionId === P_CON);
+        expect(found).toBeUndefined();
+      } finally {
+        if (convocatoriaId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [convocatoriaId],
+          );
+        }
+        await fixtureCleanup();
+      }
+    });
+
+    it('11c. versión con reasignación devuelve la fecha de asignación más antigua', async () => {
+      try {
+        await dataSource.query(`
+          INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+          VALUES (${P_REA}, 'Test TSK-N03 REA', 901, 10, 'EXPEDITA')
+          ON CONFLICT (id) DO NOTHING;
+          INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+          VALUES (${P_REA}, ${P_REA}, 1, 10) ON CONFLICT (id) DO NOTHING;
+          UPDATE public.protocolos SET version_actual_id = ${P_REA} WHERE id = ${P_REA};
+        `);
+        // Asignación original (ahora reasignada) — fecha más antigua
+        await dataSource.query(
+          `INSERT INTO evaluacion.asignaciones_evaluacion
+             (version_id, evaluador_id, estado_id, fecha_asignacion)
+           VALUES ($1, 902, $2, NOW() - INTERVAL '15 days')`,
+          [P_REA, AssignmentStatus.REASIGNED_VENCIMIENTO],
+        );
+        // Reasignación actual (ASSIGNED) — fecha más reciente
+        await dataSource.query(
+          `INSERT INTO evaluacion.asignaciones_evaluacion
+             (version_id, evaluador_id, estado_id, fecha_asignacion)
+           VALUES ($1, 901, $2, NOW() - INTERVAL '3 days')`,
+          [P_REA, AssignmentStatus.ASSIGNED],
+        );
+
+        const repo = app.get<IMeetingRepositoryPort>('IMeetingRepositoryPort');
+        const result = await repo.findAssignedVersionsWithoutScheduledMeeting();
+        const found = result.find((r) => r.versionId === P_REA);
+        expect(found).toBeDefined();
+        // La fecha más antigua (≥ 14 días) debe ser la que se reporta, no los 3 días de la reasignación
+        const daysSince = Math.floor(
+          (Date.now() - new Date(found!.oldestAssignmentDate).getTime()) /
+            86_400_000,
+        );
+        expect(daysSince).toBeGreaterThanOrEqual(14);
+      } finally {
+        await fixtureCleanup();
+      }
+    });
+
+    it('11d. findByRoleCodes devuelve arreglo sin error (solo lectura)', async () => {
+      const userRepo = app.get(IUserRepository);
+      const result = await userRepo.findByRoleCodes([
+        RoleCode.SECRETARIA,
+        RoleCode.PRESIDENTE,
+      ]);
+      expect(Array.isArray(result)).toBe(true);
+      for (const u of result) {
+        expect(u).toHaveProperty('id');
+        expect(u).toHaveProperty('fullName');
+        expect(u).toHaveProperty('institutionalEmail');
+      }
+    });
+
+    it('11e. versión en convocatoria CONCLUIDA no aparece en el resultado', async () => {
+      let convocatoriaId: string | undefined;
+      try {
+        await dataSource.query(`
+          INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+          VALUES (${P_CONC}, 'Test TSK-N03 CONC', 901, 10, 'EXPEDITA')
+          ON CONFLICT (id) DO NOTHING;
+          INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+          VALUES (${P_CONC}, ${P_CONC}, 1, 10) ON CONFLICT (id) DO NOTHING;
+          UPDATE public.protocolos SET version_actual_id = ${P_CONC} WHERE id = ${P_CONC};
+        `);
+        await dataSource.query(
+          `INSERT INTO evaluacion.asignaciones_evaluacion
+             (version_id, evaluador_id, estado_id, fecha_asignacion)
+           VALUES ($1, 901, $2, NOW() - INTERVAL '10 days')`,
+          [P_CONC, AssignmentStatus.ASSIGNED],
+        );
+        const convRows = await dataSource.query(
+          `INSERT INTO evaluacion.convocatorias (numero_convocatoria, estado)
+           VALUES ('TEST-N03-CONC', 'CONCLUIDA') RETURNING id`,
+        );
+        convocatoriaId = convRows[0].id as string;
+        await dataSource.query(
+          `INSERT INTO evaluacion.convocatoria_protocolos
+             (convocatoria_id, protocolo_id, version_id, orden, fecha_plazo_normativo)
+           VALUES ($1, $2, $3, 1, NOW() + INTERVAL '30 days')`,
+          [convocatoriaId, P_CONC, P_CONC],
+        );
+
+        const repo = app.get<IMeetingRepositoryPort>('IMeetingRepositoryPort');
+        const result = await repo.findAssignedVersionsWithoutScheduledMeeting();
+        const found = result.find((r) => r.versionId === P_CONC);
+        expect(found).toBeUndefined();
+      } finally {
+        if (convocatoriaId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [convocatoriaId],
+          );
+        }
+        await fixtureCleanup();
+      }
+    });
+
+    it('11f. versión cuya única convocatoria está CANCELADA sí aparece en el resultado', async () => {
+      let convocatoriaId: string | undefined;
+      try {
+        await dataSource.query(`
+          INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+          VALUES (${P_CXL}, 'Test TSK-N03 CXL', 901, 10, 'EXPEDITA')
+          ON CONFLICT (id) DO NOTHING;
+          INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+          VALUES (${P_CXL}, ${P_CXL}, 1, 10) ON CONFLICT (id) DO NOTHING;
+          UPDATE public.protocolos SET version_actual_id = ${P_CXL} WHERE id = ${P_CXL};
+        `);
+        await dataSource.query(
+          `INSERT INTO evaluacion.asignaciones_evaluacion
+             (version_id, evaluador_id, estado_id, fecha_asignacion)
+           VALUES ($1, 901, $2, NOW() - INTERVAL '10 days')`,
+          [P_CXL, AssignmentStatus.ASSIGNED],
+        );
+        const convRows = await dataSource.query(
+          `INSERT INTO evaluacion.convocatorias (numero_convocatoria, estado)
+           VALUES ('TEST-N03-CXL', 'CANCELADA') RETURNING id`,
+        );
+        convocatoriaId = convRows[0].id as string;
+        await dataSource.query(
+          `INSERT INTO evaluacion.convocatoria_protocolos
+             (convocatoria_id, protocolo_id, version_id, orden, fecha_plazo_normativo)
+           VALUES ($1, $2, $3, 1, NOW() + INTERVAL '30 days')`,
+          [convocatoriaId, P_CXL, P_CXL],
+        );
+
+        const repo = app.get<IMeetingRepositoryPort>('IMeetingRepositoryPort');
+        const result = await repo.findAssignedVersionsWithoutScheduledMeeting();
+        const found = result.find((r) => r.versionId === P_CXL);
+        expect(found).toBeDefined();
+        expect(found?.protocolCode).toBeTruthy();
+      } finally {
+        if (convocatoriaId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [convocatoriaId],
+          );
+        }
+        await fixtureCleanup();
       }
     });
   });
