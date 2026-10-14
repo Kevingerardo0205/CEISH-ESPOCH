@@ -7,6 +7,8 @@ import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/shared/guards/roles.guard';
 import type { IMeetingRepositoryPort } from '../src/modules/evaluations/domain/ports/meeting-repository.port';
 import { MeetingNumberValueObject } from '../src/modules/evaluations/domain/value-objects/meeting-number.vo';
+import { IEmailServicePort } from '../src/modules/notifications/domain/ports/email.service.port';
+import { IUserRepository } from '../src/modules/auth/domain/ports/user.repository.port';
 
 describe('Convocatorias Concurrency Stress Tests (e2e) - [TSK-009-009 / EARS 1]', () => {
   let app: INestApplication;
@@ -56,11 +58,37 @@ describe('Convocatorias Concurrency Stress Tests (e2e) - [TSK-009-009 / EARS 1]'
   };
 
   const mockPdfGenerator = {
-    generateAgendaPdf: jest
-      .fn()
-      .mockImplementation((meetingId: string) =>
-        Promise.resolve(`/api/evaluations/meetings/${meetingId}/pdf`),
-      ),
+    generateAgendaPdf: jest.fn().mockImplementation((meetingId: string) =>
+      Promise.resolve({
+        url: `/api/evaluations/meetings/${meetingId}/pdf`,
+        buffer: Buffer.alloc(1),
+      }),
+    ),
+  };
+
+  const mockEmailService = {
+    sendCallNotification: jest.fn().mockResolvedValue(undefined),
+    sendPasswordReset: jest.fn(),
+    sendWelcomeEmail: jest.fn(),
+    sendEmailConfirmation: jest.fn(),
+    sendAccountInvitation: jest.fn(),
+    sendReceptionIncomplete: jest.fn(),
+    sendReceptionComplete: jest.fn(),
+    sendResolutionEmail: jest.fn(),
+    notifyPresidentNewProtocol: jest.fn(),
+    sendEvaluationAssignment: jest.fn(),
+    sendEvaluationSubmitted: jest.fn(),
+    sendUnscheduledProtocolsAlert: jest.fn(),
+  };
+
+  const mockUserRepository = {
+    findByRoleCodes: jest.fn().mockResolvedValue([]),
+    findByEmail: jest.fn(),
+    findById: jest.fn(),
+    findAll: jest.fn(),
+    save: jest.fn(),
+    update: jest.fn(),
+    findWithToken: jest.fn(),
   };
 
   beforeAll(async () => {
@@ -88,6 +116,10 @@ describe('Convocatorias Concurrency Stress Tests (e2e) - [TSK-009-009 / EARS 1]'
       .useValue(atomicSequenceRepositoryMock)
       .overrideProvider('IMeetingPdfGeneratorPort')
       .useValue(mockPdfGenerator)
+      .overrideProvider(IEmailServicePort)
+      .useValue(mockEmailService)
+      .overrideProvider(IUserRepository)
+      .useValue(mockUserRepository)
       .compile();
 
     app = moduleFixture.createNestApplication();

@@ -1,3 +1,5 @@
 export interface IMeetingPdfGeneratorPort {
-  generateAgendaPdf(meetingId: string): Promise<string>;
+  generateAgendaPdf(
+    meetingId: string,
+  ): Promise<{ url: string; buffer: Buffer }>;
 }

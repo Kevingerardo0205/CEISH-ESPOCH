@@ -14,7 +14,9 @@ export class MeetingPdfGeneratorAdapter implements IMeetingPdfGeneratorPort {
     private readonly pdfGeneratorService: PdfGeneratorService,
   ) {}
 
-  async generateAgendaPdf(meetingId: string): Promise<string> {
+  async generateAgendaPdf(
+    meetingId: string,
+  ): Promise<{ url: string; buffer: Buffer }> {
     const convocatoriaRepo = this.dataSource.getRepository(
       ConvocatoriaOrmEntity,
     );
@@ -79,6 +81,6 @@ export class MeetingPdfGeneratorAdapter implements IMeetingPdfGeneratorPort {
     meeting.ordenDiaPdfPath = relativeUrl;
     await convocatoriaRepo.save(meeting);
 
-    return relativeUrl;
+    return { url: relativeUrl, buffer: pdfBuffer };
   }
 }

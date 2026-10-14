@@ -8,6 +8,7 @@ import type {
   CreateMeetingParams,
   IMeetingRepositoryPort,
 } from '../../domain/ports/meeting-repository.port';
+import type { MeetingEntity } from '../../domain/entities/meeting.entity';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
 import {
   CalculateMeetingDatesService,
@@ -15,6 +16,9 @@ import {
 } from './calculate-meeting-dates.service';
 import { MeetingDatesValueObject } from '../../domain/value-objects/meeting-dates.vo';
 import { ENTREGA_EVALUACION_HORA_CORTE } from '../../../../shared/deadlines/deadline-rules';
+import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
+import { IUserRepository } from '../../../auth/domain/ports/user.repository.port';
+import { RoleCode } from '../../../auth/domain/enums/role.enum';
 
 @Injectable()
 export class CreateMeetingUseCase {
@@ -26,6 +30,10 @@ export class CreateMeetingUseCase {
     @Inject('IMeetingPdfGeneratorPort')
     private readonly pdfGenerator: IMeetingPdfGeneratorPort,
     private readonly calculateDatesService: CalculateMeetingDatesService,
+    @Inject(IEmailServicePort)
+    private readonly emailService: IEmailServicePort,
+    @Inject(IUserRepository)
+    private readonly userRepository: IUserRepository,
   ) {}
 
   async execute(params: CreateMeetingParams): Promise<{
@@ -119,8 +127,9 @@ export class CreateMeetingUseCase {
         datesVo.evalSubmissionDeadline,
       );
 
-    // 7. Generar PDF del Orden del Día
-    const pdfUrl = await this.pdfGenerator.generateAgendaPdf(savedMeeting.id);
+    // 7. URL del PDF es determinista; la generación y envío de correos son fire-and-forget
+    const pdfUrl = `/api/evaluations/meetings/${savedMeeting.id}/pdf`;
+    void this.notifyMembersAsync(savedMeeting, params);
 
     return {
       id: savedMeeting.id,
@@ -128,5 +137,72 @@ export class CreateMeetingUseCase {
       pdfUrl,
       warnings,
     };
+  }
+
+  private async notifyMembersAsync(
+    savedMeeting: MeetingEntity,
+    params: CreateMeetingParams,
+  ): Promise<void> {
+    try {
+      let pdfResult: { url: string; buffer: Buffer };
+      try {
+        pdfResult = await this.pdfGenerator.generateAgendaPdf(savedMeeting.id);
+      } catch (pdfError) {
+        this.logger.error(
+          `TSK-009-N08: error generando PDF para convocatoria ${savedMeeting.id}`,
+          pdfError,
+        );
+        return;
+      }
+
+      const place = params.locationId
+        ? await this.meetingRepository.findPlaceById(params.locationId)
+        : null;
+      const placeName = place?.nombre ?? 'Sala de Sesiones CEISH-ESPOCH';
+
+      const callTime = new Intl.DateTimeFormat('es-EC', {
+        timeZone: 'America/Guayaquil',
+        hour: '2-digit',
+        minute: '2-digit',
+      }).format(params.meetingDate);
+
+      const members = await this.userRepository.findByRoleCodes([
+        RoleCode.EVALUADOR,
+        RoleCode.PRESIDENTE,
+      ]);
+
+      if (!members.length) {
+        this.logger.log(
+          'TSK-009-N08: sin miembros activos con rol EVALUADOR/PRESIDENTE; correo omitido.',
+        );
+        return;
+      }
+
+      await Promise.allSettled(
+        members.map((m) =>
+          this.emailService
+            .sendCallNotification(
+              m.institutionalEmail,
+              m.fullName,
+              savedMeeting.numeroConvocatoria,
+              savedMeeting.fechaReunion,
+              callTime,
+              placeName,
+              pdfResult.buffer,
+            )
+            .catch((e: unknown) =>
+              this.logger.error(
+                `TSK-009-N08: error enviando correo a ${m.institutionalEmail}`,
+                e,
+              ),
+            ),
+        ),
+      );
+    } catch (e) {
+      this.logger.error(
+        `TSK-009-N08: error inesperado en notifyMembersAsync para convocatoria ${savedMeeting.id}`,
+        e,
+      );
+    }
   }
 }

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unsafe-return, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-argument */
 import { MeetingPdfGeneratorAdapter } from './meeting-pdf-generator.adapter';
 import { NotFoundException } from '@nestjs/common';
 
@@ -70,7 +71,8 @@ describe('MeetingPdfGeneratorAdapter (TSK-009-007)', () => {
 
     const result = await adapter.generateAgendaPdf('meet-001');
 
-    expect(result).toBe('/api/evaluations/meetings/meet-001/pdf');
+    expect(result.url).toBe('/api/evaluations/meetings/meet-001/pdf');
+    expect(Buffer.isBuffer(result.buffer)).toBe(true);
     expect(pdfGeneratorMock.generateCallPdf).toHaveBeenCalled();
     expect(convocatoriaRepoMock.save).toHaveBeenCalled();
   });
