@@ -452,8 +452,10 @@ graph TD
 | PR-C2 | `feat/system-params-followup` | RF-CAL, RF-14.1 | Cablear `plazo_condicion_dias` (TSK-015-N05 C2): semilla, `getCondicionDias()` en `ProtocolDeadlineService`, wiring en `resolutions.service` y `evaluations.service`. Corregir comentario de `PLAZO_REVISION_OFICIO_DIAS`. Actualizar spec N03/N05. | ✅ Mergeado |
 | PR-C3 | `feat/convocatoria-params` | RF-09.1 | Copia de parámetros de entrega a la convocatoria (TSK-009-N04, migración). | ✅ Mergeado |
 | PR-C4 | `feat/deadline-warnings` | RF-09.1 | Advertencia de plazo normativo al crear convocatoria (TSK-009-N06). TSK-002-N03 movida a PR-C5 (requiere `@nestjs/schedule` no instalado). | 🔨 En progreso |
-| PR-T1 | `test/e2e-cleanup-hygiene` | — | Higiene de tests E2E (TSK-009-N07): corregir orden de DELETE en `afterAll`/`beforeAll` y añadir `try/finally` en 6a/6b de `real-db-evaluations.e2e-spec.ts` para que `COUNT(evaluacion.convocatorias)` sea estable por corrida. | 🔨 En revisión |
-| PR-C5 | `feat/deadline-alerts` | RF-ALR, RF-09.3, RF-12.7(d), RF-15 | Alertas y recordatorios por offset de plazo (TSK-015-N01, TSK-015-N02), alerta de protocolos con pares sin convocatoria (TSK-002-N03, requiere `@nestjs/schedule`) y módulo de seguimiento RF-15. | 🔲 Pendiente |
+| PR-T1 | `test/e2e-cleanup-hygiene` | — | Higiene de tests E2E (TSK-009-N07): corregir orden de DELETE en `afterAll`/`beforeAll` y añadir `try/finally` en 6a/6b de `real-db-evaluations.e2e-spec.ts` para que `COUNT(evaluacion.convocatorias)` sea estable por corrida. | ✅ Mergeado |
+| PR-C5 | `feat/deadline-alerts` | RF-12.7(d) | Alerta diaria de protocolos con pares sin convocatoria (TSK-002-N03): cron `@nestjs/schedule` a las 08:00 ECT, parámetros `dias_max_sin_convocatoria` y `dias_alerta_normativo_sin_convocatoria`, migración 1850. | ✅ Listo para PR |
+| PR-F1 | `feat/follow-up-base` | RF-15.1 | Base del módulo de seguimiento: entidades hexagonales, ORM `agenda_entregables` / `informes_seguimiento`, migraciones 1855/1860, casos de uso `GenerateSchedule`, `UpdateSchedule`, `ProcessDeliverable`. | 🔲 Pendiente |
+| PR-F2 | `feat/follow-up-alerts` | RF-ALR, RF-15.2 | Alertas con offsets [7,1] (`AuditDeliverableGraceService`, TSK-015-N01) y [90,60,15] (`RenewalAlertService`, TSK-015-N02). Depende de PR-F1. | 🔲 Pendiente |
 | PR-C6 | `feat/ecuador-holidays` | RF-CAL | Feriados de Ecuador (TSK-015-N04) integrados en `BusinessDayCalculator`. | 🔲 Pendiente |
 
 ### 13.2 Decisiones Técnicas Verificadas (Paso 1 de planificación, solo lectura de `src/`)
@@ -482,4 +484,4 @@ Pendientes de confirmar con presidente/secretaria:
 - **Umbral de urgencia de 2 días** (`EVALUADOR_URGENTE_UMBRAL_DIAS = 2`): valor provisional, no ratificado en reunión. _Pendiente de confirmar con presidente/secretaria._
 - **Retirar un protocolo de una convocatoria**: no existe endpoint ni decisión de diseño; comportamiento (cancelar asignaciones, restaurar estado) no está definido. _Pendiente de confirmar con presidente/secretaria._
 - **Plazo OBSERVADO 15 días (PET)**: `PLAZO_GRACIA_SEGUIMIENTO_DIAS = 30` existe, pero el plazo del estado OBSERVADO (15 d hábiles según PET) no tiene constante ni confirmación. _Pendiente de confirmar con presidente/secretaria._
-- **`dias_alerta_normativo_sin_convocatoria`**: sin valor definido en spec ni en código. _Pendiente de confirmar con presidente/secretaria._
+- **`dias_alerta_normativo_sin_convocatoria`**: valor provisional = 5 días hábiles (PR-C5). _Pendiente de confirmar con secretaría._
