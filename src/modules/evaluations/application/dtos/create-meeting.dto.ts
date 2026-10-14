@@ -41,6 +41,7 @@ export class CreateMeetingDto {
   @Type(() => Number)
   protocolVersionIds?: number[];
 
+  // No disponible hasta RF-15; el use case responde 400 SEGUIMIENTO_NO_DISPONIBLE si no vacío
   @IsOptional()
   @IsArray({ message: 'follow_up_report_ids debe ser una lista' })
   @IsInt({

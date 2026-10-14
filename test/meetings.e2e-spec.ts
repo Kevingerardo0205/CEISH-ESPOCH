@@ -220,13 +220,12 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
       expect(msg).toContain('ORDEN_DEL_DIA_VACIO');
     });
 
-    it('debe crear exitosamente la convocatoria (HTTP 201) con protocolos e informes de seguimiento', async () => {
+    it('debe crear exitosamente la convocatoria (HTTP 201) con protocolVersionIds', async () => {
       const validPayload = {
         sessionType: 'ORDINARIA',
         meetingDate: '2026-04-16T10:00:00.000Z',
         evalSubmissionDeadline: '2026-04-21T17:00:00.000Z', // +2 días hábiles a las 12:00 ECT
         protocolVersionIds: [137],
-        followUpReportIds: [45],
       };
 
       const response = await request(app.getHttpServer())
@@ -316,7 +315,7 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
         sessionType: 'EXTRAORDINARIA',
         meetingDate: '2026-06-18T10:00:00.000Z',
         evalSubmissionDeadline: '2026-06-22T17:00:00.000Z', // posterior a la reunión
-        followUpReportIds: [50],
+        protocolVersionIds: [50],
       };
 
       const createRes = await request(app.getHttpServer())

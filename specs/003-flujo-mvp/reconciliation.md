@@ -127,3 +127,42 @@ Para respetar la integridad de los datos productivos/de prueba existentes:
 ### 6.2 Decisiones Pendientes de Confirmación Humana
 - **Política de Archivo de Datos Huérfanos**: Confirmar si el registro `e15834e2...` debe ser asignado como `000-2026` o eliminado físicamente antes de aplicar el constraint `NOT NULL`.
 - **Firma Electrónica de Actas**: Se mantiene fuera del alcance del MVP 3 según spec.
+
+---
+
+## 7. Desfase ORM/BD en `evaluacion.convocatoria_protocolos`
+
+Investigación realizada en PR-D1 (`feat/meeting-followup-guard`). Evidencia en código y BD confirmada por el equipo.
+
+### 7.1 Campos fantasma (sin `@Column`) en `ConvocatoriaProtocoloOrmEntity`
+
+Los siguientes campos están declarados como propiedades TypeScript en `convocatoria-protocolo.orm-entity.ts` pero **sin decorador `@Column`**: TypeORM los ignora silenciosamente en todo INSERT/UPDATE.
+
+| Propiedad TypeScript | Línea ORM | Columna esperada en BD | Existe en BD | Propietario del fix |
+|---|---|---|---|---|
+| `tipoPuntoAgenda?: AgendaItemType` | `:24` | `tipo_punto_agenda varchar(50)` | **No** | PR-F1 (migración 1855/1860) |
+| `informeSeguimientoId?: number \| null` | `:40` | `informe_seguimiento_id integer` | **No** | PR-F1 (migración 1855/1860) |
+
+**Impacto actual**: `meeting-typeorm.repository.ts:115-130` asigna estos campos en la instancia ORM, pero TypeORM no los incluye en el SQL generado. El INSERT procede sin ellos. Cuando `followUpReportIds` está presente, el INSERT también omite `protocolo_id` y `fecha_plazo_normativo` (NOT NULL en BD), lo que produce rollback y HTTP 500.
+
+**Fix temporal (PR-D1)**: guard en `CreateMeetingUseCase.execute()` que rechaza cualquier `followUpReportIds` no vacío con `BadRequestException('SEGUIMIENTO_NO_DISPONIBLE: ...')` antes de tocar la BD.
+
+**Fix definitivo (PR-F1)**: añadir `@Column({ name: 'tipo_punto_agenda', ... })` y `@Column({ name: 'informe_seguimiento_id', ... })` al ORM; aplicar migración que crea las columnas y relaja `protocolo_id`/`version_id`/`fecha_plazo_normativo` a nullable con CHECK.
+
+### 7.2 Columnas legacy sin mapear en el ORM
+
+Las siguientes columnas existen en `evaluacion.convocatoria_protocolos` (migración `1796000000000-AddCallsAndSessions.ts`) pero no tienen `@Column` en `ConvocatoriaProtocoloOrmEntity`. Ningún código de producción las lee ni escribe actualmente.
+
+| Columna en BD | Origen (migración) | Estado en ORM | Código que la usa |
+|---|---|---|---|
+| `creado_en` | `1796:62` | Sin mapeo (ORM usa `created_at`) | Ninguno |
+| `actualizado_en` | `1796:63` | Sin mapeo (ORM usa `updated_at`) | Ninguno |
+| `eliminado_en` | NO VERIFICADO (no aparece en migración `1796` para esta tabla; no se encontró migración origen) | Sin mapeo (sin soft-delete en esta entidad) | Ninguno |
+| `version_protocolo_id` | `1796:57` | Sin mapeo (ORM usa `version_id` añadido en refactor posterior) | Ninguno — ver nota UNIQUE abajo |
+| `fecha_reunion` | `1796:59` | Sin mapeo (columna homónima existe en `evaluacion.convocatorias`, sí mapeada ahí) | `evaluation.typeorm.repository.ts:90` lee `c.fecha_reunion` de `convocatorias`, no de esta tabla |
+| `fecha_entrega_evaluacion` | `1796:60` | Sin mapeo | `evaluation.typeorm.repository.ts:84` lee de `convocatorias`, no de esta tabla |
+| `resultado_id` | `1796:61` | Sin mapeo (mapeado en `EvaluacionOrmEntity`, no aquí) | Ninguno |
+
+**Nota sobre `uq_convocatoria_version`**: la migración `1796000000000-AddCallsAndSessions.ts:64` declara `CONSTRAINT uq_convocatoria_version UNIQUE (convocatoria_id, version_protocolo_id)`, pero esta constraint **NO está presente en la BD real** (`ceish_db` y `ceish_test_db`): `pg_constraint` devuelve únicamente PK + 3 FK (sin ningún UNIQUE ni CHECK). No se ha investigado por qué la migración no produjo la constraint en BD — puede haberse perdido en un `DROP TABLE IF EXISTS` y recreación, o haber fallado silenciosamente. Consecuencia real: **nada impide a nivel de BD insertar la misma versión dos veces en una convocatoria**; falta `UNIQUE (convocatoria_id, version_id)`. PR-F1 debe evaluar si añadirla.
+
+**Nota sobre protocolVersionIds duplicados en el use case**: si `protocolVersionIds` trae el mismo ID repetido, ni el use case (`create-meeting.use-case.ts:52-55`) ni el repositorio deduplicar. El loop `for...of` en `meeting-typeorm.repository.ts:98-121` itera sobre cada ocurrencia e inserta una fila por vez; la BD no rechaza porque no hay UNIQUE. Resultado: el mismo protocolo aparece dos veces en el Orden del Día con diferente `orden`. Es un bug latente a resolver en PR-F1.

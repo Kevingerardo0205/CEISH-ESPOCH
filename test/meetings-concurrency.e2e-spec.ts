@@ -145,7 +145,7 @@ describe('Convocatorias Concurrency Stress Tests (e2e) - [TSK-009-009 / EARS 1]'
     sessionType: 'ORDINARIA',
     meetingDate: '2026-11-12T09:00:00.000Z',
     evalSubmissionDeadline: '2026-11-14T17:00:00.000Z', // +2 días hábiles a las 12:00 ECT
-    followUpReportIds: [100 + index],
+    protocolVersionIds: [100 + index],
   });
 
   describe('Stress & Concurrency Scenario 1: 2 solicitudes simultáneas', () => {

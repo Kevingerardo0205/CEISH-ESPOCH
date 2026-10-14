@@ -1849,6 +1849,106 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     });
   });
 
+  describe('TSK-009-N09 (COUNT=65): guard SEGUIMIENTO_NO_DISPONIBLE — followUpReportIds rechazado con 400', () => {
+    it('TEST-N09-01: POST con followUpReportIds no vacío y sin versiones → 400 SEGUIMIENTO_NO_DISPONIBLE; COUNT(*) no varía', async () => {
+      const countBefore = await dataSource
+        .query<{ count: string }[]>(
+          `SELECT COUNT(*) AS count FROM evaluacion.convocatorias`,
+        )
+        .then((r) => parseInt(r[0].count, 10));
+
+      let convocatoriaId: string | undefined;
+      try {
+        const res = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .send({
+            sessionType: 'ORDINARIA',
+            meetingDate: new Date(
+              Date.now() + 14 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+            evalSubmissionDeadline: new Date(
+              Date.now() + 17 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+            followUpReportIds: [1],
+          });
+
+        expect(res.status).toBe(400);
+        const msg: string = Array.isArray(res.body.message)
+          ? (res.body.message as string[]).join(' ')
+          : (res.body.message as string);
+        expect(msg).toContain('SEGUIMIENTO_NO_DISPONIBLE');
+
+        const countAfter = await dataSource
+          .query<{ count: string }[]>(
+            `SELECT COUNT(*) AS count FROM evaluacion.convocatorias`,
+          )
+          .then((r) => parseInt(r[0].count, 10));
+        expect(countAfter).toBe(countBefore);
+      } finally {
+        // Defensa: si por algún motivo se insertó una fila, limpiarla
+        if (convocatoriaId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [convocatoriaId],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [convocatoriaId],
+          );
+        }
+      }
+    });
+
+    it('TEST-N09-02: POST con protocolVersionIds + followUpReportIds mezclados → 400; COUNT(*) no varía', async () => {
+      const countBefore = await dataSource
+        .query<{ count: string }[]>(
+          `SELECT COUNT(*) AS count FROM evaluacion.convocatorias`,
+        )
+        .then((r) => parseInt(r[0].count, 10));
+
+      let convocatoriaId: string | undefined;
+      try {
+        const res = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .send({
+            sessionType: 'ORDINARIA',
+            meetingDate: new Date(
+              Date.now() + 14 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+            evalSubmissionDeadline: new Date(
+              Date.now() + 17 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+            protocolVersionIds: [991],
+            followUpReportIds: [1],
+          });
+
+        expect(res.status).toBe(400);
+        const msg: string = Array.isArray(res.body.message)
+          ? (res.body.message as string[]).join(' ')
+          : (res.body.message as string);
+        expect(msg).toContain('SEGUIMIENTO_NO_DISPONIBLE');
+
+        const countAfter = await dataSource
+          .query<{ count: string }[]>(
+            `SELECT COUNT(*) AS count FROM evaluacion.convocatorias`,
+          )
+          .then((r) => parseInt(r[0].count, 10));
+        expect(countAfter).toBe(countBefore);
+      } finally {
+        if (convocatoriaId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [convocatoriaId],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [convocatoriaId],
+          );
+        }
+      }
+    });
+  });
+
   describe('TSK-009-N08 (COUNT=65): notificación por correo con PDF al crear convocatoria vía /meetings', () => {
     it('TEST-N08-01: POST /api/evaluations/meetings retorna HTTP 201 y sendCallNotification es invocado con buffer correcto', async () => {
       // Usa versión 991 (EXPEDITA) sembrada en beforeAll — nunca followUpReportIds
