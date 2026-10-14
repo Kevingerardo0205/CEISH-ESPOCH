@@ -40,7 +40,9 @@ export const EVALUADOR_URGENTE_UMBRAL_DIAS = 2 as const;
 
 /** RF-12.7(d) (spec-002): días máximos desde la fecha de asignación más antigua activa sin convocatoria antes de alertar. */
 export const DIAS_MAX_SIN_CONVOCATORIA = 8 as const;
-// DIAS_ALERTA_NORMATIVO_SIN_CONVOCATORIA: pendiente de confirmar, ver spec-002 §10
+
+/** RF-12.7(d) (spec-002): días hábiles restantes de plazo normativo que activan la segunda condición de alerta. Provisional; a confirmar con secretaría. */
+export const DIAS_ALERTA_NORMATIVO_SIN_CONVOCATORIA = 5 as const;
 
 /** RF-ALR (spec-001/spec-003): Offsets en días para alertas generales de plazo normativo. */
 export const ALERTA_OFFSETS_DIAS = [7, 1] as const;
