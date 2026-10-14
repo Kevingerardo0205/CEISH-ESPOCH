@@ -10,6 +10,7 @@ import {
   FindMeetingsOptions,
   AssignmentDeadlineSnapshot,
   NormativeDeadlineInput,
+  UnscheduledVersionInfo,
 } from '../../domain/ports/meeting-repository.port';
 import { MeetingEntity } from '../../domain/entities/meeting.entity';
 import {
@@ -226,6 +227,67 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       protocolCode: pv.protocol?.ceishCode ?? String(pv.protocolId),
       reviewType: pv.protocol?.reviewType,
       receptionDate: pv.reception?.receptionDate,
+    }));
+  }
+
+  async findAssignedVersionsWithoutScheduledMeeting(): Promise<
+    UnscheduledVersionInfo[]
+  > {
+    // Effective states that contribute to the oldest-assignment date:
+    // ASSIGNED(6) = active; REASIGNED_VENCIMIENTO(26)/REASIGNED_COI(27) = replaced but still count
+    // (reassignment must NOT reset the elapsed-days clock per spec)
+    const effectiveStates = [
+      AssignmentStatus.ASSIGNED,
+      AssignmentStatus.REASIGNED_VENCIMIENTO,
+      AssignmentStatus.REASIGNED_COI,
+    ];
+    const rows: Array<{
+      versionId: string | number;
+      protocolCode: string;
+      oldestAssignmentDate: string | Date;
+      reviewType: string | null;
+      receptionDate: string | Date | null;
+    }> = await this.dataSource.query(
+      `SELECT
+         ae.version_id                            AS "versionId",
+         COALESCE(p.codigo_ceish, p.id::text)     AS "protocolCode",
+         MIN(ae.fecha_asignacion)                 AS "oldestAssignmentDate",
+         p.tipo_revision::text                    AS "reviewType",
+         r.fecha_recepcion                        AS "receptionDate"
+       FROM evaluacion.asignaciones_evaluacion ae
+       JOIN public.versiones_protocolo pv ON pv.id = ae.version_id
+       JOIN public.protocolos p           ON p.id  = pv.protocolo_id
+       LEFT JOIN recepcion.recepciones r  ON r.version_id = pv.id
+       WHERE ae.estado_id = ANY($1)
+         AND EXISTS (
+           SELECT 1
+           FROM evaluacion.asignaciones_evaluacion ae2
+           WHERE ae2.version_id = ae.version_id
+             AND ae2.estado_id  = $2
+         )
+         AND NOT EXISTS (
+           SELECT 1
+           FROM evaluacion.convocatoria_protocolos cp
+           JOIN evaluacion.convocatorias c ON c.id = cp.convocatoria_id
+           -- "agendado" = estado <> CANCELADA (cubre PROGRAMADA, EN_CURSO y CONCLUIDA)
+           WHERE c.estado <> $3
+             AND cp.version_id = ae.version_id
+         )
+       GROUP BY ae.version_id, p.codigo_ceish, p.id, p.tipo_revision, r.fecha_recepcion`,
+      [
+        effectiveStates,
+        AssignmentStatus.ASSIGNED,
+        ConvocatoriaStatus.CANCELADA,
+      ],
+    );
+    return rows.map((row) => ({
+      versionId: Number(row.versionId),
+      protocolCode: String(row.protocolCode),
+      oldestAssignmentDate: new Date(row.oldestAssignmentDate),
+      reviewType: row.reviewType ?? undefined,
+      receptionDate: row.receptionDate
+        ? new Date(row.receptionDate)
+        : undefined,
     }));
   }
 

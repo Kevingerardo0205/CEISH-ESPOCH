@@ -37,6 +37,9 @@ describe('MeetingsController (T017 / RF-09)', () => {
       findPlaceById: jest.fn(),
       getOldestAssignedDates: jest.fn().mockResolvedValue([]),
       findNormativeDeadlineInputs: jest.fn().mockResolvedValue([]),
+      findAssignedVersionsWithoutScheduledMeeting: jest
+        .fn()
+        .mockResolvedValue([]),
       createPlace: jest.fn(),
       updatePlace: jest.fn(),
       deletePlace: jest.fn(),
