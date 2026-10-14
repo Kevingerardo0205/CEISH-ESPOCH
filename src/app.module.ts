@@ -19,6 +19,7 @@ import { EvaluationsModule } from './modules/evaluations/evaluations.module';
 import { ResolutionsModule } from './modules/resolutions/resolutions.module';
 import { NotificationsModule } from './modules/notifications/notifications.module';
 import { ThrottlerModule } from '@nestjs/throttler';
+import { ScheduleModule } from '@nestjs/schedule';
 import { AiAssistantModule } from './modules/ai-assistant/ai-assistant.module';
 import { EncryptionService } from './shared/encryption/encryption.service';
 import { setEncryptionService } from './shared/encryption/encryption.transformer';
@@ -46,6 +47,7 @@ import { SistemaModule } from './modules/sistema/sistema.module';
     // Doble capa de protección ThrottlerModule — ISO 8.14 (Redundancia)
     // Capa short : protección burst   — máx 5 req/segundo
     // Capa medium: protección media   — máx 100 req/minuto
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         name: 'short',

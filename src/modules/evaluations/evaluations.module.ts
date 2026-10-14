@@ -55,6 +55,8 @@ import { ProtocolRequirementOrmEntity } from '../protocols/infrastructure/databa
 import { MeetingPdfGeneratorAdapter } from './infrastructure/adapters/meeting-pdf-generator.adapter';
 
 import { EvaluatorAssignmentAdapterService } from './application/services/evaluator-assignment-adapter.service';
+import { UnscheduledProtocolsAlertService } from './application/services/unscheduled-protocols-alert.service';
+import { AuthModule } from '../auth/auth.module';
 
 @Module({
   imports: [
@@ -87,6 +89,7 @@ import { EvaluatorAssignmentAdapterService } from './application/services/evalua
     ]),
 
     forwardRef(() => ProtocolsModule),
+    AuthModule,
   ],
   controllers: [EvaluationsController, CallsController, MeetingsController],
   providers: [
@@ -95,6 +98,7 @@ import { EvaluatorAssignmentAdapterService } from './application/services/evalua
     EvaluationConsolidationService,
     CallsService,
     EvaluatorAssignmentAdapterService,
+    UnscheduledProtocolsAlertService,
     CreateMeetingUseCase,
     CalculateMeetingDatesService,
     PdfGeneratorService,
