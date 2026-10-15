@@ -1259,7 +1259,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const resPlace = await request(app.getHttpServer())
         .post('/api/evaluations/meetings/places')
         .set('x-user-id', '901')
-        .send({ name: 'TEST-M1-01-Sala-Ronda3', esVirtual: false });
+        .send({ name: `TEST-M1-01-Sala-${Date.now()}`, esVirtual: false });
       expect(resPlace.status).toBeGreaterThanOrEqual(200);
       expect(resPlace.status).toBeLessThan(300);
       const placeId: string | undefined = resPlace.body.id;
