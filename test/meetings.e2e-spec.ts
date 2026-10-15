@@ -91,14 +91,43 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
     findPlaceById: jest.fn().mockResolvedValue(null),
     createPlace: jest
       .fn()
-      .mockImplementation((data: any) =>
-        Promise.resolve({ id: 'place-uuid-1', ...data }),
+      .mockImplementation(
+        (data: {
+          nombre: string;
+          direccion?: string;
+          esVirtual?: boolean;
+          enlaceReunion?: string;
+          activo?: boolean;
+        }) =>
+          Promise.resolve({
+            id: 'place-uuid-1',
+            name: data.nombre,
+            address: data.direccion ?? null,
+            isVirtual: data.esVirtual ?? false,
+            meetingLink: data.enlaceReunion ?? null,
+            isActive: data.activo ?? true,
+          }),
       ),
-    updatePlace: jest
-      .fn()
-      .mockImplementation((id: string, data: any) =>
-        Promise.resolve({ id, ...data }),
-      ),
+    updatePlace: jest.fn().mockImplementation(
+      (
+        id: string,
+        data: {
+          nombre?: string;
+          direccion?: string;
+          esVirtual?: boolean;
+          enlaceReunion?: string;
+          activo?: boolean;
+        },
+      ) =>
+        Promise.resolve({
+          id,
+          name: data.nombre ?? 'Sala',
+          address: data.direccion ?? null,
+          isVirtual: data.esVirtual ?? false,
+          meetingLink: data.enlaceReunion ?? null,
+          isActive: data.activo ?? true,
+        }),
+    ),
     deletePlace: jest.fn().mockResolvedValue(undefined),
     getOldestAssignedDates: jest.fn().mockResolvedValue([]),
     findNormativeDeadlineInputs: jest.fn().mockResolvedValue([]),

@@ -248,26 +248,62 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
     findAllPlaces: jest.fn().mockResolvedValue([
       {
         id: '11111111-1111-1111-1111-111111111111',
-        nombre: 'Sala de Consejo',
-        esVirtual: false,
+        name: 'Sala de Consejo',
+        address: null,
+        isVirtual: false,
+        meetingLink: null,
+        isActive: true,
       },
     ]),
-    findPlaceById: jest
-      .fn()
-      .mockImplementation((id: string) =>
-        Promise.resolve({ id, nombre: 'Sala de Consejo', esVirtual: false }),
-      ),
-    createPlace: jest.fn().mockImplementation((data: any) =>
+    findPlaceById: jest.fn().mockImplementation((id: string) =>
       Promise.resolve({
-        id: '11111111-1111-1111-1111-111111111111',
-        ...data,
+        id,
+        name: 'Sala de Consejo',
+        address: null,
+        isVirtual: false,
+        meetingLink: null,
+        isActive: true,
       }),
     ),
-    updatePlace: jest
+    createPlace: jest
       .fn()
-      .mockImplementation((id: string, data: any) =>
-        Promise.resolve({ id, ...data }),
+      .mockImplementation(
+        (data: {
+          nombre: string;
+          direccion?: string;
+          esVirtual?: boolean;
+          enlaceReunion?: string;
+          activo?: boolean;
+        }) =>
+          Promise.resolve({
+            id: '11111111-1111-1111-1111-111111111111',
+            name: data.nombre,
+            address: data.direccion ?? null,
+            isVirtual: data.esVirtual ?? false,
+            meetingLink: data.enlaceReunion ?? null,
+            isActive: data.activo ?? true,
+          }),
       ),
+    updatePlace: jest.fn().mockImplementation(
+      (
+        id: string,
+        data: {
+          nombre?: string;
+          direccion?: string;
+          esVirtual?: boolean;
+          enlaceReunion?: string;
+          activo?: boolean;
+        },
+      ) =>
+        Promise.resolve({
+          id,
+          name: data.nombre ?? 'Sala de Consejo',
+          address: data.direccion ?? null,
+          isVirtual: data.esVirtual ?? false,
+          meetingLink: data.enlaceReunion ?? null,
+          isActive: data.activo ?? true,
+        }),
+    ),
     deletePlace: jest.fn().mockResolvedValue(undefined),
   };
 
@@ -732,7 +768,11 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
         .send(payload)
         .expect(201);
 
-      expect(res.body).toHaveProperty('nombre', 'Sala de Consejo Politécnico');
+      expect(res.body).toHaveProperty('statusCode', 201);
+      expect(res.body.data).toHaveProperty(
+        'name',
+        'Sala de Consejo Politécnico',
+      );
       expect(mockMeetingRepo.createPlace).toHaveBeenCalled();
     });
 
@@ -755,7 +795,8 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
         .send({ name: 'Sala Actualizada' })
         .expect(200);
 
-      expect(res.body).toHaveProperty('nombre', 'Sala Actualizada');
+      expect(res.body).toHaveProperty('statusCode', 200);
+      expect(res.body.data).toHaveProperty('name', 'Sala Actualizada');
     });
 
     it('debe responder HTTP 200 en DELETE /api/evaluations/meetings/places/:id', async () => {
@@ -767,9 +808,11 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
         .set('x-test-role', 'SECRETARIA')
         .expect(200);
 
-      expect(res.body).toEqual({
-        message: 'Lugar de reunión desactivado exitosamente.',
-      });
+      expect(res.body).toHaveProperty('statusCode', 200);
+      expect(res.body).toHaveProperty(
+        'message',
+        'Lugar de reunión desactivado exitosamente.',
+      );
     });
   });
 

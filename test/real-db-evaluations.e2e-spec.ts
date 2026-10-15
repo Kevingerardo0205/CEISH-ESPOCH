@@ -1147,7 +1147,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           isActive: true,
         });
       expect(resCreate.status).toBe(201);
-      createdPlaceId = resCreate.body.id;
+      createdPlaceId = resCreate.body.data?.id ?? resCreate.body.id;
       expect(createdPlaceId).toBeDefined();
 
       // List places via meetings/places
@@ -1155,7 +1155,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         .get('/api/evaluations/meetings/places')
         .set('x-user-id', '901');
       expect(resList.status).toBe(200);
-      expect(Array.isArray(resList.body)).toBe(true);
+      expect(Array.isArray(resList.body.data ?? resList.body)).toBe(true);
 
       // List places via calls/places (deprecated endpoint)
       const resCallsList = await request(app.getHttpServer())
@@ -1196,7 +1196,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           esVirtual: false,
           isActive: true,
         });
-      const placeId = resPlace.body.id;
+      const placeId = resPlace.body.data?.id ?? resPlace.body.id;
 
       // 1. GET /api/evaluations/meetings
       const resMeetings = await request(app.getHttpServer())
@@ -1299,7 +1299,8 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           });
         expect(resPlace.status).toBeGreaterThanOrEqual(200);
         expect(resPlace.status).toBeLessThan(300);
-        const placeId: string | undefined = resPlace.body.id;
+        const placeId: string | undefined =
+          resPlace.body.data?.id ?? resPlace.body.id;
         expect(placeId).toBeDefined();
 
         // Puerto PDF globalmente mockeado — lo usamos para saber cuándo notifyMembersAsync inicia
@@ -1651,6 +1652,159 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           .set('x-user-id', '901');
       }
     });
+
+    describe('TEST-M2 contrato de lugares /meetings/places (TSK-009-N13)', () => {
+      let baselineCount = 0;
+      const tag = `TEST-E2E-M2-Sala-${Date.now()}`;
+      let createdId: string | undefined;
+
+      beforeAll(async () => {
+        // Limpia restos de ejecuciones anteriores
+        await dataSource.query(
+          `DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-M2-%'`,
+        );
+        // Captura baseline de no-TEST-E2E- lugares activos
+        const rows: { count: string }[] = await dataSource.query(
+          `SELECT COUNT(*) AS count FROM evaluacion.lugares WHERE activo = true AND nombre NOT LIKE 'TEST-E2E-%'`,
+        );
+        baselineCount = parseInt(rows[0].count, 10);
+      });
+
+      afterAll(async () => {
+        if (createdId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.lugares WHERE id = $1`,
+            [createdId],
+          );
+        }
+        await dataSource.query(
+          `DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-M2-%'`,
+        );
+      });
+
+      it('M2-01 POST crea lugar con claves exactas y isActive=true', async () => {
+        const res = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings/places')
+          .set('x-user-id', '901')
+          .send({ name: tag, location: 'Piso 1 ESPOCH', esVirtual: false });
+
+        expect(res.status).toBe(201);
+        expect(res.body).toHaveProperty('statusCode', 201);
+        expect(res.body.data).toMatchObject({
+          name: tag,
+          address: 'Piso 1 ESPOCH',
+          isVirtual: false,
+          isActive: true,
+        });
+        expect(res.body.data).toHaveProperty('id');
+        expect(res.body.data).not.toHaveProperty('nombre');
+        expect(res.body.data).not.toHaveProperty('activo');
+        createdId = res.body.data.id as string;
+      });
+
+      it('M2-02 GET /places lista incluye el lugar creado (solo activos por defecto)', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/api/evaluations/meetings/places')
+          .set('x-user-id', '901');
+
+        expect(res.status).toBe(200);
+        expect(res.body).toHaveProperty('statusCode', 200);
+        expect(Array.isArray(res.body.data)).toBe(true);
+        const found = (res.body.data as { id: string }[]).find(
+          (p) => p.id === createdId,
+        );
+        expect(found).toBeDefined();
+      });
+
+      it('M2-03 GET /places/:id devuelve envelope con claves exactas', async () => {
+        const res = await request(app.getHttpServer())
+          .get(`/api/evaluations/meetings/places/${createdId}`)
+          .set('x-user-id', '901');
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toMatchObject({
+          id: createdId,
+          name: tag,
+          isActive: true,
+        });
+        expect(res.body.data).not.toHaveProperty('nombre');
+      });
+
+      it('M2-04 DELETE hace soft-delete; lugar desaparece de GET /places por defecto', async () => {
+        const resDel = await request(app.getHttpServer())
+          .delete(`/api/evaluations/meetings/places/${createdId}`)
+          .set('x-user-id', '901');
+        expect(resDel.status).toBe(200);
+        expect(resDel.body).toHaveProperty('statusCode', 200);
+
+        // No aparece en listado por defecto
+        const resList = await request(app.getHttpServer())
+          .get('/api/evaluations/meetings/places')
+          .set('x-user-id', '901');
+        const ids = (resList.body.data as { id: string }[]).map((p) => p.id);
+        expect(ids).not.toContain(createdId);
+
+        // Sí aparece con includeInactive=true y isActive=false
+        const resInactive = await request(app.getHttpServer())
+          .get('/api/evaluations/meetings/places?includeInactive=true')
+          .set('x-user-id', '901');
+        const inactiveItem = (
+          resInactive.body.data as { id: string; isActive: boolean }[]
+        ).find((p) => p.id === createdId);
+        expect(inactiveItem).toBeDefined();
+        expect(inactiveItem?.isActive).toBe(false);
+
+        // GET /:id sigue funcionando aunque esté inactivo
+        const resById = await request(app.getHttpServer())
+          .get(`/api/evaluations/meetings/places/${createdId}`)
+          .set('x-user-id', '901');
+        expect(resById.status).toBe(200);
+        expect(resById.body.data.isActive).toBe(false);
+      });
+
+      it('M2-05 PATCH reactiva y cambia nombre; refleja claves exactas', async () => {
+        const newName = `${tag}-updated`;
+        const res = await request(app.getHttpServer())
+          .patch(`/api/evaluations/meetings/places/${createdId}`)
+          .set('x-user-id', '901')
+          .send({ name: newName, isActive: true });
+
+        expect(res.status).toBe(200);
+        expect(res.body.data).toMatchObject({ name: newName, isActive: true });
+        expect(res.body.data).not.toHaveProperty('nombre');
+      });
+
+      it('M2-06 nombre alternativo (nombre) funciona en POST', async () => {
+        const tagAlt = `TEST-E2E-M2-Alt-${Date.now()}`;
+        const res = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings/places')
+          .set('x-user-id', '901')
+          .send({ nombre: tagAlt, esVirtual: false });
+
+        expect(res.status).toBe(201);
+        expect(res.body.data).toHaveProperty('name', tagAlt);
+        // Cleanup inmediato
+        await dataSource.query(
+          `DELETE FROM evaluacion.lugares WHERE nombre = $1`,
+          [tagAlt],
+        );
+      });
+
+      it('M2-07 includeInactive=invalido devuelve 400', async () => {
+        const res = await request(app.getHttpServer())
+          .get('/api/evaluations/meetings/places?includeInactive=foo')
+          .set('x-user-id', '901');
+        expect(res.status).toBe(400);
+      });
+
+      it('M2-08 baseline de no-TEST-E2E- lugares activos no cambió', async () => {
+        const rows: { count: string }[] = await dataSource.query(
+          `SELECT COUNT(*) AS count FROM evaluacion.lugares WHERE activo = true AND nombre NOT LIKE 'TEST-E2E-%'`,
+        );
+        const finalCount = parseInt(rows[0].count, 10);
+        expect(finalCount).toBe(baselineCount);
+      });
+    }); // end describe('TEST-M2')
   });
 
   describe('9. Convocatoria delivery params snapshot (TSK-009-N04)', () => {
