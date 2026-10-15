@@ -49,6 +49,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
   let metodolProfileId: number;
   let juridicoProfileId: number;
   let sociedadCivilProfileId: number;
+  let globalConvocatoriaBaseline: number;
 
   beforeAll(async () => {
     // 1. Guard de seguridad de Base de Datos
@@ -196,6 +197,12 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%';
     `);
 
+    // Guardia de higiene global: captura baseline DESPUÉS del cleanup inicial
+    const baseRows: Array<{ count: string }> = await dataSource.query(
+      `SELECT COUNT(*) AS count FROM evaluacion.convocatorias`,
+    );
+    globalConvocatoriaBaseline = Number(baseRows[0].count);
+
     // Resolver catálogos dinámicamente sin IDs fijos ni borrados
     await dataSource.query(`
       INSERT INTO catalogos.criterios_evaluacion (tipo, descripcion)
@@ -334,6 +341,15 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
           DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%' OR nombre LIKE 'TEST-N08-%';
         `);
+
+        // Guardia de higiene global: estado final debe coincidir con el baseline post-cleanup
+        if (globalConvocatoriaBaseline !== undefined) {
+          const finalRows: Array<{ count: string }> = await dataSource.query(
+            `SELECT COUNT(*) AS count FROM evaluacion.convocatorias`,
+          );
+          const globalFinalCount = Number(finalRows[0].count);
+          expect(globalFinalCount).toBe(globalConvocatoriaBaseline);
+        }
       }
     } finally {
       if (app) await app.close();
