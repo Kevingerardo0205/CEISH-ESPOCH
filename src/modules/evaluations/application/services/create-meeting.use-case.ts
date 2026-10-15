@@ -42,6 +42,24 @@ export class CreateMeetingUseCase {
     pdfUrl: string;
     warnings: string[];
   }> {
+    // Guard TSK-009-N10: protocolVersionIds no puede contener IDs repetidos
+    if (params.protocolVersionIds && params.protocolVersionIds.length > 0) {
+      const seen = new Set<number>();
+      const duplicates: number[] = [];
+      for (const id of params.protocolVersionIds) {
+        if (seen.has(id)) {
+          if (!duplicates.includes(id)) duplicates.push(id);
+        } else {
+          seen.add(id);
+        }
+      }
+      if (duplicates.length > 0) {
+        throw new BadRequestException(
+          `VERSIONES_DUPLICADAS: Los siguientes IDs de versión de protocolo están repetidos en el Orden del Día: ${duplicates.join(', ')}.`,
+        );
+      }
+    }
+
     // Guard TSK-009-N09: followUpReportIds no disponible hasta PR-F1 (seguimiento.informes_seguimiento inexistente)
     if (params.followUpReportIds && params.followUpReportIds.length > 0) {
       throw new BadRequestException(

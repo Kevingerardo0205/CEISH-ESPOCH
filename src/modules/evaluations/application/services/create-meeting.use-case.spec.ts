@@ -132,6 +132,81 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalled();
   });
 
+  describe('TSK-009-N10: guard VERSIONES_DUPLICADAS', () => {
+    it('(N10-a) protocolVersionIds con IDs repetidos → BadRequestException VERSIONES_DUPLICADAS con los ids duplicados; repo/pdf/email NO se invocan', async () => {
+      const params = {
+        sessionType: SessionType.ORDINARIA,
+        meetingDate: new Date('2026-10-15T09:00:00.000Z'),
+        protocolVersionIds: [100, 101, 100],
+      };
+
+      await expect(useCase.execute(params)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(useCase.execute(params)).rejects.toThrow(
+        'VERSIONES_DUPLICADAS',
+      );
+      await expect(useCase.execute(params)).rejects.toThrow('100');
+      expect(repositoryMock.saveMeetingWithAtomicNumber).not.toHaveBeenCalled();
+      expect(pdfGeneratorMock.generateAgendaPdf).not.toHaveBeenCalled();
+      expect(emailServiceMock.sendCallNotification).not.toHaveBeenCalled();
+    });
+
+    it('(N10-b) protocolVersionIds con IDs distintos → no lanza excepción (pasa el guard)', async () => {
+      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
+      const params = {
+        sessionType: SessionType.ORDINARIA,
+        meetingDate,
+        protocolVersionIds: [137, 138],
+      };
+
+      const savedEntity: MeetingEntity = {
+        id: 'meet-n10-b',
+        numeroConvocatoria: '004-2026',
+        anioLectivo: 2026,
+        tipoSession: SessionType.ORDINARIA,
+        fechaReunion: meetingDate,
+        fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
+        estado: ConvocatoriaStatus.PROGRAMADA,
+      };
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+
+      const result = await useCase.execute(params);
+
+      expect(result.meetingNumber).toBe('004-2026');
+      expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+
+    it('(N10-c) protocolVersionIds con un solo id → no lanza excepción (pasa el guard)', async () => {
+      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
+      const params = {
+        sessionType: SessionType.ORDINARIA,
+        meetingDate,
+        protocolVersionIds: [137],
+      };
+
+      const savedEntity: MeetingEntity = {
+        id: 'meet-n10-c',
+        numeroConvocatoria: '005-2026',
+        anioLectivo: 2026,
+        tipoSession: SessionType.ORDINARIA,
+        fechaReunion: meetingDate,
+        fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
+        estado: ConvocatoriaStatus.PROGRAMADA,
+      };
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+
+      const result = await useCase.execute(params);
+
+      expect(result.meetingNumber).toBe('005-2026');
+      expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalledTimes(
+        1,
+      );
+    });
+  });
+
   describe('TSK-009-N09: guard SEGUIMIENTO_NO_DISPONIBLE', () => {
     it('(N09-a) followUpReportIds no vacío → rechaza con BadRequestException SEGUIMIENTO_NO_DISPONIBLE; repo/pdf/email no se invocan', async () => {
       const params = {
