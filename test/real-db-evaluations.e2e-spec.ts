@@ -2518,7 +2518,14 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     });
   });
 
+  // TEST-M2: todas las requests HTTP llevan x-forwarded-for: TEST_M2_IP.
+  // Razón: DosDefenseMiddleware limita 60 req/min por IP; el suite completo
+  // supera ese total desde ::ffff:127.0.0.1. Usando TEST_M2_IP el middleware
+  // asigna un contador separado (empieza en 0 al llegar aquí). Esto funciona
+  // porque extractIp confía en x-forwarded-for sin validar proxy de confianza
+  // (TSK-SEC-01). Si TSK-SEC-01 corrige ese comportamiento, revisar este workaround.
   describe('TEST-M2 contrato de lugares /meetings/places (TSK-009-N13)', () => {
+    const TEST_M2_IP = '10.0.0.1';
     let baselineCount = 0;
     const tag = `TEST-E2E-M2-Sala-${Date.now()}`;
     let createdId: string | undefined;
@@ -2550,7 +2557,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/meetings/places')
         .set('x-user-id', '901')
-        .set('x-forwarded-for', '10.0.0.1')
+        .set('x-forwarded-for', TEST_M2_IP)
         .send({ name: tag, location: 'Piso 1 ESPOCH', esVirtual: false });
 
       expect(res.status).toBe(201);
@@ -2571,7 +2578,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const res = await request(app.getHttpServer())
         .get('/api/evaluations/meetings/places')
         .set('x-user-id', '901')
-        .set('x-forwarded-for', '10.0.0.1');
+        .set('x-forwarded-for', TEST_M2_IP);
 
       expect(res.status).toBe(200);
       expect(res.body).toHaveProperty('statusCode', 200);
@@ -2586,7 +2593,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const res = await request(app.getHttpServer())
         .get(`/api/evaluations/meetings/places/${createdId}`)
         .set('x-user-id', '901')
-        .set('x-forwarded-for', '10.0.0.1');
+        .set('x-forwarded-for', TEST_M2_IP);
 
       expect(res.status).toBe(200);
       expect(res.body.data).toMatchObject({
@@ -2601,7 +2608,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const resDel = await request(app.getHttpServer())
         .delete(`/api/evaluations/meetings/places/${createdId}`)
         .set('x-user-id', '901')
-        .set('x-forwarded-for', '10.0.0.1');
+        .set('x-forwarded-for', TEST_M2_IP);
       expect(resDel.status).toBe(200);
       expect(resDel.body).toHaveProperty('statusCode', 200);
 
@@ -2609,7 +2616,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const resList = await request(app.getHttpServer())
         .get('/api/evaluations/meetings/places')
         .set('x-user-id', '901')
-        .set('x-forwarded-for', '10.0.0.1');
+        .set('x-forwarded-for', TEST_M2_IP);
       const ids = (resList.body.data as { id: string }[]).map((p) => p.id);
       expect(ids).not.toContain(createdId);
 
@@ -2617,7 +2624,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const resInactive = await request(app.getHttpServer())
         .get('/api/evaluations/meetings/places?includeInactive=true')
         .set('x-user-id', '901')
-        .set('x-forwarded-for', '10.0.0.1');
+        .set('x-forwarded-for', TEST_M2_IP);
       const inactiveItem = (
         resInactive.body.data as { id: string; isActive: boolean }[]
       ).find((p) => p.id === createdId);
@@ -2628,7 +2635,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const resById = await request(app.getHttpServer())
         .get(`/api/evaluations/meetings/places/${createdId}`)
         .set('x-user-id', '901')
-        .set('x-forwarded-for', '10.0.0.1');
+        .set('x-forwarded-for', TEST_M2_IP);
       expect(resById.status).toBe(200);
       expect(resById.body.data.isActive).toBe(false);
     });
@@ -2638,7 +2645,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const res = await request(app.getHttpServer())
         .patch(`/api/evaluations/meetings/places/${createdId}`)
         .set('x-user-id', '901')
-        .set('x-forwarded-for', '10.0.0.1')
+        .set('x-forwarded-for', TEST_M2_IP)
         .send({ name: newName, isActive: true });
 
       expect(res.status).toBe(200);
@@ -2650,7 +2657,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const res = await request(app.getHttpServer())
         .get('/api/evaluations/meetings/places?includeInactive=foo')
         .set('x-user-id', '901')
-        .set('x-forwarded-for', '10.0.0.1');
+        .set('x-forwarded-for', TEST_M2_IP);
       expect(res.status).toBe(400);
     });
 
