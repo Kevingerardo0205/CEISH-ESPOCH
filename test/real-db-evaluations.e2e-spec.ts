@@ -1251,13 +1251,8 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         await dataSource.query(
           `SELECT protocolo_id FROM public.versiones_protocolo WHERE id = 991`,
         );
-      // Si la versión no existe en este entorno, reportar y saltar
-      if (!versionRows.length) {
-        console.warn(
-          '[TEST-M1-01] versiones_protocolo id=991 no encontrada; se omite el test.',
-        );
-        return;
-      }
+      // Precondición dura: la versión 991 es fixture compartido y debe existir
+      expect(versionRows).toHaveLength(1);
       const expectedProtocolId = Number(versionRows[0].protocolo_id);
 
       // Crear lugar
@@ -1265,7 +1260,10 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         .post('/api/evaluations/meetings/places')
         .set('x-user-id', '901')
         .send({ name: 'TEST-M1-01-Sala-Ronda3', esVirtual: false });
+      expect(resPlace.status).toBeGreaterThanOrEqual(200);
+      expect(resPlace.status).toBeLessThan(300);
       const placeId: string | undefined = resPlace.body.id;
+      expect(placeId).toBeDefined();
 
       let createdMeetingId: string | undefined;
       try {
@@ -1335,6 +1333,21 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         // protocolId debe coincidir con la BD (no hardcodeado)
         expect(proto.protocolId).toBe(expectedProtocolId);
 
+        // data.place: claves exactas y id === placeId
+        expect(data.place).not.toBeNull();
+        const placeKeys = Object.keys(data.place as object).sort();
+        expect(placeKeys).toEqual([
+          'address',
+          'id',
+          'isVirtual',
+          'meetingLink',
+          'name',
+        ]);
+        expect((data.place as Record<string, unknown>).id).toBe(placeId);
+
+        // protocolCount === 1 (solo se agendó la versión 991)
+        expect(data.protocolCount).toBe(1);
+
         // Ninguna clave ORM
         expect(data).not.toHaveProperty('numeroConvocatoria');
         expect(data).not.toHaveProperty('lugarId');
@@ -1375,14 +1388,14 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(typeof meta.page).toBe('number');
       expect(typeof meta.limit).toBe('number');
 
+      // Con limit=100 todos los resultados caben en una página
+      expect(meta.total).toBeLessThanOrEqual(100);
+      expect(res.body.data.length).toBe(meta.total);
+
       // La BD de test tiene convocatorias existentes
       expect(res.body.data.length).toBeGreaterThan(0);
 
-      const firstItem = res.body.data[0];
-
-      // Claves exactas del ítem de lista
-      const itemKeys = Object.keys(firstItem).sort();
-      expect(itemKeys).toEqual([
+      const EXPECTED_ITEM_KEYS = [
         'academicYear',
         'agendaPdfUrl',
         'evalSubmissionDeadline',
@@ -1393,27 +1406,47 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         'protocolCount',
         'sessionType',
         'status',
-      ]);
+      ];
+      const EXPECTED_PLACE_KEYS = [
+        'address',
+        'id',
+        'isVirtual',
+        'meetingLink',
+        'name',
+      ];
 
-      // Ninguna clave ORM
-      expect(firstItem).not.toHaveProperty('numeroConvocatoria');
-      expect(firstItem).not.toHaveProperty('fechaReunion');
-
-      // agendaPdfUrl generado por el mapper
-      expect(typeof firstItem.agendaPdfUrl).toBe('string');
-      expect(firstItem.agendaPdfUrl).toContain('/api/evaluations/meetings/');
-
-      // meetingDate: null o ISO string parseable; contar nulls
       let nullCount = 0;
-      for (const item of res.body.data as Array<{
-        meetingDate: string | null;
-      }>) {
+      let seenNullDate = false;
+      for (const item of res.body.data as Array<Record<string, unknown>>) {
+        // Claves exactas en CADA ítem
+        expect(Object.keys(item).sort()).toEqual(EXPECTED_ITEM_KEYS);
+
+        // Ninguna clave ORM
+        expect(item).not.toHaveProperty('numeroConvocatoria');
+        expect(item).not.toHaveProperty('fechaReunion');
+
+        // agendaPdfUrl generado por el mapper
+        expect(typeof item.agendaPdfUrl).toBe('string');
+        expect(item.agendaPdfUrl as string).toContain(
+          '/api/evaluations/meetings/',
+        );
+
+        // place: si no es null, claves exactas
+        if (item.place !== null && item.place !== undefined) {
+          expect(
+            Object.keys(item.place as Record<string, unknown>).sort(),
+          ).toEqual(EXPECTED_PLACE_KEYS);
+        }
+
+        // meetingDate: null o ISO string parseable; seguimiento de orden NULLS LAST
         if (item.meetingDate === null) {
           nullCount += 1;
+          seenNullDate = true;
         } else {
+          // Si ya apareció un null antes que este no-null, NULLS LAST está roto
+          expect(seenNullDate).toBe(false);
           expect(typeof item.meetingDate).toBe('string');
-          const d = new Date(item.meetingDate);
-          expect(() => d).not.toThrow();
+          const d = new Date(item.meetingDate as string);
           expect(isNaN(d.getTime())).toBe(false);
         }
       }
@@ -1468,6 +1501,11 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         // Sin PII
         expect(JSON.stringify(items[0])).not.toContain('email');
       }
+      console.log(
+        items.length === 0
+          ? '[TEST-M1-03] ARREGLO VACÍO — sin protocolos pendientes en la BD de test'
+          : `[TEST-M1-03] arreglo con ${items.length} elemento(s) — NO vacío`,
+      );
     });
 
     it('5c. Smoke tests para Calls (deprecated): GET /calls, GET /calls/protocols/pending, POST /calls, GET /calls/:id, GET /calls/:id/protocols, GET /calls/places', async () => {

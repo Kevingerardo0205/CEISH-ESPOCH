@@ -151,6 +151,32 @@ describe('MeetingTypeOrmRepository — tolerancia a fechas string del ORM', () =
 
       expect(result.items[0].meetingDate).toBeNull();
     });
+
+    it('orderBy se invoca con (c.fechaReunion, DESC, NULLS LAST)', async () => {
+      const qb: any = {};
+      const chain = () => qb;
+      qb.leftJoinAndSelect = chain;
+      qb.orderBy = jest.fn().mockImplementation(chain);
+      qb.skip = chain;
+      qb.take = chain;
+      qb.andWhere = chain;
+      qb.getManyAndCount = jest.fn().mockResolvedValue([[], 0]);
+
+      const ds = {
+        getRepository: jest.fn().mockReturnValue({
+          createQueryBuilder: jest.fn().mockReturnValue(qb),
+        }),
+      } as unknown as DataSource;
+
+      const repo = new MeetingTypeOrmRepository(ds);
+      await repo.findAll();
+
+      expect(qb.orderBy).toHaveBeenCalledWith(
+        'c.fechaReunion',
+        'DESC',
+        'NULLS LAST',
+      );
+    });
   });
 
   describe('findPendingProtocols', () => {

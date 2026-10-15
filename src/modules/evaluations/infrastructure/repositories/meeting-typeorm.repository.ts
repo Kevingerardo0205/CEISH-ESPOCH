@@ -377,7 +377,7 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       .createQueryBuilder('c')
       .leftJoinAndSelect('c.lugar', 'l')
       .leftJoinAndSelect('c.convocatoriaProtocolos', 'cp')
-      .orderBy('c.fechaReunion', 'DESC')
+      .orderBy('c.fechaReunion', 'DESC', 'NULLS LAST')
       .skip(skip)
       .take(limit);
 

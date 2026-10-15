@@ -177,6 +177,8 @@ export class MeetingsController {
   )
   @ApiOperation({
     summary: 'Listar convocatorias con paginación y filtro por estado',
+    description:
+      'Orden: fechaReunion descendente; las convocatorias sin fecha van al final (NULLS LAST).',
   })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
