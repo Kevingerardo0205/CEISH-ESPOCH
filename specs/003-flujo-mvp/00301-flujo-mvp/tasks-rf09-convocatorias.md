@@ -528,3 +528,12 @@
   3. Controller spec: actualizado para el nuevo contrato.
   4. E2E meetings: `GET /meetings` → `data[]` con campos ingleses; `GET /meetings/:id` → `data.meetingNumber`; `GET /pending-protocols` → `data[]` con `protocolId`, `versionId`.
 - **Criterio "Hecho cuando:"**: `npx tsc --noEmit` limpio; `npm test` verde (≥257 tests); E2E meetings verde; ningún campo ORM ni PII (email/teléfono) en respuestas; `agendaPdfUrl` generado por helper único.
+
+**Ronda 2 (correcciones post-revisión):** Causa raíz del 500 confirmada: `fechaReunion` nullable en BD → `null.toISOString()` lanzaba `TypeError`. Correcciones aplicadas en 4 commits adicionales sobre la misma rama:
+- `null!` y `?? 0` eliminados; `toSafeDate()` normaliza `Date|string|null→Date|null`.
+- `mapPlace()` y `mapAgendaItem()` como fuente única en el repositorio.
+- `agendaPdfUrl` movida del repositorio al mapper (capa de aplicación).
+- Mapper `application/mappers/meeting.mapper.ts` creado con `toSummary`, `toDetail`, `toPendingProtocol`, `pendingDeadline`.
+- DTOs con `meetingDate: string|null`, `protocolId: number|null`, wrappers reales para `@ApiOkResponse`.
+- Controller usa el mapper; tests E2E con assertions concretas (ISO strings, no vacuos).
+- `npm test`: 275 tests, 48 suites (subió de 257). `npx tsc --noEmit`: limpio.
