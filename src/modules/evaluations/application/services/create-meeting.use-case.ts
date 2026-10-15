@@ -184,7 +184,7 @@ export class CreateMeetingUseCase {
       const place = params.locationId
         ? await this.meetingRepository.findPlaceById(params.locationId)
         : null;
-      const placeName = place?.nombre ?? 'Sala de Sesiones CEISH-ESPOCH';
+      const placeName = place?.name ?? 'Sala de Sesiones CEISH-ESPOCH';
 
       const callTime = new Intl.DateTimeFormat('es-EC', {
         timeZone: 'America/Guayaquil',
