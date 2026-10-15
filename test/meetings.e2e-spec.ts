@@ -48,27 +48,43 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
     findById: jest.fn().mockImplementation((id: string) => {
       const r = mockMeetingsMap.get(id);
       if (!r) return Promise.resolve(null);
+      // Devuelve MeetingDetailModel con Date (el mapper convierte a ISO en el controller)
       return Promise.resolve({
         id: r.id,
         meetingNumber: r.numeroConvocatoria,
         academicYear: r.anioLectivo ?? null,
         sessionType: r.tipoSession,
-        meetingDate: new Date(r.fechaReunion).toISOString(),
-        evalSubmissionDeadline: new Date(
-          r.fechaEntregaEvaluacion,
-        ).toISOString(),
+        meetingDate: r.fechaReunion ? new Date(r.fechaReunion) : null,
+        evalSubmissionDeadline: r.fechaEntregaEvaluacion
+          ? new Date(r.fechaEntregaEvaluacion)
+          : null,
         status: r.estado,
         place: null,
-        agendaPdfUrl: `/api/evaluations/meetings/${r.id}/pdf`,
         protocolCount: 0,
         protocols: [],
       });
     }),
-    findAll: jest.fn().mockResolvedValue({
-      items: [],
-      total: 0,
-      page: 1,
-      limit: 10,
+    findAll: jest.fn().mockImplementation(() => {
+      // Devuelve MeetingSummaryModel[] con Date (el mapper convierte a ISO)
+      const items = Array.from(mockMeetingsMap.values()).map((r) => ({
+        id: r.id,
+        meetingNumber: r.numeroConvocatoria,
+        academicYear: r.anioLectivo ?? null,
+        sessionType: r.tipoSession,
+        meetingDate: r.fechaReunion ? new Date(r.fechaReunion) : null,
+        evalSubmissionDeadline: r.fechaEntregaEvaluacion
+          ? new Date(r.fechaEntregaEvaluacion)
+          : null,
+        status: r.estado,
+        place: null,
+        protocolCount: 0,
+      }));
+      return Promise.resolve({
+        items,
+        total: items.length,
+        page: 1,
+        limit: 10,
+      });
     }),
     findPendingProtocols: jest.fn().mockResolvedValue([]),
     findAllPlaces: jest.fn().mockResolvedValue([]),
@@ -285,20 +301,22 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
   });
 
   describe('GET /api/evaluations/meetings (TEST-M1-01)', () => {
-    it('debe retornar HTTP 200 con data[] y meta de paginacion', async () => {
+    it('debe retornar HTTP 200 con envelope {statusCode,message,data[],meta}', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/evaluations/meetings')
         .expect(200);
 
-      // El controller devuelve {statusCode, message, data: [], meta: {...}}
-      // El interceptor pasa el objeto tal cual (ya tiene statusCode)
-      expect(res.body).toHaveProperty('data');
+      expect(res.body.statusCode).toBe(200);
+      expect(typeof res.body.message).toBe('string');
       expect(Array.isArray(res.body.data)).toBe(true);
       expect(res.body).toHaveProperty('meta');
+      expect(typeof res.body.meta.total).toBe('number');
+      expect(typeof res.body.meta.page).toBe('number');
+      expect(typeof res.body.meta.limit).toBe('number');
     });
 
-    it('debe incluir campos de contrato en cada item del listado', async () => {
-      // Crear una convocatoria para que el mock la devuelva en findAll
+    it('cada item del listado tiene los campos del contrato estable', async () => {
+      // Crear una convocatoria para que el mock findAll la incluya
       const validPayload = {
         sessionType: 'ORDINARIA',
         meetingDate: '2026-07-10T09:00:00.000Z',
@@ -310,39 +328,85 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
         .send(validPayload)
         .expect(201);
 
-      // findAll mock siempre devuelve items:[] — solo verificamos la estructura del envelope
       const res = await request(app.getHttpServer())
         .get('/api/evaluations/meetings')
         .expect(200);
 
-      // El interceptor envuelve la respuesta del controller
-      expect(res.body).toBeDefined();
+      expect(res.body.data.length).toBeGreaterThan(0);
+      const item = res.body.data[0];
+      // Campos obligatorios del contrato
+      expect(typeof item.id).toBe('string');
+      expect(typeof item.meetingNumber).toBe('string');
+      expect(typeof item.sessionType).toBe('string');
+      expect(typeof item.status).toBe('string');
+      expect(typeof item.protocolCount).toBe('number');
+      // agendaPdfUrl generada por el mapper
+      expect(typeof item.agendaPdfUrl).toBe('string');
+      expect(item.agendaPdfUrl).toContain('/api/evaluations/meetings/');
+      expect(item.agendaPdfUrl).toContain('/pdf');
+      // meetingDate es ISO string o null (nunca objeto Date crudo)
+      if (item.meetingDate !== null) {
+        expect(typeof item.meetingDate).toBe('string');
+        expect(() => new Date(item.meetingDate)).not.toThrow();
+      }
+      // Sin PII
+      expect(item).not.toHaveProperty('email');
+      expect(item).not.toHaveProperty('phone');
+      // Sin fugas ORM
+      expect(item).not.toHaveProperty('numeroConvocatoria');
+      expect(item).not.toHaveProperty('fechaReunion');
     });
   });
 
   describe('GET /api/evaluations/meetings/pending-protocols (TEST-M1-02)', () => {
-    it('debe retornar HTTP 200 con data sin PII (sin email)', async () => {
+    it('debe retornar HTTP 200 con envelope {statusCode,message,data[]}', async () => {
       const res = await request(app.getHttpServer())
         .get('/api/evaluations/meetings/pending-protocols')
         .expect(200);
 
-      // findPendingProtocols mock devuelve [] — verificar envelope y ausencia de PII
-      const body = res.body;
-      expect(body).toBeDefined();
-      // Si hay items, no deben contener campos de email
-      const items: any[] = Array.isArray(body.data)
-        ? body.data
-        : Array.isArray(body)
-          ? body
-          : [];
-      items.forEach((item: any) => {
-        expect(item).not.toHaveProperty('email');
-        expect(item).not.toHaveProperty('phone');
-        if (item.protocolId !== undefined) {
-          expect(typeof item.protocolId).toBe('number');
-          expect(typeof item.versionId).toBe('number');
-        }
-      });
+      expect(res.body.statusCode).toBe(200);
+      expect(typeof res.body.message).toBe('string');
+      expect(Array.isArray(res.body.data)).toBe(true);
+    });
+
+    it('los items de pending-protocols tienen campos tipados y sin PII', async () => {
+      // Inyectar un item con Date en el mock
+      (
+        meetingRepositoryMock.findPendingProtocols as jest.Mock
+      ).mockResolvedValueOnce([
+        {
+          protocolId: 42,
+          versionId: 137,
+          versionNumber: 2,
+          ceishCode: 'CEISH-042-2026',
+          title: 'Estudio clínico fase II',
+          studyType: 'Ensayo clínico',
+          investigatorName: 'Juan Pérez',
+          receptionDate: new Date('2026-09-15T00:00:00.000Z'),
+          deadline: new Date('2026-10-15T00:00:00.000Z'),
+        },
+      ]);
+
+      const res = await request(app.getHttpServer())
+        .get('/api/evaluations/meetings/pending-protocols')
+        .expect(200);
+
+      expect(res.body.data.length).toBe(1);
+      const item = res.body.data[0];
+      // Campos tipados del contrato
+      expect(typeof item.protocolId).toBe('number');
+      expect(typeof item.versionId).toBe('number');
+      // deadline e ISO strings (no Date objects crudos)
+      expect(typeof item.deadline).toBe('string');
+      expect(typeof item.receptionDate).toBe('string');
+      expect(() => new Date(item.deadline)).not.toThrow();
+      expect(() => new Date(item.receptionDate)).not.toThrow();
+      // Sin PII
+      expect(item).not.toHaveProperty('email');
+      expect(item).not.toHaveProperty('phone');
+      // Sin fugas ORM
+      expect(item).not.toHaveProperty('protocoloId');
+      expect(item).not.toHaveProperty('fecha_recepcion');
     });
   });
 
@@ -369,8 +433,21 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
 
       const data = getRes.body.data || getRes.body;
       expect(data.id).toBe(meetingId);
-      expect(data).toHaveProperty('meetingNumber');
-      expect(data).toHaveProperty('status');
+      expect(typeof data.meetingNumber).toBe('string');
+      expect(typeof data.status).toBe('string');
+      // Campos del contrato estable
+      expect(typeof data.agendaPdfUrl).toBe('string');
+      expect(data.agendaPdfUrl).toContain('/pdf');
+      // meetingDate es ISO string (generado por mapper, no Date crudo)
+      if (data.meetingDate !== null) {
+        expect(typeof data.meetingDate).toBe('string');
+        expect(() => new Date(data.meetingDate)).not.toThrow();
+      }
+      expect(Array.isArray(data.protocols)).toBe(true);
+      // Sin PII y sin fugas ORM
+      expect(data).not.toHaveProperty('email');
+      expect(data).not.toHaveProperty('fechaReunion');
+      expect(data).not.toHaveProperty('numeroConvocatoria');
     });
 
     it('debe retornar HTTP 404 si la convocatoria no existe (UUID válido, no registrado)', async () => {
