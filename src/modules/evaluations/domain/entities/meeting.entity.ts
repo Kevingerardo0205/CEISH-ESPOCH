@@ -22,6 +22,16 @@ export interface MeetingPlaceModel {
   meetingLink: string | null;
 }
 
+/** Modelo completo del lugar para endpoints /meetings/places (incluye isActive). */
+export interface MeetingPlaceFullModel {
+  id: string;
+  name: string;
+  address: string | null;
+  isVirtual: boolean;
+  meetingLink: string | null;
+  isActive: boolean;
+}
+
 /**
  * Ítem del Orden del Día en el detalle de convocatoria.
  * protocolId y versionId son null mientras PR-F1 no esté mergeado

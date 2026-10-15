@@ -8,6 +8,7 @@ import {
   IMeetingRepositoryPort,
   CreateMeetingParams,
   FindMeetingsOptions,
+  FindPlacesOptions,
   AssignmentDeadlineSnapshot,
   NormativeDeadlineInput,
   UnscheduledVersionInfo,
@@ -18,6 +19,7 @@ import {
   MeetingSummaryEntity,
   PendingProtocolEntity,
   MeetingPlaceModel,
+  MeetingPlaceFullModel,
   AgendaProtocolModel,
 } from '../../domain/entities/meeting.entity';
 import {
@@ -52,6 +54,18 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       address: lugar.direccion ?? null,
       isVirtual: lugar.esVirtual,
       meetingLink: lugar.enlaceReunion ?? null,
+    };
+  }
+
+  /** Mapea LugarOrmEntity→MeetingPlaceFullModel (incluye isActive). */
+  private mapPlaceFull(lugar: LugarOrmEntity): MeetingPlaceFullModel {
+    return {
+      id: lugar.id,
+      name: lugar.nombre,
+      address: lugar.direccion ?? null,
+      isVirtual: lugar.esVirtual,
+      meetingLink: lugar.enlaceReunion ?? null,
+      isActive: lugar.activo,
     };
   }
 
@@ -448,16 +462,19 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
     return mapped;
   }
 
-  async findAllPlaces(): Promise<LugarOrmEntity[]> {
+  async findAllPlaces(
+    options?: FindPlacesOptions,
+  ): Promise<MeetingPlaceFullModel[]> {
     const repo = this.dataSource.getRepository(LugarOrmEntity);
-    return repo.find({
-      order: { nombre: 'ASC' },
-    });
+    const where = options?.includeInactive ? {} : { activo: true };
+    const places = await repo.find({ where, order: { nombre: 'ASC' } });
+    return places.map((p) => this.mapPlaceFull(p));
   }
 
-  async findPlaceById(id: string): Promise<LugarOrmEntity | null> {
+  async findPlaceById(id: string): Promise<MeetingPlaceFullModel | null> {
     const repo = this.dataSource.getRepository(LugarOrmEntity);
-    return repo.findOne({ where: { id } });
+    const place = await repo.findOne({ where: { id } });
+    return place ? this.mapPlaceFull(place) : null;
   }
 
   async createPlace(data: {
@@ -466,7 +483,7 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
     esVirtual?: boolean;
     enlaceReunion?: string;
     activo?: boolean;
-  }): Promise<LugarOrmEntity> {
+  }): Promise<MeetingPlaceFullModel> {
     const repo = this.dataSource.getRepository(LugarOrmEntity);
     const existing = await repo.findOne({ where: { nombre: data.nombre } });
     if (existing) {
@@ -481,7 +498,7 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       enlaceReunion: data.enlaceReunion,
       activo: data.activo ?? true,
     });
-    return repo.save(place);
+    return this.mapPlaceFull(await repo.save(place));
   }
 
   async updatePlace(
@@ -493,7 +510,7 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       enlaceReunion?: string;
       activo?: boolean;
     },
-  ): Promise<LugarOrmEntity> {
+  ): Promise<MeetingPlaceFullModel> {
     const repo = this.dataSource.getRepository(LugarOrmEntity);
     const place = await repo.findOne({ where: { id } });
     if (!place) {
@@ -513,7 +530,7 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
     if (data.enlaceReunion !== undefined)
       place.enlaceReunion = data.enlaceReunion;
     if (data.activo !== undefined) place.activo = data.activo;
-    return repo.save(place);
+    return this.mapPlaceFull(await repo.save(place));
   }
 
   async deletePlace(id: string): Promise<void> {

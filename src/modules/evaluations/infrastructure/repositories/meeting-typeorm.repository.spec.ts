@@ -1,6 +1,8 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return */
 import { DataSource } from 'typeorm';
 import { MeetingTypeOrmRepository } from './meeting-typeorm.repository';
+import type { MeetingPlaceFullModel } from '../../domain/entities/meeting.entity';
+import type { FindPlacesOptions } from '../../domain/ports/meeting-repository.port';
 
 /** Crea un mock de QueryBuilder encadenable para createQueryBuilder(). */
 function makeQbMock(getResult: unknown) {
@@ -176,6 +178,128 @@ describe('MeetingTypeOrmRepository — tolerancia a fechas string del ORM', () =
         'DESC',
         'NULLS LAST',
       );
+    });
+  });
+
+  describe('findAllPlaces', () => {
+    /** Crea un DataSource mock con find() para LugarOrmEntity. */
+    function makePlacesDataSource(
+      findResult: object[],
+      findSpy: jest.Mock,
+    ): DataSource {
+      return {
+        getRepository: jest.fn().mockReturnValue({
+          find: findSpy.mockResolvedValue(findResult),
+        }),
+      } as unknown as DataSource;
+    }
+
+    const lugarActivo = {
+      id: 'uuid-001',
+      nombre: 'Sala A',
+      direccion: 'Piso 3',
+      esVirtual: false,
+      enlaceReunion: undefined,
+      activo: true,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+    const lugarSinDireccion = {
+      id: 'uuid-002',
+      nombre: 'Virtual B',
+      direccion: undefined,
+      esVirtual: true,
+      enlaceReunion: 'https://meet.example.com',
+      activo: false,
+      createdAt: new Date(),
+      updatedAt: new Date(),
+    };
+
+    it('sin opciones llama repo.find con where:{activo:true} y order:{nombre:ASC}', async () => {
+      const spy = jest.fn();
+      const ds = makePlacesDataSource([lugarActivo], spy);
+      const repo = new MeetingTypeOrmRepository(ds);
+
+      await repo.findAllPlaces();
+
+      expect(spy).toHaveBeenCalledWith({
+        where: { activo: true },
+        order: { nombre: 'ASC' },
+      });
+    });
+
+    it('includeInactive:false llama repo.find con where:{activo:true}', async () => {
+      const spy = jest.fn();
+      const ds = makePlacesDataSource([lugarActivo], spy);
+      const repo = new MeetingTypeOrmRepository(ds);
+      const opts: FindPlacesOptions = { includeInactive: false };
+
+      await repo.findAllPlaces(opts);
+
+      expect(spy).toHaveBeenCalledWith({
+        where: { activo: true },
+        order: { nombre: 'ASC' },
+      });
+    });
+
+    it('includeInactive:true llama repo.find con where:{} (sin filtro activo)', async () => {
+      const spy = jest.fn();
+      const ds = makePlacesDataSource([lugarActivo, lugarSinDireccion], spy);
+      const repo = new MeetingTypeOrmRepository(ds);
+      const opts: FindPlacesOptions = { includeInactive: true };
+
+      await repo.findAllPlaces(opts);
+
+      expect(spy).toHaveBeenCalledWith({
+        where: {},
+        order: { nombre: 'ASC' },
+      });
+    });
+
+    it('mapea a MeetingPlaceFullModel con claves exactas en inglés camelCase', async () => {
+      const spy = jest.fn();
+      const ds = makePlacesDataSource([lugarActivo], spy);
+      const repo = new MeetingTypeOrmRepository(ds);
+
+      const result = await repo.findAllPlaces();
+
+      expect(result).toHaveLength(1);
+      const item: MeetingPlaceFullModel = result[0];
+      expect(item.id).toBe('uuid-001');
+      expect(item.name).toBe('Sala A');
+      expect(item.address).toBe('Piso 3');
+      expect(item.isVirtual).toBe(false);
+      expect(item.meetingLink).toBeNull();
+      expect(item.isActive).toBe(true);
+    });
+
+    it('address y meetingLink son null cuando la ORM entidad devuelve undefined', async () => {
+      const spy = jest.fn();
+      const ds = makePlacesDataSource([lugarSinDireccion], spy);
+      const repo = new MeetingTypeOrmRepository(ds);
+
+      const result = await repo.findAllPlaces({ includeInactive: true });
+
+      const item: MeetingPlaceFullModel = result[0];
+      expect(item.address).toBeNull();
+      expect(item.meetingLink).toBe('https://meet.example.com');
+      expect(item.isVirtual).toBe(true);
+      expect(item.isActive).toBe(false);
+    });
+
+    it('no expone campos ORM (nombre, esVirtual, activo, direccion, enlaceReunion)', async () => {
+      const spy = jest.fn();
+      const ds = makePlacesDataSource([lugarActivo], spy);
+      const repo = new MeetingTypeOrmRepository(ds);
+
+      const result = await repo.findAllPlaces();
+      const item = result[0] as unknown as Record<string, unknown>;
+
+      expect(item).not.toHaveProperty('nombre');
+      expect(item).not.toHaveProperty('esVirtual');
+      expect(item).not.toHaveProperty('activo');
+      expect(item).not.toHaveProperty('direccion');
+      expect(item).not.toHaveProperty('enlaceReunion');
     });
   });
 

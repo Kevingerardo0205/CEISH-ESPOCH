@@ -1,6 +1,7 @@
 import { ApiProperty } from '@nestjs/swagger';
 
-export class MeetingPlaceDto {
+/** DTO del lugar embebido en convocatorias (sin isActive). */
+export class PlaceEmbedDto {
   @ApiProperty({ example: 'b1ffbc88-8c0a-3ef7-aa5c-5bb8bd270a22' })
   id!: string;
 
@@ -39,8 +40,8 @@ export class MeetingSummaryDto {
   @ApiProperty({ example: 'PROGRAMADA' })
   status!: string;
 
-  @ApiProperty({ type: MeetingPlaceDto, nullable: true })
-  place!: MeetingPlaceDto | null;
+  @ApiProperty({ type: PlaceEmbedDto, nullable: true })
+  place!: PlaceEmbedDto | null;
 
   @ApiProperty({ example: '/api/evaluations/meetings/f47ac10b.../pdf' })
   agendaPdfUrl!: string;

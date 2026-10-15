@@ -10,7 +10,14 @@ import type { CalculateEvalDateDto } from '../../application/dtos/calculate-eval
 import { SessionType } from '../database/entities/convocatoria.orm-entity';
 import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-repository.port';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
-import type { MeetingDetailEntity } from '../../domain/entities/meeting.entity';
+import type {
+  MeetingDetailEntity,
+  MeetingPlaceFullModel,
+} from '../../domain/entities/meeting.entity';
+import {
+  CreatePlaceDto,
+  UpdatePlaceDto,
+} from '../../application/dtos/create-place.dto';
 
 describe('MeetingsController (T017 / RF-09)', () => {
   let controller: MeetingsController;
@@ -198,6 +205,141 @@ describe('MeetingsController (T017 / RF-09)', () => {
       await expect(
         controller.downloadMeetingPdf('non-existent', resMock),
       ).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findAllPlaces', () => {
+    const mockPlaces: MeetingPlaceFullModel[] = [
+      {
+        id: 'place-001',
+        name: 'Sala A',
+        address: 'Piso 1',
+        isVirtual: false,
+        meetingLink: null,
+        isActive: true,
+      },
+    ];
+
+    it('should return envelope with mapped places (solo activos por defecto)', async () => {
+      meetingRepositoryMock.findAllPlaces.mockResolvedValue(mockPlaces);
+
+      const result = await controller.findAllPlaces({});
+
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('Lugares obtenidos exitosamente');
+      expect(result.data).toHaveLength(1);
+      expect(result.data[0]).toMatchObject({
+        id: 'place-001',
+        name: 'Sala A',
+        isActive: true,
+      });
+      expect(meetingRepositoryMock.findAllPlaces).toHaveBeenCalledWith({
+        includeInactive: undefined,
+      });
+    });
+
+    it('should pass includeInactive=true to repository', async () => {
+      meetingRepositoryMock.findAllPlaces.mockResolvedValue([]);
+
+      await controller.findAllPlaces({ includeInactive: true });
+
+      expect(meetingRepositoryMock.findAllPlaces).toHaveBeenCalledWith({
+        includeInactive: true,
+      });
+    });
+
+    it('should not expose ORM fields in response', async () => {
+      meetingRepositoryMock.findAllPlaces.mockResolvedValue(mockPlaces);
+
+      const result = await controller.findAllPlaces({});
+      const item = result.data[0] as unknown as Record<string, unknown>;
+
+      expect(item).not.toHaveProperty('nombre');
+      expect(item).not.toHaveProperty('activo');
+      expect(item).not.toHaveProperty('esVirtual');
+    });
+  });
+
+  describe('findPlaceById', () => {
+    const mockPlace: MeetingPlaceFullModel = {
+      id: 'place-001',
+      name: 'Sala A',
+      address: null,
+      isVirtual: false,
+      meetingLink: null,
+      isActive: true,
+    };
+
+    it('should return envelope with place DTO', async () => {
+      meetingRepositoryMock.findPlaceById.mockResolvedValue(mockPlace);
+
+      const result = await controller.findPlaceById('place-001');
+
+      expect(result.statusCode).toBe(200);
+      expect(result.data.id).toBe('place-001');
+      expect(result.data.isActive).toBe(true);
+    });
+
+    it('should throw NotFoundException when place not found', async () => {
+      meetingRepositoryMock.findPlaceById.mockResolvedValue(null);
+
+      await expect(controller.findPlaceById('non-existent')).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('createPlace', () => {
+    it('should return 201 envelope with created place DTO', async () => {
+      const mockResult: MeetingPlaceFullModel = {
+        id: 'place-new',
+        name: 'Sala Nueva',
+        address: null,
+        isVirtual: false,
+        meetingLink: null,
+        isActive: true,
+      };
+      meetingRepositoryMock.createPlace.mockResolvedValue(mockResult);
+
+      const dto = Object.assign(new CreatePlaceDto(), { name: 'Sala Nueva' });
+      const result = await controller.createPlace(dto);
+
+      expect(result.statusCode).toBe(201);
+      expect(result.data.id).toBe('place-new');
+      expect(result.data.name).toBe('Sala Nueva');
+    });
+  });
+
+  describe('updatePlace', () => {
+    it('should return envelope with updated place DTO', async () => {
+      const mockResult: MeetingPlaceFullModel = {
+        id: 'place-001',
+        name: 'Sala Actualizada',
+        address: 'Piso 2',
+        isVirtual: false,
+        meetingLink: null,
+        isActive: true,
+      };
+      meetingRepositoryMock.updatePlace.mockResolvedValue(mockResult);
+
+      const dto = Object.assign(new UpdatePlaceDto(), {
+        name: 'Sala Actualizada',
+      });
+      const result = await controller.updatePlace('place-001', dto);
+
+      expect(result.statusCode).toBe(200);
+      expect(result.data.name).toBe('Sala Actualizada');
+    });
+  });
+
+  describe('deletePlace', () => {
+    it('should return envelope with message on soft delete', async () => {
+      meetingRepositoryMock.deletePlace.mockResolvedValue(undefined);
+
+      const result = await controller.deletePlace('place-001');
+
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toMatch(/desactivado/i);
     });
   });
 });

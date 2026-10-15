@@ -566,3 +566,65 @@ Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suit
   1. Unit: mock de `convocatoriaRepo.findOne` que devuelve la entidad, luego `delete` que borra la fila, luego verificación de que `convocatoriaRepo.update` fue llamado con `(id, { ordenDiaPdfPath })` y NO con `save`.
   2. Unit negativo: si `findOne` retorna `null`, el adapter lanza `NotFoundException` (comportamiento existente, sin cambio).
 - **Criterio "Hecho cuando:"**: `convocatoriaRepo.update` reemplaza a `convocatoriaRepo.save` en el adapter; test unitario que simula la carrera pasa; `npx tsc --noEmit` limpio; `npm test` verde.
+
+### Task TSK-009-N13 - [x] COMPLETADA
+- **ID Único**: `TSK-009-N13`
+- **Requisito Relacionado**: `RF-09.1` (legibilidad/contrato API — lugares)
+- **PR**: PR-M2 (`feat/meeting-places-contract`)
+- **Criterio EARS**: Los endpoints de `/meetings/places` no exponen campos ORM ni PII; retornan envelope `{statusCode, message, data}`; el listado excluye inactivos por defecto.
+- **Acción**: `MODIFICAR` + `CREAR`
+- **Archivos Afectados**:
+  - `src/modules/evaluations/domain/entities/meeting.entity.ts` (MODIFICAR — añadir `MeetingPlaceFullModel`)
+  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts` (MODIFICAR — reemplazar `MeetingPlaceItem` → `MeetingPlaceFullModel`, añadir `FindPlacesOptions`)
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` (MODIFICAR — `mapPlaceFull`, filtro `activo=true` por defecto, retornos tipados)
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR — `place?.nombre` → `place?.name`)
+  - `src/modules/evaluations/application/dtos/response/meeting-summary.dto.ts` (MODIFICAR — renombrar `MeetingPlaceDto` → `PlaceEmbedDto`)
+  - `src/modules/evaluations/application/dtos/response/meeting-place.dto.ts` (CREAR — `MeetingPlaceDto` con `isActive`, `PlaceListResponseDto`, `PlaceSingleResponseDto`)
+  - `src/modules/evaluations/application/dtos/find-places-query.dto.ts` (CREAR — `FindPlacesQueryDto` con `includeInactive` booleano)
+  - `src/modules/evaluations/application/mappers/meeting-place.mapper.ts` (CREAR — `toPlaceDto`)
+  - `src/modules/evaluations/application/mappers/meeting-place.mapper.spec.ts` (CREAR — 5 tests del mapper)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` (MODIFICAR — envelope en 5 rutas places, `@ApiQuery`, `@ApiCreatedResponse`)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` (MODIFICAR — 8 tests nuevos de places)
+  - `test/evaluations-contract.e2e-spec.ts` (MODIFICAR — mocks MeetingPlaceFullModel, aserciones envelope)
+  - `test/meetings.e2e-spec.ts` (MODIFICAR — mocks createPlace/updatePlace → MeetingPlaceFullModel)
+  - `test/real-db-evaluations.e2e-spec.ts` (MODIFICAR — body.id → body.data?.id, añadir describe TEST-M2 con 7 tests)
+- **Dependencias**: `TSK-009-N11`
+- **Descripción**:
+  Los endpoints de `/meetings/places` devolvían directamente objetos ORM (`LugarOrmEntity`) con nombres en español (`nombre`, `esVirtual`, `activo`) y sin envelope. Esta tarea estabiliza el contrato:
+  - `GET /meetings/places` → `data: MeetingPlaceDto[]` (solo activos por defecto; `includeInactive=true` opcional; 400 si valor inválido)
+  - `GET /meetings/places/:id` → `data: MeetingPlaceDto` (ParseUUIDPipe; 404 si no existe; inactivo SÍ accesible por id)
+  - `POST /meetings/places` → 201, `data: MeetingPlaceDto`
+  - `PATCH /meetings/places/:id` → 200, `data: MeetingPlaceDto`
+  - `DELETE /meetings/places/:id` → soft delete, `{statusCode, message}`
+  `MeetingPlaceDto = { id, name, address, isVirtual, meetingLink, isActive }` (inglés camelCase, sin ORM leak).
+  `CreatePlaceDto/UpdatePlaceDto` mantienen `@Transform` por compatibilidad con nombres en español.
+- **Tests**:
+  1. Unit mapper: 5 tests (claves exactas, sin ORM leak, nulls, isActive, virtual).
+  2. Unit controller: 8 tests (GET list + filtro + sin ORM leak, GET by id + 404, POST 201, PATCH, DELETE).
+  3. E2E TEST-M2 (real-db): 7 tests (POST, GET list, GET/:id, soft-delete + includeInactive + GET/:id inactivo, PATCH, includeInactive=invalido→400, baseline). M2-06 eliminado: `@Transform` legacy no actúa sin la clave canónica (ver TSK-009-N15). `DELETE /places/:id` responde `{statusCode, message}` sin campo `data`. Las requests HTTP de TEST-M2 llevan `x-forwarded-for: 10.0.0.1` para evitar el límite de DosDefenseMiddleware (ver TSK-SEC-01).
+- **Criterio "Hecho cuando:"**: `npx tsc --noEmit` limpio; `npm test` verde (309/309); E2E 100/100; contrato de places documentado.
+
+### Task TSK-009-N15 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N15`
+- **Requisito Relacionado**: `RF-09.1` (alias legacy en DTOs de places)
+- **Descripción**:
+  `CreatePlaceDto/UpdatePlaceDto` declaran `@Transform` en el campo `name` para leer `obj.nombre` cuando `name` no viene en el body. Sin embargo, en class-transformer 0.5.1 el `@Transform` no se ejecuta si la clave decorada (`name`) está ausente del objeto plano de entrada. Consecuencia: `POST /meetings/places` con solo `{ nombre: 'X' }` devuelve 400 (falló `@IsNotEmpty()` en `name`), a pesar de que el `@Transform` debería cubrir ese caso. Verificado con `plainToInstance + validate`: solo `{ nombre: X }` → `name: undefined, errors: [name:isNotEmpty,isString]`; solo `{ name: X }` → NONE.
+  Decidir: (a) corregir los alias usando `@Transform` en el campo `nombre` para poblarlo desde `name` cuando el cliente envía la clave canónica, o usar un DTO separado de entrada; (b) eliminar los alias legacy para simplificar el contrato y documentar que solo se aceptan las claves canónicas (`name`, `location`, `isVirtual`, etc.). No implementar sin decisión explícita.
+- **Archivos Afectados**: `src/modules/evaluations/application/dtos/create-place.dto.ts` (MODIFICAR)
+- **Dependencias**: `TSK-009-N13`
+
+### Task TSK-009-N14 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N14`
+- **Requisito Relacionado**: `RF-09.1` (integridad de lugares en convocatoria)
+- **Descripción**:
+  `POST /meetings` acepta `locationId` de un lugar inactivo (`activo = false`). `CreateMeetingUseCase` llama a `findPlaceById`, que devuelve el lugar sin filtrar por `activo`. Si la secretaría desactiva un lugar y luego crea una convocatoria con ese `locationId`, la convocatoria queda ligada a un lugar fuera de servicio sin aviso. Validar en el use case: si el lugar existe pero `isActive = false`, rechazar con 400 y código `LUGAR_INACTIVO`. No implementado.
+- **Archivos Afectados**: `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR)
+- **Dependencias**: `TSK-009-N13`
+
+### Task TSK-SEC-01 - [ ] PENDIENTE
+- **ID Único**: `TSK-SEC-01`
+- **Requisito Relacionado**: Seguridad transversal (DosDefenseMiddleware)
+- **Descripción**:
+  `DosDefenseMiddleware.extractIp` confía en `X-Forwarded-For` sin validar que el proxy emisor sea de confianza: un cliente externo puede evadir el rate limit y la lista negra rotando ese header libremente. Adicionalmente, `requestHistory` y `blacklist` son `Map` en memoria sin tope máximo de entradas ni TTL de expiración por inactividad; bajo un ataque con IPs inventadas el mapa crece sin límite. Correcciones a implementar en PR aparte (`fix/dos-defense-forwarded-for`): (a) configurar trust proxy explícito en `main.ts`/Express y usar `req.ip` en lugar de leer `X-Forwarded-For` directamente; (b) añadir tope de tamaño al mapa o expiración activa de entradas inactivas. Descubierto durante PR-M2 (workaround de tests: `x-forwarded-for: 10.0.0.1`); no tocado aquí.
+- **Archivos Afectados**: `src/shared/middleware/dos-defense.middleware.ts` (MODIFICAR), `src/main.ts` (MODIFICAR)
+- **Dependencias**: ninguna

@@ -3,6 +3,7 @@ import {
   MeetingDetailEntity,
   MeetingSummaryEntity,
   PendingProtocolEntity,
+  MeetingPlaceFullModel,
 } from '../entities/meeting.entity';
 
 /** Datos mínimos de asignación activa por protocolo-versión para evaluar el plazo de revisión (TSK-002-N05). */
@@ -51,15 +52,8 @@ export interface FindMeetingsOptions {
   status?: string;
 }
 
-export interface MeetingPlaceItem {
-  id: string;
-  nombre: string;
-  direccion?: string;
-  esVirtual: boolean;
-  enlaceReunion?: string;
-  activo: boolean;
-  createdAt?: Date;
-  updatedAt?: Date;
+export interface FindPlacesOptions {
+  includeInactive?: boolean;
 }
 
 export interface IMeetingRepositoryPort {
@@ -103,9 +97,9 @@ export interface IMeetingRepositoryPort {
 
   findPendingProtocols(): Promise<PendingProtocolEntity[]>;
 
-  findAllPlaces(): Promise<MeetingPlaceItem[]>;
+  findAllPlaces(options?: FindPlacesOptions): Promise<MeetingPlaceFullModel[]>;
 
-  findPlaceById(id: string): Promise<MeetingPlaceItem | null>;
+  findPlaceById(id: string): Promise<MeetingPlaceFullModel | null>;
 
   createPlace(data: {
     nombre: string;
@@ -113,7 +107,7 @@ export interface IMeetingRepositoryPort {
     esVirtual?: boolean;
     enlaceReunion?: string;
     activo?: boolean;
-  }): Promise<MeetingPlaceItem>;
+  }): Promise<MeetingPlaceFullModel>;
 
   updatePlace(
     id: string,
@@ -124,7 +118,7 @@ export interface IMeetingRepositoryPort {
       enlaceReunion?: string;
       activo?: boolean;
     },
-  ): Promise<MeetingPlaceItem>;
+  ): Promise<MeetingPlaceFullModel>;
 
   deletePlace(id: string): Promise<void>;
 }
