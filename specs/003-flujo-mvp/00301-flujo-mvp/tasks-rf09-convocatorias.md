@@ -538,9 +538,10 @@
 
 Raíz del 500 original: `meetingDate` y `evalSubmissionDeadline` son nullable en el ORM; el repositorio no asume no-nulos — `toSafeDate()` normaliza `Date|string|null → Date|null` antes de serializar.
 
-- `GET /api/evaluations/meetings` → `{ statusCode, message, data: MeetingSummaryDto[], meta: { total, limit, offset } }`. Campos `meetingDate` y `evalSubmissionDeadline`: `string | null` (ISO 8601). Campo adicional `agendaPdfUrl: string` en cada elemento.
-- `GET /api/evaluations/meetings/:id` → `{ statusCode, message, data: MeetingDetailDto }`. Incluye `protocols: AgendaProtocolDto[]` ordenados por `order` ASC. `normativeDeadline: string | null`. `protocolId` y `versionId` son `number | null` (items de seguimiento pueden tener ambos nulos).
+- `GET /api/evaluations/meetings` → `{ statusCode, message, data: MeetingSummaryDto[], meta: { total, page, limit } }`. Campos `meetingDate` y `evalSubmissionDeadline`: `string | null` (ISO 8601). Campo adicional `agendaPdfUrl: string` en cada elemento. Orden: `fechaReunion` descendente, NULLS LAST.
+- `GET /api/evaluations/meetings/:id` → `{ statusCode, message, data: MeetingDetailDto }`. Incluye `protocols: AgendaProtocolDto[]` ordenados por `order` ASC. `normativeDeadline: string | null`. `protocolId` y `versionId` son `number | null` (ítems de seguimiento pueden tener ambos nulos).
 - `GET /api/evaluations/meetings/pending-protocols` → `{ statusCode, message, data: PendingProtocolDto[] }`. Campos `receptionDate` y `deadline`: `string | null`. `protocolId ≠ versionId` (son IDs distintos de tablas distintas).
 - Ningún campo de ORM ni PII (email, teléfono) aparece en ninguna respuesta.
+- `meetingDate` y `evalSubmissionDeadline` son nullable (timestamptz NULL en BD); en ceish_test_db 1 de 65 convocatorias (`000-2026`) las tiene en NULL. La lista ordena `fechaReunion` descendente con NULLS LAST.
 
-Resultados finales: `npm test` 289 tests, 49 suites ✓ — E2E 93 tests, 7 suites ✓ — `npx tsc --noEmit` limpio ✓.
+Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suites ✓ — `npx tsc --noEmit` limpio ✓.
