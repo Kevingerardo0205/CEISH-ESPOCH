@@ -5,11 +5,11 @@ export class AgendaProtocolDto {
   @ApiProperty({ example: 1 })
   order!: number;
 
-  @ApiProperty({ example: 42 })
-  protocolId!: number;
+  @ApiProperty({ example: 42, nullable: true })
+  protocolId!: number | null;
 
-  @ApiProperty({ example: 137 })
-  versionId!: number;
+  @ApiProperty({ example: 137, nullable: true })
+  versionId!: number | null;
 
   @ApiProperty({ example: 2, nullable: true })
   versionNumber!: number | null;
@@ -33,4 +33,16 @@ export class AgendaProtocolDto {
 export class MeetingDetailDto extends MeetingSummaryDto {
   @ApiProperty({ type: [AgendaProtocolDto] })
   protocols!: AgendaProtocolDto[];
+}
+
+/** Wrapper de envelope para @ApiOkResponse en GET /meetings/:id */
+export class MeetingDetailResponseDto {
+  @ApiProperty({ example: 200 })
+  statusCode!: number;
+
+  @ApiProperty({ example: 'Convocatoria obtenida exitosamente' })
+  message!: string;
+
+  @ApiProperty({ type: MeetingDetailDto })
+  data!: MeetingDetailDto;
 }

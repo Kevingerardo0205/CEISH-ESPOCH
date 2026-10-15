@@ -24,9 +24,14 @@ import {
   ApiQuery,
   ApiOkResponse,
 } from '@nestjs/swagger';
-import { MeetingDetailDto } from '../../application/dtos/response/meeting-detail.dto';
-import { MeetingSummaryDto } from '../../application/dtos/response/meeting-summary.dto';
-import { PendingProtocolDto } from '../../application/dtos/response/pending-protocol.dto';
+import { MeetingDetailResponseDto } from '../../application/dtos/response/meeting-detail.dto';
+import { MeetingListResponseDto } from '../../application/dtos/response/meeting-summary.dto';
+import { PendingProtocolListResponseDto } from '../../application/dtos/response/pending-protocol.dto';
+import {
+  toDetail,
+  toSummary,
+  toPendingProtocol,
+} from '../../application/mappers/meeting.mapper';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CreateMeetingUseCase } from '../../application/services/create-meeting.use-case';
@@ -148,13 +153,13 @@ export class MeetingsController {
     summary:
       'Obtener listado de protocolos pendientes y priorizados para agendar a Pleno',
   })
-  @ApiOkResponse({ type: [PendingProtocolDto] })
+  @ApiOkResponse({ type: PendingProtocolListResponseDto })
   async getPendingProtocols() {
-    const data = await this.meetingRepository.findPendingProtocols();
+    const models = await this.meetingRepository.findPendingProtocols();
     return {
       statusCode: HttpStatus.OK,
       message: 'Protocolos pendientes obtenidos exitosamente',
-      data,
+      data: models.map(toPendingProtocol),
     };
   }
 
@@ -176,7 +181,7 @@ export class MeetingsController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'status', required: false, type: String })
-  @ApiOkResponse({ type: [MeetingSummaryDto], description: 'Lista paginada. El campo meta devuelve MeetingListMetaDto.' })
+  @ApiOkResponse({ type: MeetingListResponseDto })
   async getMeetings(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -190,7 +195,7 @@ export class MeetingsController {
     return {
       statusCode: HttpStatus.OK,
       message: 'Convocatorias obtenidas exitosamente',
-      data: result.items,
+      data: result.items.map(toSummary),
       meta: {
         total: result.total,
         page: result.page,
@@ -268,7 +273,7 @@ export class MeetingsController {
   @ApiOperation({
     summary: 'Obtener detalle estructurado de una convocatoria por ID',
   })
-  @ApiOkResponse({ type: MeetingDetailDto })
+  @ApiOkResponse({ type: MeetingDetailResponseDto })
   async getMeeting(@Param('id', ParseUUIDPipe) id: string) {
     const meeting = await this.meetingRepository.findById(id);
     if (!meeting) {
@@ -278,7 +283,7 @@ export class MeetingsController {
     return {
       statusCode: HttpStatus.OK,
       message: 'Convocatoria obtenida exitosamente',
-      data: meeting,
+      data: toDetail(meeting),
     };
   }
 

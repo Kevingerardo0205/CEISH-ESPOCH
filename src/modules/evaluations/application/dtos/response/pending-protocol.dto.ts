@@ -1,5 +1,16 @@
 import { ApiProperty } from '@nestjs/swagger';
 
+export class PendingProtocolListResponseDto {
+  @ApiProperty({ example: 200 })
+  statusCode!: number;
+
+  @ApiProperty({ example: 'Protocolos pendientes obtenidos exitosamente' })
+  message!: string;
+
+  @ApiProperty({ type: () => [PendingProtocolDto] })
+  data!: PendingProtocolDto[];
+}
+
 export class PendingProtocolDto {
   @ApiProperty({ example: 42 })
   protocolId!: number;

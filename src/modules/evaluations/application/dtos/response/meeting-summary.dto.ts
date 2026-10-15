@@ -30,11 +30,11 @@ export class MeetingSummaryDto {
   @ApiProperty({ example: 'ORDINARIA' })
   sessionType!: string;
 
-  @ApiProperty({ example: '2026-10-15T09:00:00.000Z' })
-  meetingDate!: string;
+  @ApiProperty({ example: '2026-10-15T09:00:00.000Z', nullable: true })
+  meetingDate!: string | null;
 
-  @ApiProperty({ example: '2026-10-08T23:59:59.000Z' })
-  evalSubmissionDeadline!: string;
+  @ApiProperty({ example: '2026-10-08T23:59:59.000Z', nullable: true })
+  evalSubmissionDeadline!: string | null;
 
   @ApiProperty({ example: 'PROGRAMADA' })
   status!: string;
@@ -58,4 +58,19 @@ export class MeetingListMetaDto {
 
   @ApiProperty({ example: 10 })
   limit!: number;
+}
+
+/** Wrapper de envelope para @ApiOkResponse en GET /meetings */
+export class MeetingListResponseDto {
+  @ApiProperty({ example: 200 })
+  statusCode!: number;
+
+  @ApiProperty({ example: 'Convocatorias obtenidas exitosamente' })
+  message!: string;
+
+  @ApiProperty({ type: [MeetingSummaryDto] })
+  data!: MeetingSummaryDto[];
+
+  @ApiProperty({ type: MeetingListMetaDto })
+  meta!: MeetingListMetaDto;
 }
