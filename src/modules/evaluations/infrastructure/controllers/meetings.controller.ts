@@ -145,7 +145,12 @@ export class MeetingsController {
       'Obtener listado de protocolos pendientes y priorizados para agendar a Pleno',
   })
   async getPendingProtocols() {
-    return this.meetingRepository.findPendingProtocols();
+    const data = await this.meetingRepository.findPendingProtocols();
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Protocolos pendientes obtenidos exitosamente',
+      data,
+    };
   }
 
   // ==========================================
@@ -291,7 +296,7 @@ export class MeetingsController {
     }
 
     const uploadDir = path.resolve(process.cwd(), 'uploads', 'convocatorias');
-    const fileName = `convocatoria-${meeting.numeroConvocatoria || id}-orden-del-dia.pdf`;
+    const fileName = `convocatoria-${meeting.meetingNumber || id}-orden-del-dia.pdf`;
     const filePath = path.join(uploadDir, fileName);
 
     let pdfBuffer: Buffer;

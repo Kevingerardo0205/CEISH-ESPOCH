@@ -2,6 +2,7 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
 import { PdfGeneratorService } from '../../../../shared/utils/pdf-generator.service';
+import { meetingPdfUrl } from '../../../../shared/utils/meeting-pdf-url.helper';
 import { ConvocatoriaOrmEntity } from '../database/entities/convocatoria.orm-entity';
 import { ConvocatoriaProtocoloOrmEntity } from '../database/entities/convocatoria-protocolo.orm-entity';
 import * as fs from 'fs';
@@ -77,7 +78,7 @@ export class MeetingPdfGeneratorAdapter implements IMeetingPdfGeneratorPort {
     const filePath = path.join(uploadDir, fileName);
     fs.writeFileSync(filePath, pdfBuffer);
 
-    const relativeUrl = `/api/evaluations/meetings/${meetingId}/pdf`;
+    const relativeUrl = meetingPdfUrl(meetingId);
     meeting.ordenDiaPdfPath = relativeUrl;
     await convocatoriaRepo.save(meeting);
 

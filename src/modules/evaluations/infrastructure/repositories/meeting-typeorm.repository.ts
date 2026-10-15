@@ -12,7 +12,13 @@ import {
   NormativeDeadlineInput,
   UnscheduledVersionInfo,
 } from '../../domain/ports/meeting-repository.port';
-import { MeetingEntity } from '../../domain/entities/meeting.entity';
+import {
+  MeetingEntity,
+  MeetingDetailEntity,
+  MeetingSummaryEntity,
+  PendingProtocolEntity,
+} from '../../domain/entities/meeting.entity';
+import { meetingPdfUrl } from '../../../../shared/utils/meeting-pdf-url.helper';
 import {
   ConvocatoriaOrmEntity,
   SessionType,
@@ -291,9 +297,9 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
     }));
   }
 
-  async findById(id: string): Promise<MeetingEntity | null> {
+  async findById(id: string): Promise<MeetingDetailEntity | null> {
     const repo = this.dataSource.getRepository(ConvocatoriaOrmEntity);
-    return repo.findOne({
+    const orm = await repo.findOne({
       where: { id },
       relations: [
         'lugar',
@@ -309,10 +315,45 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
         },
       },
     });
+    if (!orm) return null;
+    return {
+      id: orm.id,
+      meetingNumber: orm.numeroConvocatoria,
+      academicYear: orm.anioLectivo ?? null,
+      sessionType: orm.tipoSession,
+      meetingDate: orm.fechaReunion.toISOString(),
+      evalSubmissionDeadline: orm.fechaEntregaEvaluacion.toISOString(),
+      status: orm.estado,
+      place: orm.lugar
+        ? {
+            id: orm.lugar.id,
+            name: orm.lugar.nombre,
+            address: orm.lugar.direccion ?? null,
+            isVirtual: orm.lugar.esVirtual,
+            meetingLink: orm.lugar.enlaceReunion ?? null,
+          }
+        : null,
+      agendaPdfUrl: meetingPdfUrl(orm.id),
+      protocolCount: orm.convocatoriaProtocolos?.length ?? 0,
+      protocols: (orm.convocatoriaProtocolos ?? []).map((cp) => ({
+        order: cp.orden,
+        protocolId: cp.protocoloId ?? 0,
+        versionId: cp.versionId ?? 0,
+        versionNumber: cp.version?.versionNumber ?? null,
+        ceishCode: cp.protocolo?.ceishCode ?? null,
+        title: cp.protocolo?.title ?? null,
+        studyType: cp.protocolo?.studyType?.name ?? null,
+        investigatorName:
+          cp.protocolo?.principalInvestigator?.fullName ?? null,
+        normativeDeadline: cp.fechaPlazoNormativo
+          ? cp.fechaPlazoNormativo.toISOString()
+          : null,
+      })),
+    };
   }
 
   async findAll(options?: FindMeetingsOptions): Promise<{
-    items: MeetingEntity[];
+    items: MeetingSummaryEntity[];
     total: number;
     page: number;
     limit: number;
@@ -326,9 +367,6 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       .createQueryBuilder('c')
       .leftJoinAndSelect('c.lugar', 'l')
       .leftJoinAndSelect('c.convocatoriaProtocolos', 'cp')
-      .leftJoinAndSelect('cp.protocolo', 'p')
-      .leftJoinAndSelect('p.studyType', 'st')
-      .leftJoinAndSelect('p.principalInvestigator', 'pi')
       .orderBy('c.fechaReunion', 'DESC')
       .skip(skip)
       .take(limit);
@@ -337,11 +375,31 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       qb.andWhere('c.estado = :status', { status: options.status });
     }
 
-    const [items, total] = await qb.getManyAndCount();
+    const [orms, total] = await qb.getManyAndCount();
+    const items: MeetingSummaryEntity[] = orms.map((orm) => ({
+      id: orm.id,
+      meetingNumber: orm.numeroConvocatoria,
+      academicYear: orm.anioLectivo ?? null,
+      sessionType: orm.tipoSession,
+      meetingDate: orm.fechaReunion.toISOString(),
+      evalSubmissionDeadline: orm.fechaEntregaEvaluacion.toISOString(),
+      status: orm.estado,
+      place: orm.lugar
+        ? {
+            id: orm.lugar.id,
+            name: orm.lugar.nombre,
+            address: orm.lugar.direccion ?? null,
+            isVirtual: orm.lugar.esVirtual,
+            meetingLink: orm.lugar.enlaceReunion ?? null,
+          }
+        : null,
+      agendaPdfUrl: meetingPdfUrl(orm.id),
+      protocolCount: orm.convocatoriaProtocolos?.length ?? 0,
+    }));
     return { items, total, page, limit };
   }
 
-  async findPendingProtocols(): Promise<ProtocolOrmEntity[]> {
+  async findPendingProtocols(): Promise<PendingProtocolEntity[]> {
     const protocolRepo = this.dataSource.getRepository(ProtocolOrmEntity);
     const protocols = await protocolRepo
       .createQueryBuilder('p')
@@ -364,7 +422,21 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       return new Date(deadlineA).getTime() - new Date(deadlineB).getTime();
     });
 
-    return protocols;
+    return protocols.map((p) => {
+      const deadline =
+        p.responseDeadline || p.receptionDate || p.createdAt;
+      return {
+        protocolId: p.id,
+        versionId: p.activeVersion?.id ?? 0,
+        versionNumber: p.activeVersion?.versionNumber ?? null,
+        ceishCode: p.ceishCode ?? null,
+        title: p.title ?? null,
+        studyType: p.studyType?.name ?? null,
+        investigatorName: p.principalInvestigator?.fullName ?? null,
+        receptionDate: p.receptionDate ? p.receptionDate.toISOString() : null,
+        deadline: deadline ? new Date(deadline).toISOString() : null,
+      };
+    });
   }
 
   async findAllPlaces(): Promise<LugarOrmEntity[]> {
