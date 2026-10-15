@@ -1147,7 +1147,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           isActive: true,
         });
       expect(resCreate.status).toBe(201);
-      createdPlaceId = resCreate.body.data?.id ?? resCreate.body.id;
+      createdPlaceId = resCreate.body.data.id as string;
       expect(createdPlaceId).toBeDefined();
 
       // List places via meetings/places
@@ -1155,7 +1155,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         .get('/api/evaluations/meetings/places')
         .set('x-user-id', '901');
       expect(resList.status).toBe(200);
-      expect(Array.isArray(resList.body.data ?? resList.body)).toBe(true);
+      expect(Array.isArray(resList.body.data)).toBe(true);
 
       // List places via calls/places (deprecated endpoint)
       const resCallsList = await request(app.getHttpServer())
@@ -1196,7 +1196,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           esVirtual: false,
           isActive: true,
         });
-      const placeId = resPlace.body.data?.id ?? resPlace.body.id;
+      const placeId = resPlace.body.data.id as string;
 
       // 1. GET /api/evaluations/meetings
       const resMeetings = await request(app.getHttpServer())
@@ -1299,8 +1299,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           });
         expect(resPlace.status).toBeGreaterThanOrEqual(200);
         expect(resPlace.status).toBeLessThan(300);
-        const placeId: string | undefined =
-          resPlace.body.data?.id ?? resPlace.body.id;
+        const placeId = resPlace.body.data.id as string;
         expect(placeId).toBeDefined();
 
         // Puerto PDF globalmente mockeado — lo usamos para saber cuándo notifyMembersAsync inicia
