@@ -566,3 +566,40 @@ Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suit
   1. Unit: mock de `convocatoriaRepo.findOne` que devuelve la entidad, luego `delete` que borra la fila, luego verificación de que `convocatoriaRepo.update` fue llamado con `(id, { ordenDiaPdfPath })` y NO con `save`.
   2. Unit negativo: si `findOne` retorna `null`, el adapter lanza `NotFoundException` (comportamiento existente, sin cambio).
 - **Criterio "Hecho cuando:"**: `convocatoriaRepo.update` reemplaza a `convocatoriaRepo.save` en el adapter; test unitario que simula la carrera pasa; `npx tsc --noEmit` limpio; `npm test` verde.
+
+### Task TSK-009-N13 - [x] COMPLETADA
+- **ID Único**: `TSK-009-N13`
+- **Requisito Relacionado**: `RF-09.1` (legibilidad/contrato API — lugares)
+- **PR**: PR-M2 (`feat/meeting-places-contract`)
+- **Criterio EARS**: Los endpoints de `/meetings/places` no exponen campos ORM ni PII; retornan envelope `{statusCode, message, data}`; el listado excluye inactivos por defecto.
+- **Acción**: `MODIFICAR` + `CREAR`
+- **Archivos Afectados**:
+  - `src/modules/evaluations/domain/entities/meeting.entity.ts` (MODIFICAR — añadir `MeetingPlaceFullModel`)
+  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts` (MODIFICAR — reemplazar `MeetingPlaceItem` → `MeetingPlaceFullModel`, añadir `FindPlacesOptions`)
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` (MODIFICAR — `mapPlaceFull`, filtro `activo=true` por defecto, retornos tipados)
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR — `place?.nombre` → `place?.name`)
+  - `src/modules/evaluations/application/dtos/response/meeting-summary.dto.ts` (MODIFICAR — renombrar `MeetingPlaceDto` → `PlaceEmbedDto`)
+  - `src/modules/evaluations/application/dtos/response/meeting-place.dto.ts` (CREAR — `MeetingPlaceDto` con `isActive`, `PlaceListResponseDto`, `PlaceSingleResponseDto`)
+  - `src/modules/evaluations/application/dtos/find-places-query.dto.ts` (CREAR — `FindPlacesQueryDto` con `includeInactive` booleano)
+  - `src/modules/evaluations/application/mappers/meeting-place.mapper.ts` (CREAR — `toPlaceDto`)
+  - `src/modules/evaluations/application/mappers/meeting-place.mapper.spec.ts` (CREAR — 5 tests del mapper)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` (MODIFICAR — envelope en 5 rutas places, `@ApiQuery`, `@ApiCreatedResponse`)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` (MODIFICAR — 8 tests nuevos de places)
+  - `test/evaluations-contract.e2e-spec.ts` (MODIFICAR — mocks MeetingPlaceFullModel, aserciones envelope)
+  - `test/meetings.e2e-spec.ts` (MODIFICAR — mocks createPlace/updatePlace → MeetingPlaceFullModel)
+  - `test/real-db-evaluations.e2e-spec.ts` (MODIFICAR — body.id → body.data?.id, añadir describe TEST-M2 con 8 tests)
+- **Dependencias**: `TSK-009-N11`
+- **Descripción**:
+  Los endpoints de `/meetings/places` devolvían directamente objetos ORM (`LugarOrmEntity`) con nombres en español (`nombre`, `esVirtual`, `activo`) y sin envelope. Esta tarea estabiliza el contrato:
+  - `GET /meetings/places` → `data: MeetingPlaceDto[]` (solo activos por defecto; `includeInactive=true` opcional; 400 si valor inválido)
+  - `GET /meetings/places/:id` → `data: MeetingPlaceDto` (ParseUUIDPipe; 404 si no existe; inactivo SÍ accesible por id)
+  - `POST /meetings/places` → 201, `data: MeetingPlaceDto`
+  - `PATCH /meetings/places/:id` → 200, `data: MeetingPlaceDto`
+  - `DELETE /meetings/places/:id` → soft delete, `{statusCode, message}`
+  `MeetingPlaceDto = { id, name, address, isVirtual, meetingLink, isActive }` (inglés camelCase, sin ORM leak).
+  `CreatePlaceDto/UpdatePlaceDto` mantienen `@Transform` por compatibilidad con nombres en español.
+- **Tests**:
+  1. Unit mapper: 5 tests (claves exactas, sin ORM leak, nulls, isActive, virtual).
+  2. Unit controller: 8 tests (GET list + filtro + sin ORM leak, GET by id + 404, POST 201, PATCH, DELETE).
+  3. E2E TEST-M2 (real-db): 8 tests (POST, GET list, GET/:id, soft-delete + includeInactive + GET/:id inactivo, PATCH, nombre alternativo, includeInactive=invalido→400, baseline).
+- **Criterio "Hecho cuando:"**: `npx tsc --noEmit` limpio; `npm test` verde (303/303); contrato de places documentado.
