@@ -1949,6 +1949,131 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     });
   });
 
+  describe('TSK-009-N10 (COUNT=65): guard VERSIONES_DUPLICADAS y UNIQUE de BD', () => {
+    it('TEST-N10-01: POST con protocolVersionIds [991, 991] → 400 VERSIONES_DUPLICADAS; COUNT(*) no varía', async () => {
+      const countBefore = await dataSource
+        .query<{ count: string }[]>(
+          `SELECT COUNT(*) AS count FROM evaluacion.convocatorias`,
+        )
+        .then((r) => parseInt(r[0].count, 10));
+
+      let convocatoriaId: string | undefined;
+      try {
+        const res = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .send({
+            sessionType: 'ORDINARIA',
+            meetingDate: new Date(
+              Date.now() + 14 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+            evalSubmissionDeadline: new Date(
+              Date.now() + 17 * 24 * 60 * 60 * 1000,
+            ).toISOString(),
+            protocolVersionIds: [991, 991],
+          });
+
+        expect(res.status).toBe(400);
+        const msg: string = Array.isArray(res.body.message)
+          ? (res.body.message as string[]).join(' ')
+          : (res.body.message as string);
+        expect(msg).toContain('VERSIONES_DUPLICADAS');
+        expect(msg).toContain('991');
+
+        const countAfter = await dataSource
+          .query<{ count: string }[]>(
+            `SELECT COUNT(*) AS count FROM evaluacion.convocatorias`,
+          )
+          .then((r) => parseInt(r[0].count, 10));
+        expect(countAfter).toBe(countBefore);
+      } finally {
+        if (convocatoriaId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [convocatoriaId],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [convocatoriaId],
+          );
+        }
+      }
+    });
+
+    it('TEST-N10-02: inserción directa de dos filas con mismo (convocatoria_id, version_id) en evaluacion.convocatoria_protocolos → error 23505. REQUIERE migración 1851 aplicada en ceish_test_db', async () => {
+      // PRECONDICIÓN: la migración 1851000000000-AddUniqueConvocatoriaProtocolosVersion.ts
+      // debe estar aplicada en ceish_test_db antes de ejecutar este test.
+      // Si la constraint no existe, la segunda inserción no lanzará error y el test fallará.
+
+      const countBefore = await dataSource
+        .query<{ count: string }[]>(
+          `SELECT COUNT(*) AS count FROM evaluacion.convocatorias`,
+        )
+        .then((r) => parseInt(r[0].count, 10));
+
+      let convocatoriaId: string | undefined;
+      try {
+        // Resolver protocolo_id de la versión 991 (NOT NULL sin default en BD)
+        const versionRow: { protocolo_id: number }[] = await dataSource.query(
+          `SELECT protocolo_id FROM public.versiones_protocolo WHERE id = 991`,
+        );
+        const protocoloId = versionRow[0].protocolo_id;
+
+        // Crear convocatoria de prueba — patrón de fixtures TEST-N03-*
+        const convResult: { id: string }[] = await dataSource.query(
+          `INSERT INTO evaluacion.convocatorias (numero_convocatoria, estado)
+           VALUES ('TEST-N10-02', 'PROGRAMADA') RETURNING id`,
+        );
+        convocatoriaId = convResult[0].id;
+
+        // Primera inserción — debe funcionar
+        await dataSource.query(
+          `INSERT INTO evaluacion.convocatoria_protocolos
+             (convocatoria_id, protocolo_id, version_id, orden, fecha_plazo_normativo)
+           VALUES ($1, $2, 991, 1, NOW())`,
+          [convocatoriaId, protocoloId],
+        );
+
+        // Segunda inserción con mismo (convocatoria_id, version_id) — debe fallar con 23505
+        let pgErrorCode: string | undefined;
+        try {
+          await dataSource.query(
+            `INSERT INTO evaluacion.convocatoria_protocolos
+               (convocatoria_id, protocolo_id, version_id, orden, fecha_plazo_normativo)
+             VALUES ($1, $2, 991, 2, NOW())`,
+            [convocatoriaId, protocoloId],
+          );
+          throw new Error(
+            'TEST-N10-02: la segunda inserción debería haber fallado con 23505 (migración 1851 no aplicada)',
+          );
+        } catch (err: unknown) {
+          const code = (err as { code?: string }).code;
+          if (code !== '23505') throw err;
+          pgErrorCode = code;
+        }
+
+        expect(pgErrorCode).toBe('23505');
+      } finally {
+        if (convocatoriaId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [convocatoriaId],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [convocatoriaId],
+          );
+        }
+      }
+
+      const countAfter = await dataSource
+        .query<{ count: string }[]>(
+          `SELECT COUNT(*) AS count FROM evaluacion.convocatorias`,
+        )
+        .then((r) => parseInt(r[0].count, 10));
+      expect(countAfter).toBe(countBefore);
+    });
+  });
+
   describe('TSK-009-N08 (COUNT=65): notificación por correo con PDF al crear convocatoria vía /meetings', () => {
     it('TEST-N08-01: POST /api/evaluations/meetings retorna HTTP 201 y sendCallNotification es invocado con buffer correcto', async () => {
       // Usa versión 991 (EXPEDITA) sembrada en beforeAll — nunca followUpReportIds

@@ -6,6 +6,7 @@ import {
   UpdateDateColumn,
   ManyToOne,
   JoinColumn,
+  Unique,
 } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { ConvocatoriaOrmEntity } from './convocatoria.orm-entity';
@@ -13,6 +14,7 @@ import { ProtocolOrmEntity } from '../../../../protocols/infrastructure/database
 import { ProtocolVersionOrmEntity } from '../protocol-version.entity.orm';
 import { AgendaItemType } from '../../../../../shared/enums/agenda-section.enum';
 
+@Unique('uq_convocatoria_protocolos_version', ['convocatoriaId', 'versionId'])
 @Entity({ schema: 'evaluacion', name: 'convocatoria_protocolos' })
 export class ConvocatoriaProtocoloOrmEntity {
   @PrimaryGeneratedColumn('uuid')
