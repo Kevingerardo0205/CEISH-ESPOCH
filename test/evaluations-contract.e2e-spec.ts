@@ -200,28 +200,51 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       // ParseUUIDPipe bloquea strings no-UUID antes de llegar aquí
       if (id === '00000000-0000-0000-0000-000000000000')
         return Promise.resolve(null);
+      // Devuelve MeetingDetailModel con Date (el mapper convierte a ISO string)
       return Promise.resolve({
         id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-        numeroConvocatoria: '010-2026',
-        estado: 'PROGRAMADA',
+        meetingNumber: '010-2026',
+        academicYear: 2026,
+        sessionType: 'ORDINARIA',
+        meetingDate: new Date('2026-06-18T10:00:00.000Z'),
+        evalSubmissionDeadline: new Date('2026-06-11T23:59:59.000Z'),
+        status: 'PROGRAMADA',
+        place: null,
+        protocolCount: 0,
+        protocols: [],
       });
     }),
     findAll: jest.fn().mockResolvedValue({
       items: [
         {
           id: 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11',
-          numeroConvocatoria: '010-2026',
+          meetingNumber: '010-2026',
+          academicYear: 2026,
+          sessionType: 'ORDINARIA',
+          meetingDate: new Date('2026-06-18T10:00:00.000Z'),
+          evalSubmissionDeadline: new Date('2026-06-11T23:59:59.000Z'),
+          status: 'PROGRAMADA',
+          place: null,
+          protocolCount: 0,
         },
       ],
       total: 1,
       page: 1,
       limit: 10,
     }),
-    findPendingProtocols: jest
-      .fn()
-      .mockResolvedValue([
-        { id: 100, ceishCode: 'CEISH-2026-001', title: 'Protocolo de Prueba' },
-      ]),
+    findPendingProtocols: jest.fn().mockResolvedValue([
+      {
+        protocolId: 100,
+        versionId: 100,
+        versionNumber: 1,
+        ceishCode: 'CEISH-2026-001',
+        title: 'Protocolo de Prueba',
+        studyType: null,
+        investigatorName: null,
+        receptionDate: new Date('2026-01-15T00:00:00.000Z'),
+        deadline: new Date('2026-04-15T00:00:00.000Z'),
+      },
+    ]),
     findAllPlaces: jest.fn().mockResolvedValue([
       {
         id: '11111111-1111-1111-1111-111111111111',
@@ -681,7 +704,7 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
 
       const data = res.body.data || res.body;
       expect(data).toHaveProperty('id', 'a0eebc99-9c0b-4ef8-bb6d-6bb9bd380a11');
-      expect(data).toHaveProperty('numeroConvocatoria', '010-2026');
+      expect(data).toHaveProperty('meetingNumber', '010-2026');
     });
 
     it('debe responder HTTP 200 en GET /api/evaluations/meetings/places', async () => {

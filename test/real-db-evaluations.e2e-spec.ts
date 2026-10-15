@@ -1245,6 +1245,231 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       }
     });
 
+    it('TEST-M1-01: GET /meetings/:id contrato estable — claves exactas, versionId y protocolId verificados contra BD', async () => {
+      // Consulta BD para conocer el protocolId real de la versión 991
+      const versionRows: Array<{ protocolo_id: number }> =
+        await dataSource.query(
+          `SELECT protocolo_id FROM public.versiones_protocolo WHERE id = 991`,
+        );
+      // Si la versión no existe en este entorno, reportar y saltar
+      if (!versionRows.length) {
+        console.warn(
+          '[TEST-M1-01] versiones_protocolo id=991 no encontrada; se omite el test.',
+        );
+        return;
+      }
+      const expectedProtocolId = Number(versionRows[0].protocolo_id);
+
+      // Crear lugar
+      const resPlace = await request(app.getHttpServer())
+        .post('/api/evaluations/meetings/places')
+        .set('x-user-id', '901')
+        .send({ name: 'TEST-M1-01-Sala-Ronda3', esVirtual: false });
+      const placeId: string | undefined = resPlace.body.id;
+
+      let createdMeetingId: string | undefined;
+      try {
+        // Crear convocatoria con versionId 991
+        const resCreate = await request(app.getHttpServer())
+          .post('/api/evaluations/meetings')
+          .set('x-user-id', '901')
+          .send({
+            sessionType: 'ORDINARIA',
+            meetingDate: '2026-12-10T15:00:00.000Z',
+            evalSubmissionDeadline: '2026-12-15T17:00:00.000Z',
+            locationId: placeId,
+            protocolVersionIds: [991],
+          });
+        expect([200, 201]).toContain(resCreate.status);
+        createdMeetingId = resCreate.body.data?.id ?? resCreate.body.id;
+        expect(createdMeetingId).toBeDefined();
+
+        // GET /meetings/:id
+        const resGet = await request(app.getHttpServer())
+          .get(`/api/evaluations/meetings/${createdMeetingId}`)
+          .set('x-user-id', '901');
+        expect(resGet.status).toBe(200);
+
+        // Envelope
+        expect(resGet.body.statusCode).toBe(200);
+        expect(typeof resGet.body.message).toBe('string');
+        const data = resGet.body.data;
+        expect(data).toBeDefined();
+
+        // Claves exactas de data (order of sort)
+        const dataKeys = Object.keys(data).sort();
+        expect(dataKeys).toEqual([
+          'academicYear',
+          'agendaPdfUrl',
+          'evalSubmissionDeadline',
+          'id',
+          'meetingDate',
+          'meetingNumber',
+          'place',
+          'protocolCount',
+          'protocols',
+          'sessionType',
+          'status',
+        ]);
+
+        // Claves exactas de protocols[0]
+        expect(data.protocols).toHaveLength(1);
+        const proto = data.protocols[0];
+        const protoKeys = Object.keys(proto).sort();
+        expect(protoKeys).toEqual([
+          'ceishCode',
+          'investigatorName',
+          'normativeDeadline',
+          'order',
+          'protocolId',
+          'studyType',
+          'title',
+          'versionId',
+          'versionNumber',
+        ]);
+
+        // versionId === 991 (el que se agendó)
+        expect(proto.versionId).toBe(991);
+        expect(proto.order).toBe(1);
+
+        // protocolId debe coincidir con la BD (no hardcodeado)
+        expect(proto.protocolId).toBe(expectedProtocolId);
+
+        // Ninguna clave ORM
+        expect(data).not.toHaveProperty('numeroConvocatoria');
+        expect(data).not.toHaveProperty('lugarId');
+        expect(data).not.toHaveProperty('convocatoriaProtocolos');
+        expect(data).not.toHaveProperty('activeVersion');
+      } finally {
+        if (createdMeetingId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+            [createdMeetingId],
+          );
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [createdMeetingId],
+          );
+        }
+        if (placeId) {
+          await request(app.getHttpServer())
+            .delete(`/api/evaluations/meetings/places/${placeId}`)
+            .set('x-user-id', '901');
+        }
+      }
+    });
+
+    it('TEST-M1-02: GET /meetings?limit=100 envelope, meta y claves exactas por ítem', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/evaluations/meetings?limit=100')
+        .set('x-user-id', '901');
+      expect(res.status).toBe(200);
+
+      // Envelope
+      expect(res.body.statusCode).toBe(200);
+      expect(typeof res.body.message).toBe('string');
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body).toHaveProperty('meta');
+      const meta = res.body.meta;
+      expect(typeof meta.total).toBe('number');
+      expect(typeof meta.page).toBe('number');
+      expect(typeof meta.limit).toBe('number');
+
+      // La BD de test tiene convocatorias existentes
+      expect(res.body.data.length).toBeGreaterThan(0);
+
+      const firstItem = res.body.data[0];
+
+      // Claves exactas del ítem de lista
+      const itemKeys = Object.keys(firstItem).sort();
+      expect(itemKeys).toEqual([
+        'academicYear',
+        'agendaPdfUrl',
+        'evalSubmissionDeadline',
+        'id',
+        'meetingDate',
+        'meetingNumber',
+        'place',
+        'protocolCount',
+        'sessionType',
+        'status',
+      ]);
+
+      // Ninguna clave ORM
+      expect(firstItem).not.toHaveProperty('numeroConvocatoria');
+      expect(firstItem).not.toHaveProperty('fechaReunion');
+
+      // agendaPdfUrl generado por el mapper
+      expect(typeof firstItem.agendaPdfUrl).toBe('string');
+      expect(firstItem.agendaPdfUrl).toContain('/api/evaluations/meetings/');
+
+      // meetingDate: null o ISO string parseable; contar nulls
+      let nullCount = 0;
+      for (const item of res.body.data as Array<{
+        meetingDate: string | null;
+      }>) {
+        if (item.meetingDate === null) {
+          nullCount += 1;
+        } else {
+          expect(typeof item.meetingDate).toBe('string');
+          const d = new Date(item.meetingDate);
+          expect(() => d).not.toThrow();
+          expect(isNaN(d.getTime())).toBe(false);
+        }
+      }
+      console.log(
+        `[TEST-M1-02] meetingDate null count: ${nullCount} de ${res.body.data.length}`,
+      );
+    });
+
+    it('TEST-M1-03: GET /meetings/pending-protocols envelope exacto y claves por elemento', async () => {
+      const res = await request(app.getHttpServer())
+        .get('/api/evaluations/meetings/pending-protocols')
+        .set('x-user-id', '901');
+      expect(res.status).toBe(200);
+
+      // Envelope exacto (sin fallback ?? body)
+      expect(res.body.statusCode).toBe(200);
+      expect(typeof res.body.message).toBe('string');
+      expect(Array.isArray(res.body.data)).toBe(true);
+
+      const items: Array<Record<string, unknown>> = res.body.data;
+      if (items.length === 0) {
+        console.warn(
+          '[TEST-M1-03] pending-protocols devolvió arreglo vacío; sin protocolos pendientes en la BD de test.',
+        );
+      } else {
+        // Claves exactas del primer elemento
+        const keys = Object.keys(items[0]).sort();
+        expect(keys).toEqual([
+          'ceishCode',
+          'deadline',
+          'investigatorName',
+          'protocolId',
+          'receptionDate',
+          'studyType',
+          'title',
+          'versionId',
+          'versionNumber',
+        ]);
+
+        // protocolId y versionId deben ser números
+        expect(typeof items[0].protocolId).toBe('number');
+        expect(typeof items[0].versionId).toBe('number');
+
+        // deadline e ISO strings, nunca Date crudo
+        if (items[0].deadline !== null) {
+          expect(typeof items[0].deadline).toBe('string');
+          expect(isNaN(new Date(items[0].deadline as string).getTime())).toBe(
+            false,
+          );
+        }
+
+        // Sin PII
+        expect(JSON.stringify(items[0])).not.toContain('email');
+      }
+    });
+
     it('5c. Smoke tests para Calls (deprecated): GET /calls, GET /calls/protocols/pending, POST /calls, GET /calls/:id, GET /calls/:id/protocols, GET /calls/places', async () => {
       // Create a place to attach call to
       const resPlace = await request(app.getHttpServer())
