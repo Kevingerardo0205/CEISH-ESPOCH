@@ -489,7 +489,7 @@
 
 ---
 
-### Task TSK-009-N11 - [ ] EN CURSO
+### Task TSK-009-N11 - [x] COMPLETADA
 - **ID Único**: `TSK-009-N11`
 - **Requisito Relacionado**: `RF-09.1` (contrato estable de la API de convocatorias)
 - **PR**: PR-M1 (`feat/meeting-stable-contract`)
