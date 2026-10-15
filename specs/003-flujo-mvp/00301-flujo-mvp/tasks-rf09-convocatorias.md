@@ -508,12 +508,17 @@
   - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` (MODIFICAR — usar mappers, @ApiOkResponse)
   - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR — helper PDF URL)
   - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR — helper PDF URL)
+  - `src/shared/utils/to-safe-date.util.ts` (CREAR — normaliza `Date|string|null → Date|null`)
+  - `src/shared/utils/to-safe-date.util.spec.ts` (CREAR — 7 tests)
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.spec.ts` (CREAR — tolerancia a fechas string del ORM)
   - `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` (MODIFICAR — nuevo contrato)
   - `test/meetings.e2e-spec.ts` (MODIFICAR — nuevo contrato)
+  - `test/evaluations-contract.e2e-spec.ts` (MODIFICAR — mocks con MeetingDetailModel / MeetingSummaryModel)
+  - `test/real-db-evaluations.e2e-spec.ts` (MODIFICAR — TEST-M1-01, TEST-M1-02, TEST-M1-03)
 - **Dependencias**: `TSK-009-N10`
 - **Descripción**:
   1. Crear `MeetingSummaryDto`, `MeetingDetailDto`, `PendingProtocolDto` en `application/dtos/response/`.
-  2. Crear `meeting.mapper.ts` con funciones puras `toSummary()`, `toDetail()`, `toPendingProtocol()`, `pendingDeadline()`.
+  2. Crear `meeting.mapper.ts` con funciones puras `toSummary()`, `toDetail()`, `toPendingProtocol()`.
   3. Extraer helper `meetingPdfUrl(id: string): string` en `shared/utils/`, reemplazando las dos fuentes actuales.
   4. Ampliar `meeting.entity.ts` con `MeetingDetailEntity`, `AgendaProtocolItem`, `PendingProtocolItem`.
   5. Hacer honestos los tipos de `findById`, `findAll`, `findPendingProtocols` en el port.
@@ -529,11 +534,13 @@
   4. E2E meetings: `GET /meetings` → `data[]` con campos ingleses; `GET /meetings/:id` → `data.meetingNumber`; `GET /pending-protocols` → `data[]` con `protocolId`, `versionId`.
 - **Criterio "Hecho cuando:"**: `npx tsc --noEmit` limpio; `npm test` verde (≥257 tests); E2E meetings verde; ningún campo ORM ni PII (email/teléfono) en respuestas; `agendaPdfUrl` generado por helper único.
 
-**Ronda 2 (correcciones post-revisión):** Causa raíz del 500 confirmada: `fechaReunion` nullable en BD → `null.toISOString()` lanzaba `TypeError`. Correcciones aplicadas en 4 commits adicionales sobre la misma rama:
-- `null!` y `?? 0` eliminados; `toSafeDate()` normaliza `Date|string|null→Date|null`.
-- `mapPlace()` y `mapAgendaItem()` como fuente única en el repositorio.
-- `agendaPdfUrl` movida del repositorio al mapper (capa de aplicación).
-- Mapper `application/mappers/meeting.mapper.ts` creado con `toSummary`, `toDetail`, `toPendingProtocol`, `pendingDeadline`.
-- DTOs con `meetingDate: string|null`, `protocolId: number|null`, wrappers reales para `@ApiOkResponse`.
-- Controller usa el mapper; tests E2E con assertions concretas (ISO strings, no vacuos).
-- `npm test`: 275 tests, 48 suites (subió de 257). `npx tsc --noEmit`: limpio.
+**Contrato final de los 3 endpoints (Ronda 3):**
+
+Raíz del 500 original: `meetingDate` y `evalSubmissionDeadline` son nullable en el ORM; el repositorio no asume no-nulos — `toSafeDate()` normaliza `Date|string|null → Date|null` antes de serializar.
+
+- `GET /api/evaluations/meetings` → `{ statusCode, message, data: MeetingSummaryDto[], meta: { total, limit, offset } }`. Campos `meetingDate` y `evalSubmissionDeadline`: `string | null` (ISO 8601). Campo adicional `agendaPdfUrl: string` en cada elemento.
+- `GET /api/evaluations/meetings/:id` → `{ statusCode, message, data: MeetingDetailDto }`. Incluye `protocols: AgendaProtocolDto[]` ordenados por `order` ASC. `normativeDeadline: string | null`. `protocolId` y `versionId` son `number | null` (items de seguimiento pueden tener ambos nulos).
+- `GET /api/evaluations/meetings/pending-protocols` → `{ statusCode, message, data: PendingProtocolDto[] }`. Campos `receptionDate` y `deadline`: `string | null`. `protocolId ≠ versionId` (son IDs distintos de tablas distintas).
+- Ningún campo de ORM ni PII (email, teléfono) aparece en ninguna respuesta.
+
+Resultados finales: `npm test` 289 tests, 49 suites ✓ — E2E 93 tests, 7 suites ✓ — `npx tsc --noEmit` limpio ✓.
