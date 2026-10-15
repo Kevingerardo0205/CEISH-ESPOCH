@@ -1198,7 +1198,9 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         .get('/api/evaluations/meetings/pending-protocols')
         .set('x-user-id', '901');
       expect(resPending.status).toBe(200);
-      expect(Array.isArray(resPending.body)).toBe(true);
+      // El endpoint ahora devuelve {statusCode, message, data: [...]}
+      const pendingData = resPending.body.data ?? resPending.body;
+      expect(Array.isArray(pendingData)).toBe(true);
 
       // 3. POST /api/evaluations/meetings
       const resCreateMeeting = await request(app.getHttpServer())
