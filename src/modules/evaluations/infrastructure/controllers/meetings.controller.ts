@@ -22,7 +22,11 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiQuery,
+  ApiOkResponse,
 } from '@nestjs/swagger';
+import { MeetingDetailDto } from '../../application/dtos/response/meeting-detail.dto';
+import { MeetingSummaryDto } from '../../application/dtos/response/meeting-summary.dto';
+import { PendingProtocolDto } from '../../application/dtos/response/pending-protocol.dto';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CreateMeetingUseCase } from '../../application/services/create-meeting.use-case';
@@ -144,6 +148,7 @@ export class MeetingsController {
     summary:
       'Obtener listado de protocolos pendientes y priorizados para agendar a Pleno',
   })
+  @ApiOkResponse({ type: [PendingProtocolDto] })
   async getPendingProtocols() {
     const data = await this.meetingRepository.findPendingProtocols();
     return {
@@ -171,6 +176,7 @@ export class MeetingsController {
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiOkResponse({ type: [MeetingSummaryDto], description: 'Lista paginada. El campo meta devuelve MeetingListMetaDto.' })
   async getMeetings(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -262,6 +268,7 @@ export class MeetingsController {
   @ApiOperation({
     summary: 'Obtener detalle estructurado de una convocatoria por ID',
   })
+  @ApiOkResponse({ type: MeetingDetailDto })
   async getMeeting(@Param('id', ParseUUIDPipe) id: string) {
     const meeting = await this.meetingRepository.findById(id);
     if (!meeting) {
