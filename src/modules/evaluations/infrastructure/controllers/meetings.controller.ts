@@ -23,10 +23,18 @@ import {
   ApiOperation,
   ApiQuery,
   ApiOkResponse,
+  ApiCreatedResponse,
 } from '@nestjs/swagger';
 import { MeetingDetailResponseDto } from '../../application/dtos/response/meeting-detail.dto';
 import { MeetingListResponseDto } from '../../application/dtos/response/meeting-summary.dto';
 import { PendingProtocolListResponseDto } from '../../application/dtos/response/pending-protocol.dto';
+import {
+  MeetingPlaceDto,
+  PlaceListResponseDto,
+  PlaceSingleResponseDto,
+} from '../../application/dtos/response/meeting-place.dto';
+import { FindPlacesQueryDto } from '../../application/dtos/find-places-query.dto';
+import { toPlaceDto } from '../../application/mappers/meeting-place.mapper';
 import {
   toDetail,
   toSummary,
@@ -75,9 +83,29 @@ export class MeetingsController {
     RoleCode.ADMIN_TI,
     RoleCode.EVALUADOR,
   )
-  @ApiOperation({ summary: 'Listar todos los lugares de reunión disponibles' })
-  async findAllPlaces() {
-    return this.meetingRepository.findAllPlaces();
+  @ApiOperation({
+    summary: 'Listar lugares de reunión (solo activos por defecto)',
+  })
+  @ApiQuery({
+    name: 'includeInactive',
+    required: false,
+    type: Boolean,
+    description: 'Incluir lugares inactivos (true/false)',
+  })
+  @ApiOkResponse({ type: PlaceListResponseDto })
+  async findAllPlaces(@Query() query: FindPlacesQueryDto): Promise<{
+    statusCode: number;
+    message: string;
+    data: MeetingPlaceDto[];
+  }> {
+    const places = await this.meetingRepository.findAllPlaces({
+      includeInactive: query.includeInactive,
+    });
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Lugares obtenidos exitosamente',
+      data: places.map(toPlaceDto),
+    };
   }
 
   @Get('places/:id')
@@ -88,29 +116,49 @@ export class MeetingsController {
     RoleCode.EVALUADOR,
   )
   @ApiOperation({ summary: 'Obtener un lugar de reunión por ID' })
-  async findPlaceById(@Param('id', ParseUUIDPipe) id: string) {
+  @ApiOkResponse({ type: PlaceSingleResponseDto })
+  async findPlaceById(@Param('id', ParseUUIDPipe) id: string): Promise<{
+    statusCode: number;
+    message: string;
+    data: MeetingPlaceDto;
+  }> {
     const place = await this.meetingRepository.findPlaceById(id);
     if (!place) {
       throw new NotFoundException(`Lugar con ID ${id} no encontrado.`);
     }
-    return place;
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Lugar obtenido exitosamente',
+      data: toPlaceDto(place),
+    };
   }
 
   @Post('places')
+  @HttpCode(HttpStatus.CREATED)
   @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
   @Audit('PLACE_CREATED')
   @ApiOperation({
     summary: 'Crear un nuevo lugar de reunión (Secretaría/Presidente)',
   })
-  async createPlace(@Body() dto: CreatePlaceDto) {
+  @ApiCreatedResponse({ type: PlaceSingleResponseDto })
+  async createPlace(@Body() dto: CreatePlaceDto): Promise<{
+    statusCode: number;
+    message: string;
+    data: MeetingPlaceDto;
+  }> {
     const placeName = dto.name || dto.nombre || '';
-    return this.meetingRepository.createPlace({
+    const result = await this.meetingRepository.createPlace({
       nombre: placeName,
       direccion: dto.location || dto.direccion,
       esVirtual: dto.esVirtual ?? false,
       enlaceReunion: dto.enlaceReunion,
       activo: dto.isActive ?? dto.activo ?? true,
     });
+    return {
+      statusCode: HttpStatus.CREATED,
+      message: 'Lugar creado exitosamente',
+      data: toPlaceDto(result),
+    };
   }
 
   @Patch('places/:id')
@@ -119,17 +167,27 @@ export class MeetingsController {
   @ApiOperation({
     summary: 'Actualizar un lugar de reunión (Secretaría/Presidente)',
   })
+  @ApiOkResponse({ type: PlaceSingleResponseDto })
   async updatePlace(
     @Param('id', ParseUUIDPipe) id: string,
     @Body() dto: UpdatePlaceDto,
-  ) {
-    return this.meetingRepository.updatePlace(id, {
+  ): Promise<{
+    statusCode: number;
+    message: string;
+    data: MeetingPlaceDto;
+  }> {
+    const result = await this.meetingRepository.updatePlace(id, {
       nombre: dto.name || dto.nombre,
       direccion: dto.location || dto.direccion,
       esVirtual: dto.esVirtual,
       enlaceReunion: dto.enlaceReunion,
       activo: dto.isActive ?? dto.activo,
     });
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Lugar actualizado exitosamente',
+      data: toPlaceDto(result),
+    };
   }
 
   @Delete('places/:id')
@@ -138,9 +196,14 @@ export class MeetingsController {
   @ApiOperation({
     summary: 'Eliminar/desactivar un lugar de reunión (Secretaría/Presidente)',
   })
-  async deletePlace(@Param('id', ParseUUIDPipe) id: string) {
+  async deletePlace(
+    @Param('id', ParseUUIDPipe) id: string,
+  ): Promise<{ statusCode: number; message: string }> {
     await this.meetingRepository.deletePlace(id);
-    return { message: 'Lugar de reunión desactivado exitosamente.' };
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Lugar de reunión desactivado exitosamente.',
+    };
   }
 
   // ==========================================
