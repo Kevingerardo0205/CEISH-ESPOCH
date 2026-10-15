@@ -10,7 +10,7 @@ import type { CalculateEvalDateDto } from '../../application/dtos/calculate-eval
 import { SessionType } from '../database/entities/convocatoria.orm-entity';
 import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-repository.port';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
-import type { MeetingEntity } from '../../domain/entities/meeting.entity';
+import type { MeetingDetailEntity } from '../../domain/entities/meeting.entity';
 
 describe('MeetingsController (T017 / RF-09)', () => {
   let controller: MeetingsController;
@@ -122,14 +122,17 @@ describe('MeetingsController (T017 / RF-09)', () => {
 
   describe('getMeeting', () => {
     it('should return meeting detail if found', async () => {
-      const mockMeeting: MeetingEntity = {
+      const mockMeeting: MeetingDetailEntity = {
         id: 'meet-001',
-        numeroConvocatoria: '001-2026',
-        anioLectivo: 2026,
-        tipoSession: SessionType.ORDINARIA,
-        fechaReunion: new Date('2026-10-15T09:00:00.000Z'),
-        fechaEntregaEvaluacion: new Date('2026-10-08T23:59:59.000Z'),
-        estado: 'PROGRAMADA',
+        meetingNumber: '001-2026',
+        academicYear: 2026,
+        sessionType: SessionType.ORDINARIA,
+        meetingDate: new Date('2026-10-15T09:00:00.000Z'),
+        evalSubmissionDeadline: new Date('2026-10-08T23:59:59.000Z'),
+        status: 'PROGRAMADA',
+        place: null,
+        protocolCount: 0,
+        protocols: [],
       };
 
       meetingRepositoryMock.findById.mockResolvedValue(mockMeeting);
@@ -138,7 +141,7 @@ describe('MeetingsController (T017 / RF-09)', () => {
 
       expect(result.statusCode).toBe(200);
       expect(result.data.id).toBe('meet-001');
-      expect(result.data.numeroConvocatoria).toBe('001-2026');
+      expect(result.data.meetingNumber).toBe('001-2026');
     });
 
     it('should throw NotFoundException if meeting not found', async () => {
@@ -152,14 +155,17 @@ describe('MeetingsController (T017 / RF-09)', () => {
 
   describe('downloadMeetingPdf', () => {
     it('should return StreamableFile and set pdf response headers', async () => {
-      const mockMeeting: MeetingEntity = {
+      const mockMeeting: MeetingDetailEntity = {
         id: 'meet-001',
-        numeroConvocatoria: '001-2026',
-        anioLectivo: 2026,
-        tipoSession: SessionType.ORDINARIA,
-        fechaReunion: new Date('2026-10-15T09:00:00.000Z'),
-        fechaEntregaEvaluacion: new Date('2026-10-08T23:59:59.000Z'),
-        estado: 'PROGRAMADA',
+        meetingNumber: '001-2026',
+        academicYear: 2026,
+        sessionType: SessionType.ORDINARIA,
+        meetingDate: new Date('2026-10-15T09:00:00.000Z'),
+        evalSubmissionDeadline: new Date('2026-10-08T23:59:59.000Z'),
+        status: 'PROGRAMADA',
+        place: null,
+        protocolCount: 0,
+        protocols: [],
       };
 
       meetingRepositoryMock.findById.mockResolvedValue(mockMeeting);

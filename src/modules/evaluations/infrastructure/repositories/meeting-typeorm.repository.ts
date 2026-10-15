@@ -12,7 +12,14 @@ import {
   NormativeDeadlineInput,
   UnscheduledVersionInfo,
 } from '../../domain/ports/meeting-repository.port';
-import { MeetingEntity } from '../../domain/entities/meeting.entity';
+import {
+  MeetingEntity,
+  MeetingDetailEntity,
+  MeetingSummaryEntity,
+  PendingProtocolEntity,
+  MeetingPlaceModel,
+  AgendaProtocolModel,
+} from '../../domain/entities/meeting.entity';
 import {
   ConvocatoriaOrmEntity,
   SessionType,
@@ -31,10 +38,39 @@ import {
   ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION,
   ENTREGA_EVALUACION_HORA_CORTE,
 } from '../../../../shared/deadlines/deadline-rules';
+import { toSafeDate } from '../../../../shared/utils/to-safe-date.util';
 
 @Injectable()
 export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
   constructor(private readonly dataSource: DataSource) {}
+
+  /** Fuente única para mapear LugarOrmEntity→MeetingPlaceModel. */
+  private mapPlace(lugar: LugarOrmEntity): MeetingPlaceModel {
+    return {
+      id: lugar.id,
+      name: lugar.nombre,
+      address: lugar.direccion ?? null,
+      isVirtual: lugar.esVirtual,
+      meetingLink: lugar.enlaceReunion ?? null,
+    };
+  }
+
+  /** Fuente única para mapear ConvocatoriaProtocoloOrmEntity→AgendaProtocolModel. */
+  private mapAgendaItem(
+    cp: ConvocatoriaProtocoloOrmEntity,
+  ): AgendaProtocolModel {
+    return {
+      order: cp.orden,
+      protocolId: cp.protocoloId ?? null,
+      versionId: cp.versionId ?? null,
+      versionNumber: cp.version?.versionNumber ?? null,
+      ceishCode: cp.protocolo?.ceishCode ?? null,
+      title: cp.protocolo?.title ?? null,
+      studyType: cp.protocolo?.studyType?.name ?? null,
+      investigatorName: cp.protocolo?.principalInvestigator?.fullName ?? null,
+      normativeDeadline: toSafeDate(cp.fechaPlazoNormativo),
+    };
+  }
 
   async saveMeetingWithAtomicNumber(
     params: CreateMeetingParams,
@@ -291,9 +327,9 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
     }));
   }
 
-  async findById(id: string): Promise<MeetingEntity | null> {
+  async findById(id: string): Promise<MeetingDetailEntity | null> {
     const repo = this.dataSource.getRepository(ConvocatoriaOrmEntity);
-    return repo.findOne({
+    const orm = await repo.findOne({
       where: { id },
       relations: [
         'lugar',
@@ -309,10 +345,25 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
         },
       },
     });
+    if (!orm) return null;
+    return {
+      id: orm.id,
+      meetingNumber: orm.numeroConvocatoria,
+      academicYear: orm.anioLectivo ?? null,
+      sessionType: orm.tipoSession,
+      meetingDate: toSafeDate(orm.fechaReunion),
+      evalSubmissionDeadline: toSafeDate(orm.fechaEntregaEvaluacion),
+      status: orm.estado,
+      place: orm.lugar ? this.mapPlace(orm.lugar) : null,
+      protocolCount: orm.convocatoriaProtocolos?.length ?? 0,
+      protocols: (orm.convocatoriaProtocolos ?? []).map((cp) =>
+        this.mapAgendaItem(cp),
+      ),
+    };
   }
 
   async findAll(options?: FindMeetingsOptions): Promise<{
-    items: MeetingEntity[];
+    items: MeetingSummaryEntity[];
     total: number;
     page: number;
     limit: number;
@@ -326,10 +377,7 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       .createQueryBuilder('c')
       .leftJoinAndSelect('c.lugar', 'l')
       .leftJoinAndSelect('c.convocatoriaProtocolos', 'cp')
-      .leftJoinAndSelect('cp.protocolo', 'p')
-      .leftJoinAndSelect('p.studyType', 'st')
-      .leftJoinAndSelect('p.principalInvestigator', 'pi')
-      .orderBy('c.fechaReunion', 'DESC')
+      .orderBy('c.fechaReunion', 'DESC', 'NULLS LAST')
       .skip(skip)
       .take(limit);
 
@@ -337,11 +385,22 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       qb.andWhere('c.estado = :status', { status: options.status });
     }
 
-    const [items, total] = await qb.getManyAndCount();
+    const [orms, total] = await qb.getManyAndCount();
+    const items: MeetingSummaryEntity[] = orms.map((orm) => ({
+      id: orm.id,
+      meetingNumber: orm.numeroConvocatoria,
+      academicYear: orm.anioLectivo ?? null,
+      sessionType: orm.tipoSession,
+      meetingDate: toSafeDate(orm.fechaReunion),
+      evalSubmissionDeadline: toSafeDate(orm.fechaEntregaEvaluacion),
+      status: orm.estado,
+      place: orm.lugar ? this.mapPlace(orm.lugar) : null,
+      protocolCount: orm.convocatoriaProtocolos?.length ?? 0,
+    }));
     return { items, total, page, limit };
   }
 
-  async findPendingProtocols(): Promise<ProtocolOrmEntity[]> {
+  async findPendingProtocols(): Promise<PendingProtocolEntity[]> {
     const protocolRepo = this.dataSource.getRepository(ProtocolOrmEntity);
     const protocols = await protocolRepo
       .createQueryBuilder('p')
@@ -358,13 +417,35 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       )
       .getMany();
 
-    protocols.sort((a, b) => {
-      const deadlineA = a.responseDeadline || a.receptionDate || a.createdAt;
-      const deadlineB = b.responseDeadline || b.receptionDate || b.createdAt;
-      return new Date(deadlineA).getTime() - new Date(deadlineB).getTime();
+    type ProtocolWithVersion = ProtocolOrmEntity & {
+      activeVersion: ProtocolVersionOrmEntity;
+    };
+    const mapped = protocols
+      .filter((p): p is ProtocolWithVersion => p.activeVersion != null)
+      .map((p) => {
+        const deadline = toSafeDate(
+          p.responseDeadline || p.receptionDate || p.createdAt,
+        );
+        return {
+          protocolId: p.id,
+          versionId: p.activeVersion.id,
+          versionNumber: p.activeVersion.versionNumber ?? null,
+          ceishCode: p.ceishCode ?? null,
+          title: p.title ?? null,
+          studyType: p.studyType?.name ?? null,
+          investigatorName: p.principalInvestigator?.fullName ?? null,
+          receptionDate: toSafeDate(p.receptionDate),
+          deadline,
+        };
+      });
+
+    mapped.sort((a, b) => {
+      const ta = a.deadline?.getTime() ?? 0;
+      const tb = b.deadline?.getTime() ?? 0;
+      return ta - tb;
     });
 
-    return protocols;
+    return mapped;
   }
 
   async findAllPlaces(): Promise<LugarOrmEntity[]> {

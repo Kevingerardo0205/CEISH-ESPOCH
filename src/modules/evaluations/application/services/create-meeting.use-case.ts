@@ -16,6 +16,7 @@ import {
 } from './calculate-meeting-dates.service';
 import { MeetingDatesValueObject } from '../../domain/value-objects/meeting-dates.vo';
 import { ENTREGA_EVALUACION_HORA_CORTE } from '../../../../shared/deadlines/deadline-rules';
+import { meetingPdfUrl } from '../../../../shared/utils/meeting-pdf-url.helper';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { IUserRepository } from '../../../auth/domain/ports/user.repository.port';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
@@ -153,7 +154,7 @@ export class CreateMeetingUseCase {
       );
 
     // 7. URL del PDF es determinista; la generación y envío de correos son fire-and-forget
-    const pdfUrl = `/api/evaluations/meetings/${savedMeeting.id}/pdf`;
+    const pdfUrl = meetingPdfUrl(savedMeeting.id);
     void this.notifyMembersAsync(savedMeeting, params);
 
     return {

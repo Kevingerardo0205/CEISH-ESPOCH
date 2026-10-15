@@ -1,4 +1,9 @@
-import { MeetingEntity } from '../entities/meeting.entity';
+import {
+  MeetingEntity,
+  MeetingDetailEntity,
+  MeetingSummaryEntity,
+  PendingProtocolEntity,
+} from '../entities/meeting.entity';
 
 /** Datos mínimos de asignación activa por protocolo-versión para evaluar el plazo de revisión (TSK-002-N05). */
 export interface AssignmentDeadlineSnapshot {
@@ -87,16 +92,16 @@ export interface IMeetingRepositoryPort {
     UnscheduledVersionInfo[]
   >;
 
-  findById(id: string): Promise<MeetingEntity | null>;
+  findById(id: string): Promise<MeetingDetailEntity | null>;
 
   findAll(options?: FindMeetingsOptions): Promise<{
-    items: MeetingEntity[];
+    items: MeetingSummaryEntity[];
     total: number;
     page: number;
     limit: number;
   }>;
 
-  findPendingProtocols(): Promise<unknown[]>;
+  findPendingProtocols(): Promise<PendingProtocolEntity[]>;
 
   findAllPlaces(): Promise<MeetingPlaceItem[]>;
 

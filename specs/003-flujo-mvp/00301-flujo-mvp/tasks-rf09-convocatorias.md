@@ -465,7 +465,7 @@
   4. E2E real-db: COUNT(*) de `evaluacion.convocatorias` idéntico antes y después; `finally` limpia cualquier fila espuria.
 - **Criterio "Hecho cuando:"**: `POST /api/evaluations/meetings` con `followUpReportIds` no vacío responde 400 con código `SEGUIMIENTO_NO_DISPONIBLE` y no persiste nada en BD. `npm test` verde. E2E pendiente de ejecución por el usuario.
 
-### Task TSK-009-N10 - [ ] PENDIENTE
+### Task TSK-009-N10 - [x] MERGEADO (PR-D2, dev f3fdbf9)
 - **ID Único**: `TSK-009-N10`
 - **Requisito Relacionado**: `RF-09.1` (integridad del Orden del Día)
 - **PR**: PR-D2 (`feat/meeting-version-unique`)
@@ -486,3 +486,83 @@
   4. E2E real-db (TEST-N10-01): `POST /api/evaluations/meetings` con `protocolVersionIds: [991, 991]` → 400 `VERSIONES_DUPLICADAS`; COUNT(*) de `evaluacion.convocatorias` idéntico antes y después.
   5. E2E real-db (TEST-N10-02): inserción directa de dos filas con el mismo `(convocatoria_id, version_id)` en `evaluacion.convocatoria_protocolos` → error PostgreSQL código `23505`. **REQUIERE migración 1851 aplicada en `ceish_test_db` antes de ejecutar**.
 - **Criterio "Hecho cuando:"**: Guard rechaza 400 con `VERSIONES_DUPLICADAS` antes de tocar BD; migración 1851 crea el UNIQUE idempotentemente en ambas bases; `npm test` verde; E2E pendiente de ejecución por el usuario.
+
+---
+
+### Task TSK-009-N11 - [x] COMPLETADA
+- **ID Único**: `TSK-009-N11`
+- **Requisito Relacionado**: `RF-09.1` (contrato estable de la API de convocatorias)
+- **PR**: PR-M1 (`feat/meeting-stable-contract`)
+- **Criterio EARS**: DTOs de respuesta estables para GET /meetings, GET /meetings/:id, GET /meetings/pending-protocols. Sin fuga de ORM ni PII. Swagger documentado.
+- **Acción**: `CREAR` (DTOs, mappers, helper) / `MODIFICAR` (entidad de dominio, port, repositorio, controller, tests)
+- **Archivos Afectados**:
+  - `src/modules/evaluations/application/dtos/response/meeting-summary.dto.ts` (CREAR)
+  - `src/modules/evaluations/application/dtos/response/meeting-detail.dto.ts` (CREAR)
+  - `src/modules/evaluations/application/dtos/response/pending-protocol.dto.ts` (CREAR)
+  - `src/modules/evaluations/application/mappers/meeting.mapper.ts` (CREAR)
+  - `src/modules/evaluations/application/mappers/meeting.mapper.spec.ts` (CREAR)
+  - `src/shared/utils/meeting-pdf-url.helper.ts` (CREAR)
+  - `src/modules/evaluations/domain/entities/meeting.entity.ts` (MODIFICAR — añadir MeetingDetailEntity, AgendaProtocolItem, PendingProtocolItem)
+  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts` (MODIFICAR — tipos honestos en findById/findAll/findPendingProtocols)
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` (MODIFICAR — mapeo ORM→dominio)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` (MODIFICAR — usar mappers, @ApiOkResponse)
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR — helper PDF URL)
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR — helper PDF URL)
+  - `src/shared/utils/to-safe-date.util.ts` (CREAR — normaliza `Date|string|null → Date|null`)
+  - `src/shared/utils/to-safe-date.util.spec.ts` (CREAR — 7 tests)
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.spec.ts` (CREAR — tolerancia a fechas string del ORM)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` (MODIFICAR — nuevo contrato)
+  - `test/meetings.e2e-spec.ts` (MODIFICAR — nuevo contrato)
+  - `test/evaluations-contract.e2e-spec.ts` (MODIFICAR — mocks con MeetingDetailModel / MeetingSummaryModel)
+  - `test/real-db-evaluations.e2e-spec.ts` (MODIFICAR — TEST-M1-01, TEST-M1-02, TEST-M1-03)
+- **Dependencias**: `TSK-009-N10`
+- **Descripción**:
+  1. Crear `MeetingSummaryDto`, `MeetingDetailDto`, `PendingProtocolDto` en `application/dtos/response/`.
+  2. Crear `meeting.mapper.ts` con funciones puras `toSummary()`, `toDetail()`, `toPendingProtocol()`.
+  3. Extraer helper `meetingPdfUrl(id: string): string` en `shared/utils/`, reemplazando las dos fuentes actuales.
+  4. Ampliar `meeting.entity.ts` con `MeetingDetailEntity`, `AgendaProtocolItem`, `PendingProtocolItem`.
+  5. Hacer honestos los tipos de `findById`, `findAll`, `findPendingProtocols` en el port.
+  6. Mapear ORM→dominio en `findById`, `findAll`, `findPendingProtocols` del repositorio TypeORM.
+  7. Quitar joins innecesarios de `findAll` (solo `lugar` y count de protocolos).
+  8. Actualizar `getMeeting`, `getMeetings`, `getPendingProtocols` en el controller para usar los mappers.
+  9. Documentar con `@ApiOkResponse` en Swagger.
+  10. Actualizar `meetings.controller.spec.ts` y `test/meetings.e2e-spec.ts`.
+- **Tests**:
+  1. Unit mapper: detalle completo; place null; protocols vacíos; investigador null; fechas ISO; exactitud de claves.
+  2. Unit mapper pending: `protocolId ≠ versionId`; email no aparece en respuesta.
+  3. Controller spec: actualizado para el nuevo contrato.
+  4. E2E meetings: `GET /meetings` → `data[]` con campos ingleses; `GET /meetings/:id` → `data.meetingNumber`; `GET /pending-protocols` → `data[]` con `protocolId`, `versionId`.
+- **Criterio "Hecho cuando:"**: `npx tsc --noEmit` limpio; `npm test` verde (≥257 tests); E2E meetings verde; ningún campo ORM ni PII (email/teléfono) en respuestas; `agendaPdfUrl` generado por helper único.
+
+**Contrato final de los 3 endpoints (Ronda 3):**
+
+Raíz del 500 original: `meetingDate` y `evalSubmissionDeadline` son nullable en el ORM; el repositorio no asume no-nulos — `toSafeDate()` normaliza `Date|string|null → Date|null` antes de serializar.
+
+- `GET /api/evaluations/meetings` → `{ statusCode, message, data: MeetingSummaryDto[], meta: { total, page, limit } }`. Campos `meetingDate` y `evalSubmissionDeadline`: `string | null` (ISO 8601). Campo adicional `agendaPdfUrl: string` en cada elemento. Orden: `fechaReunion` descendente, NULLS LAST.
+- `GET /api/evaluations/meetings/:id` → `{ statusCode, message, data: MeetingDetailDto }`. Incluye `protocols: AgendaProtocolDto[]` ordenados por `order` ASC. `normativeDeadline: string | null`. `protocolId` y `versionId` son `number | null` (ítems de seguimiento pueden tener ambos nulos).
+- `GET /api/evaluations/meetings/pending-protocols` → `{ statusCode, message, data: PendingProtocolDto[] }`. Campos `receptionDate` y `deadline`: `string | null`. `protocolId ≠ versionId` (son IDs distintos de tablas distintas).
+- Ningún campo de ORM ni PII (email, teléfono) aparece en ninguna respuesta.
+- `meetingDate` y `evalSubmissionDeadline` son nullable (timestamptz NULL en BD); en ceish_test_db 1 de 65 convocatorias (`000-2026`) las tiene en NULL. La lista ordena `fechaReunion` descendente con NULLS LAST.
+
+Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suites ✓ — `npx tsc --noEmit` limpio ✓.
+
+---
+
+### Task TSK-009-N12 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N12`
+- **Requisito Relacionado**: `RF-09.1` (integridad del adapter de PDF)
+- **PR**: PR-X2 (pendiente)
+- **Criterio EARS**: `generateAgendaPdf` no reinserta una convocatoria borrada entre el `findOne` y la escritura del campo `ordenDiaPdfPath`.
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR — reemplazar `save(meeting)` por `update(id, { ordenDiaPdfPath })` parcial)
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.spec.ts` (MODIFICAR — test que borra la convocatoria entre `findOne` y la escritura)
+- **Dependencias**: `TSK-009-N11`
+- **Descripción**:
+  En `meeting-pdf-generator.adapter.ts:24-27` se carga la entidad con `findOne`; en las líneas 82-83 se asigna `meeting.ordenDiaPdfPath = relativeUrl` y se persiste con `convocatoriaRepo.save(meeting)`. TypeORM `save()` con un entity que tiene `id` definido intenta `UPDATE`; si la fila fue borrada entre el `findOne` y el `save` (ventana de carrera con `notifyMembersAsync` fire-and-forget en `create-meeting.use-case.ts:158`), TypeORM hace `INSERT` y **reinserta la fila borrada**.
+  Fix: reemplazar `convocatoriaRepo.save(meeting)` por `convocatoriaRepo.update(meeting.id, { ordenDiaPdfPath: relativeUrl })`. El método `update()` emite solo un `UPDATE ... WHERE id = $1` sin `INSERT` de respaldo; si la fila no existe, el comando no afecta ninguna fila (no lanza ni reinserta).
+  Test a añadir: spy sobre `convocatoriaRepo.delete` o `convocatoriaRepo.remove` — borra la fila entre `findOne` y la escritura y verifica que la fila sigue sin existir después del `update`.
+- **Tests**:
+  1. Unit: mock de `convocatoriaRepo.findOne` que devuelve la entidad, luego `delete` que borra la fila, luego verificación de que `convocatoriaRepo.update` fue llamado con `(id, { ordenDiaPdfPath })` y NO con `save`.
+  2. Unit negativo: si `findOne` retorna `null`, el adapter lanza `NotFoundException` (comportamiento existente, sin cambio).
+- **Criterio "Hecho cuando:"**: `convocatoriaRepo.update` reemplaza a `convocatoriaRepo.save` en el adapter; test unitario que simula la carrera pasa; `npx tsc --noEmit` limpio; `npm test` verde.

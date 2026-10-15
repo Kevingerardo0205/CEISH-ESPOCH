@@ -22,7 +22,16 @@ import {
   ApiBearerAuth,
   ApiOperation,
   ApiQuery,
+  ApiOkResponse,
 } from '@nestjs/swagger';
+import { MeetingDetailResponseDto } from '../../application/dtos/response/meeting-detail.dto';
+import { MeetingListResponseDto } from '../../application/dtos/response/meeting-summary.dto';
+import { PendingProtocolListResponseDto } from '../../application/dtos/response/pending-protocol.dto';
+import {
+  toDetail,
+  toSummary,
+  toPendingProtocol,
+} from '../../application/mappers/meeting.mapper';
 import * as fs from 'fs';
 import * as path from 'path';
 import { CreateMeetingUseCase } from '../../application/services/create-meeting.use-case';
@@ -144,8 +153,14 @@ export class MeetingsController {
     summary:
       'Obtener listado de protocolos pendientes y priorizados para agendar a Pleno',
   })
+  @ApiOkResponse({ type: PendingProtocolListResponseDto })
   async getPendingProtocols() {
-    return this.meetingRepository.findPendingProtocols();
+    const models = await this.meetingRepository.findPendingProtocols();
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Protocolos pendientes obtenidos exitosamente',
+      data: models.map(toPendingProtocol),
+    };
   }
 
   // ==========================================
@@ -162,10 +177,13 @@ export class MeetingsController {
   )
   @ApiOperation({
     summary: 'Listar convocatorias con paginación y filtro por estado',
+    description:
+      'Orden: fechaReunion descendente; las convocatorias sin fecha van al final (NULLS LAST).',
   })
   @ApiQuery({ name: 'page', required: false, type: Number })
   @ApiQuery({ name: 'limit', required: false, type: Number })
   @ApiQuery({ name: 'status', required: false, type: String })
+  @ApiOkResponse({ type: MeetingListResponseDto })
   async getMeetings(
     @Query('page') page?: number,
     @Query('limit') limit?: number,
@@ -179,7 +197,7 @@ export class MeetingsController {
     return {
       statusCode: HttpStatus.OK,
       message: 'Convocatorias obtenidas exitosamente',
-      data: result.items,
+      data: result.items.map(toSummary),
       meta: {
         total: result.total,
         page: result.page,
@@ -257,6 +275,7 @@ export class MeetingsController {
   @ApiOperation({
     summary: 'Obtener detalle estructurado de una convocatoria por ID',
   })
+  @ApiOkResponse({ type: MeetingDetailResponseDto })
   async getMeeting(@Param('id', ParseUUIDPipe) id: string) {
     const meeting = await this.meetingRepository.findById(id);
     if (!meeting) {
@@ -266,7 +285,7 @@ export class MeetingsController {
     return {
       statusCode: HttpStatus.OK,
       message: 'Convocatoria obtenida exitosamente',
-      data: meeting,
+      data: toDetail(meeting),
     };
   }
 
@@ -291,7 +310,7 @@ export class MeetingsController {
     }
 
     const uploadDir = path.resolve(process.cwd(), 'uploads', 'convocatorias');
-    const fileName = `convocatoria-${meeting.numeroConvocatoria || id}-orden-del-dia.pdf`;
+    const fileName = `convocatoria-${meeting.meetingNumber || id}-orden-del-dia.pdf`;
     const filePath = path.join(uploadDir, fileName);
 
     let pdfBuffer: Buffer;
