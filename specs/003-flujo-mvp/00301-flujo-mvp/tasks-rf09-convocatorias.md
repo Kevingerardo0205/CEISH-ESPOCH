@@ -603,3 +603,12 @@ Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suit
   2. Unit controller: 8 tests (GET list + filtro + sin ORM leak, GET by id + 404, POST 201, PATCH, DELETE).
   3. E2E TEST-M2 (real-db): 8 tests (POST, GET list, GET/:id, soft-delete + includeInactive + GET/:id inactivo, PATCH, nombre alternativo, includeInactive=invalido→400, baseline).
 - **Criterio "Hecho cuando:"**: `npx tsc --noEmit` limpio; `npm test` verde (303/303); contrato de places documentado.
+
+### Task TSK-009-N15 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N15`
+- **Requisito Relacionado**: `RF-09.1` (alias legacy en DTOs de places)
+- **Descripción**:
+  `CreatePlaceDto/UpdatePlaceDto` declaran `@Transform` en el campo `name` para leer `obj.nombre` cuando `name` no viene en el body. Sin embargo, en class-transformer 0.5.1 el `@Transform` no se ejecuta si la clave decorada (`name`) está ausente del objeto plano de entrada. Consecuencia: `POST /meetings/places` con solo `{ nombre: 'X' }` devuelve 400 (falló `@IsNotEmpty()` en `name`), a pesar de que el `@Transform` debería cubrir ese caso. Verificado con `plainToInstance + validate`: solo `{ nombre: X }` → `name: undefined, errors: [name:isNotEmpty,isString]`; solo `{ name: X }` → NONE.
+  Decidir: (a) corregir los alias usando `@Transform` en el campo `nombre` para poblarlo desde `name` cuando el cliente envía la clave canónica, o usar un DTO separado de entrada; (b) eliminar los alias legacy para simplificar el contrato y documentar que solo se aceptan las claves canónicas (`name`, `location`, `isVirtual`, etc.). No implementar sin decisión explícita.
+- **Archivos Afectados**: `src/modules/evaluations/application/dtos/create-place.dto.ts` (MODIFICAR)
+- **Dependencias**: `TSK-009-N13`
