@@ -38,16 +38,11 @@ import {
   ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION,
   ENTREGA_EVALUACION_HORA_CORTE,
 } from '../../../../shared/deadlines/deadline-rules';
+import { toSafeDate } from '../../../../shared/utils/to-safe-date.util';
 
 @Injectable()
 export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
   constructor(private readonly dataSource: DataSource) {}
-
-  /** Normaliza Date|string|null→Date|null; cubre el caso en que pg/TypeORM entrega string. */
-  private toSafeDate(v: Date | string | null | undefined): Date | null {
-    if (v == null) return null;
-    return v instanceof Date ? v : new Date(v);
-  }
 
   /** Fuente única para mapear LugarOrmEntity→MeetingPlaceModel. */
   private mapPlace(lugar: LugarOrmEntity): MeetingPlaceModel {
@@ -73,7 +68,7 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       title: cp.protocolo?.title ?? null,
       studyType: cp.protocolo?.studyType?.name ?? null,
       investigatorName: cp.protocolo?.principalInvestigator?.fullName ?? null,
-      normativeDeadline: this.toSafeDate(cp.fechaPlazoNormativo),
+      normativeDeadline: toSafeDate(cp.fechaPlazoNormativo),
     };
   }
 
@@ -356,8 +351,8 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       meetingNumber: orm.numeroConvocatoria,
       academicYear: orm.anioLectivo ?? null,
       sessionType: orm.tipoSession,
-      meetingDate: this.toSafeDate(orm.fechaReunion),
-      evalSubmissionDeadline: this.toSafeDate(orm.fechaEntregaEvaluacion),
+      meetingDate: toSafeDate(orm.fechaReunion),
+      evalSubmissionDeadline: toSafeDate(orm.fechaEntregaEvaluacion),
       status: orm.estado,
       place: orm.lugar ? this.mapPlace(orm.lugar) : null,
       protocolCount: orm.convocatoriaProtocolos?.length ?? 0,
@@ -396,8 +391,8 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       meetingNumber: orm.numeroConvocatoria,
       academicYear: orm.anioLectivo ?? null,
       sessionType: orm.tipoSession,
-      meetingDate: this.toSafeDate(orm.fechaReunion),
-      evalSubmissionDeadline: this.toSafeDate(orm.fechaEntregaEvaluacion),
+      meetingDate: toSafeDate(orm.fechaReunion),
+      evalSubmissionDeadline: toSafeDate(orm.fechaEntregaEvaluacion),
       status: orm.estado,
       place: orm.lugar ? this.mapPlace(orm.lugar) : null,
       protocolCount: orm.convocatoriaProtocolos?.length ?? 0,
@@ -422,21 +417,24 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       )
       .getMany();
 
+    type ProtocolWithVersion = ProtocolOrmEntity & {
+      activeVersion: ProtocolVersionOrmEntity;
+    };
     const mapped = protocols
-      .filter((p) => p.activeVersion != null)
+      .filter((p): p is ProtocolWithVersion => p.activeVersion != null)
       .map((p) => {
-        const deadline = this.toSafeDate(
+        const deadline = toSafeDate(
           p.responseDeadline || p.receptionDate || p.createdAt,
         );
         return {
           protocolId: p.id,
-          versionId: p.activeVersion!.id,
-          versionNumber: p.activeVersion!.versionNumber ?? null,
+          versionId: p.activeVersion.id,
+          versionNumber: p.activeVersion.versionNumber ?? null,
           ceishCode: p.ceishCode ?? null,
           title: p.title ?? null,
           studyType: p.studyType?.name ?? null,
           investigatorName: p.principalInvestigator?.fullName ?? null,
-          receptionDate: this.toSafeDate(p.receptionDate),
+          receptionDate: toSafeDate(p.receptionDate),
           deadline,
         };
       });

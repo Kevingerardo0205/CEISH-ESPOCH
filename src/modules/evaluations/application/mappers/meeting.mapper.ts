@@ -44,7 +44,9 @@ export function toSummary(model: MeetingSummaryModel): MeetingSummaryDto {
 export function toDetail(model: MeetingDetailModel): MeetingDetailDto {
   return {
     ...toSummary(model),
-    protocols: model.protocols.map(toAgendaItem),
+    protocols: [...model.protocols]
+      .sort((a, b) => a.order - b.order)
+      .map(toAgendaItem),
   };
 }
 
@@ -62,9 +64,4 @@ export function toPendingProtocol(
     receptionDate: model.receptionDate?.toISOString() ?? null,
     deadline: model.deadline?.toISOString() ?? null,
   };
-}
-
-/** Extrae el deadline de un PendingProtocolModel (ya calculado en repositorio). */
-export function pendingDeadline(p: PendingProtocolModel): Date | null {
-  return p.deadline;
 }
