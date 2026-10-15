@@ -17,8 +17,9 @@ import {
   MeetingDetailEntity,
   MeetingSummaryEntity,
   PendingProtocolEntity,
+  MeetingPlaceModel,
+  AgendaProtocolModel,
 } from '../../domain/entities/meeting.entity';
-import { meetingPdfUrl } from '../../../../shared/utils/meeting-pdf-url.helper';
 import {
   ConvocatoriaOrmEntity,
   SessionType,
@@ -41,6 +42,40 @@ import {
 @Injectable()
 export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
   constructor(private readonly dataSource: DataSource) {}
+
+  /** Normaliza Date|string|null→Date|null; cubre el caso en que pg/TypeORM entrega string. */
+  private toSafeDate(v: Date | string | null | undefined): Date | null {
+    if (v == null) return null;
+    return v instanceof Date ? v : new Date(v);
+  }
+
+  /** Fuente única para mapear LugarOrmEntity→MeetingPlaceModel. */
+  private mapPlace(lugar: LugarOrmEntity): MeetingPlaceModel {
+    return {
+      id: lugar.id,
+      name: lugar.nombre,
+      address: lugar.direccion ?? null,
+      isVirtual: lugar.esVirtual,
+      meetingLink: lugar.enlaceReunion ?? null,
+    };
+  }
+
+  /** Fuente única para mapear ConvocatoriaProtocoloOrmEntity→AgendaProtocolModel. */
+  private mapAgendaItem(
+    cp: ConvocatoriaProtocoloOrmEntity,
+  ): AgendaProtocolModel {
+    return {
+      order: cp.orden,
+      protocolId: cp.protocoloId ?? null,
+      versionId: cp.versionId ?? null,
+      versionNumber: cp.version?.versionNumber ?? null,
+      ceishCode: cp.protocolo?.ceishCode ?? null,
+      title: cp.protocolo?.title ?? null,
+      studyType: cp.protocolo?.studyType?.name ?? null,
+      investigatorName: cp.protocolo?.principalInvestigator?.fullName ?? null,
+      normativeDeadline: this.toSafeDate(cp.fechaPlazoNormativo),
+    };
+  }
 
   async saveMeetingWithAtomicNumber(
     params: CreateMeetingParams,
@@ -321,34 +356,14 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       meetingNumber: orm.numeroConvocatoria,
       academicYear: orm.anioLectivo ?? null,
       sessionType: orm.tipoSession,
-      meetingDate: orm.fechaReunion.toISOString(),
-      evalSubmissionDeadline: orm.fechaEntregaEvaluacion.toISOString(),
+      meetingDate: this.toSafeDate(orm.fechaReunion),
+      evalSubmissionDeadline: this.toSafeDate(orm.fechaEntregaEvaluacion),
       status: orm.estado,
-      place: orm.lugar
-        ? {
-            id: orm.lugar.id,
-            name: orm.lugar.nombre,
-            address: orm.lugar.direccion ?? null,
-            isVirtual: orm.lugar.esVirtual,
-            meetingLink: orm.lugar.enlaceReunion ?? null,
-          }
-        : null,
-      agendaPdfUrl: meetingPdfUrl(orm.id),
+      place: orm.lugar ? this.mapPlace(orm.lugar) : null,
       protocolCount: orm.convocatoriaProtocolos?.length ?? 0,
-      protocols: (orm.convocatoriaProtocolos ?? []).map((cp) => ({
-        order: cp.orden,
-        protocolId: cp.protocoloId ?? 0,
-        versionId: cp.versionId ?? 0,
-        versionNumber: cp.version?.versionNumber ?? null,
-        ceishCode: cp.protocolo?.ceishCode ?? null,
-        title: cp.protocolo?.title ?? null,
-        studyType: cp.protocolo?.studyType?.name ?? null,
-        investigatorName:
-          cp.protocolo?.principalInvestigator?.fullName ?? null,
-        normativeDeadline: cp.fechaPlazoNormativo
-          ? cp.fechaPlazoNormativo.toISOString()
-          : null,
-      })),
+      protocols: (orm.convocatoriaProtocolos ?? []).map((cp) =>
+        this.mapAgendaItem(cp),
+      ),
     };
   }
 
@@ -381,19 +396,10 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       meetingNumber: orm.numeroConvocatoria,
       academicYear: orm.anioLectivo ?? null,
       sessionType: orm.tipoSession,
-      meetingDate: orm.fechaReunion.toISOString(),
-      evalSubmissionDeadline: orm.fechaEntregaEvaluacion.toISOString(),
+      meetingDate: this.toSafeDate(orm.fechaReunion),
+      evalSubmissionDeadline: this.toSafeDate(orm.fechaEntregaEvaluacion),
       status: orm.estado,
-      place: orm.lugar
-        ? {
-            id: orm.lugar.id,
-            name: orm.lugar.nombre,
-            address: orm.lugar.direccion ?? null,
-            isVirtual: orm.lugar.esVirtual,
-            meetingLink: orm.lugar.enlaceReunion ?? null,
-          }
-        : null,
-      agendaPdfUrl: meetingPdfUrl(orm.id),
+      place: orm.lugar ? this.mapPlace(orm.lugar) : null,
       protocolCount: orm.convocatoriaProtocolos?.length ?? 0,
     }));
     return { items, total, page, limit };
@@ -416,27 +422,32 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       )
       .getMany();
 
-    protocols.sort((a, b) => {
-      const deadlineA = a.responseDeadline || a.receptionDate || a.createdAt;
-      const deadlineB = b.responseDeadline || b.receptionDate || b.createdAt;
-      return new Date(deadlineA).getTime() - new Date(deadlineB).getTime();
+    const mapped = protocols
+      .filter((p) => p.activeVersion != null)
+      .map((p) => {
+        const deadline = this.toSafeDate(
+          p.responseDeadline || p.receptionDate || p.createdAt,
+        );
+        return {
+          protocolId: p.id,
+          versionId: p.activeVersion!.id,
+          versionNumber: p.activeVersion!.versionNumber ?? null,
+          ceishCode: p.ceishCode ?? null,
+          title: p.title ?? null,
+          studyType: p.studyType?.name ?? null,
+          investigatorName: p.principalInvestigator?.fullName ?? null,
+          receptionDate: this.toSafeDate(p.receptionDate),
+          deadline,
+        };
+      });
+
+    mapped.sort((a, b) => {
+      const ta = a.deadline?.getTime() ?? 0;
+      const tb = b.deadline?.getTime() ?? 0;
+      return ta - tb;
     });
 
-    return protocols.map((p) => {
-      const deadline =
-        p.responseDeadline || p.receptionDate || p.createdAt;
-      return {
-        protocolId: p.id,
-        versionId: p.activeVersion?.id ?? 0,
-        versionNumber: p.activeVersion?.versionNumber ?? null,
-        ceishCode: p.ceishCode ?? null,
-        title: p.title ?? null,
-        studyType: p.studyType?.name ?? null,
-        investigatorName: p.principalInvestigator?.fullName ?? null,
-        receptionDate: p.receptionDate ? p.receptionDate.toISOString() : null,
-        deadline: deadline ? new Date(deadline).toISOString() : null,
-      };
-    });
+    return mapped;
   }
 
   async findAllPlaces(): Promise<LugarOrmEntity[]> {

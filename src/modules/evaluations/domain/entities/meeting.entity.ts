@@ -1,3 +1,4 @@
+/** Entidad ligera devuelta por saveMeetingWithAtomicNumber. */
 export interface MeetingEntity {
   id: string;
   numeroConvocatoria: string;
@@ -12,61 +13,82 @@ export interface MeetingEntity {
   updatedAt?: Date;
 }
 
-export interface MeetingPlaceDetail {
+/** Detalle del lugar de una convocatoria (modelo de dominio, sin PII). */
+export interface MeetingPlaceModel {
   id: string;
   name: string;
-  address?: string | null;
+  address: string | null;
   isVirtual: boolean;
-  meetingLink?: string | null;
+  meetingLink: string | null;
 }
 
-export interface AgendaProtocolItem {
+/**
+ * Ítem del Orden del Día en el detalle de convocatoria.
+ * protocolId y versionId son null mientras PR-F1 no esté mergeado
+ * (los ítems de seguimiento no tienen protocolo/versión).
+ */
+export interface AgendaProtocolModel {
   order: number;
-  protocolId: number;
-  versionId: number;
-  versionNumber?: number | null;
-  ceishCode?: string | null;
-  title?: string | null;
-  studyType?: string | null;
-  investigatorName?: string | null;
-  normativeDeadline?: string | null;
+  protocolId: number | null;
+  versionId: number | null;
+  versionNumber: number | null;
+  ceishCode: string | null;
+  title: string | null;
+  studyType: string | null;
+  investigatorName: string | null;
+  normativeDeadline: Date | null;
 }
 
-export interface MeetingDetailEntity {
+/**
+ * Modelo de lectura completo para GET /meetings/:id.
+ * El repositorio devuelve Date; el mapper genera ISO strings y agendaPdfUrl.
+ */
+export interface MeetingDetailModel {
   id: string;
   meetingNumber: string;
-  academicYear?: number | null;
+  academicYear: number | null;
   sessionType: string;
-  meetingDate: string;
-  evalSubmissionDeadline: string;
+  meetingDate: Date | null;
+  evalSubmissionDeadline: Date | null;
   status: string;
-  place?: MeetingPlaceDetail | null;
-  agendaPdfUrl: string;
+  place: MeetingPlaceModel | null;
   protocolCount: number;
-  protocols: AgendaProtocolItem[];
+  protocols: AgendaProtocolModel[];
 }
 
-export interface MeetingSummaryEntity {
+/**
+ * Modelo de lectura para GET /meetings (lista).
+ * El repositorio devuelve Date; el mapper genera ISO strings y agendaPdfUrl.
+ */
+export interface MeetingSummaryModel {
   id: string;
   meetingNumber: string;
-  academicYear?: number | null;
+  academicYear: number | null;
   sessionType: string;
-  meetingDate: string;
-  evalSubmissionDeadline: string;
+  meetingDate: Date | null;
+  evalSubmissionDeadline: Date | null;
   status: string;
-  place?: MeetingPlaceDetail | null;
-  agendaPdfUrl: string;
+  place: MeetingPlaceModel | null;
   protocolCount: number;
 }
 
-export interface PendingProtocolEntity {
+/**
+ * Modelo de lectura para GET /meetings/pending-protocols.
+ * El repositorio devuelve Date; el mapper genera ISO strings.
+ */
+export interface PendingProtocolModel {
   protocolId: number;
   versionId: number;
-  versionNumber?: number | null;
-  ceishCode?: string | null;
-  title?: string | null;
-  studyType?: string | null;
-  investigatorName?: string | null;
-  receptionDate?: string | null;
-  deadline?: string | null;
+  versionNumber: number | null;
+  ceishCode: string | null;
+  title: string | null;
+  studyType: string | null;
+  investigatorName: string | null;
+  receptionDate: Date | null;
+  deadline: Date | null;
 }
+
+/** Aliases para compatibilidad con la convención "Entity" del port. */
+export type MeetingDetailEntity = MeetingDetailModel;
+export type MeetingSummaryEntity = MeetingSummaryModel;
+export type PendingProtocolEntity = PendingProtocolModel;
