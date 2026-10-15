@@ -465,7 +465,7 @@
   4. E2E real-db: COUNT(*) de `evaluacion.convocatorias` idéntico antes y después; `finally` limpia cualquier fila espuria.
 - **Criterio "Hecho cuando:"**: `POST /api/evaluations/meetings` con `followUpReportIds` no vacío responde 400 con código `SEGUIMIENTO_NO_DISPONIBLE` y no persiste nada en BD. `npm test` verde. E2E pendiente de ejecución por el usuario.
 
-### Task TSK-009-N10 - [ ] PENDIENTE
+### Task TSK-009-N10 - [x] MERGEADO (PR-D2, dev f3fdbf9)
 - **ID Único**: `TSK-009-N10`
 - **Requisito Relacionado**: `RF-09.1` (integridad del Orden del Día)
 - **PR**: PR-D2 (`feat/meeting-version-unique`)
@@ -486,3 +486,45 @@
   4. E2E real-db (TEST-N10-01): `POST /api/evaluations/meetings` con `protocolVersionIds: [991, 991]` → 400 `VERSIONES_DUPLICADAS`; COUNT(*) de `evaluacion.convocatorias` idéntico antes y después.
   5. E2E real-db (TEST-N10-02): inserción directa de dos filas con el mismo `(convocatoria_id, version_id)` en `evaluacion.convocatoria_protocolos` → error PostgreSQL código `23505`. **REQUIERE migración 1851 aplicada en `ceish_test_db` antes de ejecutar**.
 - **Criterio "Hecho cuando:"**: Guard rechaza 400 con `VERSIONES_DUPLICADAS` antes de tocar BD; migración 1851 crea el UNIQUE idempotentemente en ambas bases; `npm test` verde; E2E pendiente de ejecución por el usuario.
+
+---
+
+### Task TSK-009-N11 - [ ] EN CURSO
+- **ID Único**: `TSK-009-N11`
+- **Requisito Relacionado**: `RF-09.1` (contrato estable de la API de convocatorias)
+- **PR**: PR-M1 (`feat/meeting-stable-contract`)
+- **Criterio EARS**: DTOs de respuesta estables para GET /meetings, GET /meetings/:id, GET /meetings/pending-protocols. Sin fuga de ORM ni PII. Swagger documentado.
+- **Acción**: `CREAR` (DTOs, mappers, helper) / `MODIFICAR` (entidad de dominio, port, repositorio, controller, tests)
+- **Archivos Afectados**:
+  - `src/modules/evaluations/application/dtos/response/meeting-summary.dto.ts` (CREAR)
+  - `src/modules/evaluations/application/dtos/response/meeting-detail.dto.ts` (CREAR)
+  - `src/modules/evaluations/application/dtos/response/pending-protocol.dto.ts` (CREAR)
+  - `src/modules/evaluations/application/mappers/meeting.mapper.ts` (CREAR)
+  - `src/modules/evaluations/application/mappers/meeting.mapper.spec.ts` (CREAR)
+  - `src/shared/utils/meeting-pdf-url.helper.ts` (CREAR)
+  - `src/modules/evaluations/domain/entities/meeting.entity.ts` (MODIFICAR — añadir MeetingDetailEntity, AgendaProtocolItem, PendingProtocolItem)
+  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts` (MODIFICAR — tipos honestos en findById/findAll/findPendingProtocols)
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` (MODIFICAR — mapeo ORM→dominio)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` (MODIFICAR — usar mappers, @ApiOkResponse)
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR — helper PDF URL)
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR — helper PDF URL)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` (MODIFICAR — nuevo contrato)
+  - `test/meetings.e2e-spec.ts` (MODIFICAR — nuevo contrato)
+- **Dependencias**: `TSK-009-N10`
+- **Descripción**:
+  1. Crear `MeetingSummaryDto`, `MeetingDetailDto`, `PendingProtocolDto` en `application/dtos/response/`.
+  2. Crear `meeting.mapper.ts` con funciones puras `toSummary()`, `toDetail()`, `toPendingProtocol()`, `pendingDeadline()`.
+  3. Extraer helper `meetingPdfUrl(id: string): string` en `shared/utils/`, reemplazando las dos fuentes actuales.
+  4. Ampliar `meeting.entity.ts` con `MeetingDetailEntity`, `AgendaProtocolItem`, `PendingProtocolItem`.
+  5. Hacer honestos los tipos de `findById`, `findAll`, `findPendingProtocols` en el port.
+  6. Mapear ORM→dominio en `findById`, `findAll`, `findPendingProtocols` del repositorio TypeORM.
+  7. Quitar joins innecesarios de `findAll` (solo `lugar` y count de protocolos).
+  8. Actualizar `getMeeting`, `getMeetings`, `getPendingProtocols` en el controller para usar los mappers.
+  9. Documentar con `@ApiOkResponse` en Swagger.
+  10. Actualizar `meetings.controller.spec.ts` y `test/meetings.e2e-spec.ts`.
+- **Tests**:
+  1. Unit mapper: detalle completo; place null; protocols vacíos; investigador null; fechas ISO; exactitud de claves.
+  2. Unit mapper pending: `protocolId ≠ versionId`; email no aparece en respuesta.
+  3. Controller spec: actualizado para el nuevo contrato.
+  4. E2E meetings: `GET /meetings` → `data[]` con campos ingleses; `GET /meetings/:id` → `data.meetingNumber`; `GET /pending-protocols` → `data[]` con `protocolId`, `versionId`.
+- **Criterio "Hecho cuando:"**: `npx tsc --noEmit` limpio; `npm test` verde (≥257 tests); E2E meetings verde; ningún campo ORM ni PII (email/teléfono) en respuestas; `agendaPdfUrl` generado por helper único.
