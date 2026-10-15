@@ -545,3 +545,24 @@ Raíz del 500 original: `meetingDate` y `evalSubmissionDeadline` son nullable en
 - `meetingDate` y `evalSubmissionDeadline` son nullable (timestamptz NULL en BD); en ceish_test_db 1 de 65 convocatorias (`000-2026`) las tiene en NULL. La lista ordena `fechaReunion` descendente con NULLS LAST.
 
 Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suites ✓ — `npx tsc --noEmit` limpio ✓.
+
+---
+
+### Task TSK-009-N12 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N12`
+- **Requisito Relacionado**: `RF-09.1` (integridad del adapter de PDF)
+- **PR**: PR-X2 (pendiente)
+- **Criterio EARS**: `generateAgendaPdf` no reinserta una convocatoria borrada entre el `findOne` y la escritura del campo `ordenDiaPdfPath`.
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR — reemplazar `save(meeting)` por `update(id, { ordenDiaPdfPath })` parcial)
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.spec.ts` (MODIFICAR — test que borra la convocatoria entre `findOne` y la escritura)
+- **Dependencias**: `TSK-009-N11`
+- **Descripción**:
+  En `meeting-pdf-generator.adapter.ts:24-27` se carga la entidad con `findOne`; en las líneas 82-83 se asigna `meeting.ordenDiaPdfPath = relativeUrl` y se persiste con `convocatoriaRepo.save(meeting)`. TypeORM `save()` con un entity que tiene `id` definido intenta `UPDATE`; si la fila fue borrada entre el `findOne` y el `save` (ventana de carrera con `notifyMembersAsync` fire-and-forget en `create-meeting.use-case.ts:158`), TypeORM hace `INSERT` y **reinserta la fila borrada**.
+  Fix: reemplazar `convocatoriaRepo.save(meeting)` por `convocatoriaRepo.update(meeting.id, { ordenDiaPdfPath: relativeUrl })`. El método `update()` emite solo un `UPDATE ... WHERE id = $1` sin `INSERT` de respaldo; si la fila no existe, el comando no afecta ninguna fila (no lanza ni reinserta).
+  Test a añadir: spy sobre `convocatoriaRepo.delete` o `convocatoriaRepo.remove` — borra la fila entre `findOne` y la escritura y verifica que la fila sigue sin existir después del `update`.
+- **Tests**:
+  1. Unit: mock de `convocatoriaRepo.findOne` que devuelve la entidad, luego `delete` que borra la fila, luego verificación de que `convocatoriaRepo.update` fue llamado con `(id, { ordenDiaPdfPath })` y NO con `save`.
+  2. Unit negativo: si `findOne` retorna `null`, el adapter lanza `NotFoundException` (comportamiento existente, sin cambio).
+- **Criterio "Hecho cuando:"**: `convocatoriaRepo.update` reemplaza a `convocatoriaRepo.save` en el adapter; test unitario que simula la carrera pasa; `npx tsc --noEmit` limpio; `npm test` verde.
