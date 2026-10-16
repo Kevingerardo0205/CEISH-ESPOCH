@@ -37,7 +37,7 @@ export class MeetingPdfGeneratorAdapter implements IMeetingPdfGeneratorPort {
     );
     const agendaItems = await itemsRepo.find({
       where: { convocatoriaId: meetingId },
-      relations: ['protocolo', 'protocolo.investigadorPrincipal', 'version'],
+      relations: ['protocolo', 'version'],
       order: { orden: 'ASC' },
     });
 

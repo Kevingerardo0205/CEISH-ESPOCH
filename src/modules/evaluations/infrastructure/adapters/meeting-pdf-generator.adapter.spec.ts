@@ -61,9 +61,9 @@ describe('MeetingPdfGeneratorAdapter (TSK-009-007)', () => {
         tipoPuntoAgenda: 'EVALUACION_INICIAL',
         orden: 1,
         protocolo: {
-          codigoCeish: 'CEISH-2026-001',
-          titulo: 'Estudio de Bioética',
-          investigadorPrincipal: { fullName: 'Dra. María Pérez' },
+          ceishCode: 'CEISH-2026-001',
+          title: 'Estudio de Bioética',
+          principalInvestigator: { fullName: 'Dra. María Pérez' },
         },
       },
     ];

@@ -42,6 +42,9 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# Archivos generados en tiempo de ejecución
+/uploads
+
 # temp directory
 .temp
 .tmp
