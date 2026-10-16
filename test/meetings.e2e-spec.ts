@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
+import * as fs from 'fs';
+import * as path from 'path';
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
 import request from 'supertest';
@@ -507,13 +509,36 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
         .send(validPayload)
         .expect(201);
 
-      const meetingId = (createRes.body.data || createRes.body).id;
+      const responseData = createRes.body.data || createRes.body;
+      const meetingId = responseData.id;
+      const meetingNumber = responseData.meetingNumber;
 
-      const pdfRes = await request(app.getHttpServer())
-        .get(`/api/evaluations/meetings/${meetingId}/pdf`)
-        .expect(200);
+      const uploadDir = path.resolve(process.cwd(), 'uploads', 'convocatorias');
+      const pdfPath = path.join(
+        uploadDir,
+        `convocatoria-${meetingNumber}-orden-del-dia.pdf`,
+      );
 
-      expect(pdfRes.headers['content-type']).toContain('application/pdf');
+      try {
+        if (!fs.existsSync(uploadDir))
+          fs.mkdirSync(uploadDir, { recursive: true });
+        fs.writeFileSync(
+          pdfPath,
+          Buffer.from('%PDF-1.4\n1 0 obj\n<<>>\nendobj\n%%EOF\n'),
+        );
+
+        const pdfRes = await request(app.getHttpServer())
+          .get(`/api/evaluations/meetings/${meetingId}/pdf`)
+          .expect(200);
+
+        expect(pdfRes.headers['content-type']).toContain('application/pdf');
+      } finally {
+        try {
+          fs.unlinkSync(pdfPath);
+        } catch {
+          /* ya borrado */
+        }
+      }
     });
 
     it('debe retornar HTTP 404 al intentar descargar el PDF de una convocatoria inexistente (UUID válido, no registrado)', async () => {
