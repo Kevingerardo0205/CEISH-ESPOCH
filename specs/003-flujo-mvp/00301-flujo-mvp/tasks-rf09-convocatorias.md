@@ -621,6 +621,48 @@ Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suit
 - **Archivos Afectados**: `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR)
 - **Dependencias**: `TSK-009-N13`
 
+### Task TSK-009-N16 - [x] COMPLETADA
+- **ID Único**: `TSK-009-N16`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (descarga PDF oficial del Orden del Día)
+- **PR**: PR-M3 (`fix/meeting-pdf-download`)
+- **Descripción**:
+  Dos defectos en `GET /api/evaluations/meetings/:id/pdf`:
+  1. **PDF falso** — `downloadMeetingPdf` retornaba siempre `Buffer.from('%PDF-1.4 Default PDF buffer')` cuando el archivo no existía en disco, devolviendo 200 con datos falsos en lugar de indicar que el documento no está disponible.
+  2. **ResponseInterceptor envolvía StreamableFile como JSON** — `ResponseInterceptor.intercept` no tenía guardia para `StreamableFile`, por lo que el buffer binario quedaba serializado como `{data: {}, statusCode: 200, message: 'Success'}`, corrompiendo la descarga.
+  **Correcciones implementadas**:
+  - `src/shared/interceptors/response.interceptor.ts`: añadir guardia `if (data instanceof StreamableFile) return data` antes del envoltorio.
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts`: eliminar `Buffer.from('%PDF-1.4 Default PDF buffer')`; si el archivo no existe después de `generateAgendaPdf`, lanzar `NotFoundException('El PDF de la convocatoria no está disponible.')`.
+- **Tests**:
+  1. Unit spec `response.interceptor.spec.ts`: 6 tests (objeto plano, array, null, undefined, StreamableFile sin envolver, statusCode real).
+  2. Unit spec `meetings.controller.spec.ts` (bloque `downloadMeetingPdf`): 3 tests (archivo existe → StreamableFile; meeting no existe → 404; archivo no existe tras generación → 404).
+  3. E2E `test/meetings-pdf.e2e-spec.ts` (nuevo archivo): PDF-01 bytes reales; PDF-02 meeting inexistente → 404; PDF-03 archivo no disponible → 404.
+  4. E2E `test/meetings.e2e-spec.ts` (modificado): test existente de 200 crea el archivo real en disco antes del GET y lo limpia en `finally`.
+- **Archivos Afectados**:
+  - `src/shared/interceptors/response.interceptor.ts` (MODIFICAR)
+  - `src/shared/interceptors/response.interceptor.spec.ts` (CREAR)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` (MODIFICAR)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` (MODIFICAR)
+  - `test/meetings-pdf.e2e-spec.ts` (CREAR)
+  - `test/meetings.e2e-spec.ts` (MODIFICAR)
+- **Commits**: `981ad3f`, `a55e57a`, `a4ba721`
+- **Criterio "Hecho cuando:"**: `npx tsc --noEmit` limpio; `npm test` 316/316; E2E `--runInBand --forceExit` 103/103. `GET /:id/pdf` con archivo en disco → HTTP 200 `application/pdf` con bytes reales; sin archivo → 404; meeting inexistente → 404.
+
+### Task TSK-009-N17 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N17`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (generación real de PDF en disco)
+- **Descripción**:
+  `MeetingPdfGeneratorAdapter` (o la implementación real de `IMeetingPdfGeneratorPort`) debe generar el archivo PDF en `uploads/convocatorias/convocatoria-{meetingNumber}-orden-del-dia.pdf` con contenido válido. En el estado actual, la implementación real escribe el archivo pero no está cubierta por tests de integración; los tests E2E solo verifican el endpoint con archivos pre-creados manualmente. Tarea: añadir test de integración que llame al generador real y verifique que el archivo resultante inicia con `%PDF-`.
+- **Archivos Afectados**: test de integración (CREAR)
+- **Dependencias**: `TSK-009-N16`
+
+### Task TSK-009-N18 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N18`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (notificaciones a miembros tras crear convocatoria)
+- **Descripción**:
+  `CreateMeetingUseCase` llama a `emailService.sendCallNotification` después de generar la convocatoria. No existe test E2E ni de integración que verifique que la notificación se despacha con los datos correctos (lista de vocales, fecha de la reunión, URL del PDF). Añadir test que mockee `IEmailServicePort` y verifique la llamada con los parámetros esperados.
+- **Archivos Afectados**: test existente (MODIFICAR) o nuevo test de integración (CREAR)
+- **Dependencias**: `TSK-009-N16`
+
 ### Task TSK-SEC-01 - [ ] PENDIENTE
 - **ID Único**: `TSK-SEC-01`
 - **Requisito Relacionado**: Seguridad transversal (DosDefenseMiddleware)

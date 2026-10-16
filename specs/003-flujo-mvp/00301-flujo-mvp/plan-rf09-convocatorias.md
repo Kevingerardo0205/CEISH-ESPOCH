@@ -293,3 +293,13 @@ FIN ALGORITMO
 2. **Clean Architecture Strict**: Puertos desacoplados de TypeORM.
 3. **No Duplicación**: Consolidación total de Meetings; eliminación de código muerto de Calls.
 4. **Preservación de Datos**: Backfill seguro sin operaciones destructivas (`DROP`, `TRUNCATE`).
+
+---
+
+## 7. Historial de PRs implementados
+
+| PR | Rama | Tareas | Estado | Descripción |
+|---|---|---|---|---|
+| PR-M1 | `feat/meeting-stable-contract` | TSK-009-N11 | Mergeado | DTOs de respuesta estables para GET /meetings, GET /meetings/:id, GET /meetings/pending-protocols. Sin fuga ORM. Swagger. |
+| PR-M2 | `feat/meeting-places-contract` | TSK-009-N13 | Mergeado | Endpoints `/meetings/places` con envelope `{statusCode, message, data}`, mapper `toPlaceDto`, tests E2E TEST-M2 (real-db). |
+| PR-M3 | `fix/meeting-pdf-download` | TSK-009-N16 | En revisión | Fix doble: `ResponseInterceptor` no envuelve `StreamableFile`; `downloadMeetingPdf` lanza 404 en lugar de devolver PDF falso. Nuevo E2E `meetings-pdf.e2e-spec.ts`. |
