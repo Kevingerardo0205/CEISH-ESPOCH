@@ -33,6 +33,7 @@ import { IEmailServicePort } from '../src/modules/notifications/domain/ports/ema
 import { AuditService } from '../src/modules/audit/application/services/audit.service';
 import { IStorageService } from '../src/shared/storage/domain/ports/storage.service.port';
 import { DocxGeneratorService } from '../src/shared/utils/docx-generator.service';
+import { PdfGeneratorService } from '../src/shared/utils/pdf-generator.service';
 
 // IP exclusiva para TEST-M4 — evita el límite de DosDefenseMiddleware (TSK-SEC-01)
 const TEST_M4_IP = '10.0.4.1';
@@ -280,6 +281,52 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
     const body = pdfRes.body as Buffer;
     expect(Buffer.isBuffer(body)).toBe(true);
     expect(body.slice(0, 5).toString('ascii')).toBe('%PDF-');
+  }, 30000);
+
+  it('M4-04: investigatorName en PDF usa el nombre real de principalInvestigator (TSK-009-N24)', async () => {
+    const createRes = await request(app.getHttpServer())
+      .post('/api/evaluations/meetings')
+      .set('x-forwarded-for', TEST_M4_IP)
+      .send({
+        sessionType: 'ORDINARIA',
+        meetingDate: '2026-09-10T10:00:00.000Z',
+        evalSubmissionDeadline: '2026-09-16T17:00:00.000Z',
+        protocolVersionIds: [993],
+      })
+      .expect(201);
+
+    const meetingId = createRes.body.data.id as string;
+    const meetingNumber = createRes.body.data.meetingNumber as string;
+    pdfPaths.push(
+      path.join(PDF_DIR, `convocatoria-${meetingNumber}-orden-del-dia.pdf`),
+    );
+
+    // Llamamos directamente al adaptador (sin HTTP) para evitar la race
+    // condition entre notifyMembersAsync (que escribe el PDF en segundo plano
+    // tras el POST) y el GET (que sirve el archivo si ya existe en disco sin
+    // llamar al adaptador). Con la llamada directa el spy siempre se activa.
+    // Espiamos el prototipo para capturar la llamada sin importar la instancia
+    // concreta inyectada por NestJS (que puede ser un proxy).
+    const spy = jest.spyOn(PdfGeneratorService.prototype, 'generateCallPdf');
+
+    const adapter = app.get<{
+      generateAgendaPdf: (
+        id: string,
+      ) => Promise<{ url: string; buffer: Buffer }>;
+    }>('IMeetingPdfGeneratorPort');
+    const result = await adapter.generateAgendaPdf(meetingId);
+
+    expect(Buffer.isBuffer(result.buffer)).toBe(true);
+    expect(result.buffer.slice(0, 5).toString('ascii')).toBe('%PDF-');
+    expect(spy).toHaveBeenCalled();
+
+    const callArg = spy.mock.calls[0][0];
+    const investigatorName = callArg.protocols[0]?.investigatorName;
+    expect(investigatorName).toBe('Dr. M4 Investigador');
+    expect(investigatorName).not.toBe('Investigador Principal');
+
+    spy.mockRestore();
+    jest.restoreAllMocks();
   }, 30000);
 
   it('M4-03: GET pdf de convocatoria con lugar asignado → 200 application/pdf', async () => {

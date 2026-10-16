@@ -74,6 +74,10 @@ describe('MeetingPdfGeneratorAdapter (TSK-009-007)', () => {
     expect(result.url).toBe('/api/evaluations/meetings/meet-001/pdf');
     expect(Buffer.isBuffer(result.buffer)).toBe(true);
     expect(pdfGeneratorMock.generateCallPdf).toHaveBeenCalled();
+    const callArg = pdfGeneratorMock.generateCallPdf.mock.calls[0][0] as {
+      protocols: Array<{ investigatorName: string }>;
+    };
+    expect(callArg.protocols[0].investigatorName).toBe('Dra. María Pérez');
     expect(convocatoriaRepoMock.save).toHaveBeenCalled();
   });
 
