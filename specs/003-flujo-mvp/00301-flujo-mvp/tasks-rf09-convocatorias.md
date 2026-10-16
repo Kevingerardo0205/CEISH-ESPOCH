@@ -722,6 +722,29 @@ Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suit
   - tests correspondientes (MODIFICAR)
 - **Dependencias**: `TSK-009-N21`
 
+### Task TSK-009-N24 - [x] COMPLETADA
+- **ID Único**: `TSK-009-N24`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (contenido correcto del PDF Orden del Día)
+- **Descripción**:
+  En `MeetingPdfGeneratorAdapter.generateAgendaPdf`, el campo `investigatorName` estaba fijado al texto `'Investigador Principal'` para todos los protocolos, ignorando la relación `principalInvestigator → UserOrmEntity.fullName`. Se añadió `'protocolo.principalInvestigator'` a la lista de relaciones y se usa `item.protocolo?.principalInvestigator?.fullName ?? 'Investigador Principal'` como respaldo explícito solo cuando el campo sea null. El unit spec del adaptador ya tenía el mock correcto (`principalInvestigator: { fullName: ... }`); se añadió la aserción que verifica que `generateCallPdf` recibe ese nombre. El E2E `test/meeting-pdf-real.e2e-spec.ts` incluye el test M4-04 que espía `PdfGeneratorService.prototype.generateCallPdf` (sin mock) y verifica que `investigatorName` es el nombre real del investigador sembrado (`'Dr. M4 Investigador'`), no el texto fijo. Confirmado ROJO antes del fix y VERDE después.
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR)
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.spec.ts` (MODIFICAR)
+  - `test/meeting-pdf-real.e2e-spec.ts` (MODIFICAR — añadir M4-04)
+- **Tests**:
+  - Unit: 316/316 (51 suites)
+  - E2E: 107/107 (9 suites, incluye M4-04 nuevo)
+- **Dependencias**: `TSK-009-N21`
+- **Hecho cuando**: `generateCallPdf` recibe el nombre real del investigador; fallback solo cuando `principalInvestigator` sea null.
+
+### Task TSK-009-N25 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N25`
+- **Requisito Relacionado**: Higiene del repositorio (transversal)
+- **Descripción**:
+  `uploads/` contiene unos 230 PDFs con nombre de marca de tiempo (aparentes salidas de pruebas) y `docx_extracted/` versionados en git. Revisar si contienen datos reales o personales, decidir qué conservar como recurso (logos del generador de PDF) y qué sacar del repositorio con `git rm --cached`. No se hace en PR-M4.
+- **Archivos Afectados**: `.gitignore` (MODIFICAR si se amplía la regla), archivos a retirar con `git rm --cached`
+- **Dependencias**: ninguna
+
 ### Task TSK-SEC-01 - [ ] PENDIENTE
 - **ID Único**: `TSK-SEC-01`
 - **Requisito Relacionado**: Seguridad transversal (DosDefenseMiddleware)
