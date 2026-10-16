@@ -302,4 +302,4 @@ FIN ALGORITMO
 |---|---|---|---|---|
 | PR-M1 | `feat/meeting-stable-contract` | TSK-009-N11 | Mergeado | DTOs de respuesta estables para GET /meetings, GET /meetings/:id, GET /meetings/pending-protocols. Sin fuga ORM. Swagger. |
 | PR-M2 | `feat/meeting-places-contract` | TSK-009-N13 | Mergeado | Endpoints `/meetings/places` con envelope `{statusCode, message, data}`, mapper `toPlaceDto`, tests E2E TEST-M2 (real-db). |
-| PR-M3 | `fix/meeting-pdf-download` | TSK-009-N16 | En revisión | Fix doble: `ResponseInterceptor` no envuelve `StreamableFile`; `downloadMeetingPdf` lanza 404 en lugar de devolver PDF falso. Nuevo E2E `meetings-pdf.e2e-spec.ts`. |
+| PR-M3 | `fix/meeting-pdf-download` | TSK-009-N16 | Listo para PR | Fix doble: `ResponseInterceptor` no envuelve `StreamableFile`; `downloadMeetingPdf` lanza 404 en lugar de devolver PDF falso. Nuevo E2E `meetings-pdf.e2e-spec.ts`. |
