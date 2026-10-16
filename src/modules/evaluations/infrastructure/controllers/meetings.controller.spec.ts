@@ -1,4 +1,6 @@
 /* eslint-disable @typescript-eslint/unbound-method */
+jest.mock('fs');
+import * as fs from 'fs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
 import type { Response } from 'express';
@@ -161,49 +163,59 @@ describe('MeetingsController (T017 / RF-09)', () => {
   });
 
   describe('downloadMeetingPdf', () => {
-    it('should return StreamableFile and set pdf response headers', async () => {
-      const mockMeeting: MeetingDetailEntity = {
-        id: 'meet-001',
-        meetingNumber: '001-2026',
-        academicYear: 2026,
-        sessionType: SessionType.ORDINARIA,
-        meetingDate: new Date('2026-10-15T09:00:00.000Z'),
-        evalSubmissionDeadline: new Date('2026-10-08T23:59:59.000Z'),
-        status: 'PROGRAMADA',
-        place: null,
-        protocolCount: 0,
-        protocols: [],
-      };
+    const mockMeeting: MeetingDetailEntity = {
+      id: 'meet-001',
+      meetingNumber: '001-2026',
+      academicYear: 2026,
+      sessionType: SessionType.ORDINARIA,
+      meetingDate: new Date('2026-10-15T09:00:00.000Z'),
+      evalSubmissionDeadline: new Date('2026-10-08T23:59:59.000Z'),
+      status: 'PROGRAMADA',
+      place: null,
+      protocolCount: 0,
+      protocols: [],
+    };
 
+    afterEach(() => {
+      jest.resetAllMocks();
+    });
+
+    it('should return StreamableFile and set pdf response headers when file exists', async () => {
+      (fs.existsSync as jest.Mock).mockReturnValue(true);
+      (fs.readFileSync as jest.Mock).mockReturnValue(
+        Buffer.from('%PDF-1.4 unit test'),
+      );
       meetingRepositoryMock.findById.mockResolvedValue(mockMeeting);
-      pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
-        url: '/api/evaluations/meetings/meet-001/pdf',
-        buffer: Buffer.from('PDF'),
-      });
 
-      const resMock = {
-        set: jest.fn(),
-      } as unknown as Response;
-
+      const resMock = { set: jest.fn() } as unknown as Response;
       const result = await controller.downloadMeetingPdf('meet-001', resMock);
 
       expect(result).toBeDefined();
       expect(resMock.set).toHaveBeenCalledWith(
-        expect.objectContaining({
-          'Content-Type': 'application/pdf',
-        }),
+        expect.objectContaining({ 'Content-Type': 'application/pdf' }),
       );
     });
 
     it('should throw NotFoundException when meeting for pdf is not found', async () => {
       meetingRepositoryMock.findById.mockResolvedValue(null);
 
-      const resMock = {
-        set: jest.fn(),
-      } as unknown as Response;
+      const resMock = { set: jest.fn() } as unknown as Response;
 
       await expect(
         controller.downloadMeetingPdf('non-existent', resMock),
+      ).rejects.toThrow(NotFoundException);
+    });
+
+    it('should throw NotFoundException when PDF file does not exist after generation', async () => {
+      (fs.existsSync as jest.Mock).mockReturnValue(false);
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      pdfGeneratorMock.generateAgendaPdf.mockResolvedValue(undefined as any);
+      meetingRepositoryMock.findById.mockResolvedValue(mockMeeting);
+
+      const resMock = { set: jest.fn() } as unknown as Response;
+
+      await expect(
+        controller.downloadMeetingPdf('meet-001', resMock),
       ).rejects.toThrow(NotFoundException);
     });
   });

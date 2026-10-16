@@ -384,7 +384,9 @@ export class MeetingsController {
       if (fs.existsSync(filePath)) {
         pdfBuffer = fs.readFileSync(filePath);
       } else {
-        pdfBuffer = Buffer.from('%PDF-1.4 Default PDF buffer');
+        throw new NotFoundException(
+          'El PDF de la convocatoria no está disponible.',
+        );
       }
     }
 

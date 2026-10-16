@@ -621,6 +621,68 @@ Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suit
 - **Archivos Afectados**: `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR)
 - **Dependencias**: `TSK-009-N13`
 
+### Task TSK-009-N16 - [x] COMPLETADA
+- **ID Único**: `TSK-009-N16`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (descarga PDF oficial del Orden del Día)
+- **PR**: PR-M3 (`fix/meeting-pdf-download`)
+- **Descripción**:
+  Dos defectos en `GET /api/evaluations/meetings/:id/pdf`:
+  1. **PDF falso** — `downloadMeetingPdf` retornaba siempre `Buffer.from('%PDF-1.4 Default PDF buffer')` cuando el archivo no existía en disco, devolviendo 200 con datos falsos en lugar de indicar que el documento no está disponible.
+  2. **ResponseInterceptor envolvía StreamableFile como JSON** — `ResponseInterceptor.intercept` no tenía guardia para `StreamableFile`, por lo que el buffer binario quedaba serializado como `{data: {}, statusCode: 200, message: 'Success'}`, corrompiendo la descarga. En producción el cuerpo lleva doble envoltorio: el controlador devuelve `{statusCode, message, data[, meta]}` y el interceptor añade un segundo `{data, statusCode, message: 'Success'}` encima; los tests E2E normales no registran el interceptor (a diferencia de `main.ts:39`) y por eso no detectaban el bug.
+  **Correcciones implementadas**:
+  - `src/shared/interceptors/response.interceptor.ts`: añadir guardia `if (data instanceof StreamableFile) return data` antes del envoltorio.
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts`: eliminar `Buffer.from('%PDF-1.4 Default PDF buffer')`; si el archivo no existe después de `generateAgendaPdf`, lanzar `NotFoundException('El PDF de la convocatoria no está disponible.')`.
+- **Tests**:
+  1. Unit spec `response.interceptor.spec.ts`: 6 tests (objeto plano, array, null, undefined, StreamableFile sin envolver, statusCode real).
+  2. Unit spec `meetings.controller.spec.ts` (bloque `downloadMeetingPdf`): 3 tests (archivo existe → StreamableFile; meeting no existe → 404; archivo no existe tras generación → 404).
+  3. E2E `test/meetings-pdf.e2e-spec.ts` (nuevo archivo): PDF-01 bytes reales; PDF-02 meeting inexistente → 404; PDF-03 archivo no disponible → 404.
+  4. E2E `test/meetings.e2e-spec.ts` (modificado): test existente de 200 crea el archivo real en disco antes del GET y lo limpia en `finally`.
+- **Archivos Afectados**:
+  - `src/shared/interceptors/response.interceptor.ts` (MODIFICAR)
+  - `src/shared/interceptors/response.interceptor.spec.ts` (CREAR)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` (MODIFICAR)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` (MODIFICAR)
+  - `test/meetings-pdf.e2e-spec.ts` (CREAR)
+  - `test/meetings.e2e-spec.ts` (MODIFICAR)
+- **Commits**: `981ad3f`, `a55e57a`, `a4ba721`
+- **Criterio "Hecho cuando:"**: `npx tsc --noEmit` limpio; `npm test` 316/316; E2E `--runInBand --forceExit` 103/103. `GET /:id/pdf` con archivo en disco → HTTP 200 `application/pdf` con bytes reales; sin archivo → 404; meeting inexistente → 404.
+
+### Task TSK-009-N17 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N17`
+- **Requisito Relacionado**: `RF-09.1` (legibilidad/contrato API)
+- **Descripción**:
+  `GET /meetings` ordena por `fechaReunion DESC NULLS LAST` sin criterio de desempate. Varias convocatorias pueden compartir `fechaReunion` (p. ej. `2026-04-16`) y sin un segundo criterio determinista la paginación puede repetir u omitir filas entre páginas. Añadir un segundo criterio de ordenación determinista (por ejemplo `numeroConvocatoria` o `id`) en el repositorio y un test con fechas repetidas que verifique orden estable entre páginas.
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/database/repositories/meeting-typeorm.repository.ts` (MODIFICAR)
+  - spec/test correspondiente (MODIFICAR)
+- **Dependencias**: `TSK-009-N16`
+
+### Task TSK-009-N18 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N18`
+- **Requisito Relacionado**: `RF-09.2` (protocolos pendientes)
+- **Descripción**:
+  En `GET /meetings/pending-protocols` el campo `deadline` cae a `receptionDate`/`createdAt` cuando no existe un plazo real de respuesta; en datos reales 10 de 16 filas tienen `deadline` igual a `receptionDate`. Definir con la secretaría qué significa ese campo y si debe devolverse `null` cuando no hay plazo real; ajustar el mapper, el DTO y el Swagger según lo definido. No implementado.
+- **Archivos Afectados**:
+  - mapper/DTO de `pending-protocols` (MODIFICAR)
+  - tests correspondientes (MODIFICAR)
+- **Dependencias**: `TSK-009-N16`
+
+### Task TSK-009-N19 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N19`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (generación real de PDF en disco)
+- **Descripción**:
+  `MeetingPdfGeneratorAdapter` (la implementación real de `IMeetingPdfGeneratorPort`) genera el archivo en `uploads/convocatorias/convocatoria-{meetingNumber}-orden-del-dia.pdf`, pero esa ruta no está cubierta por tests de integración; los tests E2E actuales crean el archivo manualmente antes del GET. Añadir test de integración que llame al generador real y verifique que el archivo resultante inicia con `%PDF-`.
+- **Archivos Afectados**: test de integración (CREAR)
+- **Dependencias**: `TSK-009-N16`
+
+### Task TSK-009-N20 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N20`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (notificaciones a miembros tras crear convocatoria)
+- **Descripción**:
+  `CreateMeetingUseCase` llama a `emailService.sendCallNotification` después de generar la convocatoria, pero no existe test E2E ni de integración que verifique que la notificación se despacha con los datos correctos (la lista de vocales, la fecha de la reunión, la URL del PDF). Añadir test que mockee `IEmailServicePort` y verifique la llamada con los parámetros esperados.
+- **Archivos Afectados**: test existente (MODIFICAR) o nuevo test de integración (CREAR)
+- **Dependencias**: `TSK-009-N16`
+
 ### Task TSK-SEC-01 - [ ] PENDIENTE
 - **ID Único**: `TSK-SEC-01`
 - **Requisito Relacionado**: Seguridad transversal (DosDefenseMiddleware)
