@@ -37,7 +37,7 @@ export class MeetingPdfGeneratorAdapter implements IMeetingPdfGeneratorPort {
     );
     const agendaItems = await itemsRepo.find({
       where: { convocatoriaId: meetingId },
-      relations: ['protocolo', 'protocolo.investigadorPrincipal', 'version'],
+      relations: ['protocolo', 'protocolo.principalInvestigator', 'version'],
       order: { orden: 'ASC' },
     });
 
@@ -48,7 +48,9 @@ export class MeetingPdfGeneratorAdapter implements IMeetingPdfGeneratorPort {
       .map((item) => ({
         ceishCode: item.protocolo?.ceishCode || `PROT-${item.protocoloId}`,
         title: item.protocolo?.title || 'Sin título',
-        investigatorName: 'Investigador Principal',
+        investigatorName:
+          item.protocolo?.principalInvestigator?.fullName ??
+          'Investigador Principal',
       }));
 
     const meetingTime = meeting.fechaReunion

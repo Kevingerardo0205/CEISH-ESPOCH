@@ -42,6 +42,9 @@ lerna-debug.log*
 .env.production.local
 .env.local
 
+# PDFs de convocatorias generados en ejecución
+/uploads/convocatorias/
+
 # temp directory
 .temp
 .tmp

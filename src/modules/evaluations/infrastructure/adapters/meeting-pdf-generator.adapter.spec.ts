@@ -61,9 +61,9 @@ describe('MeetingPdfGeneratorAdapter (TSK-009-007)', () => {
         tipoPuntoAgenda: 'EVALUACION_INICIAL',
         orden: 1,
         protocolo: {
-          codigoCeish: 'CEISH-2026-001',
-          titulo: 'Estudio de Bioética',
-          investigadorPrincipal: { fullName: 'Dra. María Pérez' },
+          ceishCode: 'CEISH-2026-001',
+          title: 'Estudio de Bioética',
+          principalInvestigator: { fullName: 'Dra. María Pérez' },
         },
       },
     ];
@@ -74,6 +74,10 @@ describe('MeetingPdfGeneratorAdapter (TSK-009-007)', () => {
     expect(result.url).toBe('/api/evaluations/meetings/meet-001/pdf');
     expect(Buffer.isBuffer(result.buffer)).toBe(true);
     expect(pdfGeneratorMock.generateCallPdf).toHaveBeenCalled();
+    const callArg = pdfGeneratorMock.generateCallPdf.mock.calls[0][0] as {
+      protocols: Array<{ investigatorName: string }>;
+    };
+    expect(callArg.protocols[0].investigatorName).toBe('Dra. María Pérez');
     expect(convocatoriaRepoMock.save).toHaveBeenCalled();
   });
 

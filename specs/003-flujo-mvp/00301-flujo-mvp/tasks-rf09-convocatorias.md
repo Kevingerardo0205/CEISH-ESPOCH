@@ -683,6 +683,68 @@ Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suit
 - **Archivos Afectados**: test existente (MODIFICAR) o nuevo test de integración (CREAR)
 - **Dependencias**: `TSK-009-N16`
 
+### Task TSK-009-N21 - [x] COMPLETADA
+- **ID Único**: `TSK-009-N21`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (generación de PDF del Orden del Día)
+- **PR**: PR-M4 (`fix/meeting-pdf-generator-relations`)
+- **Descripción**:
+  `MeetingPdfGeneratorAdapter.generateAgendaPdf` fallaba con HTTP 500: "Property 'investigadorPrincipal' was not found in 'ProtocolOrmEntity'". La relación solicitada en TypeORM era `'protocolo.investigadorPrincipal'` pero el nombre real en `ProtocolOrmEntity` es `principalInvestigator`. Además, el campo `investigatorName` estaba hardcodeado a `'Investigador Principal'`, por lo que la relación nunca se usaba en el mapeo.
+  **Causa raíz**: la relación se llamó con el nombre en español (convención antigua) en lugar del nombre real de la propiedad TypeScript. Los tests E2E anteriores mockeaban `IMeetingPdfGeneratorPort` completo y nunca ejercitaban el adaptador real; los tests unitarios del adaptador usaban un mock de TypeORM que no valida nombres de relaciones.
+  **Efecto colateral**: `CreateMeetingUseCase` llama al generador dentro de `notifyMembersAsync` (fire-and-forget, ver TSK-009-N08), que captura la excepción y solo la loguea. Las convocatorias creadas hasta ahora se guardaron sin PDF en disco; al descargar el PDF por primera vez el controlador llama al generador de nuevo (y fallaba). Ver TSK-009-N22 y TSK-009-N23.
+  **Fix**: eliminar `'protocolo.investigadorPrincipal'` de la lista de `relations` en el adaptador (línea 40).
+- **Tests**:
+  1. `test/meeting-pdf-real.e2e-spec.ts` (CREAR): TEST-M4 contra `ceish_test_db` sin mock del generador ni de `PdfGeneratorService`. M4-01: convocatoria con 1 protocolo y lugar=null → 200 `%PDF-`; M4-02: convocatoria sin protocolos en agenda (insertada vía SQL) → 200 `%PDF-`; M4-03: convocatoria con lugar asignado → 200 `%PDF-`.
+  2. `adapters/meeting-pdf-generator.adapter.spec.ts` (MODIFICAR): mock actualizado a `ceishCode`/`title`/`principalInvestigator` (nombres reales de `ProtocolOrmEntity`).
+  3. `.gitignore` (MODIFICAR): añadir `/uploads`.
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR)
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.spec.ts` (MODIFICAR)
+  - `test/meeting-pdf-real.e2e-spec.ts` (CREAR)
+  - `.gitignore` (MODIFICAR)
+- **Commit**: `c6994a6`
+- **Criterio "Hecho cuando:"**: `npx tsc --noEmit` limpio; `npm test` 316/316; E2E 106/106 (dos corridas). `GET /:id/pdf` con datos reales → HTTP 200 `application/pdf` bytes `%PDF-`; `uploads/convocatorias/` vacío tras los tests.
+
+### Task TSK-009-N22 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N22`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (convocatorias sin PDF)
+- **Descripción**:
+  Las convocatorias creadas antes de corregir TSK-009-N21 se guardaron sin PDF en `uploads/convocatorias/`. Al hacer `GET /:id/pdf` el controlador llama al generador de nuevo (lazy generation), por lo que el PDF se genera en la primera descarga. Decidir con la secretaría si se prefiere: (a) regeneración bajo demanda (comportamiento actual, ya funcional); (b) script/backfill que regenere todos los PDFs faltantes en arranque o de forma programada. No implementado.
+- **Archivos Afectados**: a definir según decisión
+- **Dependencias**: `TSK-009-N21`
+
+### Task TSK-009-N23 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N23`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (visibilidad del fallo de PDF)
+- **Descripción**:
+  `CreateMeetingUseCase.notifyMembersAsync` captura el error del generador PDF y solo lo loguea (TSK-009-N08), de modo que `POST /meetings` responde 201 aunque el PDF no se haya generado. Decidir si el fallo de generación debe reflejarse como advertencia en la respuesta (`warnings[]`) o como error bloqueante. Si se expone en `warnings`, actualizar el DTO de respuesta y los tests.
+- **Archivos Afectados**:
+  - `src/modules/evaluations/application/services/create-meeting.use-case.ts` (MODIFICAR)
+  - tests correspondientes (MODIFICAR)
+- **Dependencias**: `TSK-009-N21`
+
+### Task TSK-009-N24 - [x] COMPLETADA
+- **ID Único**: `TSK-009-N24`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (contenido correcto del PDF Orden del Día)
+- **Descripción**:
+  En `MeetingPdfGeneratorAdapter.generateAgendaPdf`, el campo `investigatorName` estaba fijado al texto `'Investigador Principal'` para todos los protocolos, ignorando la relación `principalInvestigator → UserOrmEntity.fullName`. Se añadió `'protocolo.principalInvestigator'` a la lista de relaciones y se usa `item.protocolo?.principalInvestigator?.fullName ?? 'Investigador Principal'` como respaldo explícito solo cuando el campo sea null. El unit spec del adaptador ya tenía el mock correcto (`principalInvestigator: { fullName: ... }`); se añadió la aserción que verifica que `generateCallPdf` recibe ese nombre. El E2E `test/meeting-pdf-real.e2e-spec.ts` incluye el test M4-04 que espía `PdfGeneratorService.prototype.generateCallPdf` (sin mock) y verifica que `investigatorName` es el nombre real del investigador sembrado (`'Dr. M4 Investigador'`), no el texto fijo. Confirmado ROJO antes del fix y VERDE después.
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR)
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.spec.ts` (MODIFICAR)
+  - `test/meeting-pdf-real.e2e-spec.ts` (MODIFICAR — añadir M4-04)
+- **Tests**:
+  - Unit: 316/316 (51 suites)
+  - E2E: 107/107 (9 suites, incluye M4-04 nuevo)
+- **Dependencias**: `TSK-009-N21`
+- **Hecho cuando**: `generateCallPdf` recibe el nombre real del investigador; fallback solo cuando `principalInvestigator` sea null.
+
+### Task TSK-009-N25 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N25`
+- **Requisito Relacionado**: Higiene del repositorio (transversal)
+- **Descripción**:
+  `uploads/` contiene unos 230 PDFs con nombre de marca de tiempo (aparentes salidas de pruebas) y `docx_extracted/` versionados en git. Revisar si contienen datos reales o personales, decidir qué conservar como recurso (logos del generador de PDF) y qué sacar del repositorio con `git rm --cached`. No se hace en PR-M4.
+- **Archivos Afectados**: `.gitignore` (MODIFICAR si se amplía la regla), archivos a retirar con `git rm --cached`
+- **Dependencias**: ninguna
+
 ### Task TSK-SEC-01 - [ ] PENDIENTE
 - **ID Único**: `TSK-SEC-01`
 - **Requisito Relacionado**: Seguridad transversal (DosDefenseMiddleware)
