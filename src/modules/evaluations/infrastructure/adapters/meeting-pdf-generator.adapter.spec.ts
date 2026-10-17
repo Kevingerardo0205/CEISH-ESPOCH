@@ -81,6 +81,48 @@ describe('MeetingPdfGeneratorAdapter (TSK-009-007)', () => {
     expect(convocatoriaRepoMock.save).toHaveBeenCalled();
   });
 
+  it('should pass date=null and time="Por definir" when fechaReunion is null', async () => {
+    convocatoriaRepoMock.findOne.mockResolvedValue({
+      id: 'meet-002',
+      numeroConvocatoria: '002-2026',
+      tipoSession: 'ORDINARIA',
+      fechaReunion: null,
+      lugar: null,
+      ordenDiaPdfPath: null,
+    });
+    itemsRepoMock.find.mockResolvedValue([]);
+
+    await adapter.generateAgendaPdf('meet-002');
+
+    const callArg = pdfGeneratorMock.generateCallPdf.mock.calls[0][0] as {
+      date: Date | null;
+      time: string;
+      placeName: string;
+    };
+    expect(callArg.date).toBeNull();
+    expect(callArg.time).toBe('Por definir');
+    expect(callArg.placeName).toBe('Por definir');
+  });
+
+  it('should pass placeName="Por definir" when lugar is null', async () => {
+    convocatoriaRepoMock.findOne.mockResolvedValue({
+      id: 'meet-003',
+      numeroConvocatoria: '003-2026',
+      tipoSession: 'ORDINARIA',
+      fechaReunion: new Date('2026-08-20T14:00:00.000Z'),
+      lugar: null,
+      ordenDiaPdfPath: null,
+    });
+    itemsRepoMock.find.mockResolvedValue([]);
+
+    await adapter.generateAgendaPdf('meet-003');
+
+    const callArg = pdfGeneratorMock.generateCallPdf.mock.calls[0][0] as {
+      placeName: string;
+    };
+    expect(callArg.placeName).toBe('Por definir');
+  });
+
   it('should throw NotFoundException if meeting does not exist', async () => {
     convocatoriaRepoMock.findOne.mockResolvedValue(null);
 
