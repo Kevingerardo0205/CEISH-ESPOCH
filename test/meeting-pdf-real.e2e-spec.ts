@@ -185,15 +185,6 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
   }, 60000);
 
   afterAll(async () => {
-    // Borrar archivos PDF generados por este test
-    for (const pdfPath of pdfPaths) {
-      try {
-        fs.unlinkSync(pdfPath);
-      } catch {
-        /* ya borrado o no llegó a crearse */
-      }
-    }
-
     try {
       if (dataSource?.isInitialized) {
         await dataSource.query(`
@@ -211,6 +202,17 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
     } finally {
       if (app) await app.close();
       if (dataSource?.isInitialized) await dataSource.destroy();
+    }
+
+    // Borrar PDFs después de app.close() para evitar la race condition con
+    // notifyMembersAsync (fire-and-forget): el async puede regenerar el PDF
+    // después de borrarlo si la app aún está activa.
+    for (const pdfPath of pdfPaths) {
+      try {
+        fs.unlinkSync(pdfPath);
+      } catch {
+        /* ya borrado o no llegó a crearse */
+      }
     }
   });
 
@@ -474,14 +476,6 @@ describe('TEST-M5: MeetingPdfGeneratorAdapter — datos faltantes — TSK-009-N2
   }, 60000);
 
   afterAll(async () => {
-    for (const pdfPath of pdfPaths) {
-      try {
-        fs.unlinkSync(pdfPath);
-      } catch {
-        /* ya borrado o no llegó a crearse */
-      }
-    }
-
     try {
       if (dataSource?.isInitialized) {
         await dataSource.query(`
@@ -491,6 +485,16 @@ describe('TEST-M5: MeetingPdfGeneratorAdapter — datos faltantes — TSK-009-N2
     } finally {
       if (app) await app.close();
       if (dataSource?.isInitialized) await dataSource.destroy();
+    }
+
+    // Borrar PDFs después de app.close() para evitar la race condition con
+    // notifyMembersAsync (fire-and-forget).
+    for (const pdfPath of pdfPaths) {
+      try {
+        fs.unlinkSync(pdfPath);
+      } catch {
+        /* ya borrado o no llegó a crearse */
+      }
     }
   });
 
