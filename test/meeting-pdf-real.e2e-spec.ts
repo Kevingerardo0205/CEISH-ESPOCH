@@ -185,15 +185,6 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
   }, 60000);
 
   afterAll(async () => {
-    // Borrar archivos PDF generados por este test
-    for (const pdfPath of pdfPaths) {
-      try {
-        fs.unlinkSync(pdfPath);
-      } catch {
-        /* ya borrado o no llegó a crearse */
-      }
-    }
-
     try {
       if (dataSource?.isInitialized) {
         await dataSource.query(`
@@ -211,6 +202,17 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
     } finally {
       if (app) await app.close();
       if (dataSource?.isInitialized) await dataSource.destroy();
+    }
+
+    // Borrar PDFs después de app.close() para evitar la race condition con
+    // notifyMembersAsync (fire-and-forget): el async puede regenerar el PDF
+    // después de borrarlo si la app aún está activa.
+    for (const pdfPath of pdfPaths) {
+      try {
+        fs.unlinkSync(pdfPath);
+      } catch {
+        /* ya borrado o no llegó a crearse */
+      }
     }
   });
 
@@ -366,5 +368,245 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
     const body = pdfRes.body as Buffer;
     expect(Buffer.isBuffer(body)).toBe(true);
     expect(body.slice(0, 5).toString('ascii')).toBe('%PDF-');
+  }, 30000);
+});
+
+describe('TEST-M5: MeetingPdfGeneratorAdapter — datos faltantes — TSK-009-N26 (ceish_test_db)', () => {
+  let app: INestApplication;
+  let dataSource: DataSource;
+  const pdfPaths: string[] = [];
+
+  beforeAll(async () => {
+    const dbName = process.env.TEST_DB_NAME || 'ceish_test_db';
+    if (
+      !dbName.endsWith('test') &&
+      !dbName.endsWith('test_db') &&
+      !dbName.endsWith('_test_db')
+    ) {
+      throw new Error(
+        `ABORT: Seguridad de Base de Datos violada. Base recibida: '${dbName}'. ceish_db protegida.`,
+      );
+    }
+    process.env.DB_NAME = dbName;
+
+    const moduleFixture: TestingModule = await Test.createTestingModule({
+      imports: [AppModule],
+    })
+      .overrideGuard(JwtAuthGuard)
+      .useValue({
+        canActivate: (context: ExecutionContext) => {
+          const req = context.switchToHttp().getRequest();
+          req.user = {
+            id: 920,
+            email: 'secretaria-m5@test.com',
+            roles: ['SECRETARIA', 'ADMIN_TI', 'PRESIDENTE'],
+            permissions: Object.values(Permission),
+          };
+          return true;
+        },
+      })
+      .overrideGuard(RolesGuard)
+      .useValue({ canActivate: () => true })
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .overrideProvider(AuditService)
+      .useValue({ createLog: jest.fn().mockResolvedValue(undefined) })
+      .overrideProvider(MailerNotificationAdapter)
+      .useValue(
+        new MailerNotificationAdapter({
+          sendMail: jest.fn().mockResolvedValue(undefined),
+        }),
+      )
+      .overrideProvider(IEmailServicePort)
+      .useValue({
+        sendCallNotification: jest.fn().mockResolvedValue(undefined),
+        sendEvaluationAssignment: jest.fn().mockResolvedValue(undefined),
+        sendEvaluationSubmitted: jest.fn().mockResolvedValue(undefined),
+        sendPasswordReset: jest.fn().mockResolvedValue(undefined),
+        sendEmailVerification: jest.fn().mockResolvedValue(undefined),
+        sendUnscheduledProtocolsAlert: jest.fn().mockResolvedValue(undefined),
+      })
+      .overrideProvider(IStorageService)
+      .useValue({
+        uploadFile: jest
+          .fn()
+          .mockResolvedValue('https://storage.test.com/file.pdf'),
+        getFileUrl: jest
+          .fn()
+          .mockResolvedValue('https://storage.test.com/file.pdf'),
+        deleteFile: jest.fn().mockResolvedValue(undefined),
+      })
+      .overrideProvider(DocxGeneratorService)
+      .useValue({
+        generateAnnex9Docx: jest
+          .fn()
+          .mockResolvedValue(Buffer.from('PK docx test')),
+      })
+      .compile();
+
+    app = moduleFixture.createNestApplication();
+    app.setGlobalPrefix('api');
+    app.useGlobalPipes(new GlobalValidationPipe());
+    await app.init();
+
+    dataSource = app.get(DataSource);
+
+    const testDbResult = await dataSource.query('SELECT current_database();');
+    const nestDbName = testDbResult[0]?.current_database;
+    if (
+      !nestDbName ||
+      (!nestDbName.endsWith('test') &&
+        !nestDbName.endsWith('test_db') &&
+        !nestDbName.endsWith('_test_db'))
+    ) {
+      throw new Error(
+        `ABORT: DataSource conectado a base no autorizada: '${nestDbName}'. Solo se permiten bases *test.`,
+      );
+    }
+
+    await dataSource.query(`
+      SET lock_timeout = '5s';
+      SET statement_timeout = '10s';
+    `);
+
+    // Limpieza preventiva de ejecuciones anteriores
+    await dataSource.query(`
+      DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-M5-%';
+    `);
+  }, 60000);
+
+  afterAll(async () => {
+    try {
+      if (dataSource?.isInitialized) {
+        await dataSource.query(`
+          DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-M5-%';
+        `);
+      }
+    } finally {
+      if (app) await app.close();
+      if (dataSource?.isInitialized) await dataSource.destroy();
+    }
+
+    // Borrar PDFs después de app.close() para evitar la race condition con
+    // notifyMembersAsync (fire-and-forget).
+    for (const pdfPath of pdfPaths) {
+      try {
+        fs.unlinkSync(pdfPath);
+      } catch {
+        /* ya borrado o no llegó a crearse */
+      }
+    }
+  });
+
+  it('M5-01: fecha_reunion NULL → date null, time "Por definir", placeName "Por definir"', async () => {
+    const tag = `TEST-M5-ND${Date.now().toString().slice(-10)}`;
+    const rows: Array<{ id: string; numero_convocatoria: string }> =
+      await dataSource.query(
+        `INSERT INTO evaluacion.convocatorias
+          (numero_convocatoria, anio_lectivo, tipo_session,
+           fecha_reunion, fecha_entrega_evaluacion, estado)
+         VALUES ($1, 2026, 'ORDINARIA', NULL, NOW() + INTERVAL '7 days', 'PROGRAMADA')
+         RETURNING id, numero_convocatoria`,
+        [tag],
+      );
+
+    const meetingId = rows[0].id;
+    const meetingNumber = rows[0].numero_convocatoria;
+    pdfPaths.push(
+      path.join(PDF_DIR, `convocatoria-${meetingNumber}-orden-del-dia.pdf`),
+    );
+
+    const spy = jest.spyOn(PdfGeneratorService.prototype, 'generateCallPdf');
+
+    const adapter = app.get<{
+      generateAgendaPdf: (
+        id: string,
+      ) => Promise<{ url: string; buffer: Buffer }>;
+    }>('IMeetingPdfGeneratorPort');
+    const result = await adapter.generateAgendaPdf(meetingId);
+
+    expect(Buffer.isBuffer(result.buffer)).toBe(true);
+    expect(spy).toHaveBeenCalled();
+
+    const callArg = spy.mock.calls[0][0];
+    expect(callArg.date).toBeNull();
+    expect(callArg.time).toBe('Por definir');
+    expect(callArg.placeName).toBe('Por definir');
+
+    spy.mockRestore();
+    jest.restoreAllMocks();
+  }, 30000);
+
+  it('M5-02: lugar NULL con fecha válida → placeName "Por definir"', async () => {
+    const tag = `TEST-M5-NL${Date.now().toString().slice(-10)}`;
+    const rows: Array<{ id: string; numero_convocatoria: string }> =
+      await dataSource.query(
+        `INSERT INTO evaluacion.convocatorias
+          (numero_convocatoria, anio_lectivo, tipo_session,
+           fecha_reunion, fecha_entrega_evaluacion, estado)
+         VALUES ($1, 2026, 'ORDINARIA',
+                 '2026-08-20T14:00:00Z', NOW() + INTERVAL '7 days', 'PROGRAMADA')
+         RETURNING id, numero_convocatoria`,
+        [tag],
+      );
+
+    const meetingId = rows[0].id;
+    const meetingNumber = rows[0].numero_convocatoria;
+    pdfPaths.push(
+      path.join(PDF_DIR, `convocatoria-${meetingNumber}-orden-del-dia.pdf`),
+    );
+
+    const spy = jest.spyOn(PdfGeneratorService.prototype, 'generateCallPdf');
+
+    const adapter = app.get<{
+      generateAgendaPdf: (
+        id: string,
+      ) => Promise<{ url: string; buffer: Buffer }>;
+    }>('IMeetingPdfGeneratorPort');
+    await adapter.generateAgendaPdf(meetingId);
+
+    expect(spy).toHaveBeenCalled();
+    const callArg = spy.mock.calls[0][0];
+    expect(callArg.placeName).toBe('Por definir');
+
+    spy.mockRestore();
+    jest.restoreAllMocks();
+  }, 30000);
+
+  it('M5-03: fecha 2026-04-16T10:00:00Z → time "05:00" con TZ=UTC (zona explícita America/Guayaquil)', async () => {
+    const tag = `TEST-M5-TZ${Date.now().toString().slice(-10)}`;
+    const rows: Array<{ id: string; numero_convocatoria: string }> =
+      await dataSource.query(
+        `INSERT INTO evaluacion.convocatorias
+          (numero_convocatoria, anio_lectivo, tipo_session,
+           fecha_reunion, fecha_entrega_evaluacion, estado)
+         VALUES ($1, 2026, 'ORDINARIA',
+                 '2026-04-16T10:00:00Z', NOW() + INTERVAL '7 days', 'PROGRAMADA')
+         RETURNING id, numero_convocatoria`,
+        [tag],
+      );
+
+    const meetingId = rows[0].id;
+    const meetingNumber = rows[0].numero_convocatoria;
+    pdfPaths.push(
+      path.join(PDF_DIR, `convocatoria-${meetingNumber}-orden-del-dia.pdf`),
+    );
+
+    const spy = jest.spyOn(PdfGeneratorService.prototype, 'generateCallPdf');
+
+    const adapter = app.get<{
+      generateAgendaPdf: (
+        id: string,
+      ) => Promise<{ url: string; buffer: Buffer }>;
+    }>('IMeetingPdfGeneratorPort');
+    await adapter.generateAgendaPdf(meetingId);
+
+    expect(spy).toHaveBeenCalled();
+    const callArg = spy.mock.calls[0][0];
+    // La fecha 2026-04-16T10:00:00Z son las 05:00 en Guayaquil (UTC-5)
+    expect(callArg.time).toBe('05:00');
+
+    spy.mockRestore();
+    jest.restoreAllMocks();
   }, 30000);
 });

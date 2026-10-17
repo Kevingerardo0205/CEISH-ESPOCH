@@ -57,14 +57,17 @@ export class MeetingPdfGeneratorAdapter implements IMeetingPdfGeneratorPort {
       ? new Date(meeting.fechaReunion).toLocaleTimeString('es-ES', {
           hour: '2-digit',
           minute: '2-digit',
+          timeZone: 'America/Guayaquil',
         })
-      : '09:00';
+      : 'Por definir';
 
-    const placeName = meeting.lugar?.nombre || 'Sala de Sesiones CEISH-ESPOCH';
+    const placeName = meeting.lugar?.nombre ?? 'Por definir';
 
     const pdfBuffer = await this.pdfGeneratorService.generateCallPdf({
       code: meeting.numeroConvocatoria || '001-2026',
-      date: meeting.fechaReunion || new Date(),
+      // fechaReunion está tipado como Date en el ORM pero la BD admite NULL
+      // eslint-disable-next-line @typescript-eslint/no-unnecessary-type-assertion
+      date: meeting.fechaReunion as Date | null,
       time: meetingTime,
       placeName,
       sessionType: meeting.tipoSession,

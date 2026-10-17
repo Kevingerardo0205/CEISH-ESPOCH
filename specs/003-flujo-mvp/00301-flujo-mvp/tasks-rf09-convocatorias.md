@@ -745,6 +745,46 @@ Resultados finales: `npm test` 290 tests, 49 suites ✓ — E2E 93 tests, 7 suit
 - **Archivos Afectados**: `.gitignore` (MODIFICAR si se amplía la regla), archivos a retirar con `git rm --cached`
 - **Dependencias**: ninguna
 
+### Task TSK-009-N26 - [x] COMPLETADA
+- **ID Único**: `TSK-009-N26`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (integridad del PDF Orden del Día)
+- **PR**: PR-M5 (`fix/meeting-pdf-missing-data`)
+- **Descripción**:
+  `MeetingPdfGeneratorAdapter.generateAgendaPdf` usaba defaults inventados cuando `fechaReunion` o `lugar` eran NULL en BD: (a) `date: meeting.fechaReunion || new Date()` → el PDF mostraba la fecha del día de la descarga; (b) `meetingTime` fallback `'09:00'` → el PDF mostraba "09:00" en lugar de indicar que la hora no está definida; (c) `placeName = meeting.lugar?.nombre || 'Sala de Sesiones CEISH-ESPOCH'` → el PDF mostraba un lugar inventado; (d) `toLocaleTimeString` sin `timeZone` → la hora dependía de la TZ del proceso y mostraba "05:00" en la máquina de desarrollo (zona horaria de Bogotá/Guayaquil, UTC-5) y otro valor en entornos con otra zona horaria. El documento oficial así generado contenía datos falsos que podían inducir a error a los miembros del comité.
+  **Causa raíz**: defaults optimistas añadidos sin considerar que una convocatoria puede crearse sin fecha ni lugar; la convocatoria heredada 000-2026 tiene `fecha_reunion` y `lugar_id` nulos, y `locationId` es opcional al crear una convocatoria.
+  **Fix**: (1) `date: (meeting.fechaReunion as Date | null) ?? null`; (2) `time: 'Por definir'` cuando `fechaReunion` es null, con `timeZone: 'America/Guayaquil'` explícito cuando no lo es; (3) `placeName: meeting.lugar?.nombre ?? 'Por definir'`; (4) `PdfGeneratorService.generateCallPdf` acepta ahora `date: Date | null` y formatea la fecha con `timeZone: 'America/Guayaquil'` o muestra `'Por definir'`.
+  **No tocado (PR-X2)**: `convocatoriaRepo.save(meeting)` en el adaptador modifica `updated_at` y `orden_dia_pdf_path`; la caché por nombre de archivo no se invalida si cambian fecha, hora o lugar. Ver TSK-009-N27.
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR)
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.spec.ts` (MODIFICAR)
+  - `src/shared/utils/pdf-generator.service.ts` (MODIFICAR)
+  - `test/meeting-pdf-real.e2e-spec.ts` (MODIFICAR — añadir bloque TEST-M5)
+- **Tests**:
+  - Unit: 318/318 (51 suites, +2 casos: fecha nula y lugar nulo)
+  - E2E: 110/110 (9 suites, incluye M5-01/02/03)
+- **Dependencias**: `TSK-009-N21`, `TSK-009-N24`
+- **Hecho cuando**: PDF con `fechaReunion=NULL` muestra `'Por definir'` en fecha, hora y lugar; con fecha válida la hora se formatea en America/Guayaquil independientemente de la TZ del proceso.
+
+### Task TSK-009-N27 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N27`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (coherencia del caché de PDF)
+- **Descripción**:
+  `GET /meetings/:id/pdf` modifica datos: el generador hace `save()` de la convocatoria y cambia `updated_at` y `orden_dia_pdf_path`; además el PDF se cachea en disco por número de convocatoria y no se regenera si luego cambian fecha, hora o lugar. Decidir invalidación de caché y cambiar `save()` por actualización parcial (PR-X2).
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR)
+- **Dependencias**: `TSK-009-N26`
+
+### Task TSK-009-N28 - [ ] PENDIENTE
+- **ID Único**: `TSK-009-N28`
+- **Requisito Relacionado**: `RF-09.2 (EARS 4)` (aislamiento de archivos entre entornos)
+- **Descripción**:
+  Los PDFs de convocatorias se guardan en `uploads/convocatorias/convocatoria-{número}-orden-del-dia.pdf`, carpeta compartida entre `ceish_db` (desarrollo) y `ceish_test_db` (E2E). Los números de convocatoria no son únicos entre bases: una corrida E2E puede borrar o sobrescribir el PDF guardado de una convocatoria real de desarrollo con el mismo número (se observó un PDF huérfano `convocatoria-009-2026` creado por pruebas), y el controlador sirve el archivo guardado si existe, por lo que puede entregar el PDF de otra convocatoria. Nombrar el archivo por UUID de la convocatoria o usar una carpeta distinta para pruebas (variable de entorno). Mientras tanto, vaciar `uploads/convocatorias` antes de pruebas manuales.
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/adapters/meeting-pdf-generator.adapter.ts` (MODIFICAR)
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` (MODIFICAR)
+  - tests (MODIFICAR)
+- **Dependencias**: `TSK-009-N27`
+
 ### Task TSK-SEC-01 - [ ] PENDIENTE
 - **ID Único**: `TSK-SEC-01`
 - **Requisito Relacionado**: Seguridad transversal (DosDefenseMiddleware)

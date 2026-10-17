@@ -896,7 +896,7 @@ export class PdfGeneratorService {
 
   async generateCallPdf(data: {
     code: string;
-    date: Date;
+    date: Date | null;
     time: string;
     placeName: string;
     sessionType: string;
@@ -907,11 +907,14 @@ export class PdfGeneratorService {
       investigatorName: string;
     }>;
   }): Promise<Buffer> {
-    const formattedDate = data.date.toLocaleDateString('es-ES', {
-      day: 'numeric',
-      month: 'long',
-      year: 'numeric',
-    });
+    const formattedDate = data.date
+      ? data.date.toLocaleDateString('es-ES', {
+          day: 'numeric',
+          month: 'long',
+          year: 'numeric',
+          timeZone: 'America/Guayaquil',
+        })
+      : 'Por definir';
 
     const protocolTableBody = [
       [
