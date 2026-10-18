@@ -114,4 +114,19 @@ export abstract class IEvaluationRepository {
     protocolId: number,
   ): Promise<ReassignmentHistoryRawRow[]>;
   abstract protocolExists(protocolId: number): Promise<boolean>;
+
+  // Active assignments [RF-12.4]
+  // Deuda: toda la asignación (assign-evaluators.use-case.ts:127-143,
+  // evaluations.service.ts:856-858, EvaluatorAssignmentAdapterService) está fijada
+  // a numero_version=1. Si se habilitan evaluaciones de versiones posteriores,
+  // escritor y lector deben cambiarse juntos.
+  abstract findProtocolWithVersion1(
+    protocolId: number,
+  ): Promise<ActiveVersionRow | null>;
+}
+
+export interface ActiveVersionRow {
+  ceishCode: string | null;
+  versionId: number | null;
+  versionNumber: number | null;
 }

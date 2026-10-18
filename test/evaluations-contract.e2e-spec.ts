@@ -3,6 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import {
   INestApplication,
   ValidationPipe,
+  BadRequestException,
   UnauthorizedException,
   ForbiddenException,
 } from '@nestjs/common';
@@ -23,6 +24,7 @@ import { CreateMeetingUseCase } from '../src/modules/evaluations/application/ser
 import { CalculateMeetingDatesService } from '../src/modules/evaluations/application/services/calculate-meeting-dates.service';
 import { EvaluatorAssignmentAdapterService } from '../src/modules/evaluations/application/services/evaluator-assignment-adapter.service';
 import { GetReassignmentHistoryUseCase } from '../src/modules/evaluations/application/use-cases/get-reassignment-history.use-case';
+import { GetActiveAssignmentsUseCase } from '../src/modules/evaluations/application/use-cases/get-active-assignments.use-case';
 import {
   EvaluatorProfile,
   ReassignmentReason,
@@ -356,6 +358,18 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
           provide: GetReassignmentHistoryUseCase,
           useValue: { execute: jest.fn().mockResolvedValue([]) },
         },
+        {
+          provide: GetActiveAssignmentsUseCase,
+          useValue: {
+            execute: jest.fn().mockResolvedValue({
+              protocolId: 1,
+              ceishCode: null,
+              versionId: null,
+              versionNumber: null,
+              assignments: [],
+            }),
+          },
+        },
         { provide: 'IMeetingRepositoryPort', useValue: mockMeetingRepo },
         { provide: 'IMeetingPdfGeneratorPort', useValue: mockPdfGenerator },
       ],
@@ -475,9 +489,7 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
 
     it('debe responder HTTP 400 cuando versionId explícito no existe (nunca 500)', async () => {
       mockAssignEvaluatorsUseCase.execute.mockRejectedValueOnce(
-        new (require('@nestjs/common').BadRequestException)(
-          'La versión con ID 9999 no existe.',
-        ),
+        new BadRequestException('La versión con ID 9999 no existe.'),
       );
       await request(app.getHttpServer())
         .post('/api/evaluations/assign')
@@ -498,7 +510,7 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
 
     it('debe responder HTTP 400 cuando protocolId es una cadena no numérica ("abc")', async () => {
       mockAssignEvaluatorsUseCase.execute.mockRejectedValueOnce(
-        new (require('@nestjs/common').BadRequestException)(
+        new BadRequestException(
           'protocolId debe ser un entero positivo; se recibió "abc".',
         ),
       );
