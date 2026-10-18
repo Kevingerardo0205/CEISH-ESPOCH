@@ -329,10 +329,41 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/shared/enums/evaluator-enums.spec.ts` — MODIFICAR o ELIMINAR según decisión anterior.
   - **Hecho cuando:** `git grep 'AssignmentStatus'` en `src/` muestra solo el enum numérico en `domain/enums/`; tsc limpio; tests verdes.
 
-- [ ] **TSK-002-N13** (PENDIENTE): Cobertura E2E de 401/403 con guards reales para `GET /api/evaluations/protocol/:protocolId/reassignment-history`.
-  - **Requisito relacionado:** Seguridad del endpoint — `RF-12.3`.
-  - **PR:** posterior a PR-D.
-  - **Descripción:** La suite `reassignment-history.e2e-spec.ts` (RH-05/RH-06) verifica decoradores de seguridad vía metadatos y 403 con guard simulado, pero `JwtAuthGuard` y `RolesGuard` están sobreescritos en el módulo de prueba. Para verificar que sin token real se obtiene 401 y con rol incorrecto se obtiene 403 usando los guards de producción, se necesita un segundo módulo de prueba sin overrides de guards (`Test.createTestingModule` sin `.overrideGuard(JwtAuthGuard)`). Esto implica infraestructura adicional (generar un JWT real o usar el helper de auth existente en los tests de `evaluations-contract`).
+- [ ] **TSK-002-N13** (PENDIENTE): Cobertura E2E de 401/403 con guards reales para los endpoints de solo lectura de evaluaciones.
+  - **Requisito relacionado:** Seguridad — `RF-12.3` (historial) y `RF-12.4` (asignaciones activas).
+  - **PR:** posterior a PR-D y PR-E.
+  - **Descripción:** Las suites `reassignment-history.e2e-spec.ts` y `active-assignments.e2e-spec.ts` verifican decoradores de seguridad vía metadatos Reflector y 403/permisos con guards simulados, pero `JwtAuthGuard` y `RolesGuard` están sobreescritos en el módulo de prueba. Para verificar que sin token real se obtiene 401 y con rol incorrecto se obtiene 403 usando los guards de producción, se necesita un segundo módulo de prueba sin overrides de guards (`Test.createTestingModule` sin `.overrideGuard(JwtAuthGuard)`). Esto implica infraestructura adicional (generar un JWT real o usar el helper de auth existente en los tests de `evaluations-contract`).
+  - **Endpoints a cubrir:**
+    - `GET /api/evaluations/protocol/:protocolId/reassignment-history`
+    - `GET /api/evaluations/protocol/:protocolId/active-assignments`
   - **Archivos afectados:**
     - `test/reassignment-history.e2e-spec.ts` — MODIFICAR añadir bloque `describe` con módulo sin overrides de guard y token JWT real.
-  - **Hecho cuando:** sin token devuelve 401 real; con JWT de rol `EVALUADOR` devuelve 403 real; tests verdes.
+    - `test/active-assignments.e2e-spec.ts` — MODIFICAR añadir bloque `describe` con módulo sin overrides de guard y token JWT real.
+  - **Hecho cuando:** sin token devuelve 401 real; con JWT de rol `EVALUADOR` devuelve 403 real; tests verdes en ambas suites.
+
+- [x] **TSK-002-N14**: Implementar `GET /api/evaluations/protocol/:protocolId/active-assignments`.
+  - **Requisito relacionado:** `RF-12.4` — lista de asignaciones activas de un protocolo.
+  - **PR:** PR-E (`feat/active-assignments-endpoint`).
+  - **Descripción:** Endpoint de solo lectura que devuelve las asignaciones activas (estados SUGGESTED/ASSIGNED/COMPLETED = 5/6/7) de la versión 1 de un protocolo, ordenadas por `assignedAt` ASC (desempate por `id`). Acceso restringido a roles `SECRETARIA` y `PRESIDENTE` con permiso `EVALUATORS_ASSIGN`.
+    - 200 con `assignments: []` si el protocolo existe pero no tiene versión 1, o si la versión 1 no tiene asignaciones activas.
+    - 404 en español si el protocolo no existe.
+    - 400 si `:protocolId` no es entero.
+    - **Decisión de versión (Opción C):** Se usa `findVersionByProtocolId(protocolId, 1)` (pasando el 1 **explícito**), igual que todos los paths de escritura `/assign`. **Deuda técnica:** toda la asignación (`assign-evaluators.use-case.ts:127-143`, `evaluations.service.ts:856-858`, `EvaluatorAssignmentAdapterService`) está fijada a `numero_version=1`. Si se habilitan evaluaciones de versiones posteriores, escritor y lector deben cambiarse juntos.
+    - **Contrato de `deadlineDate`:** se devuelve como `YYYY-MM-DD` (fecha de calendario sin hora); el cliente debe interpretarla como fecha local. `assignedAt` y `submittedAt` van en ISO-8601 completo.
+    - **Helper extraído:** `resolveProfile` de `get-reassignment-history.use-case.ts` movido a `src/shared/helpers/evaluator-profile.helper.ts` como `resolveEvaluatorProfile`, con test dedicado.
+  - **Archivos afectados:**
+    - `src/shared/helpers/evaluator-profile.helper.ts` — CREAR helper exportado.
+    - `src/shared/helpers/evaluator-profile.helper.spec.ts` — CREAR 9 unit tests.
+    - `src/modules/evaluations/application/use-cases/get-active-assignments.use-case.ts` — CREAR caso de uso con interfaz `IActiveAssignmentsQueryRepository`.
+    - `src/modules/evaluations/application/use-cases/get-active-assignments.use-case.spec.ts` — CREAR 9 unit tests.
+    - `src/modules/evaluations/application/use-cases/get-reassignment-history.use-case.ts` — MODIFICAR para importar `resolveEvaluatorProfile` del helper compartido.
+    - `src/modules/evaluations/domain/ports/evaluation.repository.port.ts` — MODIFICAR añadir `ActiveVersionRow` y método abstracto `findProtocolWithVersion1`.
+    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR implementar `findProtocolWithVersion1` con LEFT JOIN SQL (sin N+1).
+    - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` — MODIFICAR añadir endpoint `GET protocol/:protocolId/active-assignments`.
+    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR registrar y exportar `GetActiveAssignmentsUseCase`.
+    - `test/active-assignments.e2e-spec.ts` — CREAR suite E2E con 10 casos (AA-01…AA-10) contra `ceish_test_db`.
+    - `test/evaluations-contract.e2e-spec.ts` — MODIFICAR añadir mock de `GetActiveAssignmentsUseCase`; corregir `require()` por imports ESM.
+    - `test/peer-risk-concurrency.e2e-spec.ts` — MODIFICAR añadir mock de `GetActiveAssignmentsUseCase`.
+  - **Tests:** `npm test` → 346 passed (+18 nuevos); `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` → 127 passed (+10 nuevos); `npx tsc --noEmit` limpio; ESLint sin errores sobre archivos tocados.
+  - **Cobertura E2E (AA-01…AA-10):** AA-01 400 no-numérico; AA-02 404 protocolo inexistente; AA-03 200 sin versión 1; AA-04 200 sin asignaciones; AA-05 shape completo DTO; AA-06 ARCHIVED/REASIGNED excluidos; AA-07 `isAssignedForAnnex10`; AA-08 orden determinista; AA-09 versión 2 no aparece (fija deuda de versión); AA-10 metadata Reflector roles+permiso. Guards `JwtAuthGuard` y `RolesGuard` sobreescritos (401/403 reales pendiente TSK-002-N13).
+  - **Hecho cuando:** tsc limpio; 346 unit tests y 127 E2E verdes; ESLint sin errores nuevos sobre archivos tocados; endpoint devuelve JSON con campos `protocolId`, `ceishCode`, `versionId`, `versionNumber`, `assignments[]` en orden `assignedAt ASC`.
