@@ -12,11 +12,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ExecutionContext } from '@nestjs/common';
 import request from 'supertest';
 import { DataSource } from 'typeorm';
+import { Reflector } from '@nestjs/core';
 import { AppModule } from '../src/app.module';
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/shared/guards/roles.guard';
 import { PermissionsGuard } from '../src/shared/guards/permissions.guard';
 import { Permission } from '../src/shared/enums/permission.enum';
+import { EvaluationsController } from '../src/modules/evaluations/infrastructure/controllers/evaluations.controller';
+import { ROLES_KEY } from '../src/shared/decorators/roles.decorator';
+import { PERMISSIONS_KEY } from '../src/shared/decorators/permissions.decorator';
 import { GlobalValidationPipe } from '../src/shared/pipes/validation.pipe';
 import { AuditService } from '../src/modules/audit/application/services/audit.service';
 import { IEmailServicePort } from '../src/modules/notifications/domain/ports/email.service.port';
@@ -359,13 +363,17 @@ describe('Reassignment History E2E (ceish_test_db)', () => {
   });
 
   // ── TEST RH-05 ──────────────────────────────────────────────────────────────
-  it('RH-05: sin token → 401', () => {
-    // Para este test deshabilitar el override del guard requeriría un setup especial.
-    // En el setup actual el JwtAuthGuard siempre devuelve true.
-    // Marcamos este test como pendiente de infraestructura: pasa simbólicamente
-    // verificando que el endpoint rechaza cuando el guard devuelve false.
-    // El guard real en producción lanza UnauthorizedException cuando falta el token.
-    expect(true).toBe(true); // placeholder — verificado manualmente con guard real
+  it('RH-05: el endpoint declara roles SECRETARIA y PRESIDENTE y permiso EVALUATORS_ASSIGN (metadata Reflector)', () => {
+    const reflector = new Reflector();
+    // eslint-disable-next-line @typescript-eslint/unbound-method
+    const handler = EvaluationsController.prototype.getReassignmentHistory;
+
+    const roles = reflector.get<string[]>(ROLES_KEY, handler);
+    const permissions = reflector.get<Permission[]>(PERMISSIONS_KEY, handler);
+
+    expect(roles).toContain('SECRETARIA');
+    expect(roles).toContain('PRESIDENTE');
+    expect(permissions).toContain(Permission.EVALUATORS_ASSIGN);
   });
 
   // ── TEST RH-06 ──────────────────────────────────────────────────────────────

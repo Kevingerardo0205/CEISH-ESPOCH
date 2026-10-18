@@ -304,12 +304,14 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `test/evaluations-contract.e2e-spec.ts` — MODIFICAR añadir mock de `GetReassignmentHistoryUseCase`.
     - `test/peer-risk-concurrency.e2e-spec.ts` — MODIFICAR añadir mock de `GetReassignmentHistoryUseCase`.
   - **Tests:** `npm test` → 328 passed; `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` → 117 passed; `npx tsc --noEmit` limpio.
+  - **Cobertura E2E (RH-01…RH-07):** RH-01 campos + orden DESC; RH-02 vacío 200; RH-03 404 español; RH-04 400 no-numérico; RH-05 metadata Reflector (roles+permiso; demostrado en rojo sin `@Roles`); RH-06 403 vía header simulado; RH-07 aislamiento por protocolo. Los guards `JwtAuthGuard` y `RolesGuard` están sobreescritos en el módulo de prueba (401/403 con guards reales pendiente TSK-002-N13).
+  - **Nota (producción):** En producción el `ResponseInterceptor` envuelve el arreglo como `{ data: [...], statusCode, message: 'Success' }` (una capa); los E2E no registran el interceptor.
   - **Hecho cuando:** tsc limpio; 328 unit tests y 117 E2E verdes; ESLint sin errores nuevos sobre archivos tocados; endpoint devuelve JSON con campos `id`, `assignmentId`, `previousEvaluatorId`, `previousEvaluatorName`, `newEvaluatorId`, `newEvaluatorName`, `evaluatorProfile`, `reassignmentReason`, `reasonDescription`, `executedByUserId`, `executedByUserName`, `executedAt` en orden DESC.
 
 - [ ] **TSK-002-N11** (PENDIENTE): Corregir fallback `adminUserId ?? 1` en `EvaluationsController.reassignEvaluator`.
   - **Requisito relacionado:** Integridad de auditoría — `RF-12.3` registra `ejecutado_por`.
   - **PR:** posterior a PR-D.
-  - **Descripción:** En `evaluations.controller.ts` (~línea 188), cuando `req.user` es `undefined` (token ausente o middleware omitido), el controlador persiste `ejecutado_por = 1` en `evaluacion.asignacion_historial`, falsificando la auditoría. Causa raíz probable: guard chain no rechaza la petición antes del controlador en ciertos contextos de test o configuración. **No modificar en TSK-002-N10; investigar y corregir aquí.**
+  - **Descripción:** En `evaluations.controller.ts` (~línea 188), cuando `req.user` es `undefined`, el controlador usa `adminUserId = 1` y persiste `ejecutado_por = 1` en `evaluacion.asignacion_historial`, falsificando la auditoría. La causa de que `req.user` pueda faltar está **SIN INVESTIGAR**. **No modificar en TSK-002-N10; investigar y corregir aquí.**
   - **Archivos afectados:**
     - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` (~línea 188) — eliminar el fallback `?? 1` y lanzar `UnauthorizedException` si `req.user` es falsy.
   - **Hecho cuando:** `req.user` undefined en `POST /evaluations/reassign` devuelve 401; ningún registro de historial queda con `ejecutado_por = 1` por falta de autenticación.
@@ -317,10 +319,20 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 - [ ] **TSK-002-N12** (PENDIENTE): Consolidar enum `AssignmentStatus` duplicado.
   - **Requisito relacionado:** Limpieza de deuda técnica; sin RF directo.
   - **PR:** posterior a PR-D, puede ir junto a TSK-002-N11.
-  - **Descripción:** Existe duplicación del enum `AssignmentStatus`:
-    - `src/shared/enums/evaluator-enums.ts` — define valores **string** (`'PENDING'`, `'ASSIGNED'`, `'COMPLETED'`, `'REASSIGNED_VENCIMIENTO'`, `'REASSIGNED_COI'`). **No se usa en ninguna importación de `src/`.**
-    - `src/modules/evaluations/domain/enums/assignment-status.enum.ts` — define valores **numéricos** (`5 = SUGGESTED`, `6 = ASSIGNED`, `7 = COMPLETED`, `8 = PEER_ASSIGNED`, `26 = REASSIGNED_VENCIMIENTO`, `27 = REASSIGNED_COI`). **Es el único utilizado** en repositorios, use cases y services del módulo.
-    Acción: verificar que `evaluator-enums.ts:AssignmentStatus` no tiene referencias externas (`git grep`), luego eliminar la declaración y consolidar cualquier uso residual en el enum numérico canónico.
+  - **Descripción:** Existe duplicación del enum `AssignmentStatus` (verificado con `git grep -n "AssignmentStatus" -- src test`):
+    - `src/shared/enums/evaluator-enums.ts` — define valores **string** (`ASSIGNED='ASSIGNED'`, `SUBMITTED='SUBMITTED'`, `REASIGNED_VENCIMIENTO='REASIGNED_VENCIMIENTO'`, `REASIGNED_COI='REASIGNED_COI'`). **Solo lo importa su propio test `src/shared/enums/evaluator-enums.spec.ts`; ningún archivo de producción lo usa.**
+    - `src/modules/evaluations/domain/enums/assignment-status.enum.ts` — define valores **numéricos** (`SUGGESTED=5`, `ASSIGNED=6`, `COMPLETED=7`, `ARCHIVED=8`, `REASIGNED_VENCIMIENTO=26`, `REASIGNED_COI=27`). **Es el único utilizado** en todos los repositorios, use cases, services y tests funcionales.
+    Nota ortográfica: ambos enums usan `REASIGNED_*` (una sola S), no `REASSIGNED_*`.
+    Acción: evaluar si `evaluator-enums.ts:AssignmentStatus` puede eliminarse o debe alinearse; si se elimina, eliminar también `evaluator-enums.spec.ts` o redirigirlo al enum numérico.
   - **Archivos afectados:**
-    - `src/shared/enums/evaluator-enums.ts` — MODIFICAR (eliminar `AssignmentStatus` string si sin usos).
-  - **Hecho cuando:** `git grep 'AssignmentStatus'` muestra solo el enum numérico en `domain/enums/`; tsc limpio; tests verdes.
+    - `src/shared/enums/evaluator-enums.ts` — MODIFICAR (eliminar o consolidar `AssignmentStatus` string).
+    - `src/shared/enums/evaluator-enums.spec.ts` — MODIFICAR o ELIMINAR según decisión anterior.
+  - **Hecho cuando:** `git grep 'AssignmentStatus'` en `src/` muestra solo el enum numérico en `domain/enums/`; tsc limpio; tests verdes.
+
+- [ ] **TSK-002-N13** (PENDIENTE): Cobertura E2E de 401/403 con guards reales para `GET /api/evaluations/protocol/:protocolId/reassignment-history`.
+  - **Requisito relacionado:** Seguridad del endpoint — `RF-12.3`.
+  - **PR:** posterior a PR-D.
+  - **Descripción:** La suite `reassignment-history.e2e-spec.ts` (RH-05/RH-06) verifica decoradores de seguridad vía metadatos y 403 con guard simulado, pero `JwtAuthGuard` y `RolesGuard` están sobreescritos en el módulo de prueba. Para verificar que sin token real se obtiene 401 y con rol incorrecto se obtiene 403 usando los guards de producción, se necesita un segundo módulo de prueba sin overrides de guards (`Test.createTestingModule` sin `.overrideGuard(JwtAuthGuard)`). Esto implica infraestructura adicional (generar un JWT real o usar el helper de auth existente en los tests de `evaluations-contract`).
+  - **Archivos afectados:**
+    - `test/reassignment-history.e2e-spec.ts` — MODIFICAR añadir bloque `describe` con módulo sin overrides de guard y token JWT real.
+  - **Hecho cuando:** sin token devuelve 401 real; con JWT de rol `EVALUADOR` devuelve 403 real; tests verdes.
