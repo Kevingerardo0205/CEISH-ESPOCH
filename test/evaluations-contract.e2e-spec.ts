@@ -22,6 +22,7 @@ import { CallsService } from '../src/modules/evaluations/application/services/ca
 import { CreateMeetingUseCase } from '../src/modules/evaluations/application/services/create-meeting.use-case';
 import { CalculateMeetingDatesService } from '../src/modules/evaluations/application/services/calculate-meeting-dates.service';
 import { EvaluatorAssignmentAdapterService } from '../src/modules/evaluations/application/services/evaluator-assignment-adapter.service';
+import { GetReassignmentHistoryUseCase } from '../src/modules/evaluations/application/use-cases/get-reassignment-history.use-case';
 import {
   EvaluatorProfile,
   ReassignmentReason,
@@ -350,6 +351,10 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
         {
           provide: EvaluatorAssignmentAdapterService,
           useValue: mockAssignmentAdapterService,
+        },
+        {
+          provide: GetReassignmentHistoryUseCase,
+          useValue: { execute: jest.fn().mockResolvedValue([]) },
         },
         { provide: 'IMeetingRepositoryPort', useValue: mockMeetingRepo },
         { provide: 'IMeetingPdfGeneratorPort', useValue: mockPdfGenerator },

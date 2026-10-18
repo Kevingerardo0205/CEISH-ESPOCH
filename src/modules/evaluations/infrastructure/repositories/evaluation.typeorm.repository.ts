@@ -2,7 +2,10 @@ import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
-import { IEvaluationRepository } from '../../domain/ports/evaluation.repository.port';
+import {
+  IEvaluationRepository,
+  ReassignmentHistoryRawRow,
+} from '../../domain/ports/evaluation.repository.port';
 import { EvaluationAssignmentOrmEntity } from '../database/evaluation-assignment.entity.orm';
 import { EvaluatorProfileOrmEntity } from '../database/evaluator-profile.entity.orm';
 import { EvaluatorProfileUserOrmEntity } from '../database/evaluator-profile-user.entity.orm';
@@ -425,5 +428,50 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
 
   async deleteEvaluationResponseDetails(evaluationId: number): Promise<void> {
     await this.detailRepo.delete({ evaluacionId: evaluationId });
+  }
+
+  async findReassignmentHistoryByProtocolId(
+    protocolId: number,
+  ): Promise<ReassignmentHistoryRawRow[]> {
+    const rows: ReassignmentHistoryRawRow[] = await this.dataSource.query(
+      `SELECT
+         h.id                       AS id,
+         h.asignacion_anterior_id   AS "assignmentId",
+         h.evaluador_anterior_id    AS "previousEvaluatorId",
+         u_prev.nombres_completos   AS "previousEvaluatorName",
+         h.evaluador_nuevo_id       AS "newEvaluatorId",
+         u_new.nombres_completos    AS "newEvaluatorName",
+         p.nombre                   AS "profileName",
+         h.motivo                   AS "reassignmentReason",
+         h.justificacion            AS "reasonDescription",
+         h.ejecutado_por            AS "executedByUserId",
+         u_exec.nombres_completos   AS "executedByUserName",
+         h.creado_en                AS "executedAt"
+       FROM evaluacion.asignacion_historial h
+       JOIN evaluacion.asignaciones_evaluacion ae
+         ON h.asignacion_anterior_id = ae.id
+       JOIN public.versiones_protocolo vp
+         ON ae.version_id = vp.id
+       JOIN catalogos.usuarios u_prev
+         ON h.evaluador_anterior_id = u_prev.id
+       JOIN catalogos.usuarios u_new
+         ON h.evaluador_nuevo_id = u_new.id
+       JOIN catalogos.usuarios u_exec
+         ON h.ejecutado_por = u_exec.id
+       LEFT JOIN catalogos.perfiles_evaluador p
+         ON h.perfil_id = p.id
+       WHERE vp.protocolo_id = $1
+       ORDER BY h.creado_en DESC, h.id DESC`,
+      [protocolId],
+    );
+    return rows;
+  }
+
+  async protocolExists(protocolId: number): Promise<boolean> {
+    const rows: Array<{ exists: boolean }> = await this.dataSource.query(
+      `SELECT EXISTS(SELECT 1 FROM public.protocolos WHERE id = $1) AS exists`,
+      [protocolId],
+    );
+    return rows[0]?.exists === true;
   }
 }
