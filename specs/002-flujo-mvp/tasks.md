@@ -348,7 +348,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - 200 con `assignments: []` si el protocolo existe pero no tiene versión 1, o si la versión 1 no tiene asignaciones activas.
     - 404 en español si el protocolo no existe.
     - 400 si `:protocolId` no es entero.
-    - **Decisión de versión (Opción C):** Se usa `findVersionByProtocolId(protocolId, 1)` (pasando el 1 **explícito**), igual que todos los paths de escritura `/assign`. **Deuda técnica:** toda la asignación (`assign-evaluators.use-case.ts:127-143`, `evaluations.service.ts:856-858`, `EvaluatorAssignmentAdapterService`) está fijada a `numero_version=1`. Si se habilitan evaluaciones de versiones posteriores, escritor y lector deben cambiarse juntos.
+    - **Decisión de versión (Opción C):** Se añade el método nuevo `findProtocolWithVersion1(protocolId)` al puerto `IEvaluationRepository`: realiza un LEFT JOIN `public.protocolos p LEFT JOIN public.versiones_protocolo vp ON vp.protocolo_id = p.id AND vp.numero_version = 1` para obtener `ceishCode` y `versionId` en una sola consulta con `numero_version = 1` **explícito** en la condición JOIN. **Nota:** `findVersionByProtocolId` **no es llamado** por este caso de uso. **Deuda técnica:** toda la asignación (`assign-evaluators.use-case.ts:127-143`, `evaluations.service.ts:856-858`, `EvaluatorAssignmentAdapterService`) está fijada a `numero_version=1`. Si se habilitan evaluaciones de versiones posteriores, escritor y lector deben cambiarse juntos.
     - **Contrato de `deadlineDate`:** se devuelve como `YYYY-MM-DD` (fecha de calendario sin hora); el cliente debe interpretarla como fecha local. `assignedAt` y `submittedAt` van en ISO-8601 completo.
     - **Helper extraído:** `resolveProfile` de `get-reassignment-history.use-case.ts` movido a `src/shared/helpers/evaluator-profile.helper.ts` como `resolveEvaluatorProfile`, con test dedicado.
   - **Archivos afectados:**
@@ -367,3 +367,20 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Tests:** `npm test` → 346 passed (+18 nuevos); `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` → 127 passed (+10 nuevos); `npx tsc --noEmit` limpio; ESLint sin errores sobre archivos tocados.
   - **Cobertura E2E (AA-01…AA-10):** AA-01 400 no-numérico; AA-02 404 protocolo inexistente; AA-03 200 sin versión 1; AA-04 200 sin asignaciones; AA-05 shape completo DTO; AA-06 ARCHIVED/REASIGNED excluidos; AA-07 `isAssignedForAnnex10`; AA-08 orden determinista; AA-09 versión 2 no aparece (fija deuda de versión); AA-10 metadata Reflector roles+permiso. Guards `JwtAuthGuard` y `RolesGuard` sobreescritos (401/403 reales pendiente TSK-002-N13).
   - **Hecho cuando:** tsc limpio; 346 unit tests y 127 E2E verdes; ESLint sin errores nuevos sobre archivos tocados; endpoint devuelve JSON con campos `protocolId`, `ceishCode`, `versionId`, `versionNumber`, `assignments[]` en orden `assignedAt ASC`.
+
+- [ ] **TSK-002-N15** (PENDIENTE): `ReassignEvaluatorUseCase` no valida el estado de la asignación saliente.
+  - **Requisito relacionado:** Búsqueda en specs — sin regla documentada en los specs. RF-12.3 (`specs/002-flujo-mvp/spec.md:56`) dice: «Si un evaluador es desasignado por vencimiento del plazo o Conflicto de Interés, el sistema debe conservar inmutable el registro saliente (marcando estado `REASIGNADO_VENCIMIENTO` o `REASIGNADO_COI`)». No menciona restricción de estado previo (COMPLETED o ya REASIGNED_*) como precondición para bloquear la operación.
+  - **PR:** posterior a PR-E.
+  - **Descripción:** En `reassign-evaluator.use-case.ts`, después de `findAssignmentById` (línea ~100), el caso de uso no verifica el `statusId` de la asignación saliente. Permite reasignar asignaciones ya en estado `COMPLETED` (7) o en estados `REASIGNED_VENCIMIENTO` (26) / `REASIGNED_COI` (27), lo que podría corromper el historial de auditoría.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR: añadir validación de `statusId` antes de proceder; lanzar `BadRequestException` si el estado no es `SUGGESTED` (5) o `ASSIGNED` (6).
+  - **Hecho cuando:** Intentar reasignar una asignación con estado COMPLETED o REASIGNED_* devuelve 400 con mensaje en español; tests verdes.
+
+- [ ] **TSK-002-N16** (PENDIENTE): `ReassignEvaluatorDto` exige `replacementEvaluatorProfile`; el contrato del cliente actual no lo envía.
+  - **Requisito relacionado:** RF-12.3 — la reasignación debe filtrar al reemplazante dentro del mismo perfil saliente. El perfil del reemplazante es inferible del evaluador saliente sin que el cliente lo envíe.
+  - **PR:** posterior a PR-E.
+  - **Descripción:** `ReassignEvaluatorDto` (en `evaluator-dtos.ts:72`) declara `replacementEvaluatorProfile: EvaluatorProfile` como campo obligatorio con `@IsEnum`. Sin embargo, el contrato de la API enviado por el cliente actual no incluye este campo. El caso de uso usa `dto.replacementEvaluatorProfile` directamente (líneas ~206, 294, 307). Opciones a evaluar: (a) derivar el perfil del evaluador saliente que ya se carga en el use case, eliminando el campo del DTO; (b) documentar el campo como obligatorio en el contrato del cliente y actualizar la integración frontend.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/dtos/evaluator-dtos.ts` — MODIFICAR según decisión.
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR si se elimina el campo del DTO.
+  - **Hecho cuando:** El endpoint de reasignación funciona sin `replacementEvaluatorProfile` en el body del cliente (si se elige opción a), o el cliente envía el campo y la validación pasa (si se elige opción b); tests verdes.

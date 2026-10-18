@@ -336,7 +336,7 @@ describe('Active Assignments E2E (ceish_test_db)', () => {
       .get('/api/evaluations/protocol/99999/active-assignments')
       .set('x-forwarded-for', TEST_AA_IP);
     expect(res.status).toBe(404);
-    expect(res.body.message).toMatch(/99999/);
+    expect(res.body.message).toMatch(/El protocolo con ID 99999 no existe/);
   });
 
   it('AA-03: protocolo sin versión numero_version=1 devuelve 200 con assignments vacío y versionId null', async () => {
