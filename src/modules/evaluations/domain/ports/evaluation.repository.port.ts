@@ -5,6 +5,21 @@ import { EvaluationOrmEntity } from '../../infrastructure/database/evaluation.en
 import { EvaluationResponseDetailOrmEntity } from '../../infrastructure/database/evaluation-response-detail.entity.orm';
 import { AssignmentHistoryOrmEntity } from '../../infrastructure/database/entities/assignment-history.orm-entity';
 
+export interface ReassignmentHistoryRawRow {
+  id: number;
+  assignmentId: number;
+  previousEvaluatorId: number;
+  previousEvaluatorName: string;
+  newEvaluatorId: number;
+  newEvaluatorName: string;
+  profileName: string | null;
+  reassignmentReason: string;
+  reasonDescription: string | null;
+  executedByUserId: number;
+  executedByUserName: string | null;
+  executedAt: Date;
+}
+
 export abstract class IEvaluationRepository {
   // Assignments
   abstract findAssignmentById(
@@ -65,7 +80,9 @@ export abstract class IEvaluationRepository {
   abstract saveVersion(
     entity: Partial<ProtocolVersionOrmEntity>,
   ): Promise<ProtocolVersionOrmEntity>;
-  abstract findVersionById(id: number): Promise<ProtocolVersionOrmEntity | null>;
+  abstract findVersionById(
+    id: number,
+  ): Promise<ProtocolVersionOrmEntity | null>;
   abstract findVersionByProtocolId(
     protocolId: number,
     versionNumber?: number,
@@ -91,4 +108,10 @@ export abstract class IEvaluationRepository {
     evaluationId: number,
   ): Promise<EvaluationResponseDetailOrmEntity[]>;
   abstract deleteEvaluationResponseDetails(evaluationId: number): Promise<void>;
+
+  // Reassignment history [RF-12.3]
+  abstract findReassignmentHistoryByProtocolId(
+    protocolId: number,
+  ): Promise<ReassignmentHistoryRawRow[]>;
+  abstract protocolExists(protocolId: number): Promise<boolean>;
 }

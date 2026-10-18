@@ -27,6 +27,7 @@ import { AssignEvaluatorsUseCase } from './application/use-cases/assign-evaluato
 import { ReassignEvaluatorUseCase } from './application/use-cases/reassign-evaluator.use-case';
 import { SubmitEvaluationUseCase } from './application/use-cases/submit-evaluation.use-case';
 import { InheritEvaluatorsUseCase } from './application/use-cases/inherit-evaluators.use-case';
+import { GetReassignmentHistoryUseCase } from './application/use-cases/get-reassignment-history.use-case';
 import { MailerNotificationAdapter } from './infrastructure/adapters/mailer-notification.adapter';
 
 import { EvaluationsController } from './infrastructure/controllers/evaluations.controller';
@@ -188,6 +189,14 @@ import { AuthModule } from '../auth/auth.module';
         new InheritEvaluatorsUseCase(repo),
       inject: [IEvaluationRepository],
     },
+    {
+      provide: GetReassignmentHistoryUseCase,
+      useFactory: (
+        repo: IEvaluationRepository,
+      ): GetReassignmentHistoryUseCase =>
+        new GetReassignmentHistoryUseCase(repo),
+      inject: [IEvaluationRepository],
+    },
   ],
   exports: [
     EvaluationsService,
@@ -200,6 +209,7 @@ import { AuthModule } from '../auth/auth.module';
     ReassignEvaluatorUseCase,
     SubmitEvaluationUseCase,
     InheritEvaluatorsUseCase,
+    GetReassignmentHistoryUseCase,
     MailerNotificationAdapter,
     IEvaluationRepository,
     'IMeetingRepositoryPort',
