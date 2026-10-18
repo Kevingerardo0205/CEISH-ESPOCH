@@ -385,6 +385,7 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 | PR-B2 | RF-12.7(a), RF-12.7(e) | `feat/assignment-without-deadline` — Eliminar fijación de `fecha_limite` al asignar (`null`, "Pendiente de convocatoria"). Reasignación hereda `fechaEntregaEvaluacion` vigente. Exponer `assignedAt` y estado semántico. | 🔲 Pendiente |
 | PR-B3 | RF-07.1, RF-09.1 | `fix/documental-subsanation-30d` — Corrección de plazos legados (15→30 días subsanación; `EVALUADOR_URGENTE_UMBRAL_DIAS` solo cuando existe `fecha_limite`). | 🔲 Pendiente |
 | PR-C | RF-12.7(d), RF-ALR | `feat/deadline-alerts` — Cron de alertas para protocolos sin convocatoria; biblioteca interna de feriados Ecuador; tabla `sistema.parametros_sistema` (TSK-015-N03). | 🔲 Pendiente |
+| PR-D | RF-12.3 | `feat/reassignment-history-endpoint` — Endpoint de lectura `GET /api/evaluations/protocol/:protocolId/reassignment-history`. Guards `SECRETARIA`/`PRESIDENTE` + `EVALUATORS_ASSIGN`. Arquitectura hexagonal: `GetReassignmentHistoryUseCase` (TSK-002-N10) + `IHistoryQueryRepository` + JOIN único en repositorio (sin N+1). Devuelve historial inmutable ordenado DESC por `creado_en, id`. | ✅ Implementado (branch `feat/reassignment-history-endpoint`) |
 
 ### 16.2 Decisiones Técnicas Verificadas
 

@@ -288,3 +288,39 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/evaluations/evaluations.module.ts` (~línea 131) — MODIFICAR el bridge de correos.
     - Test nuevo a definir (ubicación: junto al servicio que llame al bridge).
   - **Hecho cuando:** El correo de asignación incluye nombre real, asunto de plantilla y cuerpo HTML; la prueba pasa en verde.
+
+- [x] **TSK-002-N10**: Implementar `GET /api/evaluations/protocol/:protocolId/reassignment-history`.
+  - **Requisito relacionado:** `RF-12.3` — historial inmutable de reasignaciones de evaluadores.
+  - **PR:** PR-D (`feat/reassignment-history-endpoint`).
+  - **Descripción:** Endpoint de solo lectura que devuelve el historial de reasignaciones de evaluadores para un protocolo, ordenado de más reciente a más antiguo. Acceso restringido a roles `SECRETARIA` y `PRESIDENTE` con permiso `EVALUATORS_ASSIGN`. Responde 200+array vacío si el protocolo existe sin historial; 404 si el protocolo no existe; 400 si `:protocolId` no es entero.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/use-cases/get-reassignment-history.use-case.ts` — CREAR caso de uso con interfaz `IHistoryQueryRepository` y mapeo de perfil por normalización NFD.
+    - `src/modules/evaluations/application/use-cases/get-reassignment-history.use-case.spec.ts` — CREAR 10 unit tests.
+    - `test/reassignment-history.e2e-spec.ts` — CREAR suite E2E con 7 casos (RH-01…RH-07) contra `ceish_test_db`.
+    - `src/modules/evaluations/domain/ports/evaluation.repository.port.ts` — MODIFICAR añadir `ReassignmentHistoryRawRow`, `findReassignmentHistoryByProtocolId`, `protocolExists`.
+    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR implementar métodos con un único JOIN (sin N+1).
+    - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` — MODIFICAR añadir endpoint `GET protocol/:protocolId/reassignment-history`.
+    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR registrar y exportar `GetReassignmentHistoryUseCase`.
+    - `test/evaluations-contract.e2e-spec.ts` — MODIFICAR añadir mock de `GetReassignmentHistoryUseCase`.
+    - `test/peer-risk-concurrency.e2e-spec.ts` — MODIFICAR añadir mock de `GetReassignmentHistoryUseCase`.
+  - **Tests:** `npm test` → 328 passed; `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` → 117 passed; `npx tsc --noEmit` limpio.
+  - **Hecho cuando:** tsc limpio; 328 unit tests y 117 E2E verdes; ESLint sin errores nuevos sobre archivos tocados; endpoint devuelve JSON con campos `id`, `assignmentId`, `previousEvaluatorId`, `previousEvaluatorName`, `newEvaluatorId`, `newEvaluatorName`, `evaluatorProfile`, `reassignmentReason`, `reasonDescription`, `executedByUserId`, `executedByUserName`, `executedAt` en orden DESC.
+
+- [ ] **TSK-002-N11** (PENDIENTE): Corregir fallback `adminUserId ?? 1` en `EvaluationsController.reassignEvaluator`.
+  - **Requisito relacionado:** Integridad de auditoría — `RF-12.3` registra `ejecutado_por`.
+  - **PR:** posterior a PR-D.
+  - **Descripción:** En `evaluations.controller.ts` (~línea 188), cuando `req.user` es `undefined` (token ausente o middleware omitido), el controlador persiste `ejecutado_por = 1` en `evaluacion.asignacion_historial`, falsificando la auditoría. Causa raíz probable: guard chain no rechaza la petición antes del controlador en ciertos contextos de test o configuración. **No modificar en TSK-002-N10; investigar y corregir aquí.**
+  - **Archivos afectados:**
+    - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` (~línea 188) — eliminar el fallback `?? 1` y lanzar `UnauthorizedException` si `req.user` es falsy.
+  - **Hecho cuando:** `req.user` undefined en `POST /evaluations/reassign` devuelve 401; ningún registro de historial queda con `ejecutado_por = 1` por falta de autenticación.
+
+- [ ] **TSK-002-N12** (PENDIENTE): Consolidar enum `AssignmentStatus` duplicado.
+  - **Requisito relacionado:** Limpieza de deuda técnica; sin RF directo.
+  - **PR:** posterior a PR-D, puede ir junto a TSK-002-N11.
+  - **Descripción:** Existe duplicación del enum `AssignmentStatus`:
+    - `src/shared/enums/evaluator-enums.ts` — define valores **string** (`'PENDING'`, `'ASSIGNED'`, `'COMPLETED'`, `'REASSIGNED_VENCIMIENTO'`, `'REASSIGNED_COI'`). **No se usa en ninguna importación de `src/`.**
+    - `src/modules/evaluations/domain/enums/assignment-status.enum.ts` — define valores **numéricos** (`5 = SUGGESTED`, `6 = ASSIGNED`, `7 = COMPLETED`, `8 = PEER_ASSIGNED`, `26 = REASSIGNED_VENCIMIENTO`, `27 = REASSIGNED_COI`). **Es el único utilizado** en repositorios, use cases y services del módulo.
+    Acción: verificar que `evaluator-enums.ts:AssignmentStatus` no tiene referencias externas (`git grep`), luego eliminar la declaración y consolidar cualquier uso residual en el enum numérico canónico.
+  - **Archivos afectados:**
+    - `src/shared/enums/evaluator-enums.ts` — MODIFICAR (eliminar `AssignmentStatus` string si sin usos).
+  - **Hecho cuando:** `git grep 'AssignmentStatus'` muestra solo el enum numérico en `domain/enums/`; tsc limpio; tests verdes.
