@@ -10,6 +10,7 @@ import { SubmitEvaluationUseCase } from '../src/modules/evaluations/application/
 import { EvaluationConsolidationService } from '../src/modules/evaluations/application/services/evaluation-consolidation.service';
 import { EvaluatorAssignmentAdapterService } from '../src/modules/evaluations/application/services/evaluator-assignment-adapter.service';
 import { GetReassignmentHistoryUseCase } from '../src/modules/evaluations/application/use-cases/get-reassignment-history.use-case';
+import { GetActiveAssignmentsUseCase } from '../src/modules/evaluations/application/use-cases/get-active-assignments.use-case';
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/shared/guards/roles.guard';
 import { PermissionsGuard } from '../src/shared/guards/permissions.guard';
@@ -86,6 +87,18 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
         {
           provide: GetReassignmentHistoryUseCase,
           useValue: { execute: jest.fn().mockResolvedValue([]) },
+        },
+        {
+          provide: GetActiveAssignmentsUseCase,
+          useValue: {
+            execute: jest.fn().mockResolvedValue({
+              protocolId: 1,
+              ceishCode: null,
+              versionId: null,
+              versionNumber: null,
+              assignments: [],
+            }),
+          },
         },
       ],
     })

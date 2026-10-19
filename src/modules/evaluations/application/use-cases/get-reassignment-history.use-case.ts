@@ -3,6 +3,7 @@ import {
   EvaluatorProfile,
   ReassignmentReason,
 } from '../../../../shared/enums/evaluator-enums';
+import { resolveEvaluatorProfile } from '../../../../shared/helpers/evaluator-profile.helper';
 import { ReassignmentHistoryRawRow } from '../../domain/ports/evaluation.repository.port';
 
 export interface ReassignmentHistoryEntryDto {
@@ -27,22 +28,6 @@ export interface IHistoryQueryRepository {
   protocolExists(protocolId: number): Promise<boolean>;
 }
 
-function resolveProfile(
-  name: string | null | undefined,
-): EvaluatorProfile | null {
-  if (!name) return null;
-  const norm = name
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toUpperCase()
-    .replace(/\s+/g, '_');
-  if (norm.includes('JURIDIC')) return EvaluatorProfile.JURIDICO;
-  if (norm.includes('SOCIEDAD')) return EvaluatorProfile.SOCIEDAD_CIVIL;
-  if (norm.includes('METODOL')) return EvaluatorProfile.METODOLOGICO;
-  if (norm.includes('SALUD')) return EvaluatorProfile.SALUD;
-  return null;
-}
-
 export class GetReassignmentHistoryUseCase {
   constructor(private readonly repository: IHistoryQueryRepository) {}
 
@@ -61,7 +46,7 @@ export class GetReassignmentHistoryUseCase {
     }
 
     return rows.map((row): ReassignmentHistoryEntryDto => {
-      const evaluatorProfile = resolveProfile(row.profileName);
+      const evaluatorProfile = resolveEvaluatorProfile(row.profileName);
       if (!evaluatorProfile) {
         throw new NotFoundException(
           `Perfil de evaluador no reconocido '${row.profileName ?? 'nulo'}' en historial ID ${row.id}.`,

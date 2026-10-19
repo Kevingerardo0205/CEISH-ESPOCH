@@ -3,6 +3,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, In, Repository } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
+  ActiveVersionRow,
   IEvaluationRepository,
   ReassignmentHistoryRawRow,
 } from '../../domain/ports/evaluation.repository.port';
@@ -473,5 +474,32 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
       [protocolId],
     );
     return rows[0]?.exists === true;
+  }
+
+  async findProtocolWithVersion1(
+    protocolId: number,
+  ): Promise<ActiveVersionRow | null> {
+    const rows = await this.dataSource.query<
+      Array<{
+        ceish_code: string | null;
+        version_id: number | null;
+        version_number: number | null;
+      }>
+    >(
+      `SELECT p.codigo_ceish          AS ceish_code,
+              vp.id                   AS version_id,
+              vp.numero_version       AS version_number
+         FROM public.protocolos p
+         LEFT JOIN public.versiones_protocolo vp
+               ON vp.protocolo_id = p.id AND vp.numero_version = 1
+        WHERE p.id = $1`,
+      [protocolId],
+    );
+    if (!rows.length) return null;
+    return {
+      ceishCode: rows[0].ceish_code ?? null,
+      versionId: rows[0].version_id ?? null,
+      versionNumber: rows[0].version_number ?? null,
+    };
   }
 }

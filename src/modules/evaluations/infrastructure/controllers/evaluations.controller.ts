@@ -37,6 +37,7 @@ import { AssignEvaluatorsUseCase } from '../../application/use-cases/assign-eval
 import { ReassignEvaluatorUseCase } from '../../application/use-cases/reassign-evaluator.use-case';
 import { SubmitEvaluationUseCase } from '../../application/use-cases/submit-evaluation.use-case';
 import { GetReassignmentHistoryUseCase } from '../../application/use-cases/get-reassignment-history.use-case';
+import { GetActiveAssignmentsUseCase } from '../../application/use-cases/get-active-assignments.use-case';
 import {
   ApiTags,
   ApiOperation,
@@ -59,6 +60,7 @@ export class EvaluationsController {
     private readonly submitEvaluationUseCase: SubmitEvaluationUseCase,
     private readonly assignmentAdapterService: EvaluatorAssignmentAdapterService,
     private readonly getReassignmentHistoryUseCase: GetReassignmentHistoryUseCase,
+    private readonly getActiveAssignmentsUseCase: GetActiveAssignmentsUseCase,
   ) {}
 
   @Get('consolidate/:protocolId')
@@ -317,5 +319,18 @@ export class EvaluationsController {
     @Param('protocolId', ParseIntPipe) protocolId: number,
   ) {
     return this.getReassignmentHistoryUseCase.execute(protocolId);
+  }
+
+  @Get('protocol/:protocolId/active-assignments')
+  @Roles('SECRETARIA', 'PRESIDENTE')
+  @Permissions(Permission.EVALUATORS_ASSIGN)
+  @ApiOperation({
+    summary:
+      'Listar asignaciones activas (estados SUGGESTED/ASSIGNED/COMPLETED) de la versión 1 de un protocolo [RF-12.4]',
+  })
+  async getActiveAssignments(
+    @Param('protocolId', ParseIntPipe) protocolId: number,
+  ) {
+    return this.getActiveAssignmentsUseCase.execute(protocolId);
   }
 }
