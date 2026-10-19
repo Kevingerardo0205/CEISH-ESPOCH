@@ -518,7 +518,7 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
       `SELECT u.nombres_completos AS evaluator_full_name,
               u.email_institucional AS evaluator_email,
               p.codigo_ceish       AS ceish_code
-         FROM catalogos.usuarios u, public.protocolos p
+         FROM catalogos.usuarios u CROSS JOIN public.protocolos p
         WHERE u.id = $1 AND p.id = $2`,
       [evaluatorId, protocolId],
     );

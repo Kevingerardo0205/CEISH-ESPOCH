@@ -1,4 +1,4 @@
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { ReassignEvaluatorDto } from '../dtos/evaluator-dtos';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import { AssignmentHistoryEntity } from '../../domain/entities/assignment-history.entity';
@@ -83,6 +83,8 @@ function requireProfileEnum(
 }
 
 export class ReassignEvaluatorUseCase {
+  private readonly logger = new Logger(ReassignEvaluatorUseCase.name);
+
   constructor(
     private readonly reassignmentRepository: IReassignmentRepository,
     private readonly eventEmitter: IEventEmitter,
@@ -338,17 +340,17 @@ export class ReassignEvaluatorUseCase {
     };
 
     if (this.reassignmentRepository.findEnrichmentInfo) {
+      const rawEvaluatorId = persistedResult.newAssignment.evaluatorId;
+      const rawProtocolId = currentAssignment.protocolId;
+      const numericEvaluatorId =
+        typeof rawEvaluatorId === 'number'
+          ? rawEvaluatorId
+          : parseInt(String(rawEvaluatorId), 10);
+      const numericProtocolId =
+        typeof rawProtocolId === 'number'
+          ? rawProtocolId
+          : parseInt(String(rawProtocolId), 10);
       try {
-        const rawEvaluatorId = persistedResult.newAssignment.evaluatorId;
-        const rawProtocolId = currentAssignment.protocolId;
-        const numericEvaluatorId =
-          typeof rawEvaluatorId === 'number'
-            ? rawEvaluatorId
-            : parseInt(String(rawEvaluatorId), 10);
-        const numericProtocolId =
-          typeof rawProtocolId === 'number'
-            ? rawProtocolId
-            : parseInt(String(rawProtocolId), 10);
         const info = await this.reassignmentRepository.findEnrichmentInfo(
           numericEvaluatorId,
           numericProtocolId,
@@ -358,8 +360,10 @@ export class ReassignEvaluatorUseCase {
           eventPayload.evaluatorFullName = info.evaluatorFullName;
           eventPayload.protocolCode = info.ceishCode;
         }
-      } catch {
-        // best-effort: si falla la consulta el evento se emite sin enriquecimiento
+      } catch (err: unknown) {
+        this.logger.warn(
+          `[N17] Error al enriquecer evento evaluadorId=${numericEvaluatorId}, protocolId=${numericProtocolId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
       }
     }
 

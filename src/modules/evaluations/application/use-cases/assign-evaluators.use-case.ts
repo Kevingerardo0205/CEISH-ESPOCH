@@ -1,4 +1,4 @@
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, Logger } from '@nestjs/common';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import { QuotaEvaluatorValidatorService } from '../../domain/services/quota-evaluator-validator.service';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
@@ -48,6 +48,8 @@ export interface IEventEmitter {
 }
 
 export class AssignEvaluatorsUseCase {
+  private readonly logger = new Logger(AssignEvaluatorsUseCase.name);
+
   constructor(
     private readonly evaluationRepository: IEvaluationRepository,
     private readonly eventEmitter: IEventEmitter,
@@ -208,26 +210,31 @@ export class AssignEvaluatorsUseCase {
         deadlineDate: entity.deadlineDate,
       };
 
-      if (
-        this.evaluationRepository.findEnrichmentInfo &&
-        enrichProtocolId !== undefined
-      ) {
+      const effectiveProtocolId: number =
+        enrichProtocolId ??
+        (typeof entity.protocolId === 'number'
+          ? entity.protocolId
+          : parseInt(String(entity.protocolId), 10));
+      const numericEvaluatorId =
+        typeof entity.evaluatorId === 'number'
+          ? entity.evaluatorId
+          : parseInt(String(entity.evaluatorId), 10);
+
+      if (this.evaluationRepository.findEnrichmentInfo) {
         try {
-          const numericEvaluatorId =
-            typeof entity.evaluatorId === 'number'
-              ? entity.evaluatorId
-              : parseInt(String(entity.evaluatorId), 10);
           const info = await this.evaluationRepository.findEnrichmentInfo(
             numericEvaluatorId,
-            enrichProtocolId,
+            effectiveProtocolId,
           );
           if (info) {
             payload.evaluatorEmail = info.evaluatorEmail;
             payload.evaluatorFullName = info.evaluatorFullName;
             payload.protocolCode = info.ceishCode;
           }
-        } catch {
-          // best-effort: si falla la consulta el evento se emite sin enriquecimiento
+        } catch (err: unknown) {
+          this.logger.warn(
+            `[N17] Error al enriquecer evento evaluadorId=${numericEvaluatorId}, protocolId=${effectiveProtocolId}: ${err instanceof Error ? err.message : String(err)}`,
+          );
         }
       }
 
