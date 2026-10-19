@@ -34,6 +34,11 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
       findAssignmentById: jest.fn().mockResolvedValue(ormEntityMock),
       findActiveAssignmentsByVersionId: jest.fn().mockResolvedValue([]),
       hasActiveProfile: jest.fn().mockResolvedValue(true),
+      findEnrichmentInfo: jest.fn().mockResolvedValue({
+        evaluatorEmail: 'nuevo.eval@espoch.edu.ec',
+        evaluatorFullName: 'Dr. Nuevo Evaluador',
+        ceishCode: 'CEISH-ESPOCH-EI-001-2026',
+      }),
       executeReassignmentTransaction: jest
         .fn()
         .mockImplementation(async (params) => {
@@ -99,7 +104,7 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
     expect(result.newAssignment.isAssignedForAnnex10).toBe(true);
     expect(result.newAssignment.deadlineDate).toBeNull();
 
-    // 3. Dispara el evento de notificación para el evaluador entrante
+    // 3. Dispara el evento de notificación para el evaluador entrante con campos enriquecidos (TSK-002-N17)
     expect(eventEmitterMock.emit).toHaveBeenCalledWith(
       'evaluator.assigned',
       expect.objectContaining({
@@ -107,6 +112,9 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
         evaluatorProfile: EvaluatorProfile.JURIDICO,
         isAssignedForAnnex10: true,
         isReassignment: true,
+        evaluatorEmail: 'nuevo.eval@espoch.edu.ec',
+        evaluatorFullName: 'Dr. Nuevo Evaluador',
+        protocolCode: 'CEISH-ESPOCH-EI-001-2026',
       }),
     );
   });

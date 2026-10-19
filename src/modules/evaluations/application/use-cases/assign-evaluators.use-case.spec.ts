@@ -392,6 +392,60 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     );
   });
 
+  it('should include evaluatorEmail, evaluatorFullName and protocolCode in emitted event when findEnrichmentInfo resolves (TSK-002-N17)', async () => {
+    const enrichedRepo = {
+      saveAssignmentsTransaction: jest
+        .fn()
+        .mockImplementation(async (payloads: any[]) =>
+          payloads.map((p, idx) => ({
+            id: idx + 1,
+            versionId: p.versionId,
+            evaluatorId: p.evaluatorId,
+            isAssignedForAnnex10: p.isAssignedForAnnex10,
+            deadline: p.deadline,
+            statusId: p.statusId,
+          })),
+        ),
+      findVersionByProtocolId: jest
+        .fn()
+        .mockResolvedValue({ id: 42, protocolId: 25 }),
+      findEnrichmentInfo: jest.fn().mockResolvedValue({
+        evaluatorEmail: 'juridico@espoch.edu.ec',
+        evaluatorFullName: 'Dr. Felipe Torres',
+        ceishCode: 'CEISH-ESPOCH-EI-010-2026',
+      }),
+    };
+
+    const enrichedEmitter = { emit: jest.fn() };
+    const enrichedUseCase = new AssignEvaluatorsUseCase(
+      enrichedRepo,
+      enrichedEmitter,
+    );
+
+    const dto = {
+      protocolId: 25,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    await enrichedUseCase.execute(dto);
+
+    const calls = enrichedEmitter.emit.mock.calls;
+    expect(calls).toHaveLength(4);
+    for (const [event, payload] of calls as Array<[string, any]>) {
+      expect(event).toBe('evaluator.assigned');
+      expect(payload).toMatchObject({
+        evaluatorEmail: 'juridico@espoch.edu.ec',
+        evaluatorFullName: 'Dr. Felipe Torres',
+        protocolCode: 'CEISH-ESPOCH-EI-010-2026',
+      });
+    }
+  });
+
   it('should propagate NotFoundException thrown by findVersionByProtocolId when protocol does not exist', async () => {
     const transactionRepoMock = {
       saveAssignmentsTransaction: jest.fn(),

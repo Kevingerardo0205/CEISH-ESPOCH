@@ -76,6 +76,21 @@ describe('MailerNotificationAdapter (TSK-002-16)', () => {
     );
   });
 
+  it('should skip sending when evaluatorEmail is absent (TSK-002-N17)', async () => {
+    const payload = {
+      assignmentId: 'asg-200',
+      protocolId: 'prot-200',
+      evaluatorId: 'eval-200',
+      evaluatorProfile: EvaluatorProfile.JURIDICO,
+      isAssignedForAnnex10: false,
+      deadlineDate: '2026-10-15',
+    };
+
+    await adapter.handleEvaluatorAssignedEvent(payload);
+
+    expect(mailerServiceMock.sendMail).not.toHaveBeenCalled();
+  });
+
   it('should format date string 2026-03-12 correctly as 12 de marzo de 2026 even under America/Guayaquil timezone', async () => {
     const payload = {
       assignmentId: 'asg-103',
