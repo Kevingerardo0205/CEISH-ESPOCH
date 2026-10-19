@@ -6,6 +6,7 @@ import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
+import { EvaluatorEnrichmentInfo } from '../../domain/ports/evaluation.repository.port';
 
 // Internal type — carries the catalog profileId resolved by the adapter.
 // Never appears in the public API contract; not a DTO class.
@@ -36,6 +37,10 @@ export interface IEvaluationRepository {
   findVersionByProtocolId?(
     protocolId: number,
   ): Promise<{ id: number; protocolId: number } | null>;
+  findEnrichmentInfo?(
+    evaluatorId: number,
+    protocolId: number,
+  ): Promise<EvaluatorEnrichmentInfo | null>;
 }
 
 export interface IEventEmitter {
@@ -84,6 +89,7 @@ export class AssignEvaluatorsUseCase {
 
     // 5. Persistir atómicamente en la base de datos
     let savedEntities: EvaluationAssignmentEntity[];
+    let enrichProtocolId: number | undefined;
     if (this.evaluationRepository.saveAssignments) {
       savedEntities =
         await this.evaluationRepository.saveAssignments(assignmentEntities);
@@ -103,6 +109,7 @@ export class AssignEvaluatorsUseCase {
         typeof rawProtocolId === 'number'
           ? rawProtocolId
           : parseInt(rawProtocolId, 10);
+      enrichProtocolId = numericProtocolId;
 
       // a) Validate explicitly supplied versionId before any DB write
       if (
@@ -192,14 +199,39 @@ export class AssignEvaluatorsUseCase {
 
     // 6. Notificar asincrónicamente con Deep-Linking por cada evaluador asignado
     for (const entity of savedEntities) {
-      this.eventEmitter.emit('evaluator.assigned', {
+      const payload: Record<string, unknown> = {
         assignmentId: entity.id,
         protocolId: entity.protocolId,
         evaluatorId: entity.evaluatorId,
         evaluatorProfile: entity.evaluatorProfile,
         isAssignedForAnnex10: entity.isAssignedForAnnex10,
         deadlineDate: entity.deadlineDate,
-      });
+      };
+
+      if (
+        this.evaluationRepository.findEnrichmentInfo &&
+        enrichProtocolId !== undefined
+      ) {
+        try {
+          const numericEvaluatorId =
+            typeof entity.evaluatorId === 'number'
+              ? entity.evaluatorId
+              : parseInt(String(entity.evaluatorId), 10);
+          const info = await this.evaluationRepository.findEnrichmentInfo(
+            numericEvaluatorId,
+            enrichProtocolId,
+          );
+          if (info) {
+            payload.evaluatorEmail = info.evaluatorEmail;
+            payload.evaluatorFullName = info.evaluatorFullName;
+            payload.protocolCode = info.ceishCode;
+          }
+        } catch {
+          // best-effort: si falla la consulta el evento se emite sin enriquecimiento
+        }
+      }
+
+      this.eventEmitter.emit('evaluator.assigned', payload);
     }
 
     return savedEntities;

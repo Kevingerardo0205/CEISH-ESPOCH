@@ -123,10 +123,21 @@ export abstract class IEvaluationRepository {
   abstract findProtocolWithVersion1(
     protocolId: number,
   ): Promise<ActiveVersionRow | null>;
+
+  abstract findEnrichmentInfo(
+    evaluatorId: number,
+    protocolId: number,
+  ): Promise<EvaluatorEnrichmentInfo | null>;
 }
 
 export interface ActiveVersionRow {
   ceishCode: string | null;
   versionId: number | null;
   versionNumber: number | null;
+}
+
+export interface EvaluatorEnrichmentInfo {
+  evaluatorEmail: string;
+  evaluatorFullName: string;
+  ceishCode: string | null;
 }

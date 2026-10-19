@@ -10,6 +10,7 @@ import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 import { AssignmentHistoryOrmEntity } from '../../infrastructure/database/entities/assignment-history.orm-entity';
+import { EvaluatorEnrichmentInfo } from '../../domain/ports/evaluation.repository.port';
 
 export interface IReassignmentRepository {
   findAssignmentById(
@@ -33,6 +34,10 @@ export interface IReassignmentRepository {
     newAssignment: EvaluationAssignmentOrmEntity;
     auditHistory: AssignmentHistoryOrmEntity;
   }>;
+  findEnrichmentInfo?(
+    evaluatorId: number,
+    protocolId: number,
+  ): Promise<EvaluatorEnrichmentInfo | null>;
 }
 
 export interface IEventEmitter {
@@ -321,7 +326,7 @@ export class ReassignEvaluatorUseCase {
     }
 
     // 4. Notificar asincrónicamente al nuevo evaluador mediante evento con Deep-Linking
-    this.eventEmitter.emit('evaluator.assigned', {
+    const eventPayload: Record<string, unknown> = {
       assignmentId: persistedResult.newAssignment.id,
       protocolId: persistedResult.newAssignment.protocolId,
       evaluatorId: persistedResult.newAssignment.evaluatorId,
@@ -330,7 +335,35 @@ export class ReassignEvaluatorUseCase {
       deadlineDate: persistedResult.newAssignment.deadlineDate,
       isReassignment: true,
       reassignmentReason: dto.reason,
-    });
+    };
+
+    if (this.reassignmentRepository.findEnrichmentInfo) {
+      try {
+        const rawEvaluatorId = persistedResult.newAssignment.evaluatorId;
+        const rawProtocolId = currentAssignment.protocolId;
+        const numericEvaluatorId =
+          typeof rawEvaluatorId === 'number'
+            ? rawEvaluatorId
+            : parseInt(String(rawEvaluatorId), 10);
+        const numericProtocolId =
+          typeof rawProtocolId === 'number'
+            ? rawProtocolId
+            : parseInt(String(rawProtocolId), 10);
+        const info = await this.reassignmentRepository.findEnrichmentInfo(
+          numericEvaluatorId,
+          numericProtocolId,
+        );
+        if (info) {
+          eventPayload.evaluatorEmail = info.evaluatorEmail;
+          eventPayload.evaluatorFullName = info.evaluatorFullName;
+          eventPayload.protocolCode = info.ceishCode;
+        }
+      } catch {
+        // best-effort: si falla la consulta el evento se emite sin enriquecimiento
+      }
+    }
+
+    this.eventEmitter.emit('evaluator.assigned', eventPayload);
 
     return persistedResult;
   }

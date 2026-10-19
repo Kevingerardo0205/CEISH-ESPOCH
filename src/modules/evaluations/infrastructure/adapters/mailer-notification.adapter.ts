@@ -35,7 +35,10 @@ export class MailerNotificationAdapter {
   public async handleEvaluatorAssignedEvent(
     payload: EvaluatorAssignedEventPayload,
   ): Promise<void> {
-    const recipientEmail = payload.evaluatorEmail ?? 'evaluador@espoch.edu.ec';
+    if (!payload.evaluatorEmail) {
+      return;
+    }
+    const recipientEmail = payload.evaluatorEmail;
     const evaluatorName =
       payload.evaluatorFullName ?? 'Estimado(a) Evaluador(a)';
     const protocolCode = payload.protocolCode ?? payload.protocolId;
