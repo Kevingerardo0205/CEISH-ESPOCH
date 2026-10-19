@@ -2678,20 +2678,20 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     let mailerAdapter: MailerNotificationAdapter;
 
     beforeAll(async () => {
-      // 12a: protocolo vacío para asignar vía endpoint
+      // 12a: protocolo con codigo_ceish conocido para asignar vía endpoint
       await dataSource.query(`
-        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
-        VALUES (${PA}, 'Protocolo N17-A Enriquecimiento Assign E2E', 901, 10, 'PLENO')
+        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision, codigo_ceish)
+        VALUES (${PA}, 'Protocolo N17-A Enriquecimiento Assign E2E', 901, 10, 'PLENO', 'CEISH-ESPOCH-EI-993-2099')
         ON CONFLICT (id) DO NOTHING;
         INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
         VALUES (${PA}, ${PA}, 1, 10)
         ON CONFLICT (id) DO NOTHING;
         UPDATE public.protocolos SET version_actual_id = ${PA} WHERE id = ${PA};
       `);
-      // 12b: protocolo con una asignación sembrada directamente (perfil_id explícito para que reassign funcione)
+      // 12b: protocolo con codigo_ceish conocido y asignación sembrada (perfil_id explícito para reassign)
       await dataSource.query(`
-        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
-        VALUES (${PB}, 'Protocolo N17-B Enriquecimiento Reassign E2E', 901, 10, 'PLENO')
+        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision, codigo_ceish)
+        VALUES (${PB}, 'Protocolo N17-B Enriquecimiento Reassign E2E', 901, 10, 'PLENO', 'CEISH-ESPOCH-EI-994-2099')
         ON CONFLICT (id) DO NOTHING;
         INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
         VALUES (${PB}, ${PB}, 1, 10)
@@ -2749,8 +2749,10 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(emails).toContain('juridico@test.com');
       expect(emails).toContain('lego@test.com');
 
-      // codigo_ceish es NULL para protocolo 993 recién creado
-      payloads.forEach((p) => expect(p.protocolCode).toBeNull());
+      // codigo_ceish sembrado en beforeAll para protocolo 993
+      payloads.forEach((p) =>
+        expect(p.protocolCode).toBe('CEISH-ESPOCH-EI-993-2099'),
+      );
 
       handleSpy.mockRestore();
     });
@@ -2777,6 +2779,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const [payload] = handleSpy.mock.calls[0];
       expect(payload.evaluatorEmail).toBe('reemplazo@test.com');
       expect(payload.evaluatorFullName).toBe('Dr. Reemplazo');
+      expect(payload.protocolCode).toBe('CEISH-ESPOCH-EI-994-2099');
       expect(payload.isReassignment).toBe(true);
 
       handleSpy.mockRestore();
