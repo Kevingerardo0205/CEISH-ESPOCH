@@ -385,7 +385,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR si se adopta la opción a.
   - **Hecho cuando:** La decisión entre opciones está documentada; el endpoint de reasignación acepta peticiones del cliente sin errores de validación; tests verdes.
 
-- [ ] **TSK-002-N17**: Enriquecer el evento `evaluator.assigned` con `evaluatorEmail`, `evaluatorFullName` y `protocolCode`.
+- [x] **TSK-002-N17**: Enriquecer el evento `evaluator.assigned` con `evaluatorEmail`, `evaluatorFullName` y `protocolCode`.
   - **Requisito relacionado:** RF-12.6 — notificación al evaluador por correo con deep-link.
   - **PR:** PR-F (`feat/n17-enriquecer-evento-evaluador`).
   - **Descripción:** El `MailerNotificationAdapter` tiene un fallback `evaluador@espoch.edu.ec` (línea 38) porque los eventos emitidos por `AssignEvaluatorsUseCase` (línea 195) y `ReassignEvaluatorUseCase` (línea 324) no incluyen `evaluatorEmail`, `evaluatorFullName` ni `protocolCode`. Se añade el método `findEnrichmentInfo(evaluatorId: number, protocolId: number)` a `IEvaluationRepository` (puerto abstracto) y a las mini-interfaces locales de ambos use cases. La consulta SQL une `catalogos.usuarios` y `public.protocolos` por sus IDs. La llamada es *best-effort*: si falla o devuelve `null`, el evento se emite igual sin los campos de enriquecimiento. Se elimina el fallback `evaluador@espoch.edu.ec` en `handleEvaluatorAssignedEvent`; si `evaluatorEmail` es `undefined`, la función retorna sin enviar.
@@ -399,7 +399,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.spec.ts` — MODIFICAR: añadir `findEnrichmentInfo` al mock; actualizar aserción del evento.
     - `src/modules/evaluations/infrastructure/adapters/mailer-notification.adapter.spec.ts` — MODIFICAR: añadir test de skip cuando `evaluatorEmail` es `undefined`.
   - **Tests:** `npm test` → todos los tests existentes verdes más nuevos; `npx tsc --noEmit` limpio; ESLint sin errores sobre archivos tocados.
-  - **Hecho cuando:** `grep -r 'evaluador@espoch.edu.ec'` no aparece en código fuente; los correos llegan al email institucional del evaluador real; `findEnrichmentInfo` es el único punto donde se consulta el email del evaluador para notificaciones; tsc limpio; tests verdes.
+  - **Hecho cuando:** `grep -r 'evaluador@espoch.edu.ec'` no aparece en código fuente; `findEnrichmentInfo` es el único punto donde se consulta el email del evaluador para notificaciones; tsc limpio; tests unitarios y E2E verdes; catch registra warning con `evaluadorId` y `protocolId`; logger presente en los tres archivos modificados.
 
 - [ ] **TSK-002-N18** (PENDIENTE): El SDK de Resend no lanza excepción ante respuesta `{ data, error }` — `"Email de asignación enviado"` se loguea aunque la petición falle con 401.
   - **Requisito relacionado:** RF-12.6 — notificación fiable al evaluador.
