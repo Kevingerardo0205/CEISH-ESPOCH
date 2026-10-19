@@ -446,6 +446,115 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     }
   });
 
+  it('should emit event WITHOUT enriched fields and log warning when findEnrichmentInfo throws (TSK-002-N17)', async () => {
+    const error = new Error('DB connection lost');
+    const enrichedRepo = {
+      saveAssignmentsTransaction: jest
+        .fn()
+        .mockImplementation(async (payloads: any[]) =>
+          payloads.map((p, idx) => ({
+            id: idx + 1,
+            versionId: p.versionId,
+            evaluatorId: p.evaluatorId,
+            isAssignedForAnnex10: p.isAssignedForAnnex10,
+            deadline: p.deadline,
+            statusId: p.statusId,
+          })),
+        ),
+      findVersionByProtocolId: jest
+        .fn()
+        .mockResolvedValue({ id: 42, protocolId: 25 }),
+      findEnrichmentInfo: jest.fn().mockRejectedValue(error),
+    };
+
+    const enrichedEmitter = { emit: jest.fn() };
+    const enrichedUseCase = new AssignEvaluatorsUseCase(
+      enrichedRepo,
+      enrichedEmitter,
+    );
+    const warnSpy = jest
+      .spyOn(enrichedUseCase['logger'], 'warn')
+      .mockReturnValue(undefined);
+
+    const dto = {
+      protocolId: 25,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    // no debe lanzar al caller
+    await expect(enrichedUseCase.execute(dto)).resolves.toBeDefined();
+
+    // evento emitido 4 veces sin campos enriquecidos
+    const calls = enrichedEmitter.emit.mock.calls;
+    expect(calls).toHaveLength(4);
+    for (const [event, payload] of calls as Array<[string, any]>) {
+      expect(event).toBe('evaluator.assigned');
+      expect(payload).not.toHaveProperty('evaluatorEmail');
+      expect(payload).not.toHaveProperty('evaluatorFullName');
+      expect(payload).not.toHaveProperty('protocolCode');
+    }
+
+    // warning registrado por cada evaluador
+    expect(warnSpy).toHaveBeenCalledTimes(4);
+    expect(warnSpy).toHaveBeenCalledWith(
+      expect.stringContaining('DB connection lost'),
+    );
+    warnSpy.mockRestore();
+  });
+
+  it('should emit event WITHOUT enriched fields and NOT throw when findEnrichmentInfo returns null (TSK-002-N17)', async () => {
+    const enrichedRepo = {
+      saveAssignmentsTransaction: jest
+        .fn()
+        .mockImplementation(async (payloads: any[]) =>
+          payloads.map((p, idx) => ({
+            id: idx + 1,
+            versionId: p.versionId,
+            evaluatorId: p.evaluatorId,
+            isAssignedForAnnex10: p.isAssignedForAnnex10,
+            deadline: p.deadline,
+            statusId: p.statusId,
+          })),
+        ),
+      findVersionByProtocolId: jest
+        .fn()
+        .mockResolvedValue({ id: 42, protocolId: 25 }),
+      findEnrichmentInfo: jest.fn().mockResolvedValue(null),
+    };
+
+    const enrichedEmitter = { emit: jest.fn() };
+    const enrichedUseCase = new AssignEvaluatorsUseCase(
+      enrichedRepo,
+      enrichedEmitter,
+    );
+
+    const dto = {
+      protocolId: 25,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    };
+
+    await expect(enrichedUseCase.execute(dto)).resolves.toBeDefined();
+
+    const calls = enrichedEmitter.emit.mock.calls;
+    expect(calls).toHaveLength(4);
+    for (const [event, payload] of calls as Array<[string, any]>) {
+      expect(event).toBe('evaluator.assigned');
+      expect(payload).not.toHaveProperty('evaluatorEmail');
+      expect(payload).not.toHaveProperty('evaluatorFullName');
+      expect(payload).not.toHaveProperty('protocolCode');
+    }
+  });
+
   it('should propagate NotFoundException thrown by findVersionByProtocolId when protocol does not exist', async () => {
     const transactionRepoMock = {
       saveAssignmentsTransaction: jest.fn(),

@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { MailerNotificationAdapter } from './mailer-notification.adapter';
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 
@@ -76,7 +77,11 @@ describe('MailerNotificationAdapter (TSK-002-16)', () => {
     );
   });
 
-  it('should skip sending when evaluatorEmail is absent (TSK-002-N17)', async () => {
+  it('should skip sending and log warning when evaluatorEmail is absent (TSK-002-N17)', async () => {
+    const warnSpy = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+
     const payload = {
       assignmentId: 'asg-200',
       protocolId: 'prot-200',
@@ -89,6 +94,11 @@ describe('MailerNotificationAdapter (TSK-002-16)', () => {
     await adapter.handleEvaluatorAssignedEvent(payload);
 
     expect(mailerServiceMock.sendMail).not.toHaveBeenCalled();
+    expect(warnSpy).toHaveBeenCalledTimes(1);
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('asg-200'));
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('prot-200'));
+
+    warnSpy.mockRestore();
   });
 
   it('should format date string 2026-03-12 correctly as 12 de marzo de 2026 even under America/Guayaquil timezone', async () => {

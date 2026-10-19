@@ -265,6 +265,65 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
     );
   });
 
+  it('should emit event WITHOUT enriched fields and log warning when findEnrichmentInfo throws (TSK-002-N17)', async () => {
+    repositoryMock.findEnrichmentInfo = jest
+      .fn()
+      .mockRejectedValue(new Error('timeout'));
+
+    const dto: ReassignEvaluatorDto = {
+      currentAssignmentId: 101,
+      replacementEvaluatorId: 25,
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.CONFLICTO_INTERES,
+    };
+
+    const result = await useCase.execute(dto, 1);
+
+    // no lanza al caller; resultado correcto
+    expect(result.newAssignment.evaluatorId).toBe(25);
+
+    const [, eventPayload] = eventEmitterMock.emit.mock.calls[0] as [
+      string,
+      any,
+    ];
+    expect(eventPayload).not.toHaveProperty('evaluatorEmail');
+    expect(eventPayload).not.toHaveProperty('evaluatorFullName');
+    expect(eventPayload).not.toHaveProperty('protocolCode');
+
+    // warning registrado
+    const warnSpy = jest
+      .spyOn(useCase['logger'], 'warn')
+      .mockReturnValue(undefined);
+    // Volvemos a ejecutar para capturar el spy esta vez
+    eventEmitterMock.emit.mockClear();
+    const result2 = await useCase.execute(dto, 1);
+    expect(result2).toBeDefined();
+    expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('timeout'));
+    warnSpy.mockRestore();
+  });
+
+  it('should emit event WITHOUT enriched fields and NOT throw when findEnrichmentInfo returns null (TSK-002-N17)', async () => {
+    repositoryMock.findEnrichmentInfo = jest.fn().mockResolvedValue(null);
+
+    const dto: ReassignEvaluatorDto = {
+      currentAssignmentId: 101,
+      replacementEvaluatorId: 25,
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.CONFLICTO_INTERES,
+    };
+
+    const result = await useCase.execute(dto, 1);
+    expect(result.newAssignment.evaluatorId).toBe(25);
+
+    const [, eventPayload] = eventEmitterMock.emit.mock.calls[0] as [
+      string,
+      any,
+    ];
+    expect(eventPayload).not.toHaveProperty('evaluatorEmail');
+    expect(eventPayload).not.toHaveProperty('evaluatorFullName');
+    expect(eventPayload).not.toHaveProperty('protocolCode');
+  });
+
   it('should throw NotFoundException if assignment not found', async () => {
     repositoryMock.findAssignmentById.mockResolvedValue(null);
 
