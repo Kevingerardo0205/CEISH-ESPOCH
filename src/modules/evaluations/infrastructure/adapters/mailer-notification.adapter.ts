@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 
 export interface EvaluatorAssignedEventPayload {
@@ -24,6 +24,8 @@ export interface IMailerService {
 
 @Injectable()
 export class MailerNotificationAdapter {
+  private readonly logger = new Logger(MailerNotificationAdapter.name);
+
   constructor(
     private readonly mailerService: IMailerService,
     private readonly baseUrl: string = 'http://localhost:3000',
@@ -35,7 +37,13 @@ export class MailerNotificationAdapter {
   public async handleEvaluatorAssignedEvent(
     payload: EvaluatorAssignedEventPayload,
   ): Promise<void> {
-    const recipientEmail = payload.evaluatorEmail ?? 'evaluador@espoch.edu.ec';
+    if (!payload.evaluatorEmail) {
+      this.logger.warn(
+        `[N17] evaluatorEmail ausente para assignmentId=${payload.assignmentId}, protocolId=${payload.protocolId}. Correo no enviado.`,
+      );
+      return;
+    }
+    const recipientEmail = payload.evaluatorEmail;
     const evaluatorName =
       payload.evaluatorFullName ?? 'Estimado(a) Evaluador(a)';
     const protocolCode = payload.protocolCode ?? payload.protocolId;

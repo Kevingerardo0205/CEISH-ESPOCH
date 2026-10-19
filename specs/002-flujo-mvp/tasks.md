@@ -384,3 +384,45 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/evaluations/application/dtos/evaluator-dtos.ts` — MODIFICAR según decisión.
     - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR si se adopta la opción a.
   - **Hecho cuando:** La decisión entre opciones está documentada; el endpoint de reasignación acepta peticiones del cliente sin errores de validación; tests verdes.
+
+- [x] **TSK-002-N17**: Enriquecer el evento `evaluator.assigned` con `evaluatorEmail`, `evaluatorFullName` y `protocolCode`.
+  - **Requisito relacionado:** RF-12.6 — notificación al evaluador por correo con deep-link.
+  - **PR:** PR-F (`feat/n17-enriquecer-evento-evaluador`).
+  - **Descripción:** El `MailerNotificationAdapter` tiene un fallback `evaluador@espoch.edu.ec` (línea 38) porque los eventos emitidos por `AssignEvaluatorsUseCase` (línea 195) y `ReassignEvaluatorUseCase` (línea 324) no incluyen `evaluatorEmail`, `evaluatorFullName` ni `protocolCode`. Se añade el método `findEnrichmentInfo(evaluatorId: number, protocolId: number)` a `IEvaluationRepository` (puerto abstracto) y a las mini-interfaces locales de ambos use cases. La consulta SQL une `catalogos.usuarios` y `public.protocolos` por sus IDs. La llamada es *best-effort*: si falla o devuelve `null`, el evento se emite igual sin los campos de enriquecimiento. Se elimina el fallback `evaluador@espoch.edu.ec` en `handleEvaluatorAssignedEvent`; si `evaluatorEmail` es `undefined`, la función retorna sin enviar.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/domain/ports/evaluation.repository.port.ts` — MODIFICAR: añadir `EvaluatorEnrichmentInfo` y método abstracto `findEnrichmentInfo`.
+    - `src/modules/evaluations/application/use-cases/assign-evaluators.use-case.ts` — MODIFICAR: añadir `findEnrichmentInfo?` a la mini-interfaz local; enriquecer el payload del evento.
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR: añadir `findEnrichmentInfo?` a la mini-interfaz local; enriquecer el payload del evento.
+    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR: implementar `findEnrichmentInfo` con consulta SQL.
+    - `src/modules/evaluations/infrastructure/adapters/mailer-notification.adapter.ts` — MODIFICAR: eliminar fallback; retornar si `evaluatorEmail` es `undefined`.
+    - `src/modules/evaluations/application/use-cases/assign-evaluators.use-case.spec.ts` — MODIFICAR: añadir test de enriquecimiento.
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.spec.ts` — MODIFICAR: añadir `findEnrichmentInfo` al mock; actualizar aserción del evento.
+    - `src/modules/evaluations/infrastructure/adapters/mailer-notification.adapter.spec.ts` — MODIFICAR: añadir test de skip cuando `evaluatorEmail` es `undefined`.
+  - **Tests:** `npm test` → todos los tests existentes verdes más nuevos; `npx tsc --noEmit` limpio; ESLint sin errores sobre archivos tocados.
+  - **Hecho cuando:** `grep -r 'evaluador@espoch.edu.ec'` no aparece en código fuente; `findEnrichmentInfo` es el único punto donde se consulta el email del evaluador para notificaciones; tsc limpio; tests unitarios y E2E verdes; catch registra warning con `evaluadorId` y `protocolId`; logger presente en los tres archivos modificados.
+
+- [ ] **TSK-002-N18** (PENDIENTE): El SDK de Resend no lanza excepción ante respuesta `{ data, error }` — `"Email de asignación enviado"` se loguea aunque la petición falle con 401.
+  - **Requisito relacionado:** RF-12.6 — notificación fiable al evaluador.
+  - **PR:** posterior a PR-F.
+  - **Descripción:** En `resend-email.adapter.ts`, `this.resend.emails.send(...)` devuelve `{ data, error }` en lugar de lanzar. El adaptador solo hace `await` sobre la llamada pero no inspecciona `error`. Si la clave `RESEND_API_KEY` es inválida o el dominio no está verificado, la respuesta contiene `error != null` pero el código no lo detecta y el log dice "Email enviado" igualmente. Es necesario comprobar `if (result.error) throw new Error(...)` para que los fallos sean observables.
+  - **Archivos afectados:**
+    - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: inspeccionar `result.error`.
+  - **Hecho cuando:** cuando Resend devuelve `error`, el adaptador lanza excepción (capturada en `.catch(()=>{})`) y el log refleja el fallo en lugar del éxito; tsc limpio.
+
+- [ ] **TSK-002-N19** (PENDIENTE): `baseUrl` hardcodeado como `http://localhost:3000` en `MailerNotificationAdapter`.
+  - **Requisito relacionado:** RF-12.6 — deep-link correcto en producción.
+  - **PR:** posterior a PR-F.
+  - **Descripción:** `mailer-notification.adapter.ts:29` tiene `private readonly baseUrl: string = 'http://localhost:3000'`. En producción el enlace del correo apunta a `localhost`, inutilizando el deep-link. La URL base debe leerse de `ConfigService.get('FRONTEND_URL')` o de `appConfig.frontendUrl`, inyectado en el constructor.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/infrastructure/adapters/mailer-notification.adapter.ts` — MODIFICAR: leer `baseUrl` desde configuración.
+    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR: inyectar `ConfigService` en la fábrica de `MailerNotificationAdapter`.
+  - **Hecho cuando:** el correo enviado en staging contiene la URL de producción configurada en `.env`; tests unitarios del adapter pasan la URL como parámetro de constructor (ya lo hacen); tsc limpio.
+
+- [ ] **TSK-002-N20** (PENDIENTE): No existe bandera para deshabilitar el envío de correos en desarrollo.
+  - **Requisito relacionado:** Calidad del entorno de desarrollo.
+  - **PR:** posterior a PR-F.
+  - **Descripción:** En entorno local o de pruebas, cada ejecución de tests o cada asignación de prueba intenta enviar un correo real a través del SDK de Resend (aunque falle silenciosamente). No hay variable `EMAIL_ENABLED=false` ni modo "dry-run". Se debe añadir soporte para `EMAIL_ENABLED` en `AppConfig` y respetarlo en `ResendEmailAdapter` antes de llamar al SDK.
+  - **Archivos afectados:**
+    - `src/config/app.config.ts` — MODIFICAR: añadir `emailEnabled: process.env.EMAIL_ENABLED !== 'false'`.
+    - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: retornar `void` sin llamar al SDK si `!emailEnabled`.
+  - **Hecho cuando:** con `EMAIL_ENABLED=false` en `.env`, los tests E2E no intentan contactar Resend; tsc limpio.

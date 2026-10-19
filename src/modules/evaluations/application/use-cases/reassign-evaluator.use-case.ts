@@ -1,4 +1,4 @@
-import { NotFoundException, BadRequestException } from '@nestjs/common';
+import { NotFoundException, BadRequestException, Logger } from '@nestjs/common';
 import { ReassignEvaluatorDto } from '../dtos/evaluator-dtos';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import { AssignmentHistoryEntity } from '../../domain/entities/assignment-history.entity';
@@ -10,6 +10,7 @@ import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 import { AssignmentHistoryOrmEntity } from '../../infrastructure/database/entities/assignment-history.orm-entity';
+import { EvaluatorEnrichmentInfo } from '../../domain/ports/evaluation.repository.port';
 
 export interface IReassignmentRepository {
   findAssignmentById(
@@ -33,6 +34,10 @@ export interface IReassignmentRepository {
     newAssignment: EvaluationAssignmentOrmEntity;
     auditHistory: AssignmentHistoryOrmEntity;
   }>;
+  findEnrichmentInfo?(
+    evaluatorId: number,
+    protocolId: number,
+  ): Promise<EvaluatorEnrichmentInfo | null>;
 }
 
 export interface IEventEmitter {
@@ -78,6 +83,8 @@ function requireProfileEnum(
 }
 
 export class ReassignEvaluatorUseCase {
+  private readonly logger = new Logger(ReassignEvaluatorUseCase.name);
+
   constructor(
     private readonly reassignmentRepository: IReassignmentRepository,
     private readonly eventEmitter: IEventEmitter,
@@ -321,7 +328,7 @@ export class ReassignEvaluatorUseCase {
     }
 
     // 4. Notificar asincrónicamente al nuevo evaluador mediante evento con Deep-Linking
-    this.eventEmitter.emit('evaluator.assigned', {
+    const eventPayload: Record<string, unknown> = {
       assignmentId: persistedResult.newAssignment.id,
       protocolId: persistedResult.newAssignment.protocolId,
       evaluatorId: persistedResult.newAssignment.evaluatorId,
@@ -330,7 +337,37 @@ export class ReassignEvaluatorUseCase {
       deadlineDate: persistedResult.newAssignment.deadlineDate,
       isReassignment: true,
       reassignmentReason: dto.reason,
-    });
+    };
+
+    if (this.reassignmentRepository.findEnrichmentInfo) {
+      const rawEvaluatorId = persistedResult.newAssignment.evaluatorId;
+      const rawProtocolId = currentAssignment.protocolId;
+      const numericEvaluatorId =
+        typeof rawEvaluatorId === 'number'
+          ? rawEvaluatorId
+          : parseInt(String(rawEvaluatorId), 10);
+      const numericProtocolId =
+        typeof rawProtocolId === 'number'
+          ? rawProtocolId
+          : parseInt(String(rawProtocolId), 10);
+      try {
+        const info = await this.reassignmentRepository.findEnrichmentInfo(
+          numericEvaluatorId,
+          numericProtocolId,
+        );
+        if (info) {
+          eventPayload.evaluatorEmail = info.evaluatorEmail;
+          eventPayload.evaluatorFullName = info.evaluatorFullName;
+          eventPayload.protocolCode = info.ceishCode;
+        }
+      } catch (err: unknown) {
+        this.logger.warn(
+          `[N17] Error al enriquecer evento evaluadorId=${numericEvaluatorId}, protocolId=${numericProtocolId}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    }
+
+    this.eventEmitter.emit('evaluator.assigned', eventPayload);
 
     return persistedResult;
   }

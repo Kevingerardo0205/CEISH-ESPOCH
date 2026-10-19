@@ -4,6 +4,7 @@ import { DataSource, In, Repository } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
   ActiveVersionRow,
+  EvaluatorEnrichmentInfo,
   IEvaluationRepository,
   ReassignmentHistoryRawRow,
 } from '../../domain/ports/evaluation.repository.port';
@@ -500,6 +501,32 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
       ceishCode: rows[0].ceish_code ?? null,
       versionId: rows[0].version_id ?? null,
       versionNumber: rows[0].version_number ?? null,
+    };
+  }
+
+  async findEnrichmentInfo(
+    evaluatorId: number,
+    protocolId: number,
+  ): Promise<EvaluatorEnrichmentInfo | null> {
+    const rows = await this.dataSource.query<
+      Array<{
+        evaluator_full_name: string;
+        evaluator_email: string;
+        ceish_code: string | null;
+      }>
+    >(
+      `SELECT u.nombres_completos AS evaluator_full_name,
+              u.email_institucional AS evaluator_email,
+              p.codigo_ceish       AS ceish_code
+         FROM catalogos.usuarios u CROSS JOIN public.protocolos p
+        WHERE u.id = $1 AND p.id = $2`,
+      [evaluatorId, protocolId],
+    );
+    if (!rows.length) return null;
+    return {
+      evaluatorEmail: rows[0].evaluator_email,
+      evaluatorFullName: rows[0].evaluator_full_name,
+      ceishCode: rows[0].ceish_code ?? null,
     };
   }
 }

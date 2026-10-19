@@ -2669,4 +2669,117 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(finalCount).toBe(baselineCount);
     });
   }); // end describe('TEST-M2')
+
+  describe('12. TSK-002-N17: enriquecimiento de evento evaluator.assigned con datos reales de BD', () => {
+    // Protocolo 993 para 12a (POST /assign); protocolo 994 para 12b (POST /reassign).
+    // Se usan IDs fijos separados para evitar conflictos de perfil_id nulo.
+    const PA = 993; // protocolo/versión para test 12a (assign)
+    const PB = 994; // protocolo/versión para test 12b (reassign)
+    let mailerAdapter: MailerNotificationAdapter;
+
+    beforeAll(async () => {
+      // 12a: protocolo vacío para asignar vía endpoint
+      await dataSource.query(`
+        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+        VALUES (${PA}, 'Protocolo N17-A Enriquecimiento Assign E2E', 901, 10, 'PLENO')
+        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+        VALUES (${PA}, ${PA}, 1, 10)
+        ON CONFLICT (id) DO NOTHING;
+        UPDATE public.protocolos SET version_actual_id = ${PA} WHERE id = ${PA};
+      `);
+      // 12b: protocolo con una asignación sembrada directamente (perfil_id explícito para que reassign funcione)
+      await dataSource.query(`
+        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+        VALUES (${PB}, 'Protocolo N17-B Enriquecimiento Reassign E2E', 901, 10, 'PLENO')
+        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+        VALUES (${PB}, ${PB}, 1, 10)
+        ON CONFLICT (id) DO NOTHING;
+        UPDATE public.protocolos SET version_actual_id = ${PB} WHERE id = ${PB};
+        INSERT INTO evaluacion.asignaciones_evaluacion
+          (id, version_id, evaluador_id, perfil_id, estado_id, es_asignado_anexo_10, fecha_asignacion, fecha_limite)
+        VALUES
+          (9940, ${PB}, 901, ${saludProfileId}, ${AssignmentStatus.ASSIGNED}, true, NOW(), NULL)
+        ON CONFLICT (id) DO NOTHING;
+      `);
+      mailerAdapter = app.get(MailerNotificationAdapter);
+    });
+
+    afterAll(async () => {
+      for (const V of [PA, PB]) {
+        await dataSource.query(`
+          DELETE FROM evaluacion.asignacion_historial
+           WHERE asignacion_anterior_id IN (
+                 SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${V});
+          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${V};
+          UPDATE public.protocolos SET version_actual_id = NULL WHERE id = ${V};
+          DELETE FROM public.versiones_protocolo WHERE id = ${V};
+          DELETE FROM public.protocolos WHERE id = ${V};
+        `);
+      }
+    });
+
+    it('12a. POST /assign → handleEvaluatorAssignedEvent recibe evaluatorEmail y evaluatorFullName reales (findEnrichmentInfo SQL real)', async () => {
+      const handleSpy = jest.spyOn(
+        mailerAdapter,
+        'handleEvaluatorAssignedEvent',
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/assign')
+        .set('x-user-id', '901')
+        .send({
+          protocolId: PA,
+          evaluators: [
+            { evaluatorId: 901, profile: EvaluatorProfile.SALUD },
+            { evaluatorId: 902, profile: EvaluatorProfile.METODOLOGICO },
+            { evaluatorId: 903, profile: EvaluatorProfile.JURIDICO },
+            { evaluatorId: 904, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+          ],
+        });
+
+      expect(res.status).toBe(201);
+      expect(handleSpy).toHaveBeenCalledTimes(4);
+
+      const payloads = handleSpy.mock.calls.map((c) => c[0]);
+      const emails = payloads.map((p) => p.evaluatorEmail);
+      expect(emails).toContain('salud@test.com');
+      expect(emails).toContain('metodologo@test.com');
+      expect(emails).toContain('juridico@test.com');
+      expect(emails).toContain('lego@test.com');
+
+      // codigo_ceish es NULL para protocolo 993 recién creado
+      payloads.forEach((p) => expect(p.protocolCode).toBeNull());
+
+      handleSpy.mockRestore();
+    });
+
+    it('12b. POST /reassign → handleEvaluatorAssignedEvent recibe evaluatorEmail del evaluador entrante 905 (findEnrichmentInfo SQL real)', async () => {
+      const handleSpy = jest.spyOn(
+        mailerAdapter,
+        'handleEvaluatorAssignedEvent',
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .set('x-user-id', '901')
+        .send({
+          currentAssignmentId: 9940,
+          replacementEvaluatorId: 905,
+          replacementEvaluatorProfile: EvaluatorProfile.SALUD,
+          reason: 'CONFLICTO_INTERES',
+        });
+
+      expect(res.status).toBe(201);
+      expect(handleSpy).toHaveBeenCalledTimes(1);
+
+      const [payload] = handleSpy.mock.calls[0];
+      expect(payload.evaluatorEmail).toBe('reemplazo@test.com');
+      expect(payload.evaluatorFullName).toBe('Dr. Reemplazo');
+      expect(payload.isReassignment).toBe(true);
+
+      handleSpy.mockRestore();
+    });
+  }); // end describe('12. TSK-002-N17')
 });
