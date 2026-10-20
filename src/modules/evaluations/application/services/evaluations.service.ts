@@ -1529,9 +1529,12 @@ export class EvaluationsService {
       );
     }
 
-    // Validación 5: convocatoria incluye el protocolo
+    // Validación 5: convocatoria incluye la versión actual del protocolo
     const convocatoriaItem = await this.convocatoriaProtocoloRepo.findOne({
-      where: { convocatoriaId: dto.meetingId, protocoloId: protocolId },
+      where: {
+        convocatoriaId: dto.meetingId,
+        versionId: protocol.versionActualId,
+      },
     });
     if (!convocatoriaItem) {
       throw new ConflictException(
@@ -1588,7 +1591,7 @@ export class EvaluationsService {
       try {
         const ceishCode = protocol.ceishCode ?? 'S/C';
         const assignments = await this.evalAssignmentRepo.find({
-          where: { versionId: protocol.id },
+          where: { versionId: protocol.versionActualId },
           select: ['evaluatorId'],
         });
         const userIds = [

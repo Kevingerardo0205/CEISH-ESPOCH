@@ -22,6 +22,7 @@ import { PdfGeneratorService } from '../../../../shared/utils/pdf-generator.serv
 import { DocxGeneratorService } from '../../../../shared/utils/docx-generator.service';
 import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
+import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import {
   SystemParamsService,
@@ -766,5 +767,236 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
     expect(arg.where.id).toEqual(In([10, 20, 30, 40]));
 
     userRepoFindSpy.mockRestore();
+  });
+});
+
+// ─── TSK-002-N25: RF-12.2f — designatePlenumRiskLevel (servicio) ─────────────
+
+describe('EvaluationsService - designatePlenumRiskLevel', () => {
+  let service: EvaluationsService;
+  let mockProtocolOrmRepo: { findOne: jest.Mock; save: jest.Mock };
+  let mockRiskLevelRepo: { findOne: jest.Mock };
+  let mockConvocatoriaProtoRepo: { findOne: jest.Mock };
+  let mockAuditLogRepo: { create: jest.Mock; save: jest.Mock };
+  let mockEvalAssignmentRepo: { find: jest.Mock };
+  let mockUserRepo: { find: jest.Mock };
+  let mockEmailService: { sendRiskLevelDesignated: jest.Mock };
+  let mockDataSource: { transaction: jest.Mock };
+
+  const PROTOCOL_ID = 169;
+  const MEETING_ID = '123e4567-e89b-42d3-a456-426614174000';
+  const USER_ID = 99;
+
+  const flushPromises = (): Promise<void> =>
+    new Promise((resolve) => setImmediate(resolve));
+
+  beforeEach(async () => {
+    mockProtocolOrmRepo = {
+      findOne: jest.fn(),
+      save: jest.fn().mockImplementation((e) => Promise.resolve(e)),
+    };
+    mockRiskLevelRepo = { findOne: jest.fn() };
+    mockConvocatoriaProtoRepo = { findOne: jest.fn() };
+    mockAuditLogRepo = {
+      create: jest
+        .fn()
+        .mockImplementation((dto: Partial<AuditLogOrmEntity>) => dto),
+      save: jest.fn().mockResolvedValue({}),
+    };
+    mockEvalAssignmentRepo = { find: jest.fn().mockResolvedValue([]) };
+    mockUserRepo = { find: jest.fn().mockResolvedValue([]) };
+    mockEmailService = {
+      sendRiskLevelDesignated: jest.fn().mockResolvedValue(undefined),
+    };
+
+    const mockManager = {
+      getRepository: jest.fn().mockImplementation((entity) => {
+        if (entity === ProtocolOrmEntity) return mockProtocolOrmRepo;
+        if (entity === AuditLogOrmEntity) return mockAuditLogRepo;
+        return {};
+      }),
+    };
+    mockDataSource = {
+      transaction: jest
+        .fn()
+        .mockImplementation((cb: (manager: unknown) => Promise<unknown>) =>
+          cb(mockManager),
+        ),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EvaluationsService,
+        {
+          provide: IEvaluationRepository,
+          useValue: {
+            findVersionByProtocolId: jest.fn(),
+            findAssignmentsByVersionId: jest.fn(),
+            saveAssignment: jest.fn(),
+          },
+        },
+        { provide: IProtocolRepository, useValue: {} },
+        { provide: ProtocolDeadlineService, useValue: {} },
+        { provide: IEmailServicePort, useValue: mockEmailService },
+        { provide: ConflictOfInterestService, useValue: {} },
+        {
+          provide: getRepositoryToken(EvaluationAssignmentOrmEntity),
+          useValue: mockEvalAssignmentRepo,
+        },
+        { provide: getRepositoryToken(RiskProposalOrmEntity), useValue: {} },
+        {
+          provide: getRepositoryToken(PeerRiskAssignmentOrmEntity),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(RiskLevelOrmEntity),
+          useValue: mockRiskLevelRepo,
+        },
+        {
+          provide: getRepositoryToken(ProtocolOrmEntity),
+          useValue: mockProtocolOrmRepo,
+        },
+        { provide: getRepositoryToken(UserOrmEntity), useValue: mockUserRepo },
+        {
+          provide: getRepositoryToken(InvestigatorProfileOrmEntity),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(EvaluatorProfileUserOrmEntity),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(ConvocatoriaProtocoloOrmEntity),
+          useValue: mockConvocatoriaProtoRepo,
+        },
+        { provide: PdfGeneratorService, useValue: {} },
+        { provide: DocxGeneratorService, useValue: {} },
+        { provide: IStorageService, useValue: {} },
+        { provide: DataSource, useValue: mockDataSource },
+        {
+          provide: SystemParamsService,
+          useValue: {
+            get: (clave: SystemParamKey) => SYSTEM_PARAM_FALLBACKS[clave],
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<EvaluationsService>(EvaluationsService);
+  });
+
+  const baseProtocol = (): Partial<ProtocolOrmEntity> => ({
+    id: PROTOCOL_ID,
+    versionActualId: 141,
+    statusId: ProtocolStatus.DISCREPANCIA_RIESGO,
+    ceishCode: 'CEISH-2025-169',
+    riskLevelId: undefined,
+    isRiskLevelDesignated: false,
+    reviewType: undefined,
+  });
+
+  const baseRiskLevel = () => ({
+    id: 5,
+    isActive: true,
+    reviewType: 'EXPEDITA',
+  });
+
+  it('PL-U-01: riskLevelId fijado, isRiskLevelDesignated=true, EN_EVALUACION, auditoría con userId y meetingId', async () => {
+    mockProtocolOrmRepo.findOne.mockResolvedValue(baseProtocol());
+    mockRiskLevelRepo.findOne.mockResolvedValue(baseRiskLevel());
+    mockConvocatoriaProtoRepo.findOne.mockResolvedValue({ id: 'conv-item' });
+
+    const result = await service.designatePlenumRiskLevel(
+      PROTOCOL_ID,
+      { riskLevelId: 5, meetingId: MEETING_ID },
+      USER_ID,
+    );
+
+    expect(result).toMatchObject({
+      message: 'Nivel de riesgo designado en pleno exitosamente.',
+      riskLevelId: 5,
+      reviewType: ReviewType.EXPEDITA,
+      statusId: ProtocolStatus.EN_EVALUACION,
+    });
+    expect(mockAuditLogRepo.create).toHaveBeenCalledWith(
+      expect.objectContaining({
+        userId: USER_ID,
+        action: 'RISK_LEVEL_PLENO_DESIGNATED',
+      }),
+    );
+    const createArg = (
+      mockAuditLogRepo.create.mock.calls as [
+        [{ newData: { riskLevelId: number; meetingId: string } }],
+      ]
+    )[0][0];
+    expect(createArg.newData).toMatchObject({
+      riskLevelId: 5,
+      meetingId: MEETING_ID,
+    });
+    expect(mockAuditLogRepo.save).toHaveBeenCalledTimes(1);
+  });
+
+  it('PL-U-02: notificación usa versionActualId (141), no protocol.id (169)', async () => {
+    mockProtocolOrmRepo.findOne.mockResolvedValue(baseProtocol());
+    mockRiskLevelRepo.findOne.mockResolvedValue(baseRiskLevel());
+    mockConvocatoriaProtoRepo.findOne.mockResolvedValue({ id: 'conv-item' });
+    mockEvalAssignmentRepo.find.mockResolvedValue([]);
+
+    await service.designatePlenumRiskLevel(
+      PROTOCOL_ID,
+      { riskLevelId: 5, meetingId: MEETING_ID },
+      USER_ID,
+    );
+    await flushPromises();
+
+    expect(mockEvalAssignmentRepo.find).toHaveBeenCalledTimes(1);
+    const findCalls = mockEvalAssignmentRepo.find.mock.calls as [
+      [{ where: { versionId: number } }],
+    ];
+    expect(findCalls[0][0]).toEqual(
+      expect.objectContaining({ where: { versionId: 141 } }),
+    );
+  });
+
+  it('PL-U-03: estado distinto de DISCREPANCIA_RIESGO → 409 ConflictException', async () => {
+    mockProtocolOrmRepo.findOne.mockResolvedValue({
+      ...baseProtocol(),
+      statusId: ProtocolStatus.EN_EVALUACION,
+    });
+
+    await expect(
+      service.designatePlenumRiskLevel(
+        PROTOCOL_ID,
+        { riskLevelId: 5, meetingId: MEETING_ID },
+        USER_ID,
+      ),
+    ).rejects.toThrow('discrepancia de riesgo');
+  });
+
+  it('PL-U-04: convocatoria sin esta versión → 409 ConflictException', async () => {
+    mockProtocolOrmRepo.findOne.mockResolvedValue(baseProtocol());
+    mockRiskLevelRepo.findOne.mockResolvedValue(baseRiskLevel());
+    mockConvocatoriaProtoRepo.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.designatePlenumRiskLevel(
+        PROTOCOL_ID,
+        { riskLevelId: 5, meetingId: MEETING_ID },
+        USER_ID,
+      ),
+    ).rejects.toThrow('convocatoria');
+  });
+
+  it('PL-U-05: nivel inactivo → 404 NotFoundException', async () => {
+    mockProtocolOrmRepo.findOne.mockResolvedValue(baseProtocol());
+    mockRiskLevelRepo.findOne.mockResolvedValue(null);
+
+    await expect(
+      service.designatePlenumRiskLevel(
+        PROTOCOL_ID,
+        { riskLevelId: 5, meetingId: MEETING_ID },
+        USER_ID,
+      ),
+    ).rejects.toThrow('no encontrado o inactivo');
   });
 });

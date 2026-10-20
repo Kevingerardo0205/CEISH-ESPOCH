@@ -64,8 +64,8 @@ export class DesignatePlenumRiskDto {
   })
   riskLevelId: number;
 
-  @IsUUID('4', {
-    message: 'El ID de la convocatoria debe ser un UUID v4 válido.',
+  @IsUUID(undefined, {
+    message: 'El ID de la convocatoria debe ser un UUID válido.',
   })
   meetingId: string;
 }
