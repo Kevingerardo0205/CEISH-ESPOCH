@@ -409,14 +409,15 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: inspeccionar `result.error`.
   - **Hecho cuando:** cuando Resend devuelve `error`, el adaptador lanza excepción (capturada en `.catch(()=>{})`) y el log refleja el fallo en lugar del éxito; tsc limpio.
 
-- [ ] **TSK-002-N19** (PENDIENTE): `baseUrl` hardcodeado como `http://localhost:3000` en `MailerNotificationAdapter`.
-  - **Requisito relacionado:** RF-12.6 — deep-link correcto en producción.
-  - **PR:** posterior a PR-F.
-  - **Descripción:** `mailer-notification.adapter.ts:29` tiene `private readonly baseUrl: string = 'http://localhost:3000'`. En producción el enlace del correo apunta a `localhost`, inutilizando el deep-link. La URL base debe leerse de `ConfigService.get('FRONTEND_URL')` o de `appConfig.frontendUrl`, inyectado en el constructor.
-  - **Archivos afectados:**
-    - `src/modules/evaluations/infrastructure/adapters/mailer-notification.adapter.ts` — MODIFICAR: leer `baseUrl` desde configuración.
-    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR: inyectar `ConfigService` en la fábrica de `MailerNotificationAdapter`.
-  - **Hecho cuando:** el correo enviado en staging contiene la URL de producción configurada en `.env`; tests unitarios del adapter pasan la URL como parámetro de constructor (ya lo hacen); tsc limpio.
+- [ ] **TSK-002-N19** (BLOQUEADA por TSK-002-N09): el deep-link del correo de asignación apunta a login genérico en lugar de al panel del evaluador.
+  - **Requisito relacionado:** RF-12.6 — deep-link correcto al panel de evaluación en producción.
+  - **PR:** mismo PR que TSK-002-N09 (arreglo del bridge en `evaluations.module.ts`).
+  - **Descripción:** El correo real que recibe el evaluador al ser asignado es generado por `ResendEmailAdapter.sendEvaluationAssignment` → `getEvaluationAssignmentTemplate`. Este template (`email-templates.ts:94`) incluye el enlace `https://ceish-espoch.edu.ec/login` (genérico, hardcodeado), en lugar de `${frontendUrl}/evaluations/${assignmentId}/panel` (deep-link al panel). `MailerNotificationAdapter` sí construye el deep-link correcto en su HTML, pero ese HTML es descartado por el bridge en `evaluations.module.ts:127-139`, que llama a `sendEvaluationAssignment` pasando el asunto como `protocolCode` e ignorando el html. Por esta razón, cambiar `baseUrl` en `MailerNotificationAdapter` no arregla el correo real hasta que se corrija el bridge (TSK-002-N09). **Lugar real del fix (verificado):** `src/modules/notifications/infrastructure/templates/email-templates.ts:94` (`<a href="https://ceish-espoch.edu.ec/login">` → usar `panelUrl` dinámico); `resend-email.adapter.ts:sendEvaluationAssignment` (recibir `assignmentId`, construir `panelUrl` con `FRONTEND_URL` ya leído del constructor); `evaluations.module.ts:127-139` (el bridge debe pasar `assignmentId` junto con el correo para que se pueda armar el deep-link).
+  - **Archivos afectados (cuando se implemente):**
+    - `src/modules/notifications/infrastructure/templates/email-templates.ts` — MODIFICAR: añadir parámetro `panelUrl` a `getEvaluationAssignmentTemplate` y usarlo en el enlace del botón.
+    - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: `sendEvaluationAssignment` recibe `assignmentId: string` y construye `panelUrl = \`${this.baseUrl}/evaluations/${assignmentId}/panel\`` usando `FRONTEND_URL` ya leído en el constructor.
+    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR (depende de TSK-002-N09): el bridge pasa el `assignmentId` del payload al adaptador.
+  - **Hecho cuando:** el correo enviado a través de Resend contiene un enlace dinámico `${FRONTEND_URL}/evaluations/${assignmentId}/panel` (no la URL genérica de login); tsc limpio; prueba unitaria verifica el enlace en el html del template.
 
 - [ ] **TSK-002-N20** (PENDIENTE): No existe bandera para deshabilitar el envío de correos en desarrollo.
   - **Requisito relacionado:** Calidad del entorno de desarrollo.
