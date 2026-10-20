@@ -103,6 +103,7 @@ import {
   SystemParamsService,
   SP_EVALUADOR_URGENTE_UMBRAL,
 } from '../../../sistema/application/services/system-params.service';
+import { RoleCode } from '../../../auth/domain/enums/role.enum';
 
 export interface PendingPeerRiskAssignmentItem {
   id: number;
@@ -1327,14 +1328,33 @@ export class EvaluationsService {
                 ];
                 notify.fn = async (): Promise<void> => {
                   try {
-                    const secEmail =
-                      process.env.COMMITTEE_EMAIL ||
-                      'secretaria.ceish@espoch.edu.ec';
-                    await this.emailService.sendRiskDiscrepancyAlert(
-                      secEmail,
-                      protocolCodeDisc,
-                      codesProposed,
-                    );
+                    const secretarias = await this.userRepository.find({
+                      where: {
+                        isActive: true,
+                        roles: { code: RoleCode.SECRETARIA },
+                      },
+                      relations: ['roles'],
+                      select: { id: true, institutionalEmail: true },
+                    });
+                    if (secretarias.length === 0) {
+                      this.logger.warn(
+                        '[N24] Sin usuarios con rol SECRETARIA para notificar discrepancia.',
+                      );
+                      return;
+                    }
+                    for (const sec of secretarias) {
+                      await this.emailService
+                        .sendRiskDiscrepancyAlert(
+                          sec.institutionalEmail,
+                          protocolCodeDisc,
+                          codesProposed,
+                        )
+                        .catch((err: unknown) =>
+                          this.logger.warn(
+                            `[N24] Error notif discrepancia a ${sec.institutionalEmail}: ${err instanceof Error ? err.message : String(err)}`,
+                          ),
+                        );
+                    }
                   } catch (err: unknown) {
                     this.logger.warn(
                       `[N24] Error post-commit notif discrepancia: ${err instanceof Error ? err.message : String(err)}`,
@@ -1344,7 +1364,7 @@ export class EvaluationsService {
 
                 return {
                   message:
-                    'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El protocolo ha pasado a estado de discrepancia de riesgo y las propuestas han sido archivadas para permitir una nueva ronda tras el debate en pleno.',
+                    'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El nivel de riesgo será decidido en la sesión del pleno y registrado por la Secretaría.',
                 };
               }
             }
@@ -1443,7 +1463,7 @@ export class EvaluationsService {
 
           return {
             message:
-              'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El protocolo ha pasado a estado de discrepancia de riesgo y las propuestas han sido archivadas para permitir una nueva ronda tras el debate en pleno.',
+              'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El nivel de riesgo será decidido en la sesión del pleno y registrado por la Secretaría.',
           };
         }
       }

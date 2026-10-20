@@ -114,7 +114,7 @@ describe('Risk Level Designation — Regresión RF-12.2d/e (e2e)', () => {
   it('RD-02: propuestas distintas → responde 201 con mensaje de discrepancia', async () => {
     mockDesignationService.submitPeerRiskLevel.mockResolvedValue({
       message:
-        'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El protocolo ha pasado a estado de discrepancia de riesgo y las propuestas han sido archivadas para permitir una nueva ronda tras el debate en pleno.',
+        'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El nivel de riesgo será decidido en la sesión del pleno y registrado por la Secretaría.',
     });
 
     const response = await request(app.getHttpServer())

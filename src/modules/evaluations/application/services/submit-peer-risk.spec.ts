@@ -494,4 +494,281 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
     expect(mockProtocol.isRiskLevelDesignated).toBe(true);
     expect(mockProtocol.statusId).toBe(13);
   });
+
+  // ─── RD-01: designación — auditoría RISK_PROPOSAL_SUBMITTED + RISK_LEVEL_AUTO_DESIGNATED ──────
+
+  it('RD-01: designación automática — riskLevelId fijado, isRiskLevelDesignated=true, estado EN_EVALUACION, auditoría completa', async () => {
+    const canonicalAssignment: Partial<EvaluationAssignmentOrmEntity> = {
+      id: 2,
+      evaluatorId: 20,
+      versionId: 100,
+      isAssignedForAnnex10: true,
+      version: {
+        id: 100,
+        protocolId: 50,
+      } as unknown as ProtocolVersionOrmEntity,
+    };
+
+    mockEvalAssignmentRepo.findOne.mockResolvedValue(canonicalAssignment);
+    mockRiskLevelRepo.findOne.mockResolvedValue({
+      id: 2,
+      name: 'Riesgo Mínimo',
+      reviewType: 'EXPEDITA',
+      isActive: true,
+    });
+
+    mockEvalAssignmentRepo.find
+      .mockResolvedValueOnce([
+        { id: 1, versionId: 100, isAssignedForAnnex10: true },
+        { id: 2, versionId: 100, isAssignedForAnnex10: true },
+      ])
+      .mockResolvedValueOnce([
+        { id: 1, statusId: AssignmentStatus.ASSIGNED, deadline: null },
+        { id: 2, statusId: AssignmentStatus.ASSIGNED, deadline: null },
+      ]);
+
+    mockRiskProposalRepo.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        assignmentId: 1,
+        riskLevelId: 2,
+        isCurrent: true,
+      })
+      .mockResolvedValueOnce({
+        assignmentId: 2,
+        riskLevelId: 2,
+        isCurrent: true,
+      })
+      .mockResolvedValueOnce({ id: 2, reviewType: 'EXPEDITA' });
+
+    const mockProtocol: Partial<ProtocolOrmEntity> = {
+      id: 50,
+      riskLevelId: undefined,
+      reviewType: undefined,
+      isRiskLevelDesignated: false,
+      statusId: 12,
+      ceishCode: 'CEISH-2025-010',
+    };
+    mockProtocolOrmRepo.findOne.mockResolvedValue(mockProtocol);
+
+    const res = await service.submitPeerRiskLevel(2, 20, { riskLevelId: 2 });
+
+    expect(mockProtocol.riskLevelId).toBe(2);
+    expect(mockProtocol.isRiskLevelDesignated).toBe(true);
+    expect(mockProtocol.statusId).toBe(13); // EN_EVALUACION
+    expect(res.message).toBe(
+      'Propuesta de nivel de riesgo enviada exitosamente.',
+    );
+
+    const auditCalls = mockAuditLogRepo.create.mock.calls.map(
+      (c: [Partial<AuditLogOrmEntity>]) => c[0].action,
+    );
+    expect(auditCalls).toContain('RISK_PROPOSAL_SUBMITTED');
+    expect(auditCalls).toContain('RISK_LEVEL_AUTO_DESIGNATED');
+  });
+
+  // ─── RD-02: discrepancia — auditoría RISK_LEVEL_DISCREPANCY + mensaje correcto ──────────────
+
+  it('RD-02: discrepancia — estado DISCREPANCIA_RIESGO, propuestas archivadas, auditoría y mensaje correctos', async () => {
+    const canonicalAssignment: Partial<EvaluationAssignmentOrmEntity> = {
+      id: 2,
+      evaluatorId: 20,
+      versionId: 100,
+      isAssignedForAnnex10: true,
+      version: {
+        id: 100,
+        protocolId: 50,
+      } as unknown as ProtocolVersionOrmEntity,
+    };
+
+    mockEvalAssignmentRepo.findOne.mockResolvedValue(canonicalAssignment);
+    mockRiskLevelRepo.findOne.mockResolvedValue({
+      id: 7,
+      code: 'RIESGO_MAYOR',
+      name: 'Riesgo Mayor',
+      isActive: true,
+    });
+
+    mockEvalAssignmentRepo.find.mockResolvedValueOnce([
+      { id: 1, versionId: 100, isAssignedForAnnex10: true },
+      { id: 2, versionId: 100, isAssignedForAnnex10: true },
+    ]);
+
+    const p1Prop = { assignmentId: 1, riskLevelId: 5, isCurrent: true };
+    const p2Prop = { assignmentId: 2, riskLevelId: 7, isCurrent: true };
+
+    mockRiskProposalRepo.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce(p1Prop)
+      .mockResolvedValueOnce(p2Prop);
+
+    const mockProtocol: Partial<ProtocolOrmEntity> = {
+      id: 50,
+      statusId: 13,
+      isRiskLevelDesignated: false,
+      ceishCode: 'CEISH-2025-011',
+    };
+    mockProtocolOrmRepo.findOne.mockResolvedValue(mockProtocol);
+
+    const res = await service.submitPeerRiskLevel(2, 20, { riskLevelId: 7 });
+
+    expect(mockProtocol.statusId).toBe(16); // DISCREPANCIA_RIESGO
+    expect(mockProtocol.isRiskLevelDesignated).toBe(false);
+    expect(p1Prop.isCurrent).toBe(false);
+    expect(p2Prop.isCurrent).toBe(false);
+    expect(res.message).toContain(
+      'El nivel de riesgo será decidido en la sesión del pleno',
+    );
+
+    const auditActions = mockAuditLogRepo.create.mock.calls.map(
+      (c: [Partial<AuditLogOrmEntity>]) => c[0].action,
+    );
+    expect(auditActions).toContain('RISK_PROPOSAL_SUBMITTED');
+    expect(auditActions).toContain('RISK_LEVEL_DISCREPANCY');
+  });
+
+  // ─── RD-04: primera propuesta sola → sin cambios en protocolo ─────────────────────────────
+
+  it('RD-04: primera propuesta (única) → protocolo sin modificar', async () => {
+    const canonicalAssignment: Partial<EvaluationAssignmentOrmEntity> = {
+      id: 1,
+      evaluatorId: 10,
+      versionId: 100,
+      isAssignedForAnnex10: true,
+      version: {
+        id: 100,
+        protocolId: 50,
+      } as unknown as ProtocolVersionOrmEntity,
+    };
+
+    mockEvalAssignmentRepo.findOne.mockResolvedValue(canonicalAssignment);
+    mockRiskProposalRepo.findOne.mockResolvedValue(null); // sin propuesta previa
+    mockRiskLevelRepo.findOne.mockResolvedValue({
+      id: 5,
+      name: 'Riesgo Mínimo',
+      isActive: true,
+    });
+    // Solo 1 asignación ha enviado propuesta; la otra aún no
+    mockEvalAssignmentRepo.find.mockResolvedValueOnce([
+      { id: 1, versionId: 100, isAssignedForAnnex10: true },
+      { id: 2, versionId: 100, isAssignedForAnnex10: true },
+    ]);
+    // Propuesta del evaluador 1 recién guardada; evaluador 2 sin propuesta
+    mockRiskProposalRepo.findOne
+      .mockResolvedValueOnce(null) // existingCurrent check
+      .mockResolvedValueOnce({
+        assignmentId: 1,
+        riskLevelId: 5,
+        isCurrent: true,
+      })
+      .mockResolvedValueOnce(null); // p2 aún no ha enviado
+
+    const res = await service.submitPeerRiskLevel(1, 10, { riskLevelId: 5 });
+
+    expect(res.message).toBe(
+      'Propuesta de nivel de riesgo enviada exitosamente.',
+    );
+    expect(mockProtocolOrmRepo.save).not.toHaveBeenCalled();
+
+    const auditActions = mockAuditLogRepo.create.mock.calls.map(
+      (c: [Partial<AuditLogOrmEntity>]) => c[0].action,
+    );
+    expect(auditActions).toContain('RISK_PROPOSAL_SUBMITTED');
+    expect(auditActions).not.toContain('RISK_LEVEL_AUTO_DESIGNATED');
+    expect(auditActions).not.toContain('RISK_LEVEL_DISCREPANCY');
+  });
+
+  // ─── RD-notify: verifica filtro por IDs de evaluadores en notificación post-designación ────
+
+  it('RD-notify: notificación post-designación usa userRepository.find con los IDs de evaluadores de la versión', async () => {
+    const flushPromises = (): Promise<void> =>
+      new Promise((resolve) => setImmediate(resolve));
+
+    const canonicalAssignment: Partial<EvaluationAssignmentOrmEntity> = {
+      id: 2,
+      evaluatorId: 20,
+      versionId: 100,
+      isAssignedForAnnex10: true,
+      version: {
+        id: 100,
+        protocolId: 50,
+      } as unknown as ProtocolVersionOrmEntity,
+    };
+
+    mockEvalAssignmentRepo.findOne.mockResolvedValue(canonicalAssignment);
+    mockRiskLevelRepo.findOne.mockResolvedValue({
+      id: 2,
+      name: 'Riesgo Mínimo',
+      reviewType: 'EXPEDITA',
+      isActive: true,
+    });
+
+    // La única llamada a evalAssignmentRepo.find en submitPeerRiskLevel es la post-commit
+    // (para obtener los evaluatorIds y enviar correos de designación).
+    // createQueryBuilder().getMany() maneja el lock dentro de la transacción.
+    mockEvalAssignmentRepo.find.mockResolvedValueOnce([
+      { evaluatorId: 10 },
+      { evaluatorId: 20 },
+      { evaluatorId: 30 },
+      { evaluatorId: 40 },
+    ]);
+
+    mockRiskProposalRepo.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({
+        assignmentId: 1,
+        riskLevelId: 2,
+        isCurrent: true,
+      })
+      .mockResolvedValueOnce({
+        assignmentId: 2,
+        riskLevelId: 2,
+        isCurrent: true,
+      })
+      .mockResolvedValueOnce({ id: 2, reviewType: 'EXPEDITA' });
+
+    const mockProtocol: Partial<ProtocolOrmEntity> = {
+      id: 50,
+      riskLevelId: undefined,
+      reviewType: undefined,
+      isRiskLevelDesignated: false,
+      statusId: 12,
+      ceishCode: 'CEISH-2025-012',
+    };
+    mockProtocolOrmRepo.findOne.mockResolvedValue(mockProtocol);
+
+    // Obtener referencia al userRepository mockeado a través del spy
+    const userRepo = service[
+      'userRepository' as keyof typeof service
+    ] as unknown as { find: jest.Mock };
+    const userRepoFindSpy = jest.spyOn(userRepo, 'find').mockResolvedValue([
+      { id: 10, fullName: 'Eval Uno', institutionalEmail: 'e1@test.ec' },
+      { id: 20, fullName: 'Eval Dos', institutionalEmail: 'e2@test.ec' },
+      { id: 30, fullName: 'Eval Tres', institutionalEmail: 'e3@test.ec' },
+      { id: 40, fullName: 'Eval Cuatro', institutionalEmail: 'e4@test.ec' },
+    ] as UserOrmEntity[]);
+
+    await service.submitPeerRiskLevel(2, 20, { riskLevelId: 2 });
+    await flushPromises();
+
+    expect(mockEvalAssignmentRepo.find).toHaveBeenCalledWith(
+      expect.objectContaining({ where: { versionId: 100 } }),
+    );
+    expect(userRepoFindSpy).toHaveBeenCalled();
+    const rawCall: unknown[] | undefined = userRepoFindSpy.mock.calls.find(
+      (c) =>
+        c[0] != null && typeof c[0] === 'object' && 'where' in (c[0] as object),
+    );
+    if (rawCall) {
+      const callArg = rawCall[0] as { where: { id: unknown } };
+      const idFilter = callArg.where.id;
+      // In() de TypeORM expone _value con los IDs
+      const ids: number[] = Array.isArray(idFilter)
+        ? (idFilter as number[])
+        : (((idFilter as { _value?: number[] }) ?? {})._value ?? []);
+      expect(ids).toEqual(expect.arrayContaining([10, 20, 30, 40]));
+    }
+
+    userRepoFindSpy.mockRestore();
+  });
 });
