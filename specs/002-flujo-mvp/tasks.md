@@ -586,14 +586,10 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     | 7 | RIESGO_MAYOR | true | PET (ver nota al pie) |
     | 8 | ENSAYO_CLINICO | false | ya inactivo |
 
-    **Paso 1 (pre-verificación de referencias a nivel 6 — pendiente confirmar):**
-    Antes de crear la migración, ejecutar en `ceish_db`:
-    ```sql
-    SELECT
-      (SELECT COUNT(*) FROM evaluacion.propuestas_riesgo WHERE nivel_riesgo_id = 6) AS propuestas_con_nivel6,
-      (SELECT COUNT(*) FROM public.protocolos       WHERE nivel_riesgo_id = 6)      AS protocolos_con_nivel6;
-    ```
-    Si hay filas con nivel 6, la migración puede ejecutarse igualmente (no se borra el registro; solo `activo = false`), pero hay que comunicar a los usuarios afectados que el nivel ya no es seleccionable.
+    **Paso 1 (referencias a nivel 6 — confirmado en ceish_db 2026-10-20):**
+    - `evaluacion.propuestas_riesgo` con `nivel_riesgo_id = 6`: **0 filas**.
+    - `public.protocolos` con `nivel_riesgo_id = 6`: **15 filas** (ids 6–104, borradores de prueba sin `codigo_ceish`, `estado_id = NULL`, creados entre 6 y 22 de mayo de 2026; el formulario de creación tenía selector de riesgo). No se modifican (son datos de prueba).
+    La migración puede ejecutarse sin riesgo de romper propuestas ni protocolos activos.
 
     **Paso 2 (migración):**
     Crear `src/migrations/<timestamp>-MarkRiesgoModeradoInactive.ts` que apunta exclusivamente al nivel 6 por su código exacto:
@@ -622,3 +618,55 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/migrations/<timestamp>-MarkRiesgoModeradoInactive.ts` — CREAR.
   - **Pruebas necesarias:** `npx tsc --noEmit` limpio; migración ejecutable y reversible; `riskLevelId = 6` en endpoint devuelve 404.
   - **Hecho cuando:** `RIESGO_MODERADO` tiene `activo = false` en `ceish_db`; los 3 niveles PET siguen activos; tsc limpio; validación `isActive` rechaza id=6 con 404.
+
+- [ ] **TSK-002-N27** (PENDIENTE): RF-12.2 — eliminar `riskLevelId` del DTO de creación de protocolo (camino 1 no autorizado).
+  - **Requisito relacionado:** RF-12.2 — solo los caminos RF-12.2d y RF-12.2f pueden fijar `nivel_riesgo_id` en un protocolo.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Descripción:** El campo `riskLevelId?: number` en `CreateProtocolDto` permitía que el cliente enviara directamente un nivel de riesgo al crear el protocolo, omitiendo el proceso de Anexo 10. Origen confirmado de los 15 protocolos con `nivel_riesgo_id = 6` (borradores de prueba, N26).
+
+    **Verificación previa (ya ejecutada):**
+    - Solo `protocols.service.ts:140` usa `cleanData.riskLevelId` al crear. No hay endpoint PUT/PATCH de protocolo ni ningún otro servicio que pase `riskLevelId` en creación.
+    - Ningún test E2E de `test/` envía `riskLevelId` al crear un protocolo — confirmado con `grep`.
+    - `ValidationPipe` tiene `whitelist: true` en `main.ts`: si el campo permaneciera en el DTO pero se eliminara del servicio, el pipe lo strip igualmente en peticiones futuras.
+
+    **Cambios:**
+    1. `src/modules/protocols/application/dtos/create-protocol.dto.ts` — MODIFICAR: eliminar las tres líneas del campo `riskLevelId` (`@ApiProperty`, `@IsOptional`, `@IsNumber`, `riskLevelId?: number`).
+    2. `src/modules/protocols/application/services/protocols.service.ts:140` — MODIFICAR: eliminar la línea `riskLevelId: cleanData.riskLevelId,` del objeto pasado a `this.protocolsRepository.save(...)`.
+
+    **Sin migración:** la columna `nivel_riesgo_id` permanece `nullable` (correcto; solo los caminos RF-12.2d/f la rellenan). Los 15 protocolos de prueba no se modifican.
+
+  - **Archivos afectados:**
+    - `src/modules/protocols/application/dtos/create-protocol.dto.ts` — MODIFICAR.
+    - `src/modules/protocols/application/services/protocols.service.ts` — MODIFICAR (línea 140).
+  - **Pruebas necesarias:** `npx tsc --noEmit` limpio; `npm test` verde; `POST /api/protocols` con `riskLevelId` en el body no falla (campo ignorado por `whitelist: true`) y el protocolo creado tiene `riskLevelId = null`.
+  - **Hecho cuando:** `grep -n riskLevelId src/modules/protocols/application/dtos/create-protocol.dto.ts` no devuelve resultados; tsc limpio; tests verdes.
+
+- [ ] **TSK-002-N28** (PENDIENTE — fuera de PR-H): `public.protocolos.estado_id` es nullable; protocolos creados sin estado.
+  - **Requisito relacionado:** Integridad de datos — sin RF directo; afecta todos los flujos que dependen de `protocol.statusId`.
+  - **PR:** separado, a definir (no PR-H).
+  - **Descripción:** El campo `statusId` en `ProtocolOrmEntity` está definido como `@Column({ name: 'estado_id', nullable: true })` (`protocol.entity.orm.ts:80`). `protocols.service.ts` no asigna ningún `statusId` al crear un protocolo, por lo que los protocolos nuevos quedan con `estado_id = NULL`.
+
+    **Magnitud confirmada (ceish_db, 2026-10-20):** al menos 15 protocolos (ids 6–104) tienen `estado_id = NULL`. Son borradores de prueba, pero el patrón indica que cualquier protocolo creado desde el endpoint `POST /protocols` nace sin estado.
+
+    **Pendiente de investigar antes de implementar:**
+    1. ¿Cuántos protocolos tienen `estado_id = NULL` en total en `ceish_db`?
+       ```sql
+       SELECT COUNT(*), MIN(created_at), MAX(created_at)
+       FROM public.protocolos
+       WHERE estado_id IS NULL;
+       ```
+    2. ¿Qué estado inicial corresponde según el PET? El enum `ProtocolStatus.INICIADO = 9` es candidato; confirmar con Secretaría.
+    3. ¿Hay código que tome caminos distintos cuando `statusId = null` vs `INICIADO`? Buscar con `if.*statusId.*null\|statusId.*===.*null`.
+
+    **Propuesta técnica (sujeta a decisión):**
+    - En `protocols.service.ts:136`, añadir `statusId: ProtocolStatus.INICIADO` al objeto pasado a `save()`.
+    - Migración posterior (separada): `ALTER TABLE public.protocolos ALTER COLUMN estado_id SET NOT NULL; ALTER TABLE public.protocolos ALTER COLUMN estado_id SET DEFAULT 9;` — solo después de verificar que no quedan filas NULL.
+    - El `down` de la migración: `ALTER TABLE public.protocolos ALTER COLUMN estado_id DROP NOT NULL; ALTER TABLE public.protocolos ALTER COLUMN estado_id DROP DEFAULT;`.
+
+    **No implementar en PR-H.**
+
+  - **Archivos afectados (cuando se implemente):**
+    - `src/modules/protocols/application/services/protocols.service.ts` — MODIFICAR: añadir `statusId: ProtocolStatus.INICIADO` en `save()`.
+    - `src/migrations/<timestamp>-ProtocolStatusNotNull.ts` — CREAR (paso posterior, solo tras limpiar nulls existentes).
+  - **Pruebas necesarias:** `npm test` verde; `POST /api/protocols` devuelve protocolo con `statusId = 9`; migración ejecutable y reversible.
+  - **Hecho cuando:** `SELECT COUNT(*) FROM public.protocolos WHERE estado_id IS NULL` devuelve 0; la columna tiene `NOT NULL DEFAULT 9`; tsc limpio.
