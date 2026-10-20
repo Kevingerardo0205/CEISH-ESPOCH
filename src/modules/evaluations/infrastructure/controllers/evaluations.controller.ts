@@ -32,6 +32,7 @@ import { Roles } from '../../../../shared/decorators/roles.decorator';
 import {
   AssignEvaluatorsDto,
   ReassignEvaluatorDto,
+  DesignatePlenumRiskDto,
 } from '../../application/dtos/evaluator-dtos';
 import { AssignEvaluatorsUseCase } from '../../application/use-cases/assign-evaluators.use-case';
 import { ReassignEvaluatorUseCase } from '../../application/use-cases/reassign-evaluator.use-case';
@@ -232,6 +233,25 @@ export class EvaluationsController {
     @Request() req: Request & { user: JwtPayload },
   ) {
     return this.evaluationsService.submitPeerRiskLevel(id, req.user.id, dto);
+  }
+
+  @Patch('protocols/:protocolId/risk-level')
+  @Roles('SECRETARIA')
+  @Permissions(Permission.EVALUATORS_ASSIGN)
+  @ApiOperation({
+    summary:
+      'Secretaría registra el nivel de riesgo acordado en sesión del pleno (RF-12.2f)',
+  })
+  async designatePlenumRiskLevel(
+    @Param('protocolId', ParseIntPipe) protocolId: number,
+    @Body() dto: DesignatePlenumRiskDto,
+    @Request() req: Request & { user: JwtPayload },
+  ) {
+    return this.evaluationsService.designatePlenumRiskLevel(
+      protocolId,
+      dto,
+      req.user.id,
+    );
   }
 
   @Get('evaluators/active')

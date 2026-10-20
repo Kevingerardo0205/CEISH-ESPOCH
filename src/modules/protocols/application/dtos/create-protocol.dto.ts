@@ -31,11 +31,6 @@ export class CreateProtocolDto {
   @IsNotEmpty()
   studyTypeId!: number;
 
-  @ApiProperty({ example: 2, required: false })
-  @IsOptional()
-  @IsNumber()
-  riskLevelId?: number;
-
   @ApiProperty({ example: '1.0', required: false })
   @IsOptional()
   @IsString()

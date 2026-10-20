@@ -16,6 +16,7 @@ import { LugarOrmEntity } from './infrastructure/database/entities/lugar.orm-ent
 import { AssignmentHistoryOrmEntity } from './infrastructure/database/entities/assignment-history.orm-entity';
 import { SecuenciaConvocatoriaOrmEntity } from './infrastructure/database/entities/secuencia-convocatoria.orm-entity';
 import { RiskProposalOrmEntity } from './infrastructure/database/entities/risk-proposal.orm-entity';
+import { AuditLogOrmEntity } from '../audit/infrastructure/database/audit-log.entity.orm';
 
 import { EvaluationsService } from './application/services/evaluations.service';
 import { ConflictOfInterestService } from './application/services/conflict-of-interest.service';
@@ -89,6 +90,7 @@ import { Logger } from '@nestjs/common';
       ReceptionOrmEntity,
       ProtocolRequirementOrmEntity,
       RiskProposalOrmEntity,
+      AuditLogOrmEntity,
     ]),
 
     forwardRef(() => ProtocolsModule),

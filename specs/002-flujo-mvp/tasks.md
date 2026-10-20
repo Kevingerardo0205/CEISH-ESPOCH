@@ -441,4 +441,289 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** `N19` (bloqueada por `TSK-002-N09`) enviará en el correo de asignación el enlace `${FRONTEND_URL}/evaluations/${assignmentId}/panel`. Si esa ruta no existe en el frontend, el evaluador llegará a un 404. Esta tarea verifica (o crea) la ruta en el frontend antes de que `N19` se active en producción.
   - **Archivos afectados:**
     - Frontend (repositorio correspondiente): confirmar o crear la ruta `/evaluations/:assignmentId/panel` que muestre el panel del evaluador para esa asignación.
-  - **Hecho cuando:** la ruta `/evaluations/:assignmentId/panel` existe y responde correctamente en el entorno de staging con un `assignmentId` real; documentado en el PR de N19.
+  - **Hecho cuando:** la ruta `/evaluations/:assignmentId/panel` existe y responde correctamente en entorno local con un `assignmentId` real; documentado en el PR de N19.
+
+- [x] **TSK-002-N23**: Diagnosticar causa raíz aparente en protocolo 169 — no era un bug de código.
+  - **Requisito relacionado:** RF-12.2d — designación automática por acuerdo.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Requisito relacionado:** RF-12.2d — designación automática por acuerdo.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Descripción:** **No había bug de código.** Diagnóstico ejecutado en `ceish_db` (2026-10-20):
+
+    **Hallazgos confirmados:**
+    - Asignación 83 (Verónica Cando) → `nivel_riesgo_id = 5` (RIESGO_MINIMO), ronda 1, `es_vigente = false`.
+    - Asignación 84 (Gabriel Tamayo) → `nivel_riesgo_id = 7` (RIESGO_MAYOR), ronda 1, `es_vigente = false`.
+    - Protocolo 169 → `status_id = 16` (DISCREPANCIA_RIESGO), `nivel_riesgo_id = null`, `nivel_riesgo_confirmado = false`.
+    - La lógica de discrepancia funcionó correctamente: los IDs diferían → se archivaron propuestas → estado 16.
+    - El "mismo nivel" observado en la prueba fue un error de selección del usuario durante el experimento.
+
+    **Catálogo `catalogos.niveles_riesgo`** (verificado):
+    | id | código | activo | tipo_revision |
+    |---|---|---|---|
+    | 4 | SIN_RIESG *(typo)* | true | — |
+    | 5 | RIESGO_MINIMO | true | — |
+    | 6 | RIESGO_MODERADO | true | — |
+    | 7 | RIESGO_MAYOR | true | — |
+    | 8 | ENSAYO_CLINICO | false | — |
+
+    **Consecuencias para tareas siguientes:**
+    - N24: no hay bug a corregir en la comparación; el foco es auditoría + notificaciones + enum + quitar reset legacy.
+    - N25: protocolo 169 (en DISCREPANCIA_RIESGO con convocatoria 010-2026) es un caso real para probar el endpoint de pleno.
+    - N26: la migración debe apuntar solo a `RIESGO_MODERADO` (id=6); no a `RIESGO_MAYOR` ni a `SIN_RIESG`.
+    - Pendiente de confirmar en BD: `SELECT id, nombre FROM catalogos.estados WHERE id IN (13, 16)` y conteo de referencias a nivel_riesgo_id=6.
+
+  - **Archivos afectados:** Ninguno (solo lectura de BD).
+  - **Pruebas necesarias:** Ninguna (diagnóstico).
+  - **Hecho cuando:** ✅ Causa raíz documentada.
+
+- [x] **TSK-002-N24**: Refactorizar `submitPeerRiskLevel()` — usar enum de estados, añadir auditoría y notificaciones (RF-12.2c/d/e).
+  - **Requisito relacionado:** RF-12.2c, RF-12.2d, RF-12.2e, RF-12.2g.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Dependencias:** TSK-002-N23 (causa raíz conocida).
+  - **Descripción:** Refactorizar el método `submitPeerRiskLevel` en `evaluations.service.ts` (líneas 1067–1331) para cumplir la spec. La lógica de comparación ya funciona correctamente (confirmado N23); los cambios son aditivos.
+
+    **1 — Estados por enum (líneas 1202, 1207, 1302, 1311):**
+    Reemplazar los magic numbers `protocol.statusId = 13` y `protocol.statusId = 16` por `ProtocolStatus.EN_EVALUACION` y `ProtocolStatus.DISCREPANCIA_RIESGO` del enum ya importado en `protocol-status.enum.ts`. (Pendiente confirmar nombres en BD: `SELECT id, nombre FROM catalogos.estados WHERE id IN (13, 16)`.)
+
+    **2 — Auditoría de cada propuesta individual (RF-12.2c):**
+    Inmediatamente después de guardar la propuesta con `riskProposalRepo.save(proposal)` (y el equivalente en la ruta legacy), registrar en `sistema.audit_log` dentro de la misma transacción usando `manager.getRepository(AuditLogOrmEntity)`:
+    ```ts
+    { action: 'RISK_PROPOSAL_SUBMITTED', table: 'evaluacion.propuestas_riesgo',
+      recordId: protocolId, userId: evaluatorId,
+      newData: { riskLevelId: dto.riskLevelId, round: currentRound, assignmentId } }
+    ```
+    Requiere importar `AuditLogOrmEntity` en `evaluations.service.ts` (ya existe en la BD). Requiere añadir `AuditLogOrmEntity` a `TypeOrmModule.forFeature` en `evaluations.module.ts`.
+
+    **3 — Designación automática (RF-12.2d) — ruta canonical:**
+    Dentro del bloque `if (p1Proposal.riskLevelId === p2Proposal.riskLevelId)` (línea 1185):
+    - Mantener la lógica de derivar `reviewType` desde `finalRiskLevel.reviewType` (ya existente).
+    - Añadir registro de auditoría en la misma transacción: `action = 'RISK_LEVEL_AUTO_DESIGNATED'`, `userId = null` (SISTEMA), `newData = { riskLevelId, reviewType, round, versionId }`.
+    - Tras commit de la transacción, notificar best-effort a los 4 evaluadores (NO dentro de la transacción): llamar a `IEmailServicePort.sendRiskLevelDesignated(email, name, protocolCode, reviewType)` para cada asignación activa de la versión. Si falla, `Logger.error` sin relanzar.
+    - **Nota:** `sendRiskLevelDesignated` es un método **nuevo** que debe añadirse a `IEmailServicePort` (puerto) y a `ResendEmailAdapter` (adaptador) con dry-run guard y `result.error` check (misma pauta que N18/N20).
+
+    **4 — Discrepancia (RF-12.2e) — ruta canonical:**
+    Dentro del bloque `else` (línea 1205):
+    - Ya archiva propuestas con `isCurrent = false` — mantener.
+    - Añadir auditoría: `action = 'RISK_LEVEL_DISCREPANCY'`, `userId = null`, `newData = { p1: { riskLevelId, evaluatorId }, p2: { riskLevelId, evaluatorId }, round }`.
+    - Tras commit, notificar best-effort a la Secretaría: `IEmailServicePort.sendRiskDiscrepancyAlert(emailSecretaria, protocolCode, codesProposed)`. Método **nuevo** con misma pauta.
+
+    **5 — Corrección ruta legacy (RF-12.2e, anti-destrucción de datos — alcance mínimo):**
+    En el bloque `else` de discrepancia legacy (líneas 1315–1322), eliminar el reset destructivo:
+    ```ts
+    pa.proposedRiskLevelId = undefined;
+    pa.observations = undefined;
+    pa.reportPath = undefined;
+    pa.submittedAt = undefined;
+    ```
+    **Acción correcta:** no modificar los campos; agregar únicamente un `TODO` que señale la rama `refactor/remove-legacy-evaluations` donde se retira el flujo completo. El flujo legacy (`evaluacion.asignaciones_pares_riesgo`) está siendo retirado y no vale la pena rediseñarlo en este PR. La corrección mínima es quitar el reset para que los datos históricos no se destruyan si la ruta legacy aún se ejecuta.
+
+    **6 — Prueba de regresión (verificación del flujo completo):**
+    En `test/risk-designation.e2e-spec.ts` (nuevo archivo), dos casos E2E con protocolos de prueba en `ceish_test_db`:
+    - **RD-01 (acuerdo):** Dos propuestas con el mismo `riskLevelId` → el protocolo queda con `isRiskLevelDesignated = true`, `riskLevelId` asignado, `statusId = ProtocolStatus.EN_EVALUACION`; 2 entradas `RISK_PROPOSAL_SUBMITTED` y 1 `RISK_LEVEL_AUTO_DESIGNATED` en `sistema.audit_log`.
+    - **RD-02 (discrepancia):** Dos propuestas con `riskLevelId` distinto → `statusId = ProtocolStatus.DISCREPANCIA_RIESGO`, propuestas archivadas (`es_vigente = false`), 2 entradas `RISK_PROPOSAL_SUBMITTED` y 1 `RISK_LEVEL_DISCREPANCY`; datos de propuestas NO reseteados a null.
+    El protocolo 169 (ya en `DISCREPANCIA_RIESGO` con convocatoria 010-2026 en `ceish_db`) es un caso real validado pero NO se usa en el E2E automatizado (apunta a `ceish_test_db`).
+
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR (líneas 1067–1331).
+    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR: añadir `AuditLogOrmEntity` a `TypeOrmModule.forFeature`.
+    - `src/modules/notifications/domain/ports/email.service.port.ts` — MODIFICAR: añadir métodos `sendRiskLevelDesignated` y `sendRiskDiscrepancyAlert`.
+    - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: implementar los 2 métodos nuevos con dry-run guard y `result.error` check.
+    - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.spec.ts` — MODIFICAR: añadir tests para los 2 métodos nuevos.
+    - `test/risk-designation.e2e-spec.ts` — CREAR suite E2E (o ampliar `real-db-evaluations.e2e-spec.ts`).
+    - `src/modules/evaluations/application/services/submit-peer-risk.spec.ts` — MODIFICAR: añadir pruebas unitarias del flujo refactorizado.
+  - **Pruebas necesarias:** `npm test` verde; `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` verde; `npx tsc --noEmit` limpio.
+  - **Hecho cuando:** Dos propuestas iguales → `isRiskLevelDesignated = true` + `statusId = EN_EVALUACION` + 3 entradas de auditoría; dos propuestas distintas → `statusId = DISCREPANCIA_RIESGO` + propuestas archivadas + 2 entradas auditoría (sin resetear datos legacy); tsc y ESLint limpios.
+
+- [x] **TSK-002-N25**: Nuevo endpoint `PATCH /evaluations/protocols/:protocolId/risk-level` para designación en pleno (RF-12.2f).
+  - **Requisito relacionado:** RF-12.2f — designación en pleno por Secretaría.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Dependencias:** TSK-002-N24 (lógica de designación reutilizada).
+  - **Descripción:** Endpoint que permite a un usuario con rol `SECRETARIA` registrar el nivel de riesgo acordado en sesión de pleno sobre un protocolo en estado `DISCREPANCIA_RIESGO`.
+
+    **DTO** (`DesignatePlenumRiskDto`) — tipos verificados contra ORM:
+    ```ts
+    { riskLevelId: number;  // @IsInt @IsPositive  (catalogos.niveles_riesgo.id → integer)
+      meetingId: string;    // @IsUUID             (evaluacion.convocatorias.id → uuid, confirmado en ConvocatoriaOrmEntity:29)
+    }
+    ```
+
+    **Caso real de prueba manual (N23):** protocolo 169 está en `DISCREPANCIA_RIESGO` con convocatoria 010-2026 en `ceish_db`. Usar para validar el endpoint manualmente antes de que `ceish_test_db` tenga datos equivalentes.
+
+    **Validaciones** (responden antes de abrir la transacción):
+    1. `protocolId` es entero positivo → 400 si no.
+    2. Protocolo existe en `public.protocolos` → 404 en español si no.
+    3. `protocol.statusId === ProtocolStatus.DISCREPANCIA_RIESGO` → 409 `"El protocolo no está en estado de discrepancia de riesgo"` si no.
+    4. `riskLevel` existe en `catalogos.niveles_riesgo` con `isActive = true` → 404 si no.
+    5. Existe fila en `evaluacion.convocatoria_protocolos` con `convocatoria_id = meetingId` Y `protocolo_id = protocolId` → 409 `"La convocatoria indicada no incluye este protocolo"` si no.
+
+    **Acción** (en una única transacción):
+    - Aplica pasos 1–4 de RF-12.2d: fijar `riskLevelId`, `isRiskLevelDesignated = true`, derivar `reviewType` de `tipo_revision`, avanzar estado a `EN_EVALUACION`.
+    - Registrar en auditoría: `action = 'RISK_LEVEL_PLENO_DESIGNATED'`, `userId = req.user.id`, `newData = { riskLevelId, meetingId, round: 'pleno' }`.
+    - Tras commit, notificar best-effort a los 4 evaluadores con `sendRiskLevelDesignated` (misma función de N24).
+
+    **Seguridad:** `@JwtAuthGuard`, `@Roles('SECRETARIA')`, `@Permissions(Permission.EVALUATORS_ASSIGN)`.
+    **Respuesta:** 200 `{ message: 'Nivel de riesgo designado en pleno exitosamente.', riskLevelId, reviewType, statusId }`.
+
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/dtos/evaluator-dtos.ts` — MODIFICAR: añadir `DesignatePlenumRiskDto`.
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR: añadir método `designatePlenumRiskLevel(protocolId, dto, userId)`.
+    - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` — MODIFICAR: añadir `@Patch('protocols/:protocolId/risk-level')`.
+    - `test/risk-designation.e2e-spec.ts` — MODIFICAR/CREAR: añadir casos E2E para el endpoint (409 no-DISCREPANCIA, 409 convocatoria incorrecta, 200 designación exitosa, 400 no-entero, 404 protocolo inexistente).
+  - **Pruebas necesarias:** `npm test` verde; E2E con casos PL-01…PL-05; `npx tsc --noEmit` limpio.
+  - **Hecho cuando:** ✅ Con protocolo en `DISCREPANCIA_RIESGO` y `meetingId` válido, el endpoint responde 200 y el protocolo queda con `isRiskLevelDesignated = true`, `statusId = EN_EVALUACION`; 409 en los casos de protocolo sin discrepancia o convocatoria incorrecta; tsc y ESLint limpios.
+  - **Evidencia prueba manual (ceish_db, 2026-10-20, sesión Secretaría):**
+    - `PATCH /api/evaluations/protocols/169/risk-level` con `{ riskLevelId: 5, meetingId: "7fe0e1c1-67db-455c-ae85-e1853467e57b" }` → 200, protocolo 169 en EN_EVALUACION (13), reviewType EXPEDITA.
+    - Segunda llamada al mismo endpoint → 409 (protocolo ya no está en DISCREPANCIA_RIESGO).
+    - Auditoría `RISK_LEVEL_PLENO_DESIGNATED` visible en la bitácora del protocolo.
+    - Evaluadora ya ve el formulario de dictamen (Anexo 9, revisión expedita).
+
+- [ ] **TSK-002-N26** (PENDIENTE): RF-12.2b — verificar niveles no-PET en `catalogos.niveles_riesgo` y marcarlos `activo = false`.
+  - **Requisito relacionado:** RF-12.2b — solo los 3 niveles PET son válidos.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Descripción:** Los únicos niveles de riesgo válidos según el PET del CEISH-ESPOCH son **Sin riesgo** (`SIN_RIESG`, id=4), **Riesgo mínimo** (`RIESGO_MINIMO`, id=5) y **Riesgo mayor al mínimo** (`RIESGO_MAYOR`, id=7). El nivel `RIESGO_MODERADO` (id=6) está activo pero no pertenece al PET. El nivel `ENSAYO_CLINICO` (id=8) ya está inactivo.
+
+    **Catálogo confirmado en N23 (ceish_db):**
+    | id | código | activo | notas |
+    |---|---|---|---|
+    | 4 | SIN_RIESG | true | PET (typo en código, ver nota al pie) |
+    | 5 | RIESGO_MINIMO | true | PET |
+    | 6 | RIESGO_MODERADO | true | NO PET — desactivar |
+    | 7 | RIESGO_MAYOR | true | PET (ver nota al pie) |
+    | 8 | ENSAYO_CLINICO | false | ya inactivo |
+
+    **Paso 1 (referencias a nivel 6 — confirmado en ceish_db 2026-10-20):**
+    - `evaluacion.propuestas_riesgo` con `nivel_riesgo_id = 6`: **0 filas**.
+    - `public.protocolos` con `nivel_riesgo_id = 6`: **15 filas** (ids 6–104, borradores de prueba sin `codigo_ceish`, `estado_id = NULL`, creados entre 6 y 22 de mayo de 2026; el formulario de creación tenía selector de riesgo). No se modifican (son datos de prueba).
+    La migración puede ejecutarse sin riesgo de romper propuestas ni protocolos activos.
+
+    **Paso 2 (migración):**
+    Crear `src/migrations/<timestamp>-MarkRiesgoModeradoInactive.ts` que apunta exclusivamente al nivel 6 por su código exacto:
+    ```sql
+    -- up
+    UPDATE catalogos.niveles_riesgo
+    SET activo = false
+    WHERE codigo = 'RIESGO_MODERADO';
+
+    -- down
+    UPDATE catalogos.niveles_riesgo
+    SET activo = true
+    WHERE codigo = 'RIESGO_MODERADO';
+    ```
+    **No usar `NOT IN`** — la lista de PET tiene un typo en el código (`SIN_RIESG`) y un nombre que difiere del PET (`RIESGO_MAYOR`); una lista `NOT IN` podría desactivarlos por error si los códigos cambian.
+
+    **Paso 3 (validación ya existente):**
+    La validación `riskLevelRepo.findOne({ where: { id: dto.riskLevelId, isActive: true } })` ya existe en `submitPeerRiskLevel` (línea 1138) — no requiere cambio de código adicional.
+
+    **Nota — limpieza de catálogo propuesta para tarea futura (NO implementar aquí):**
+    - `SIN_RIESG` (id=4): el código tiene un typo (falta la 'O'). Corregir a `SIN_RIESGO` requiere una migración `UPDATE ... SET codigo = 'SIN_RIESGO' WHERE id = 4` y actualizar cualquier lógica que compare por código string.
+    - `RIESGO_MAYOR` (id=7): el PET llama a este nivel "Investigación con riesgo mayor al mínimo". Renombrar el `nombre` del catálogo (no el código) en otra migración.
+    Ambas son mejoras cosméticas con bajo riesgo técnico; proponer al equipo antes de ejecutar.
+
+  - **Archivos afectados:**
+    - `src/migrations/<timestamp>-MarkRiesgoModeradoInactive.ts` — CREAR.
+  - **Pruebas necesarias:** `npx tsc --noEmit` limpio; migración ejecutable y reversible; `riskLevelId = 6` en endpoint devuelve 404.
+  - **Hecho cuando:** `RIESGO_MODERADO` tiene `activo = false` en `ceish_db`; los 3 niveles PET siguen activos; tsc limpio; validación `isActive` rechaza id=6 con 404.
+
+- [ ] **TSK-002-N27** (PENDIENTE): RF-12.2 — eliminar `riskLevelId` del DTO de creación de protocolo (camino 1 no autorizado).
+  - **Requisito relacionado:** RF-12.2 — solo los caminos RF-12.2d y RF-12.2f pueden fijar `nivel_riesgo_id` en un protocolo.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Descripción:** El campo `riskLevelId?: number` en `CreateProtocolDto` permitía que el cliente enviara directamente un nivel de riesgo al crear el protocolo, omitiendo el proceso de Anexo 10. Origen confirmado de los 15 protocolos con `nivel_riesgo_id = 6` (borradores de prueba, N26).
+
+    **Verificación previa (ya ejecutada):**
+    - Solo `protocols.service.ts:140` usa `cleanData.riskLevelId` al crear. No hay endpoint PUT/PATCH de protocolo ni ningún otro servicio que pase `riskLevelId` en creación.
+    - Ningún test E2E de `test/` envía `riskLevelId` al crear un protocolo — confirmado con `grep`.
+    - `ValidationPipe` tiene `whitelist: true` en `main.ts`: si el campo permaneciera en el DTO pero se eliminara del servicio, el pipe lo strip igualmente en peticiones futuras.
+
+    **Cambios:**
+    1. `src/modules/protocols/application/dtos/create-protocol.dto.ts` — MODIFICAR: eliminar las tres líneas del campo `riskLevelId` (`@ApiProperty`, `@IsOptional`, `@IsNumber`, `riskLevelId?: number`).
+    2. `src/modules/protocols/application/services/protocols.service.ts:140` — MODIFICAR: eliminar la línea `riskLevelId: cleanData.riskLevelId,` del objeto pasado a `this.protocolsRepository.save(...)`.
+
+    **Sin migración:** la columna `nivel_riesgo_id` permanece `nullable` (correcto; solo los caminos RF-12.2d/f la rellenan). Los 15 protocolos de prueba no se modifican.
+
+  - **Archivos afectados:**
+    - `src/modules/protocols/application/dtos/create-protocol.dto.ts` — MODIFICAR.
+    - `src/modules/protocols/application/services/protocols.service.ts` — MODIFICAR (línea 140).
+  - **Pruebas necesarias:** `npx tsc --noEmit` limpio; `npm test` verde; `POST /api/protocols` con `riskLevelId` en el body no falla (campo ignorado por `whitelist: true`) y el protocolo creado tiene `riskLevelId = null`.
+  - **Hecho cuando:** `grep -n riskLevelId src/modules/protocols/application/dtos/create-protocol.dto.ts` no devuelve resultados; tsc limpio; tests verdes.
+
+- [ ] **TSK-002-N28** — absorbida por N29. Ver TSK-002-N29.
+
+- [ ] **TSK-002-N29** (PENDIENTE — fuera de PR-H): Modelo de estados — fuente de verdad única para bandejas, contadores y flujo.
+  - **Requisito relacionado:** Integridad de datos y coherencia de UI — sin RF directo; afecta todos los flujos y pantallas de bandeja, inicio y Validación Documental.
+  - **PR:** separado, a aprobar antes de implementar.
+  - **Descripción:** Existen tres tracks de estado en paralelo sin una fuente de verdad documentada ni acordada:
+
+    | Track | Tabla / columna | Semántica actual |
+    |---|---|---|
+    | Flujo del proceso | `public.protocolos.estado_id` | Estado vivo del protocolo (9–21, `ProtocolStatus`). Cambia en cada transición. |
+    | Disposición de la versión | `versiones_protocolo.estado_id` | Estado final de cada versión (APROBADO/RECHAZADO/REQUIERE_SUBSANACION/EN_CONTROL_DOCUMENTAL). Solo lo escribe `calls.service.ts` y `resolutions.service.ts`. |
+    | Checklist documental | `recepcion.estado_id` | Progreso de recepción. Es la fuente actual de bandejas de Secretaría (`ProtocolOrmEntity.receptionStatus` getter). |
+
+    **Síntoma observado:** En prueba real, los contadores no coincidían entre pantallas (inicio mostraba 3/110, Validación Documental mostraba 0/0 con 3 tarjetas visibles). Hay confusión real en producción, no solo de nomenclatura.
+
+    **Brecha conocida:** `reports/` y `follow-up/` no existen en el backend, pero el frontend tiene pantallas de Reportes (estadísticas, MSP, custom) y Seguimiento activas. Cualquier propuesta de modelo de estados debe anticipar qué campo leerán esos módulos cuando se implementen.
+
+    **Problemas concretos a resolver:**
+    1. **`versiones_protocolo.estado_id = 1` en 117 registros:** La migración `1783000000000` insertó `1 as estado_id` (hardcoded), que corresponde a `catalogos.estados.id = 1` = `'APROBADO'` categoría `'DOCUMENTO'` — un estado del catálogo documental, no del flujo de protocolo (el enum `ProtocolStatus` empieza en 9). Ningún código actual lee este campo en rutas críticas (solo `ai-assistant/context.service.ts`), pero queda inconsistente.
+    2. **`public.protocolos.estado_id` nullable:** 117 protocolos con `estado_id = NULL` (confirmado ceish_db, 2026-10-20). `protocols.service.ts` no asigna estado al crear. Todos son borradores de prueba, pero el patrón se repite en cada `POST /protocols`.
+    3. **Estado BORRADOR inexistente:** No hay estado explícito para protocolo recién creado. `NULL` actúa de facto como BORRADOR pero rompe guards y consultas que filtran por `estado_id`.
+    4. **`REQUIERE_SUBSANACION_VERSION` / `EN_CONTROL_DOCUMENTAL` en `calls.service.ts`:** Estos estados de versión los escribe el legacy (`calls.service.ts`), que está en retirada. Antes de retirar ese módulo, la escritura debe migrarse al flujo de Meetings.
+
+    **Propuestas a analizar (requieren aprobación antes de implementar):**
+    - **(a)** Definir `public.protocolos.estado_id` como fuente única del estado del flujo para bandejas y contadores; `versiones_protocolo.estado_id` solo para historial archival de cada versión.
+    - **(b)** Añadir `BORRADOR` explícito en `catalogos.estados` (nuevo id, categoría `'PROTOCOLO'`) y asignarlo en `protocols.service.ts` al crear; hacer la columna `NOT NULL DEFAULT <id_borrador>` en migración posterior.
+    - **(c)** Migración para corregir las 117 versiones con `estado_id = 1`: mapear a `EN_CONTROL_DOCUMENTAL` (21) si su protocolo está en flujo activo, o al estado que corresponda según `protocolos.estado_id`.
+    - **(d)** Plan de transición para mover la escritura de `versiones_protocolo.estado_id` desde `calls.service.ts` al flujo de Meetings antes del retiro del legacy.
+    - **(e)** Definir qué leerán `reports/` y `follow-up/` cuando se implementen, para no acoplarlos a `recepcion.estado_id` de forma implícita.
+
+  - **Archivos afectados (cuando se apruebe e implemente):**
+    - `src/modules/protocols/application/services/protocols.service.ts` — MODIFICAR: añadir `statusId: ProtocolStatus.BORRADOR` (o el ID que se decida) en `save()`.
+    - `src/migrations/<timestamp>-AddBorradorEstado.ts` — CREAR: insertar fila en `catalogos.estados`.
+    - `src/migrations/<timestamp>-FixVersionStatusBackfill.ts` — CREAR: corregir `versiones_protocolo.estado_id = 1`.
+    - `src/migrations/<timestamp>-ProtocolStatusNotNull.ts` — CREAR (último paso, tras limpiar nulls).
+    - `src/modules/protocols/domain/enums/protocol-status.enum.ts` — MODIFICAR: añadir `BORRADOR`.
+  - **Pruebas necesarias:** `npm test` verde; contadores coinciden entre pantallas de inicio y Validación Documental; `POST /api/protocols` devuelve protocolo con `statusId = BORRADOR`; migración ejecutable y reversible.
+  - **Hecho cuando:** `SELECT COUNT(*) FROM public.protocolos WHERE estado_id IS NULL` = 0; `SELECT COUNT(*) FROM versiones_protocolo WHERE estado_id = 1` = 0; tsc limpio; tests verdes; contadores de bandejas coherentes.
+  - **No implementar hasta aprobación explícita.**
+
+- [ ] **TSK-002-N30** (PENDIENTE — no implementar, solo registrado): Deuda de esquema en `evaluacion.convocatoria_protocolos` y `evaluacion.convocatorias`.
+  - **Requisito relacionado:** RF-09 (convocatorias y numeración correlativa).
+  - **PR:** separado, a investigar antes de implementar.
+  - **Descripción:** Hallazgos observados en ceish_db que requieren análisis y decisión antes de cualquier migración:
+
+    **Columnas duplicadas:**
+    - `version_protocolo_id` (varchar, vacío) y `version_id` (int, el que usa el código) coexisten en `evaluacion.convocatoria_protocolos`. Proponer cuál se queda y migrar.
+    - `creado_en`/`actualizado_en` y `created_at`/`updated_at` coexisten. Decidir columna canónica y migrar.
+
+    **FKs sin confirmar:**
+    - `version_id` y `protocolo_id` podrían carecer de FK formal a `versiones_protocolo` y `protocolos`. Verificar con `\d evaluacion.convocatoria_protocolos` y agregar FK si falta.
+
+    **Datos vacíos:**
+    - `fecha_reunion` y `fecha_entrega_evaluacion` vacías en la fila de prueba. Confirmar de dónde las toma la pantalla del frontend.
+
+    **Numeración correlativa:**
+    - `convocatorias.codigo` vacío en convocatorias recientes aunque el frontend muestra "010-2026". Averiguar de dónde sale ese código mostrado y si la numeración correlativa (RF-09) se está guardando correctamente.
+
+    **Otros varchar _id:**
+    - Revisar si hay otras columnas `*_id` en varchar en el esquema `evaluacion` que deberían ser entero o uuid.
+
+  - **Archivos afectados (cuando se implemente):** migraciones TypeORM a definir tras el análisis.
+  - **Pruebas necesarias:** verificación manual de esquema; luego tsc limpio y migración ejecutable/reversible.
+  - **Hecho cuando:** columnas duplicadas eliminadas o consolidadas; FKs confirmadas o añadidas; columna de código canónica identificada; documentado en spec o ADR antes de implementar.
+
+- [ ] **TSK-002-N31** (PENDIENTE — no implementar, solo registrado): Zona horaria en bitácora — hora 5 horas adelantada respecto a Ecuador.
+  - **Requisito relacionado:** UX de auditoría — sin RF directo; afecta la lectura de la bitácora por Secretaría y Presidenta.
+  - **PR:** separado, a analizar antes de implementar.
+  - **Descripción:** Una acción realizada a las 09:05 hora de Ecuador (America/Guayaquil, UTC-5) se muestra en la bitácora como 14:05. La huella almacenada es 19:05Z. Síntoma: la columna `creado_en` / `created_at` de `sistema.audit_log` (u otras tablas de auditoría) se guarda en UTC pero se muestra sin conversión.
+
+    **Puntos a investigar:**
+    - Tipo de la columna en BD: `TIMESTAMP WITHOUT TIME ZONE` (no guarda zona) vs `TIMESTAMP WITH TIME ZONE` (guarda UTC).
+    - Si es `WITHOUT TIME ZONE`: el valor guardado (e.g. `2026-10-20 09:05:00`) puede interpretarse como UTC o local según la configuración de sesión de PostgreSQL.
+    - Si es `WITH TIME ZONE`: el ORM guarda correctamente en UTC (19:05Z) pero la UI muestra el valor raw en lugar de convertir a `America/Guayaquil`.
+    - Revisar `AuditLogOrmEntity` y `BaseOrmEntity`: si usan `@CreateDateColumn()` sin `timezone: true` / `{ type: 'timestamptz' }`.
+
+    **Regla a implementar (una sola):** guardar en UTC (`timestamptz` o valor UTC explícito) y convertir a `America/Guayaquil` en la capa de presentación (o en una vista SQL) antes de mostrar. No guardar hora local en la columna.
+
+  - **Archivos afectados (cuando se implemente):** `AuditLogOrmEntity`, `BaseOrmEntity`, posible migración de tipo de columna, capa de presentación o vista SQL.
+  - **Pruebas necesarias:** tras el fix, una acción a las 09:05 ECT se muestra como 09:05 en la bitácora; tsc limpio; migración ejecutable/reversible.
+  - **Hecho cuando:** la bitácora muestra hora correcta en America/Guayaquil; la regla de zona horaria está documentada en un ADR o en la spec antes de implementar.

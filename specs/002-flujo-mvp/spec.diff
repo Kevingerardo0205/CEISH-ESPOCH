@@ -1,0 +1,231 @@
+# Diff aprobado: specs/002-flujo-mvp/spec.md
+# Cambio: RF-12.2 — Designación de Nivel de Riesgo tras Estratificación
+# Rama: feat/risk-level-designation → PR contra dev
+# Fecha: 2026-10-19 (ajustes incorporados en segunda revisión)
+#
+# ─── Hechos confirmados desde código fuente (no dependen de BD) ───────────────────
+#
+# estados (src/modules/protocols/domain/enums/protocol-status.enum.ts):
+#   13 → EN_EVALUACION
+#   16 → DISCREPANCIA_RIESGO  (migración 1788000000000-AddDiscrepanciaRiesgoEstado.ts)
+#
+# columna tipo_revision: confirmada en ORM (RiskLevelOrmEntity.reviewType →
+#   @Column({ name: 'tipo_revision', length: 50, nullable: true }))
+#   No se puede garantizar que exista en ceish_test_db sin correr la migración.
+#   El Plan (Paso 2) incluirá verificación con SELECT y migración si hace falta.
+#
+# ENSAYO_CLINICO: code existe en ReviewType enum y evaluations.service.ts pero su
+#   fila en catalogos.niveles_riesgo no está confirmada desde código → omitido.
+#   Se verificará en Paso 2 contra la BD.
+#
+# BUG A REPRODUCIR (Paso 3): protocolo 169, evaluadores Gabriel Tamayo (versión 141)
+#   y Verónica Cando enviaron "riesgo mínimo" (mismo nivel) pero el protocolo quedó
+#   en statusId=16 (DISCREPANCIA_RIESGO) en lugar de ser designado automáticamente.
+#   Hipótesis a investigar:
+#     - IDs distintos para el mismo nivel en rutas legacy vs canónica
+#     - isCurrent no se fija correctamente antes de la comparación
+#     - La ronda difiere entre las dos propuestas (una es ronda 2, la otra 1)
+#     - El fallback legacy usa peerRiskRepository y no RiskProposalOrmEntity
+#   Prueba de regresión a crear: dos propuestas iguales → debe designar, no discrepancia.
+#
+# ─────────────────────────────────────────────────────────────────────────────────
+
+--- a/specs/002-flujo-mvp/spec.md
++++ b/specs/002-flujo-mvp/spec.md
+
+# ══════════════════════════════════════════════════════════════════════════════════
+# HUNK 1 — Sección 3: Pruebas de Aceptación de HU-012 (añadir ítem 5)
+# Contexto: tras el ítem 4 (línea 47 del original), antes del separador ---
+# ══════════════════════════════════════════════════════════════════════════════════
+
+@@ -47,0 +47,3 @@
++5. **Designación de Nivel de Riesgo**: **Cuando** los 2 evaluadores de Anexo 10
++   envíen propuestas coincidentes, **el sistema debe** designar automáticamente el
++   nivel en el protocolo y liberar los dictámenes de los 4 evaluadores en la misma
++   transacción. **Si** hay discrepancia, el protocolo debe pasar al estado
++   `DISCREPANCIA_RIESGO` y la Secretaría debe poder registrar el nivel acordado en
++   pleno (indicando la convocatoria que incluye este protocolo) para liberar los
++   dictámenes.
+
+
+# ══════════════════════════════════════════════════════════════════════════════════
+# HUNK 2 — Sección 4: Reemplazar RF-12.2 (línea 55 del original, 1 línea)
+# ══════════════════════════════════════════════════════════════════════════════════
+
+@@ -55,1 +55,69 @@
+-  - **RF-12.2 (Selección Aleatoria para Estratificación de Riesgo - Anexo 10)**:
+-    El sistema debe seleccionar automáticamente de forma aleatoria a 2 evaluadores
+-    de la lista asignada para diligenciar el Anexo 10 (Estratificación del Riesgo),
+-    excluyendo de forma estricta e innegociable al evaluador con perfil
+-    `SOCIEDAD_CIVIL` (la selección se realiza única y exclusivamente entre los
+-    perfiles técnicos: `JURIDICO`, `METODOLOGICO` y `SALUD` / `ETICA`).
+
++- **RF-12.2 (Estratificación del Riesgo: Selección Aleatoria, Propuesta y
++  Designación del Nivel)**:
++
++  - **RF-12.2a (Selección aleatoria para Anexo 10)**: Al confirmar la asignación
++    de los 4 evaluadores, el sistema selecciona aleatoriamente 2 (únicamente entre
++    los perfiles `JURIDICO`, `METODOLOGICO` y `SALUD/ETICA`, excluyendo de forma
++    estricta e innegociable a `SOCIEDAD_CIVIL`) para diligenciar el Anexo 10
++    (Estratificación del Riesgo). *Sin cambio respecto a la versión anterior.*
++
++  - **RF-12.2b (Niveles de riesgo válidos del PET)**: Los únicos niveles de riesgo
++    válidos para la estratificación son los tres definidos en el PET del
++    CEISH-ESPOCH: **Sin riesgo**, **Riesgo mínimo** y **Riesgo mayor al mínimo**.
++    Cualquier otro nivel presente en `catalogos.niveles_riesgo` que no corresponda
++    al PET debe marcarse `activo = false` para que no aparezca en formularios ni
++    sea aceptado por las validaciones del sistema. Los registros inactivos no se
++    borran si tienen filas que los referencian.
++
++  - **RF-12.2c (Auditoría de cada propuesta individual)**: **Cuando** un evaluador
++    de Anexo 10 envíe su propuesta de nivel de riesgo, **el sistema debe** registrar
++    inmediatamente en la bitácora de auditoría del protocolo: identificador del
++    evaluador (userId), nivel propuesto (riskLevelId), número de ronda, timestamp.
++    Este registro es independiente del resultado (acuerdo o discrepancia).
++
++  - **RF-12.2d (Designación automática por acuerdo)**: **Cuando** los 2 evaluadores
++    de Anexo 10 de una misma versión de protocolo hayan enviado sus propuestas
++    vigentes (`isCurrent = true`) y ambas coincidan en el mismo nivel de riesgo,
++    **el sistema debe** en una única transacción atómica:
++    1. Fijar `riskLevelId` e `isRiskLevelDesignated = true` en el protocolo.
++    2. Derivar y fijar `reviewType` del protocolo a partir del campo `tipo_revision`
++       del nivel designado en `catalogos.niveles_riesgo` (columna confirmada en ORM:
++       `RiskLevelOrmEntity.reviewType` → `tipo_revision`, nullable).
++    3. Avanzar el estado del protocolo al código `EN_EVALUACION` (buscado por
++       código, nunca por ID numérico).
++    4. Registrar en la bitácora de auditoría del protocolo: origen `SISTEMA`,
++       nivel designado, ronda, timestamp.
++    5. Notificar por correo a los 4 evaluadores pares del protocolo que su
++       dictamen ha sido liberado e indicar el tipo de revisión asignado (RF-12.6).
++
++  - **RF-12.2e (Estado de discrepancia)**: **Si** los 2 evaluadores enviaron
++    propuestas vigentes con niveles distintos, **el sistema debe** en una única
++    transacción atómica:
++    1. Avanzar el estado del protocolo al código `DISCREPANCIA_RIESGO` (buscado
++       por código, nunca por ID numérico). No modificar `riskLevelId` ni
++       `isRiskLevelDesignated`.
++    2. Archivar ambas propuestas de la ronda actual marcando `isCurrent = false`
++       para dejar el historial intacto.
++    3. Registrar en la bitácora de auditoría del protocolo: origen `SISTEMA`,
++       niveles propuestos por cada evaluador, ronda, timestamp.
++    4. Mantener bloqueado el envío de dictámenes de los 4 evaluadores hasta que
++       la Secretaría registre el nivel acordado en pleno (RF-12.2f).
++    5. Notificar por correo a la Secretaría que el protocolo ha entrado en
++       `DISCREPANCIA_RIESGO` y requiere su intervención en pleno (RF-12.6).
++
++  - **RF-12.2f (Designación en pleno por Secretaría)**: **Cuando** el estado del
++    protocolo sea `DISCREPANCIA_RIESGO`, **el sistema debe** permitir a un usuario
++    con rol `SECRETARIA` registrar el nivel de riesgo acordado en la sesión del
++    pleno, aportando obligatoriamente:
++    - `riskLevelId`: nivel elegido (debe estar activo en el catálogo).
++    - `meetingId`: identificador de la convocatoria que incluya este protocolo.
++      **Si** el protocolo no está asociado a ninguna convocatoria, el sistema
++      responde `409 Conflict`. **Si** la convocatoria indicada no incluye este
++      protocolo, el sistema responde `409 Conflict`.
++    Al registrarlo, el sistema aplica los mismos pasos 1–5 de RF-12.2d
++    (designación, reviewType, estado `EN_EVALUACION`, bitácora, notificación a
++    evaluadores), añadiendo el `meetingId` y el `userId` de la Secretaría. **Si**
++    el protocolo no está en `DISCREPANCIA_RIESGO`, el sistema responde
++    `409 Conflict`.
++
++  - **RF-12.2g (Espera de segunda propuesta)**: Mientras solo uno de los 2
++    evaluadores de Anexo 10 ha enviado su propuesta vigente, el protocolo permanece
++    en su estado actual sin cambios de estado, `riskLevelId` ni
++    `isRiskLevelDesignated`. Los dictámenes de los 4 evaluadores siguen bloqueados.
+
+
+# ══════════════════════════════════════════════════════════════════════════════════
+# HUNK 3 — Sección 4: Reemplazar Criterio EARS 2 (línea 69 original)
+#          + añadir 2b, 2c, 2d, 2e, 2f, 2g
+# ══════════════════════════════════════════════════════════════════════════════════
+
+@@ -69,1 +124,54 @@
+-2. **Criterio EARS (RF-12.2)**: **Cuando** se confirme la asignación de los 4
+-   evaluadores, **el sistema debe** elegir aleatoriamente a 2 evaluadores
+-   pertenecientes a los perfiles `JURIDICO`, `METODOLOGICO` o `SALUD` para
+-   responder el Anexo 10, excluyendo de forma estricta e innegociable al evaluador
+-   con perfil `SOCIEDAD_CIVIL` de dicha estratificación.
+
++2. **Criterio EARS (RF-12.2a — Selección)**: **Cuando** se confirme la asignación
++   de los 4 evaluadores, **el sistema debe** elegir aleatoriamente a 2 evaluadores
++   pertenecientes a los perfiles `JURIDICO`, `METODOLOGICO` o `SALUD` para
++   responder el Anexo 10, excluyendo de forma estricta e innegociable al evaluador
++   con perfil `SOCIEDAD_CIVIL` de dicha estratificación.
++
++2b. **Criterio EARS (RF-12.2b — Niveles válidos)**: **Cuando** un evaluador de
++   Anexo 10 intente enviar su propuesta con un `riskLevelId` cuyo registro en
++   `catalogos.niveles_riesgo` tenga `activo = false`, **el sistema debe** rechazar
++   la solicitud con `400 Bad Request`. Los niveles inactivos no deben aparecer en
++   la lista de opciones ofrecida al evaluador por la API.
++
++2c. **Criterio EARS (RF-12.2c — Auditoría individual)**: **Cuando** un evaluador
++   de Anexo 10 envíe su propuesta de nivel de riesgo, **el sistema debe** crear
++   un registro en la bitácora de auditoría del protocolo con userId, riskLevelId,
++   ronda y timestamp, independientemente del resultado posterior.
++
++2d. **Criterio EARS (RF-12.2d — Designación automática)**: **Cuando** los 2
++   evaluadores de Anexo 10 envíen propuestas vigentes con el mismo `riskLevelId`,
++   **el sistema debe** en una transacción: fijar `riskLevelId` e
++   `isRiskLevelDesignated = true`, derivar `reviewType` desde `tipo_revision`,
++   avanzar estado a `EN_EVALUACION` (por código), registrar en bitácora con origen
++   `SISTEMA`, y notificar por correo a los 4 evaluadores. El nivel designado debe
++   coincidir exactamente con el propuesto por ambos.
++
++2e. **Criterio EARS (RF-12.2e — Discrepancia)**: **Cuando** los 2 evaluadores de
++   Anexo 10 envíen propuestas vigentes con `riskLevelId` distinto, **el sistema
++   debe** avanzar el estado del protocolo a `DISCREPANCIA_RIESGO` (por código),
++   archivar ambas propuestas (`isCurrent = false`), registrar en la bitácora,
++   notificar a la Secretaría, y no modificar `riskLevelId` ni
++   `isRiskLevelDesignated`. Los dictámenes de los 4 evaluadores quedan bloqueados.
++
++2f. **Criterio EARS (RF-12.2f — Designación en pleno)**: **Cuando** la Secretaría
++   llame al endpoint de designación en pleno sobre un protocolo en estado
++   `DISCREPANCIA_RIESGO` con un `riskLevelId` activo y un `meetingId` que incluya
++   este protocolo, **el sistema debe** responder `200 OK`, aplicar la designación,
++   derivar `reviewType`, avanzar estado a `EN_EVALUACION` (por código), registrar
++   en bitácora con userId y meetingId, y notificar a los 4 evaluadores. **Si** el
++   protocolo no está en `DISCREPANCIA_RIESGO` o la convocatoria no incluye este
++   protocolo, **el sistema debe** responder `409 Conflict`.
++
++2g. **Criterio EARS (RF-12.2g — Espera)**: **Mientras** solo uno de los 2
++   evaluadores de Anexo 10 haya enviado su propuesta vigente, **el sistema no debe**
++   modificar `riskLevelId`, `isRiskLevelDesignated`, ni el estado del protocolo.
+
+
+# ══════════════════════════════════════════════════════════════════════════════════
+# HUNK 4 — Sección 6: Añadir 2 nuevos casos límite (después línea 89 original)
+# ══════════════════════════════════════════════════════════════════════════════════
+
+@@ -89,0 +178,16 @@
++- **Propuesta corregida antes de que llegue la segunda (reasignación del par)**:
++  Si uno de los 2 evaluadores de Anexo 10 es reasignado (RF-12.3) después de
++  haber enviado su propuesta vigente pero antes de que el otro par envíe la suya,
++  la propuesta del evaluador saliente queda histórica (`isCurrent = false`). El
++  nuevo evaluador designado para Anexo 10 inicia desde cero. El conteo de "ambos
++  enviaron" aplica exclusivamente sobre las propuestas vigentes actuales
++  (`isCurrent = true`).
++
++- **Reasignación de un evaluador de Anexo 10 cuando el protocolo está en
++  DISCREPANCIA_RIESGO o ya designado**: Si el protocolo ya tiene
++  `isRiskLevelDesignated = true`, una reasignación posterior de uno de los pares
++  de riesgo no revierte la designación. Si el protocolo está en
++  `DISCREPANCIA_RIESGO`, la reasignación no abre una ronda nueva ni cambia el
++  estado: el nivel sigue pendiente de ser decidido en el pleno por la Secretaría
++  (RF-12.2f). RF-12.3 no se modifica en esta tarea.
+
+
+# ══════════════════════════════════════════════════════════════════════════════════
+# HUNK 5 — Sección 8: Añadir 3 criterios de finalización (después ítem 4 original)
+# ══════════════════════════════════════════════════════════════════════════════════
+
+@@ -104,0 +194,8 @@
++5. Designación automática del nivel de riesgo al recibir las 2 propuestas
++   coincidentes: `isRiskLevelDesignated = true`, `reviewType` derivado del campo
++   `tipo_revision` del catálogo y estado `EN_EVALUACION`. Registro en bitácora con
++   origen `SISTEMA` y notificación por correo a los 4 evaluadores.
++6. Endpoint `PATCH /evaluations/protocols/:protocolId/risk-level` (rol `SECRETARIA`)
++   para registrar el nivel acordado en pleno sobre protocolos en estado
++   `DISCREPANCIA_RIESGO`, con `meetingId` obligatorio que incluya el protocolo.
++7. Nivel(es) del catálogo que no correspondan al PET marcados `activo = false`.
++   Auditoría de cada propuesta individual (RF-12.2c): userId, riskLevelId, ronda,
++   timestamp — independientemente del resultado.

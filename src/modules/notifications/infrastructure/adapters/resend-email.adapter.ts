@@ -416,6 +416,71 @@ export class ResendEmailAdapter implements IEmailServicePort {
     }
   }
 
+  async sendRiskLevelDesignated(
+    email: string,
+    name: string,
+    protocolCode: string,
+    reviewType: string,
+  ): Promise<void> {
+    const subject = `CEISH: Nivel de riesgo designado — Protocolo ${protocolCode}`;
+    if (this.dryRun(email, subject)) return;
+    try {
+      const result = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject,
+        html: `<p>Estimado/a ${name},</p><p>El nivel de riesgo del protocolo <strong>${protocolCode}</strong> ha sido designado. La modalidad de revisión asignada es <strong>${reviewType}</strong>. Su dictamen de evaluación ha sido habilitado.</p>`,
+      });
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendRiskLevelDesignated (${email}): ${result.error.message}`,
+        );
+        return;
+      }
+      this.logger.log(
+        `sendRiskLevelDesignated exitoso a ${email}, id: ${result.data?.id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error enviando notificación de designación de riesgo a ${email}:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
+  async sendRiskDiscrepancyAlert(
+    email: string,
+    protocolCode: string,
+    codesProposed: string[],
+  ): Promise<void> {
+    const subject = `CEISH: Discrepancia de riesgo — Protocolo ${protocolCode}`;
+    if (this.dryRun(email, subject)) return;
+    try {
+      const result = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject,
+        html: `<p>El protocolo <strong>${protocolCode}</strong> ha entrado en estado de discrepancia de riesgo. Niveles propuestos: ${codesProposed.join(' / ')}. Se requiere su intervención en pleno para designar el nivel definitivo.</p>`,
+      });
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendRiskDiscrepancyAlert (${email}): ${result.error.message}`,
+        );
+        return;
+      }
+      this.logger.log(
+        `sendRiskDiscrepancyAlert exitoso a ${email}, id: ${result.data?.id}`,
+      );
+    } catch (error) {
+      this.logger.error(
+        `Error enviando alerta de discrepancia de riesgo:`,
+        error,
+      );
+      throw error;
+    }
+  }
+
   async sendCallNotification(
     email: string,
     name: string,

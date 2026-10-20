@@ -269,4 +269,29 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
       }
     }
   }
+
+  async sendRiskLevelDesignated(
+    email: string,
+    _name: string,
+    protocolCode: string,
+    reviewType: string,
+  ): Promise<void> {
+    await this.sendMailWithRetry({
+      to: email,
+      subject: `CEISH: Nivel de riesgo designado — Protocolo ${protocolCode}`,
+      text: `El nivel de riesgo del protocolo ${protocolCode} ha sido designado. Modalidad: ${reviewType}.`,
+    });
+  }
+
+  async sendRiskDiscrepancyAlert(
+    email: string,
+    protocolCode: string,
+    codesProposed: string[],
+  ): Promise<void> {
+    await this.sendMailWithRetry({
+      to: email,
+      subject: `CEISH: Discrepancia de riesgo — Protocolo ${protocolCode}`,
+      text: `Discrepancia de riesgo en protocolo ${protocolCode}. Niveles propuestos: ${codesProposed.join(' / ')}.`,
+    });
+  }
 }

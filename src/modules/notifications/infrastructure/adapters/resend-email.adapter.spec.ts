@@ -283,4 +283,89 @@ describe('ResendEmailAdapter (TSK-002-N18, TSK-002-N20)', () => {
       await module.close();
     });
   });
+
+  // ─── N24: sendRiskLevelDesignated y sendRiskDiscrepancyAlert ────────────────
+
+  describe('N24 — sendRiskLevelDesignated', () => {
+    it('envía correo con el código de protocolo y el tipo de revisión', async () => {
+      const { adapter, mockSend } = makeAdapter();
+      mockSend.mockResolvedValue({ data: { id: 'msg-rld-001' }, error: null });
+      const logSpy = jest
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation(() => undefined);
+
+      await adapter.sendRiskLevelDesignated(
+        'eval@ceish.ec',
+        'Dr. García',
+        'CEISH-2025-001',
+        'EXPEDITA',
+      );
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'eval@ceish.ec',
+          subject: expect.stringContaining('CEISH-2025-001') as string,
+          html: expect.stringContaining('EXPEDITA') as string,
+        }),
+      );
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.stringContaining('sendRiskLevelDesignated exitoso'),
+      );
+    });
+
+    it('no envía cuando EMAIL_ENABLED=false (dry-run)', async () => {
+      const { adapter, mockSend } = makeAdapter(false);
+      const logSpy = jest
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation(() => undefined);
+
+      await adapter.sendRiskLevelDesignated(
+        'eval@ceish.ec',
+        'Dr. García',
+        'CEISH-2025-001',
+        'PLENO',
+      );
+
+      expect(mockSend).not.toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('dry-run'));
+    });
+  });
+
+  describe('N24 — sendRiskDiscrepancyAlert', () => {
+    it('envía alerta a secretaría con los códigos propuestos', async () => {
+      const { adapter, mockSend } = makeAdapter();
+      mockSend.mockResolvedValue({ data: { id: 'msg-rda-001' }, error: null });
+      jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+
+      await adapter.sendRiskDiscrepancyAlert('sec@ceish.ec', 'CEISH-2025-001', [
+        'RIESGO_MINIMO',
+        'RIESGO_MAYOR',
+      ]);
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'sec@ceish.ec',
+          subject: expect.stringContaining('CEISH-2025-001') as string,
+          html: expect.stringContaining('RIESGO_MINIMO') as string,
+        }),
+      );
+    });
+
+    it('no envía cuando EMAIL_ENABLED=false (dry-run)', async () => {
+      const { adapter, mockSend } = makeAdapter(false);
+      const logSpy = jest
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation(() => undefined);
+
+      await adapter.sendRiskDiscrepancyAlert('sec@ceish.ec', 'CEISH-2025-001', [
+        'RIESGO_MINIMO',
+        'RIESGO_MAYOR',
+      ]);
+
+      expect(mockSend).not.toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('dry-run'));
+    });
+  });
 });
