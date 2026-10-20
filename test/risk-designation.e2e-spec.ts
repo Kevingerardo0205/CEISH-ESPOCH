@@ -1,8 +1,7 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
 /**
- * TSK-002-N24 — Pruebas de regresión para RF-12.2d (designación automática) y RF-12.2e (discrepancia).
- * RD-01: dos propuestas coincidentes → designación automática.
- * RD-02: dos propuestas distintas → DISCREPANCIA_RIESGO.
+ * TSK-002-N24 — Regresión RF-12.2d/e (designación automática y discrepancia).
+ * TSK-002-N25 — Regresión RF-12.2f (designación en pleno por Secretaría).
  */
 import { Test, TestingModule } from '@nestjs/testing';
 import { INestApplication, ValidationPipe } from '@nestjs/common';
@@ -16,6 +15,7 @@ import { EvaluationConsolidationService } from '../src/modules/evaluations/appli
 import { EvaluatorAssignmentAdapterService } from '../src/modules/evaluations/application/services/evaluator-assignment-adapter.service';
 import { GetReassignmentHistoryUseCase } from '../src/modules/evaluations/application/use-cases/get-reassignment-history.use-case';
 import { GetActiveAssignmentsUseCase } from '../src/modules/evaluations/application/use-cases/get-active-assignments.use-case';
+import { ConflictException, NotFoundException } from '@nestjs/common';
 import { JwtAuthGuard } from '../src/shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../src/shared/guards/roles.guard';
 import { PermissionsGuard } from '../src/shared/guards/permissions.guard';
@@ -25,6 +25,7 @@ describe('Risk Level Designation — Regresión RF-12.2d/e (e2e)', () => {
 
   const mockDesignationService = {
     submitPeerRiskLevel: jest.fn(),
+    designatePlenumRiskLevel: jest.fn(),
     getMyPendingPeerAssignments: jest.fn().mockResolvedValue([]),
     assignPeerEvaluators: jest.fn(),
     getCompletionStatus: jest
@@ -140,5 +141,121 @@ describe('Risk Level Designation — Regresión RF-12.2d/e (e2e)', () => {
       .expect(400);
 
     expect(mockDesignationService.submitPeerRiskLevel).not.toHaveBeenCalled();
+  });
+
+  // ─── TSK-002-N25: RF-12.2f — designación en pleno ────────────────────────────────────────
+
+  /**
+   * PL-01: protocolo en DISCREPANCIA_RIESGO + convocatoria válida → 200 con riskLevelId y reviewType.
+   */
+  it('PL-01: protocolo en discrepancia + convocatoria válida → 200 con designación', async () => {
+    mockDesignationService.designatePlenumRiskLevel.mockResolvedValue({
+      message: 'Nivel de riesgo designado en pleno exitosamente.',
+      riskLevelId: 5,
+      reviewType: 'EXPEDITA',
+      statusId: 13,
+    });
+
+    const response = await request(app.getHttpServer())
+      .patch('/api/evaluations/protocols/169/risk-level')
+      .send({
+        riskLevelId: 5,
+        meetingId: '123e4567-e89b-42d3-a456-426614174000',
+      })
+      .expect(200);
+
+    expect(response.body).toMatchObject({
+      message: 'Nivel de riesgo designado en pleno exitosamente.',
+      riskLevelId: 5,
+      reviewType: 'EXPEDITA',
+    });
+    expect(
+      mockDesignationService.designatePlenumRiskLevel,
+    ).toHaveBeenCalledWith(
+      169,
+      { riskLevelId: 5, meetingId: '123e4567-e89b-42d3-a456-426614174000' },
+      99,
+    );
+  });
+
+  /**
+   * PL-02: protocolo no está en DISCREPANCIA_RIESGO → 409.
+   */
+  it('PL-02: protocolo sin discrepancia → 409 Conflict propagado por el servicio', async () => {
+    // ConflictException importado al inicio
+    mockDesignationService.designatePlenumRiskLevel.mockRejectedValue(
+      new ConflictException(
+        'El protocolo no está en estado de discrepancia de riesgo.',
+      ),
+    );
+
+    const response = await request(app.getHttpServer())
+      .patch('/api/evaluations/protocols/50/risk-level')
+      .send({
+        riskLevelId: 5,
+        meetingId: '123e4567-e89b-42d3-a456-426614174000',
+      })
+      .expect(409);
+
+    expect(response.body.message).toContain('discrepancia de riesgo');
+  });
+
+  /**
+   * PL-03: convocatoria no incluye el protocolo → 409.
+   */
+  it('PL-03: convocatoria incorrecta → 409 Conflict propagado por el servicio', async () => {
+    // ConflictException importado al inicio
+    mockDesignationService.designatePlenumRiskLevel.mockRejectedValue(
+      new ConflictException(
+        'La convocatoria indicada no incluye este protocolo.',
+      ),
+    );
+
+    const response = await request(app.getHttpServer())
+      .patch('/api/evaluations/protocols/169/risk-level')
+      .send({
+        riskLevelId: 5,
+        meetingId: '00000000-0000-4000-8000-000000000000',
+      })
+      .expect(409);
+
+    expect(response.body.message).toContain('convocatoria');
+  });
+
+  /**
+   * PL-04: protocolId no es entero → 400 del ParseIntPipe.
+   */
+  it('PL-04: protocolId no entero → 400 Bad Request', async () => {
+    await request(app.getHttpServer())
+      .patch('/api/evaluations/protocols/abc/risk-level')
+      .send({
+        riskLevelId: 5,
+        meetingId: '123e4567-e89b-42d3-a456-426614174000',
+      })
+      .expect(400);
+
+    expect(
+      mockDesignationService.designatePlenumRiskLevel,
+    ).not.toHaveBeenCalled();
+  });
+
+  /**
+   * PL-05: protocolo inexistente → 404 propagado por el servicio.
+   */
+  it('PL-05: protocolo inexistente → 404 Not Found propagado por el servicio', async () => {
+    // NotFoundException importado al inicio
+    mockDesignationService.designatePlenumRiskLevel.mockRejectedValue(
+      new NotFoundException('Protocolo con ID 9999 no encontrado.'),
+    );
+
+    const response = await request(app.getHttpServer())
+      .patch('/api/evaluations/protocols/9999/risk-level')
+      .send({
+        riskLevelId: 5,
+        meetingId: '123e4567-e89b-42d3-a456-426614174000',
+      })
+      .expect(404);
+
+    expect(response.body.message).toContain('9999');
   });
 });

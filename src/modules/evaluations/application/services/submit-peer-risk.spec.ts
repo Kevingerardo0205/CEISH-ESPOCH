@@ -11,6 +11,7 @@ import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity
 import { InvestigatorProfileOrmEntity } from '../../../auth/infrastructure/database/investigator-profile.entity.orm';
 import { EvaluatorProfileUserOrmEntity } from '../../infrastructure/database/evaluator-profile-user.entity.orm';
 import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
+import { ConvocatoriaProtocoloOrmEntity } from '../../infrastructure/database/entities/convocatoria-protocolo.orm-entity';
 import { AuditLogOrmEntity } from '../../../audit/infrastructure/database/audit-log.entity.orm';
 import { IEvaluationRepository } from '../../domain/ports/evaluation.repository.port';
 import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
@@ -181,6 +182,10 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
         {
           provide: getRepositoryToken(EvaluatorProfileUserOrmEntity),
           useValue: {},
+        },
+        {
+          provide: getRepositoryToken(ConvocatoriaProtocoloOrmEntity),
+          useValue: { findOne: jest.fn() },
         },
         { provide: PdfGeneratorService, useValue: {} },
         { provide: DocxGeneratorService, useValue: {} },

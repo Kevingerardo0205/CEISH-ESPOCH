@@ -21,6 +21,7 @@ import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/pr
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { InvestigatorProfileOrmEntity } from '../../../auth/infrastructure/database/investigator-profile.entity.orm';
 import { EvaluatorProfileUserOrmEntity } from '../../infrastructure/database/evaluator-profile-user.entity.orm';
+import { ConvocatoriaProtocoloOrmEntity } from '../../infrastructure/database/entities/convocatoria-protocolo.orm-entity';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import {
   SystemParamsService,
@@ -67,6 +68,10 @@ describe('EvaluationsService.getMyAssignments — isUrgent (TSK-002-N06, RF-09.1
         {
           provide: getRepositoryToken(EvaluatorProfileUserOrmEntity),
           useValue: {},
+        },
+        {
+          provide: getRepositoryToken(ConvocatoriaProtocoloOrmEntity),
+          useValue: { findOne: jest.fn() },
         },
         { provide: PdfGeneratorService, useValue: {} },
         { provide: DocxGeneratorService, useValue: {} },
@@ -184,6 +189,10 @@ describe('EvaluationsService.getMyAssignments — isUrgent con umbral=5 (TSK-015
         {
           provide: getRepositoryToken(EvaluatorProfileUserOrmEntity),
           useValue: {},
+        },
+        {
+          provide: getRepositoryToken(ConvocatoriaProtocoloOrmEntity),
+          useValue: { findOne: jest.fn() },
         },
         { provide: PdfGeneratorService, useValue: {} },
         { provide: DocxGeneratorService, useValue: {} },

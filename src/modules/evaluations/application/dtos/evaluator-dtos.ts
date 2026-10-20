@@ -7,6 +7,9 @@ import {
   IsString,
   IsOptional,
   IsNotEmpty,
+  IsInt,
+  IsPositive,
+  IsUUID,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import {
@@ -25,7 +28,6 @@ export class EvaluatorItemDto {
     message: 'El perfil del evaluador no es válido.',
   })
   profile: EvaluatorProfile;
-
 }
 
 export class AssignEvaluatorsDto {
@@ -53,6 +55,19 @@ export class AssignEvaluatorsDto {
   @ValidateNested({ each: true })
   @Type(() => EvaluatorItemDto)
   evaluators: EvaluatorItemDto[];
+}
+
+export class DesignatePlenumRiskDto {
+  @IsInt({ message: 'El ID del nivel de riesgo debe ser un entero.' })
+  @IsPositive({
+    message: 'El ID del nivel de riesgo debe ser un entero positivo.',
+  })
+  riskLevelId: number;
+
+  @IsUUID('4', {
+    message: 'El ID de la convocatoria debe ser un UUID v4 válido.',
+  })
+  meetingId: string;
 }
 
 export class ReassignEvaluatorDto {

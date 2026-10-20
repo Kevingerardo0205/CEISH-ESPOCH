@@ -104,6 +104,8 @@ import {
   SP_EVALUADOR_URGENTE_UMBRAL,
 } from '../../../sistema/application/services/system-params.service';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
+import { ConvocatoriaProtocoloOrmEntity } from '../../infrastructure/database/entities/convocatoria-protocolo.orm-entity';
+import { DesignatePlenumRiskDto } from '../dtos/evaluator-dtos';
 
 export interface PendingPeerRiskAssignmentItem {
   id: number;
@@ -143,6 +145,8 @@ export class EvaluationsService {
     private readonly profileRepo: Repository<InvestigatorProfileOrmEntity>,
     @InjectRepository(EvaluatorProfileUserOrmEntity)
     private readonly evaluatorProfileUserRepo: Repository<EvaluatorProfileUserOrmEntity>,
+    @InjectRepository(ConvocatoriaProtocoloOrmEntity)
+    private readonly convocatoriaProtocoloRepo: Repository<ConvocatoriaProtocoloOrmEntity>,
     private readonly pdfGeneratorService: PdfGeneratorService,
     private readonly docxGeneratorService: DocxGeneratorService,
     @Inject(IStorageService)
@@ -1480,6 +1484,140 @@ export class EvaluationsService {
           ),
         );
     }
+
+    return txResult;
+  }
+
+  /**
+   * RF-12.2f — designación en pleno por Secretaría.
+   * Registra el nivel de riesgo acordado en sesión de pleno sobre un protocolo en DISCREPANCIA_RIESGO.
+   */
+  async designatePlenumRiskLevel(
+    protocolId: number,
+    dto: DesignatePlenumRiskDto,
+    userId: number,
+  ): Promise<{
+    message: string;
+    riskLevelId: number;
+    reviewType: ReviewType;
+    statusId: number;
+  }> {
+    // Validación 2: protocolo existe
+    const protocol = await this.protocolOrmRepository.findOne({
+      where: { id: protocolId },
+    });
+    if (!protocol) {
+      throw new NotFoundException(
+        `Protocolo con ID ${protocolId} no encontrado.`,
+      );
+    }
+
+    // Validación 3: estado DISCREPANCIA_RIESGO
+    if (protocol.statusId !== ProtocolStatus.DISCREPANCIA_RIESGO) {
+      throw new ConflictException(
+        'El protocolo no está en estado de discrepancia de riesgo.',
+      );
+    }
+
+    // Validación 4: nivel de riesgo activo
+    const riskLevel = await this.riskLevelRepository.findOne({
+      where: { id: dto.riskLevelId, isActive: true },
+    });
+    if (!riskLevel) {
+      throw new NotFoundException(
+        `Nivel de riesgo con ID ${dto.riskLevelId} no encontrado o inactivo.`,
+      );
+    }
+
+    // Validación 5: convocatoria incluye el protocolo
+    const convocatoriaItem = await this.convocatoriaProtocoloRepo.findOne({
+      where: { convocatoriaId: dto.meetingId, protocoloId: protocolId },
+    });
+    if (!convocatoriaItem) {
+      throw new ConflictException(
+        'La convocatoria indicada no incluye este protocolo.',
+      );
+    }
+
+    // Derivar reviewType
+    let reviewType: ReviewType;
+    const rt = (riskLevel as RiskLevelOrmEntity & { reviewType?: string })
+      .reviewType;
+    if (rt === 'ENSAYO_CLINICO') {
+      reviewType = ReviewType.ENSAYO_CLINICO;
+    } else if (rt === 'PLENO') {
+      reviewType = ReviewType.PLENO;
+    } else {
+      reviewType = ReviewType.EXPEDITA;
+    }
+
+    const txResult = await this.dataSource.transaction(async (manager) => {
+      const protocolRepo = manager.getRepository(ProtocolOrmEntity);
+      const auditRepo = manager.getRepository(AuditLogOrmEntity);
+
+      protocol.riskLevelId = dto.riskLevelId;
+      protocol.isRiskLevelDesignated = true;
+      protocol.reviewType = reviewType;
+      protocol.statusId = ProtocolStatus.EN_EVALUACION;
+      await protocolRepo.save(protocol);
+
+      await auditRepo.save(
+        auditRepo.create({
+          userId,
+          action: 'RISK_LEVEL_PLENO_DESIGNATED',
+          table: 'public.protocolos',
+          recordId: protocolId,
+          newData: {
+            riskLevelId: dto.riskLevelId,
+            meetingId: dto.meetingId,
+            round: 'pleno',
+          },
+        }),
+      );
+
+      return {
+        message: 'Nivel de riesgo designado en pleno exitosamente.',
+        riskLevelId: dto.riskLevelId,
+        reviewType,
+        statusId: ProtocolStatus.EN_EVALUACION,
+      };
+    });
+
+    // Notificación post-commit best-effort a los evaluadores asignados
+    (async () => {
+      try {
+        const ceishCode = protocol.ceishCode ?? 'S/C';
+        const assignments = await this.evalAssignmentRepo.find({
+          where: { versionId: protocol.id },
+          select: ['evaluatorId'],
+        });
+        const userIds = [
+          ...new Set(assignments.map((a) => a.evaluatorId).filter(Boolean)),
+        ];
+        const users = await this.userRepository.find({
+          where: { id: In(userIds) },
+          select: ['id', 'fullName', 'institutionalEmail'],
+        });
+        for (const user of users) {
+          await this.emailService
+            .sendRiskLevelDesignated(
+              user.institutionalEmail,
+              user.fullName,
+              ceishCode,
+              reviewType,
+            )
+            .catch((err: unknown) =>
+              this.logger.warn(
+                `[N25] Error notif pleno a ${user.institutionalEmail}: ${err instanceof Error ? err.message : String(err)}`,
+              ),
+            );
+        }
+      } catch (err: unknown) {
+        this.logger.warn(
+          `[N25] Error post-commit notif pleno: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      }
+    })().catch(() => undefined);
 
     return txResult;
   }
