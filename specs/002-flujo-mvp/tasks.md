@@ -727,3 +727,48 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Archivos afectados (cuando se implemente):** `AuditLogOrmEntity`, `BaseOrmEntity`, posible migración de tipo de columna, capa de presentación o vista SQL.
   - **Pruebas necesarias:** tras el fix, una acción a las 09:05 ECT se muestra como 09:05 en la bitácora; tsc limpio; migración ejecutable/reversible.
   - **Hecho cuando:** la bitácora muestra hora correcta en America/Guayaquil; la regla de zona horaria está documentada en un ADR o en la spec antes de implementar.
+
+- [x] **TSK-002-N33**: RF-12.4 — corregir `GET /evaluations/completion-status/:protocolId` (devolvía siempre `false`).
+  - **Requisito relacionado:** `RF-12.4`
+  - **PR:** `fix/completion-status` contra `dev`.
+  - **Descripción:** Tres bugs encadenados impedían que el endpoint devolviera `true`:
+    1. `@Param('protocolId')` sin `ParseIntPipe` → el parámetro llegaba como `string '169'`; las dos ramas `typeof === 'number'` se saltaban.
+    2. Incluso con el tipo correcto, se habría pasado el `protocolId` donde el repositorio espera un `versionId`; `findActiveAssignmentsByVersionId(169)` devolvería 0 filas porque las asignaciones están bajo `versionId = 141`.
+    3. El método `findAssignmentsByProtocolId` no existe en `IEvaluationRepository` — la tercera rama siempre falsa.
+    Fix: nuevo método `isCompletion100PercentByProtocolId(protocolId)` en `SubmitEvaluationUseCase` que resuelve `versionActualId` y verifica `isRiskLevelDesignated`; el método obsoleto eliminado; controlador solo agrega `ParseIntPipe`.
+  - **Archivos afectados:**
+    - MODIFICAR `src/modules/evaluations/application/use-cases/submit-evaluation.use-case.ts`
+    - MODIFICAR `src/modules/evaluations/application/use-cases/submit-evaluation.use-case.spec.ts`
+    - MODIFICAR `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts`
+    - MODIFICAR `src/modules/evaluations/evaluations.module.ts`
+    - MODIFICAR `specs/002-flujo-mvp/spec.md` (RF-12.4 y criterio EARS 4)
+  - **Tests:**
+    - `CS-U-01`: protocolo 169 (versión 141; asignaciones 81,83,84,85 COMPLETED; asignación COI REASIGNADO_COI; nivel designado) → `true`.
+    - `CS-U-02`: 4 asignaciones COMPLETED pero `isRiskLevelDesignated = false` → `false`.
+    - `CS-U-03`: solo 3 asignaciones activas COMPLETED → `false`.
+    - `CS-U-04`: más de 4 asignaciones activas → `false`.
+  - **Hecho cuando:** `GET /api/evaluations/completion-status/169` devuelve `isCompletion100Percent: true`; tsc limpio; todos los tests de regresión en verde; eslint limpio sobre archivos tocados.
+
+- [ ] **TSK-002-N32** (PENDIENTE — no implementar, solo registrado): Latencia de ~15 s en `POST /api/evaluations/submit`.
+  - **Requisito relacionado:** RF-12 (rendimiento del flujo de evaluación).
+  - **PR:** separado, a diseñar antes de implementar.
+  - **Descripción:** Los 3 bloques secuenciales sincrónicos de `submitEvaluation` (ruta EXPEDITA) acumulan ~15 s de latencia:
+    1. `await Promise.all([generateAnnex9Pdf, generateAnnex9Docx])` — generación CPU-bound del PDF y DOCX en paralelo.
+    2. `await Promise.all([uploadFile(pdf), uploadFile(docx)])` — subida a Cloudflare R2 en paralelo.
+    3. `await emailService.sendEvaluationSubmitted(...)` — envío síncrono de correo a Secretaría.
+    Los tres bloques deben completarse antes de que el endpoint responda 200.
+    **Regla de negocio:** el PDF y el DOCX del Anexo 9 son el documento oficial del dictamen (valor legal); su generación y subida a R2 NO pueden moverse a segundo plano. Solo el correo (paso 3) puede hacerse fire-and-forget después del commit en BD.
+    Los documentos se generan una sola vez por envío (los endpoints `GET /:id/document` y `GET /:id/document/docx` solo generan URLs firmadas de R2, no regeneran).
+    **Fix propuesto (para aprobación):** mover únicamente `emailService.sendEvaluationSubmitted` a IIFE fire-and-forget post-commit; el resto (generación + upload) permanece síncrono.
+  - **Archivos afectados (cuando se implemente):** `evaluations.service.ts` (~línea 694).
+  - **Pruebas necesarias:** `submitEvaluation` responde < 2 s en entorno de prueba; el correo se despacha tras el retorno 200; tsc limpio; tests E2E verdes.
+  - **Hecho cuando:** latencia < 2 s; correo enviado de forma asíncrona sin bloquear la respuesta; documentos PDF/DOCX subidos antes de retornar 200.
+
+- [ ] **TSK-002-N34** (PENDIENTE — no implementar, solo registrado): Bug en `submitEvaluation` — protocolo no avanza a estado `EVALUADO=14` cuando hubo reasignación COI.
+  - **Requisito relacionado:** RF-12.3, RF-12.4.
+  - **PR:** separado.
+  - **Descripción:** En `evaluations.service.ts` ~línea 706, `findAssignmentsByVersionId` devuelve TODAS las asignaciones de la versión, incluyendo `REASIGNADO_COI=27`. La condición `pending = all.filter(a => statusId !== COMPLETED)` incluye a la asignación COI como "pendiente", por lo que `pending.length > 0` y el protocolo nunca recibe `statusId = 14 (EVALUADO)` al completarse la última evaluación del grupo COI-reemplazado. El `getEvaluatorsDashboard` no filtra por statusId=14 (usa `isRiskLevelDesignated=true`), por lo que la bandeja de la Secretaría no se ve afectada directamente, pero el estado EVALUADO queda inconsistente.
+    **Fix propuesto:** usar `findActiveAssignmentsByVersionId` (ya filtra statusId ∈ {5,6,7}) en lugar de `findAssignmentsByVersionId` para el chequeo de completitud del paso 6.
+  - **Archivos afectados (cuando se implemente):** `evaluations.service.ts` (~línea 706).
+  - **Pruebas necesarias:** tras el último dictamen COI-reemplazado, `protocol.statusId === 14`; tsc limpio; tests verdes.
+  - **Hecho cuando:** protocolo con reasignación COI avanza a EVALUADO=14 al enviar el cuarto dictamen.

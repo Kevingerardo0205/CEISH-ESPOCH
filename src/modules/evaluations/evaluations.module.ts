@@ -38,6 +38,7 @@ import { MeetingsController } from './infrastructure/controllers/meetings.contro
 
 import { IEvaluationRepository } from './domain/ports/evaluation.repository.port';
 import { EvaluationTypeOrmRepository } from './infrastructure/repositories/evaluation.typeorm.repository';
+import { IProtocolRepository } from '../protocols/domain/ports/protocol.repository.port';
 import { MeetingTypeOrmRepository } from './infrastructure/repositories/meeting-typeorm.repository';
 import { IEmailServicePort } from '../notifications/domain/ports/email.service.port';
 
@@ -191,9 +192,12 @@ import { Logger } from '@nestjs/common';
     },
     {
       provide: SubmitEvaluationUseCase,
-      useFactory: (repo: IEvaluationRepository): SubmitEvaluationUseCase =>
-        new SubmitEvaluationUseCase(repo),
-      inject: [IEvaluationRepository],
+      useFactory: (
+        evalRepo: IEvaluationRepository,
+        protocolRepo: IProtocolRepository,
+      ): SubmitEvaluationUseCase =>
+        new SubmitEvaluationUseCase(evalRepo, protocolRepo),
+      inject: [IEvaluationRepository, IProtocolRepository],
     },
     {
       provide: InheritEvaluatorsUseCase,

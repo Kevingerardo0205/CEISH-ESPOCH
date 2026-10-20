@@ -103,10 +103,10 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
   };
 
   const mockSubmitEvaluationUseCase = {
-    isCompletion100Percent: jest
+    isCompletion100PercentByProtocolId: jest
       .fn()
-      .mockImplementation((protocolId: string) => {
-        return Promise.resolve(protocolId === '100');
+      .mockImplementation((protocolId: number) => {
+        return Promise.resolve(protocolId === 100);
       }),
   };
 
@@ -608,7 +608,7 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
 
       const data = res.body.data || res.body;
       expect(data).toEqual({
-        protocolId: '100',
+        protocolId: 100,
         isCompletion100Percent: true,
       });
     });

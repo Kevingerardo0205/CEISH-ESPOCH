@@ -1,86 +1,52 @@
-import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
+import { NotFoundException } from '@nestjs/common';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
+import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
 
 export interface ISubmitEvaluationRepository {
-  findAssignmentsByProtocolId?(
-    protocolId: number | string,
-  ): Promise<(EvaluationAssignmentEntity | EvaluationAssignmentOrmEntity)[]>;
-  findAssignmentsByVersionId?(
+  findActiveAssignmentsByVersionId(
     versionId: number,
   ): Promise<EvaluationAssignmentOrmEntity[]>;
-  findActiveAssignmentsByVersionId?(
-    versionId: number,
-  ): Promise<EvaluationAssignmentOrmEntity[]>;
-  saveAssignmentStatus?(
-    assignment: EvaluationAssignmentEntity,
-  ): Promise<EvaluationAssignmentEntity>;
 }
 
 export class SubmitEvaluationUseCase {
   constructor(
     private readonly evaluationRepository: ISubmitEvaluationRepository,
+    private readonly protocolRepository: IProtocolRepository,
   ) {}
 
   /**
-   * Verifica si el protocolo o versión cumple el 100% de la cuota de evaluaciones entregadas [RF-12.4]
+   * Verifica si el protocolo cumple el 100% de completitud para emitir resolución [RF-12.4].
+   * Condiciones: isRiskLevelDesignated = true Y las 4 asignaciones activas de versionActualId
+   * están todas en COMPLETED. Asignaciones REASIGNADO_COI/REASIGNADO_VENCIMIENTO no cuentan.
    */
-  public async isCompletion100Percent(
-    protocolOrVersionId: number | string,
+  public async isCompletion100PercentByProtocolId(
+    protocolId: number,
   ): Promise<boolean> {
-    let assignments: (
-      EvaluationAssignmentEntity | EvaluationAssignmentOrmEntity
-    )[] = [];
-
-    if (
-      typeof protocolOrVersionId === 'number' &&
-      this.evaluationRepository.findActiveAssignmentsByVersionId
-    ) {
-      assignments =
-        await this.evaluationRepository.findActiveAssignmentsByVersionId(
-          protocolOrVersionId,
-        );
-    } else if (
-      typeof protocolOrVersionId === 'number' &&
-      this.evaluationRepository.findAssignmentsByVersionId
-    ) {
-      assignments =
-        await this.evaluationRepository.findAssignmentsByVersionId(
-          protocolOrVersionId,
-        );
-    } else if (this.evaluationRepository.findAssignmentsByProtocolId) {
-      assignments =
-        await this.evaluationRepository.findAssignmentsByProtocolId(
-          protocolOrVersionId,
-        );
+    const protocol = await this.protocolRepository.findById(protocolId);
+    if (!protocol) {
+      throw new NotFoundException(
+        `Protocolo con ID ${protocolId} no encontrado.`,
+      );
     }
 
-    // Filtrar asignaciones activas (excluir desasignadas por vencimiento/COI)
-    const activeAssignments = assignments.filter((a) => {
-      const status =
-        (a as EvaluationAssignmentEntity).status ??
-        (a as EvaluationAssignmentOrmEntity).statusId;
-      return (
-        status === AssignmentStatus.SUGGESTED ||
-        status === AssignmentStatus.ASSIGNED ||
-        status === AssignmentStatus.COMPLETED
-      );
-    });
-
-    if (activeAssignments.length !== 4) {
+    if (!protocol.isRiskLevelDesignated) {
       return false;
     }
 
-    const allCompleted = activeAssignments.every((a) => {
-      const status =
-        (a as EvaluationAssignmentEntity).status ??
-        (a as EvaluationAssignmentOrmEntity).statusId;
-      return (
-        status === AssignmentStatus.COMPLETED ||
-        (a as EvaluationAssignmentOrmEntity).actualSubmissionDate != null
-      );
-    });
+    if (!protocol.versionActualId) {
+      return false;
+    }
 
-    return allCompleted;
+    const assignments =
+      await this.evaluationRepository.findActiveAssignmentsByVersionId(
+        protocol.versionActualId,
+      );
+
+    if (assignments.length !== 4) {
+      return false;
+    }
+
+    return assignments.every((a) => a.statusId === +AssignmentStatus.COMPLETED);
   }
 }

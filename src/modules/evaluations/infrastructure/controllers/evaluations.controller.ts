@@ -199,9 +199,13 @@ export class EvaluationsController {
     summary:
       'Consultar si el protocolo tiene el 100% de evaluaciones completadas',
   })
-  async getCompletionStatus(@Param('protocolId') protocolId: string) {
+  async getCompletionStatus(
+    @Param('protocolId', ParseIntPipe) protocolId: number,
+  ) {
     const isComplete =
-      await this.submitEvaluationUseCase.isCompletion100Percent(protocolId);
+      await this.submitEvaluationUseCase.isCompletion100PercentByProtocolId(
+        protocolId,
+      );
     return {
       protocolId,
       isCompletion100Percent: isComplete,
