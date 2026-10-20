@@ -10,6 +10,7 @@ import {
   Patch,
   Param,
   Delete,
+  UnauthorizedException,
 } from '@nestjs/common';
 import { JwtPayload } from '../../../../modules/auth/infrastructure/strategies/jwt.strategy';
 import { EvaluationsService } from '../../application/services/evaluations.service';
@@ -188,7 +189,13 @@ export class EvaluationsController {
     @Body() dto: ReassignEvaluatorDto,
     @Request() req: Request & { user?: JwtPayload },
   ) {
-    const adminUserId = req.user?.id ? Number(req.user.id) : 1;
+    const rawId = req.user?.id;
+    if (rawId == null || !Number.isFinite(Number(rawId))) {
+      throw new UnauthorizedException(
+        'El usuario autenticado no tiene un identificador válido.',
+      );
+    }
+    const adminUserId = Number(rawId);
     return this.reassignEvaluatorUseCase.execute(dto, adminUserId);
   }
 
