@@ -641,32 +641,42 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Pruebas necesarias:** `npx tsc --noEmit` limpio; `npm test` verde; `POST /api/protocols` con `riskLevelId` en el body no falla (campo ignorado por `whitelist: true`) y el protocolo creado tiene `riskLevelId = null`.
   - **Hecho cuando:** `grep -n riskLevelId src/modules/protocols/application/dtos/create-protocol.dto.ts` no devuelve resultados; tsc limpio; tests verdes.
 
-- [ ] **TSK-002-N28** (PENDIENTE — fuera de PR-H): `public.protocolos.estado_id` es nullable; protocolos creados sin estado.
-  - **Requisito relacionado:** Integridad de datos — sin RF directo; afecta todos los flujos que dependen de `protocol.statusId`.
-  - **PR:** separado, a definir (no PR-H).
-  - **Descripción:** El campo `statusId` en `ProtocolOrmEntity` está definido como `@Column({ name: 'estado_id', nullable: true })` (`protocol.entity.orm.ts:80`). `protocols.service.ts` no asigna ningún `statusId` al crear un protocolo, por lo que los protocolos nuevos quedan con `estado_id = NULL`.
+- [ ] **TSK-002-N28** — absorbida por N29. Ver TSK-002-N29.
 
-    **Magnitud confirmada (ceish_db, 2026-10-20):** al menos 15 protocolos (ids 6–104) tienen `estado_id = NULL`. Son borradores de prueba, pero el patrón indica que cualquier protocolo creado desde el endpoint `POST /protocols` nace sin estado.
+- [ ] **TSK-002-N29** (PENDIENTE — fuera de PR-H): Modelo de estados — fuente de verdad única para bandejas, contadores y flujo.
+  - **Requisito relacionado:** Integridad de datos y coherencia de UI — sin RF directo; afecta todos los flujos y pantallas de bandeja, inicio y Validación Documental.
+  - **PR:** separado, a aprobar antes de implementar.
+  - **Descripción:** Existen tres tracks de estado en paralelo sin una fuente de verdad documentada ni acordada:
 
-    **Pendiente de investigar antes de implementar:**
-    1. ¿Cuántos protocolos tienen `estado_id = NULL` en total en `ceish_db`?
-       ```sql
-       SELECT COUNT(*), MIN(created_at), MAX(created_at)
-       FROM public.protocolos
-       WHERE estado_id IS NULL;
-       ```
-    2. ¿Qué estado inicial corresponde según el PET? El enum `ProtocolStatus.INICIADO = 9` es candidato; confirmar con Secretaría.
-    3. ¿Hay código que tome caminos distintos cuando `statusId = null` vs `INICIADO`? Buscar con `if.*statusId.*null\|statusId.*===.*null`.
+    | Track | Tabla / columna | Semántica actual |
+    |---|---|---|
+    | Flujo del proceso | `public.protocolos.estado_id` | Estado vivo del protocolo (9–21, `ProtocolStatus`). Cambia en cada transición. |
+    | Disposición de la versión | `versiones_protocolo.estado_id` | Estado final de cada versión (APROBADO/RECHAZADO/REQUIERE_SUBSANACION/EN_CONTROL_DOCUMENTAL). Solo lo escribe `calls.service.ts` y `resolutions.service.ts`. |
+    | Checklist documental | `recepcion.estado_id` | Progreso de recepción. Es la fuente actual de bandejas de Secretaría (`ProtocolOrmEntity.receptionStatus` getter). |
 
-    **Propuesta técnica (sujeta a decisión):**
-    - En `protocols.service.ts:136`, añadir `statusId: ProtocolStatus.INICIADO` al objeto pasado a `save()`.
-    - Migración posterior (separada): `ALTER TABLE public.protocolos ALTER COLUMN estado_id SET NOT NULL; ALTER TABLE public.protocolos ALTER COLUMN estado_id SET DEFAULT 9;` — solo después de verificar que no quedan filas NULL.
-    - El `down` de la migración: `ALTER TABLE public.protocolos ALTER COLUMN estado_id DROP NOT NULL; ALTER TABLE public.protocolos ALTER COLUMN estado_id DROP DEFAULT;`.
+    **Síntoma observado:** En prueba real, los contadores no coincidían entre pantallas (inicio mostraba 3/110, Validación Documental mostraba 0/0 con 3 tarjetas visibles). Hay confusión real en producción, no solo de nomenclatura.
 
-    **No implementar en PR-H.**
+    **Brecha conocida:** `reports/` y `follow-up/` no existen en el backend, pero el frontend tiene pantallas de Reportes (estadísticas, MSP, custom) y Seguimiento activas. Cualquier propuesta de modelo de estados debe anticipar qué campo leerán esos módulos cuando se implementen.
 
-  - **Archivos afectados (cuando se implemente):**
-    - `src/modules/protocols/application/services/protocols.service.ts` — MODIFICAR: añadir `statusId: ProtocolStatus.INICIADO` en `save()`.
-    - `src/migrations/<timestamp>-ProtocolStatusNotNull.ts` — CREAR (paso posterior, solo tras limpiar nulls existentes).
-  - **Pruebas necesarias:** `npm test` verde; `POST /api/protocols` devuelve protocolo con `statusId = 9`; migración ejecutable y reversible.
-  - **Hecho cuando:** `SELECT COUNT(*) FROM public.protocolos WHERE estado_id IS NULL` devuelve 0; la columna tiene `NOT NULL DEFAULT 9`; tsc limpio.
+    **Problemas concretos a resolver:**
+    1. **`versiones_protocolo.estado_id = 1` en 117 registros:** La migración `1783000000000` insertó `1 as estado_id` (hardcoded), que corresponde a `catalogos.estados.id = 1` = `'APROBADO'` categoría `'DOCUMENTO'` — un estado del catálogo documental, no del flujo de protocolo (el enum `ProtocolStatus` empieza en 9). Ningún código actual lee este campo en rutas críticas (solo `ai-assistant/context.service.ts`), pero queda inconsistente.
+    2. **`public.protocolos.estado_id` nullable:** 117 protocolos con `estado_id = NULL` (confirmado ceish_db, 2026-10-20). `protocols.service.ts` no asigna estado al crear. Todos son borradores de prueba, pero el patrón se repite en cada `POST /protocols`.
+    3. **Estado BORRADOR inexistente:** No hay estado explícito para protocolo recién creado. `NULL` actúa de facto como BORRADOR pero rompe guards y consultas que filtran por `estado_id`.
+    4. **`REQUIERE_SUBSANACION_VERSION` / `EN_CONTROL_DOCUMENTAL` en `calls.service.ts`:** Estos estados de versión los escribe el legacy (`calls.service.ts`), que está en retirada. Antes de retirar ese módulo, la escritura debe migrarse al flujo de Meetings.
+
+    **Propuestas a analizar (requieren aprobación antes de implementar):**
+    - **(a)** Definir `public.protocolos.estado_id` como fuente única del estado del flujo para bandejas y contadores; `versiones_protocolo.estado_id` solo para historial archival de cada versión.
+    - **(b)** Añadir `BORRADOR` explícito en `catalogos.estados` (nuevo id, categoría `'PROTOCOLO'`) y asignarlo en `protocols.service.ts` al crear; hacer la columna `NOT NULL DEFAULT <id_borrador>` en migración posterior.
+    - **(c)** Migración para corregir las 117 versiones con `estado_id = 1`: mapear a `EN_CONTROL_DOCUMENTAL` (21) si su protocolo está en flujo activo, o al estado que corresponda según `protocolos.estado_id`.
+    - **(d)** Plan de transición para mover la escritura de `versiones_protocolo.estado_id` desde `calls.service.ts` al flujo de Meetings antes del retiro del legacy.
+    - **(e)** Definir qué leerán `reports/` y `follow-up/` cuando se implementen, para no acoplarlos a `recepcion.estado_id` de forma implícita.
+
+  - **Archivos afectados (cuando se apruebe e implemente):**
+    - `src/modules/protocols/application/services/protocols.service.ts` — MODIFICAR: añadir `statusId: ProtocolStatus.BORRADOR` (o el ID que se decida) en `save()`.
+    - `src/migrations/<timestamp>-AddBorradorEstado.ts` — CREAR: insertar fila en `catalogos.estados`.
+    - `src/migrations/<timestamp>-FixVersionStatusBackfill.ts` — CREAR: corregir `versiones_protocolo.estado_id = 1`.
+    - `src/migrations/<timestamp>-ProtocolStatusNotNull.ts` — CREAR (último paso, tras limpiar nulls).
+    - `src/modules/protocols/domain/enums/protocol-status.enum.ts` — MODIFICAR: añadir `BORRADOR`.
+  - **Pruebas necesarias:** `npm test` verde; contadores coinciden entre pantallas de inicio y Validación Documental; `POST /api/protocols` devuelve protocolo con `statusId = BORRADOR`; migración ejecutable y reversible.
+  - **Hecho cuando:** `SELECT COUNT(*) FROM public.protocolos WHERE estado_id IS NULL` = 0; `SELECT COUNT(*) FROM versiones_protocolo WHERE estado_id = 1` = 0; tsc limpio; tests verdes; contadores de bandejas coherentes.
+  - **No implementar hasta aprobación explícita.**
