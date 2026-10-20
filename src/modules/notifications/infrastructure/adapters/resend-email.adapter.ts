@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { Resend } from 'resend';
 import { IEmailServicePort } from '../../domain/ports/email.service.port';
@@ -6,9 +6,11 @@ import * as templates from '../templates/email-templates';
 
 @Injectable()
 export class ResendEmailAdapter implements IEmailServicePort {
+  private readonly logger = new Logger(ResendEmailAdapter.name);
   private resend: Resend;
   private readonly fromEmail: string;
   private readonly baseUrl: string;
+  private readonly emailEnabled: boolean;
 
   constructor(private readonly configService: ConfigService) {
     const apiKey = this.configService.get<string>('RESEND_API_KEY');
@@ -21,6 +23,18 @@ export class ResendEmailAdapter implements IEmailServicePort {
       'FRONTEND_URL',
       'https://localhost:4200',
     );
+    this.emailEnabled =
+      this.configService.get<boolean>('app.emailEnabled') ?? true;
+  }
+
+  private dryRun(email: string, subject: string): boolean {
+    if (!this.emailEnabled) {
+      this.logger.log(
+        `[dry-run] Correo no enviado (EMAIL_ENABLED=false) — destinatario: ${email}, asunto: ${subject}`,
+      );
+      return true;
+    }
+    return false;
   }
 
   async sendPasswordReset(
@@ -28,31 +42,47 @@ export class ResendEmailAdapter implements IEmailServicePort {
     code: string,
     name: string,
   ): Promise<void> {
+    const subject = 'Código de recuperación - CEISH-ESPOCH';
+    if (this.dryRun(email, subject)) return;
     try {
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: 'Código de recuperación - CEISH-ESPOCH',
+        subject,
         html: templates.getPasswordResetTemplate(name, code),
       });
-      console.log('Código de recuperación enviado:', data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendPasswordReset: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(`sendPasswordReset exitoso, id: ${result.data?.id}`);
     } catch (error) {
-      console.error('Error enviando código de recuperación:', error);
+      this.logger.error('Error enviando código de recuperación:', error);
       throw error;
     }
   }
 
   async sendWelcomeEmail(email: string, name: string): Promise<void> {
+    const subject = 'Bienvenido a CEISH-ESPOCH';
+    if (this.dryRun(email, subject)) return;
     try {
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: 'Bienvenido a CEISH-ESPOCH',
+        subject,
         html: templates.getWelcomeTemplate(name),
       });
-      console.log('Email de bienvenida enviado:', data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendWelcomeEmail: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(`sendWelcomeEmail exitoso, id: ${result.data?.id}`);
     } catch (error) {
-      console.error('Error enviando email de bienvenida:', error);
+      this.logger.error('Error enviando email de bienvenida:', error);
       throw error;
     }
   }
@@ -62,19 +92,26 @@ export class ResendEmailAdapter implements IEmailServicePort {
     code: string,
     name: string,
   ): Promise<void> {
+    const subject = 'Código de confirmación - CEISH-ESPOCH';
+    if (this.dryRun(email, subject)) return;
     try {
       // OTP intencionalmente no incluido en logs.
-
       const confirmUrl = `${this.baseUrl}/auth/confirm-email?email=${encodeURIComponent(email)}`;
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: 'Código de confirmación - CEISH-ESPOCH',
+        subject,
         html: templates.getEmailConfirmationTemplate(name, code, confirmUrl),
       });
-      console.log('Código de confirmación enviado:', data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendEmailConfirmation: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(`sendEmailConfirmation exitoso, id: ${result.data?.id}`);
     } catch (error) {
-      console.error('Error enviando código de confirmación:', error);
+      this.logger.error('Error enviando código de confirmación:', error);
       throw error;
     }
   }
@@ -84,19 +121,26 @@ export class ResendEmailAdapter implements IEmailServicePort {
     otp: string,
     name: string,
   ): Promise<void> {
+    const subject = 'Invitación a CEISH-ESPOCH - Configuración de Cuenta';
+    if (this.dryRun(email, subject)) return;
     try {
       // OTP intencionalmente no incluido en logs.
-
       const setupUrl = `${this.baseUrl}/auth/setup-account?email=${email}`;
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: 'Invitación a CEISH-ESPOCH - Configuración de Cuenta',
+        subject,
         html: templates.getAccountInvitationTemplate(name, otp, setupUrl),
       });
-      console.log('Invitación enviada:', data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendAccountInvitation: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(`sendAccountInvitation exitoso, id: ${result.data?.id}`);
     } catch (error) {
-      console.error('Error enviando invitación:', error);
+      this.logger.error('Error enviando invitación:', error);
       throw error;
     }
   }
@@ -109,11 +153,13 @@ export class ResendEmailAdapter implements IEmailServicePort {
     deadline: Date,
     plazo: number,
   ): Promise<void> {
+    const subject = 'Notificación de Documentación Incompleta - CEISH';
+    if (this.dryRun(email, subject)) return;
     try {
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: 'Notificación de Documentación Incompleta - CEISH',
+        subject,
         html: templates.getReceptionIncompleteTemplate(
           name,
           protocolTitle,
@@ -122,9 +168,17 @@ export class ResendEmailAdapter implements IEmailServicePort {
           plazo,
         ),
       });
-      console.log('Notificación de documentación incompleta enviada:', data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendReceptionIncomplete: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(
+        `sendReceptionIncomplete exitoso, id: ${result.data?.id}`,
+      );
     } catch (error) {
-      console.error('Error enviando notificación incompleta:', error);
+      this.logger.error('Error enviando notificación incompleta:', error);
       throw error;
     }
   }
@@ -136,11 +190,13 @@ export class ResendEmailAdapter implements IEmailServicePort {
     ceishCode: string,
     pdfBuffer: Buffer,
   ): Promise<void> {
+    const subject = `Constancia de Recepción - ${ceishCode}`;
+    if (this.dryRun(email, subject)) return;
     try {
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: `Constancia de Recepción - ${ceishCode}`,
+        subject,
         html: templates.getReceptionCompleteTemplate(
           name,
           protocolTitle,
@@ -153,9 +209,15 @@ export class ResendEmailAdapter implements IEmailServicePort {
           },
         ],
       });
-      console.log('Constancia de recepción completa enviada:', data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendReceptionComplete: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(`sendReceptionComplete exitoso, id: ${result.data?.id}`);
     } catch (error) {
-      console.error('Error enviando constancia completa:', error);
+      this.logger.error('Error enviando constancia completa:', error);
       throw error;
     }
   }
@@ -169,6 +231,8 @@ export class ResendEmailAdapter implements IEmailServicePort {
     pdfBuffer: Buffer,
     additionalAttachments?: Array<{ filename: string; content: Buffer }>,
   ): Promise<void> {
+    const subject = `Resolución de Comité: ${ceishCode} - ${decision}`;
+    if (this.dryRun(email, subject)) return;
     try {
       const attachments = [
         {
@@ -186,10 +250,10 @@ export class ResendEmailAdapter implements IEmailServicePort {
         );
       }
 
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: `Resolución de Comité: ${ceishCode} - ${decision}`,
+        subject,
         html: templates.getResolutionEmailTemplate(
           name,
           protocolTitle,
@@ -198,9 +262,15 @@ export class ResendEmailAdapter implements IEmailServicePort {
         ),
         attachments,
       });
-      console.log('Email de resolución enviado:', data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendResolutionEmail: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(`sendResolutionEmail exitoso, id: ${result.data?.id}`);
     } catch (error) {
-      console.error('Error enviando email de resolución:', error);
+      this.logger.error('Error enviando email de resolución:', error);
       throw error;
     }
   }
@@ -210,19 +280,29 @@ export class ResendEmailAdapter implements IEmailServicePort {
     protocolTitle: string,
     ceishCode: string,
   ): Promise<void> {
+    const subject = 'Nuevo Protocolo para Asignación - CEISH';
+    if (this.dryRun(presidentEmail, subject)) return;
     try {
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: presidentEmail,
-        subject: 'Nuevo Protocolo para Asignación - CEISH',
+        subject,
         html: templates.getPresidentNotificationTemplate(
           protocolTitle,
           ceishCode,
         ),
       });
-      console.log('Notificación al presidente enviada:', data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en notifyPresidentNewProtocol: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(
+        `notifyPresidentNewProtocol exitoso, id: ${result.data?.id}`,
+      );
     } catch (error) {
-      console.error('Error enviando notificación al presidente:', error);
+      this.logger.error('Error enviando notificación al presidente:', error);
       throw error;
     }
   }
@@ -233,6 +313,8 @@ export class ResendEmailAdapter implements IEmailServicePort {
     protocolCode: string,
     deadline: Date | null,
   ): Promise<void> {
+    const subject = `Nueva Asignación CEISH: ${protocolCode}`;
+    if (this.dryRun(email, subject)) return;
     try {
       const formattedDate = deadline
         ? deadline.toLocaleDateString('es-EC', {
@@ -242,19 +324,27 @@ export class ResendEmailAdapter implements IEmailServicePort {
           })
         : 'Se informará al agendar la convocatoria';
 
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: `Nueva Asignación CEISH: ${protocolCode}`,
+        subject,
         html: templates.getEvaluationAssignmentTemplate(
           name,
           protocolCode,
           formattedDate,
         ),
       });
-      console.log('Email de asignación enviado:', data);
+      // N18: lanzar excepción en la ruta de asignación (absorbida por .catch() en evaluations.module.ts)
+      if (result.error) {
+        throw new Error(
+          `[Resend] Error en sendEvaluationAssignment: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+      }
+      this.logger.log(
+        `sendEvaluationAssignment exitoso, id: ${result.data?.id}`,
+      );
     } catch (error) {
-      console.error('Error enviando email de asignación:', error);
+      this.logger.error('Error enviando email de asignación:', error);
       throw error;
     }
   }
@@ -264,19 +354,32 @@ export class ResendEmailAdapter implements IEmailServicePort {
     evaluatorName: string,
     protocolCode: string,
   ): Promise<void> {
+    const subject = `Evaluación Recibida: ${protocolCode}`;
+    if (this.dryRun(email, subject)) return;
     try {
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: `Evaluación Recibida: ${protocolCode}`,
+        subject,
         html: templates.getEvaluationSubmittedTemplate(
           evaluatorName,
           protocolCode,
         ),
       });
-      console.log('Email de evaluación finalizada enviado:', data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendEvaluationSubmitted: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(
+        `sendEvaluationSubmitted exitoso, id: ${result.data?.id}`,
+      );
     } catch (error) {
-      console.error('Error enviando email de evaluación finalizada:', error);
+      this.logger.error(
+        'Error enviando email de evaluación finalizada:',
+        error,
+      );
       throw error;
     }
   }
@@ -286,16 +389,26 @@ export class ResendEmailAdapter implements IEmailServicePort {
     name: string,
     protocols: Array<{ code: string; reason: string }>,
   ): Promise<void> {
+    const subject = `Alerta CEISH: ${protocols.length} protocolo(s) sin convocatoria programada`;
+    if (this.dryRun(email, subject)) return;
     try {
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: `Alerta CEISH: ${protocols.length} protocolo(s) sin convocatoria programada`,
+        subject,
         html: templates.getUnscheduledProtocolsAlertTemplate(name, protocols),
       });
-      console.log('Alerta de protocolos sin convocatoria enviada:', data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendUnscheduledProtocolsAlert: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(
+        `sendUnscheduledProtocolsAlert exitoso, id: ${result.data?.id}`,
+      );
     } catch (error) {
-      console.error(
+      this.logger.error(
         'Error enviando alerta de protocolos sin convocatoria:',
         error,
       );
@@ -312,6 +425,8 @@ export class ResendEmailAdapter implements IEmailServicePort {
     placeName: string,
     pdfBuffer: Buffer,
   ): Promise<void> {
+    const subject = `Convocatoria a Sesión de Comité Nro. ${callCode}`;
+    if (this.dryRun(email, subject)) return;
     try {
       const formattedDate = meetingDate.toLocaleDateString('es-EC', {
         year: 'numeric',
@@ -319,10 +434,10 @@ export class ResendEmailAdapter implements IEmailServicePort {
         day: 'numeric',
       });
 
-      const data = await this.resend.emails.send({
+      const result = await this.resend.emails.send({
         from: this.fromEmail,
         to: email,
-        subject: `Convocatoria a Sesión de Comité Nro. ${callCode}`,
+        subject,
         html: templates.getCallNotificationTemplate(
           name,
           callCode,
@@ -337,9 +452,17 @@ export class ResendEmailAdapter implements IEmailServicePort {
           },
         ],
       });
-      console.log(`Convocatoria enviada a ${email}:`, data);
+      if (result.error) {
+        this.logger.error(
+          `[Resend] Error en sendCallNotification (${email}): ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+        return;
+      }
+      this.logger.log(
+        `sendCallNotification exitoso a ${email}, id: ${result.data?.id}`,
+      );
     } catch (error) {
-      console.error(`Error enviando convocatoria a ${email}:`, error);
+      this.logger.error(`Error enviando convocatoria a ${email}:`, error);
       throw error;
     }
   }

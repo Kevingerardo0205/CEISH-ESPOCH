@@ -5,4 +5,5 @@ export default registerAs('app', () => ({
   jwtSecret: requireEnv('JWT_SECRET'),
   jwtRefreshSecret: requireEnv('JWT_REFRESH_SECRET'),
   encryptionKey: requireEnv('ENCRYPTION_KEY'),
+  emailEnabled: process.env.EMAIL_ENABLED !== 'false',
 }));
