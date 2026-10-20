@@ -443,54 +443,47 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - Frontend (repositorio correspondiente): confirmar o crear la ruta `/evaluations/:assignmentId/panel` que muestre el panel del evaluador para esa asignación.
   - **Hecho cuando:** la ruta `/evaluations/:assignmentId/panel` existe y responde correctamente en entorno local con un `assignmentId` real; documentado en el PR de N19.
 
-- [ ] **TSK-002-N23** (PENDIENTE): Diagnosticar causa raíz del bug en protocolo 169 — dos propuestas iguales no activaron designación automática.
+- [x] **TSK-002-N23**: Diagnosticar causa raíz aparente en protocolo 169 — no era un bug de código.
   - **Requisito relacionado:** RF-12.2d — designación automática por acuerdo.
   - **PR:** PR-H (`feat/risk-level-designation`).
-  - **Descripción:** El protocolo 169 (`CEISH-ESPOCH-IO-007-2026`) tiene dos evaluadores Anexo 10 (Gabriel Tamayo, versión 141, y Verónica Cando) que enviaron "riesgo mínimo" (mismo nivel) y el protocolo quedó con `riskLevelId = null`, `isRiskLevelDesignated = false`. Los dictámenes de los 4 evaluadores muestran "Evaluación suspendida" porque `annexToUse = null` cuando `isRiskLevelDesignated = false`.
+  - **Requisito relacionado:** RF-12.2d — designación automática por acuerdo.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Descripción:** **No había bug de código.** Diagnóstico ejecutado en `ceish_db` (2026-10-20):
 
-    **Pista confirmada:** Los formularios de riesgo se enviaron vía `/evaluations/evaluate-risk/84` (Gabriel Tamayo) y `/evaluate-risk/83` (Verónica Cando). Los IDs 83 y 84 corresponden a `evaluacion.asignaciones_evaluacion` de la versión 141 — se usó la **ruta canónica**. El diagnóstico debe centrarse en el estado de `evaluacion.propuestas_riesgo` para esas asignaciones.
+    **Hallazgos confirmados:**
+    - Asignación 83 (Verónica Cando) → `nivel_riesgo_id = 5` (RIESGO_MINIMO), ronda 1, `es_vigente = false`.
+    - Asignación 84 (Gabriel Tamayo) → `nivel_riesgo_id = 7` (RIESGO_MAYOR), ronda 1, `es_vigente = false`.
+    - Protocolo 169 → `status_id = 16` (DISCREPANCIA_RIESGO), `nivel_riesgo_id = null`, `nivel_riesgo_confirmado = false`.
+    - La lógica de discrepancia funcionó correctamente: los IDs diferían → se archivaron propuestas → estado 16.
+    - El "mismo nivel" observado en la prueba fue un error de selección del usuario durante el experimento.
 
-    Consultas a ejecutar en `ceish_db` (solo lectura):
-    ```sql
-    -- 1. Propuestas de riesgo de las dos asignaciones Anexo 10 de la versión 141
-    SELECT pr.id, pr.asignacion_id, pr.nivel_riesgo_id, pr.ronda, pr.es_vigente, pr.fecha_propuesta
-    FROM evaluacion.propuestas_riesgo pr
-    WHERE pr.asignacion_id IN (83, 84)
-    ORDER BY pr.asignacion_id, pr.ronda;
+    **Catálogo `catalogos.niveles_riesgo`** (verificado):
+    | id | código | activo | tipo_revision |
+    |---|---|---|---|
+    | 4 | SIN_RIESG *(typo)* | true | — |
+    | 5 | RIESGO_MINIMO | true | — |
+    | 6 | RIESGO_MODERADO | true | — |
+    | 7 | RIESGO_MAYOR | true | — |
+    | 8 | ENSAYO_CLINICO | false | — |
 
-    -- 2. Estado actual del protocolo 169
-    SELECT id, codigo_ceish, status_id, nivel_riesgo_id, nivel_riesgo_confirmado, tipo_revision
-    FROM public.protocolos
-    WHERE id = 169;
+    **Consecuencias para tareas siguientes:**
+    - N24: no hay bug a corregir en la comparación; el foco es auditoría + notificaciones + enum + quitar reset legacy.
+    - N25: protocolo 169 (en DISCREPANCIA_RIESGO con convocatoria 010-2026) es un caso real para probar el endpoint de pleno.
+    - N26: la migración debe apuntar solo a `RIESGO_MODERADO` (id=6); no a `RIESGO_MAYOR` ni a `SIN_RIESG`.
+    - Pendiente de confirmar en BD: `SELECT id, nombre FROM catalogos.estados WHERE id IN (13, 16)` y conteo de referencias a nivel_riesgo_id=6.
 
-    -- 3. Asignaciones Anexo 10 de la versión 141 (para confirmar isAssignedForAnnex10 y statusId)
-    SELECT id, evaluador_id, es_asignado_anexo_10, estado_id
-    FROM evaluacion.asignaciones_evaluacion
-    WHERE version_id = 141 AND es_asignado_anexo_10 = true;
-
-    -- 4. Niveles de riesgo disponibles (para confirmar tipo_revision)
-    SELECT id, nombre, codigo, tipo_revision, activo FROM catalogos.niveles_riesgo ORDER BY id;
-    ```
-
-    Con los resultados, determinar cuál de estas causas es la real:
-    - A. Ambas propuestas tienen `es_vigente = true` pero `nivel_riesgo_id` distinto → la BD muestra discrepancia real.
-    - B. Solo una propuesta tiene `es_vigente = true` (la otra fue archivada o nunca se guardó) → la condición `p1Proposal && p2Proposal` (línea 1176) falló.
-    - C. El campo `tipo_revision` del nivel es `null` → `reviewType` queda como `PLENO` por defecto pero algo falla al guardar.
-    - D. Los `nivel_riesgo_id` de ambas propuestas son distintos aunque el usuario eligió "riesgo mínimo" en ambos casos (IDs distintos en el catálogo).
-
-    Documentar la causa confirmada en este ítem (actualizar a `[x]`) antes de implementar N24.
-  - **Archivos afectados:** Ninguno (solo lectura de BD). La causa raíz documenta qué líneas de `evaluations.service.ts` (1067–1330) son el punto de fallo.
+  - **Archivos afectados:** Ninguno (solo lectura de BD).
   - **Pruebas necesarias:** Ninguna (diagnóstico).
-  - **Hecho cuando:** La causa raíz está identificada y documentada; el investigador puede señalar la línea exacta en `evaluations.service.ts` donde falla la lógica para el protocolo 169.
+  - **Hecho cuando:** ✅ Causa raíz documentada.
 
-- [ ] **TSK-002-N24** (PENDIENTE): Refactorizar `submitPeerRiskLevel()` — corregir bug, usar enum de estados, auditoría y notificaciones (RF-12.2c/d/e).
+- [ ] **TSK-002-N24** (PENDIENTE): Refactorizar `submitPeerRiskLevel()` — usar enum de estados, añadir auditoría y notificaciones (RF-12.2c/d/e).
   - **Requisito relacionado:** RF-12.2c, RF-12.2d, RF-12.2e, RF-12.2g.
   - **PR:** PR-H (`feat/risk-level-designation`).
   - **Dependencias:** TSK-002-N23 (causa raíz conocida).
-  - **Descripción:** Refactorizar el método `submitPeerRiskLevel` en `evaluations.service.ts` (líneas 1067–1331) para cumplir la spec. Cambios requeridos:
+  - **Descripción:** Refactorizar el método `submitPeerRiskLevel` en `evaluations.service.ts` (líneas 1067–1331) para cumplir la spec. La lógica de comparación ya funciona correctamente (confirmado N23); los cambios son aditivos.
 
     **1 — Estados por enum (líneas 1202, 1207, 1302, 1311):**
-    Reemplazar los magic numbers `protocol.statusId = 13` y `protocol.statusId = 16` por `ProtocolStatus.EN_EVALUACION` y `ProtocolStatus.DISCREPANCIA_RIESGO` del enum ya importado en `protocol-status.enum.ts`.
+    Reemplazar los magic numbers `protocol.statusId = 13` y `protocol.statusId = 16` por `ProtocolStatus.EN_EVALUACION` y `ProtocolStatus.DISCREPANCIA_RIESGO` del enum ya importado en `protocol-status.enum.ts`. (Pendiente confirmar nombres en BD: `SELECT id, nombre FROM catalogos.estados WHERE id IN (13, 16)`.)
 
     **2 — Auditoría de cada propuesta individual (RF-12.2c):**
     Inmediatamente después de guardar la propuesta con `riskProposalRepo.save(proposal)` (y el equivalente en la ruta legacy), registrar en `sistema.audit_log` dentro de la misma transacción usando `manager.getRepository(AuditLogOrmEntity)`:
@@ -524,11 +517,11 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     ```
     **Acción correcta:** no modificar los campos; agregar únicamente un `TODO` que señale la rama `refactor/remove-legacy-evaluations` donde se retira el flujo completo. El flujo legacy (`evaluacion.asignaciones_pares_riesgo`) está siendo retirado y no vale la pena rediseñarlo en este PR. La corrección mínima es quitar el reset para que los datos históricos no se destruyan si la ruta legacy aún se ejecuta.
 
-    **6 — Prueba de regresión:**
-    En `test/real-db-evaluations.e2e-spec.ts` o en un nuevo archivo `test/risk-designation.e2e-spec.ts`, añadir un caso E2E:
-    - Crear 2 propuestas de riesgo con el mismo `riskLevelId` para un protocolo de prueba.
-    - Verificar que el protocolo quede con `isRiskLevelDesignated = true`, `riskLevelId` asignado y `statusId = ProtocolStatus.EN_EVALUACION`.
-    - Verificar que existan 2 entradas en `sistema.audit_log` con `action = 'RISK_PROPOSAL_SUBMITTED'` y 1 con `action = 'RISK_LEVEL_AUTO_DESIGNATED'`.
+    **6 — Prueba de regresión (verificación del flujo completo):**
+    En `test/risk-designation.e2e-spec.ts` (nuevo archivo), dos casos E2E con protocolos de prueba en `ceish_test_db`:
+    - **RD-01 (acuerdo):** Dos propuestas con el mismo `riskLevelId` → el protocolo queda con `isRiskLevelDesignated = true`, `riskLevelId` asignado, `statusId = ProtocolStatus.EN_EVALUACION`; 2 entradas `RISK_PROPOSAL_SUBMITTED` y 1 `RISK_LEVEL_AUTO_DESIGNATED` en `sistema.audit_log`.
+    - **RD-02 (discrepancia):** Dos propuestas con `riskLevelId` distinto → `statusId = ProtocolStatus.DISCREPANCIA_RIESGO`, propuestas archivadas (`es_vigente = false`), 2 entradas `RISK_PROPOSAL_SUBMITTED` y 1 `RISK_LEVEL_DISCREPANCY`; datos de propuestas NO reseteados a null.
+    El protocolo 169 (ya en `DISCREPANCIA_RIESGO` con convocatoria 010-2026 en `ceish_db`) es un caso real validado pero NO se usa en el E2E automatizado (apunta a `ceish_test_db`).
 
   - **Archivos afectados:**
     - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR (líneas 1067–1331).
@@ -553,6 +546,8 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
       meetingId: string;    // @IsUUID             (evaluacion.convocatorias.id → uuid, confirmado en ConvocatoriaOrmEntity:29)
     }
     ```
+
+    **Caso real de prueba manual (N23):** protocolo 169 está en `DISCREPANCIA_RIESGO` con convocatoria 010-2026 en `ceish_db`. Usar para validar el endpoint manualmente antes de que `ceish_test_db` tenga datos equivalentes.
 
     **Validaciones** (responden antes de abrir la transacción):
     1. `protocolId` es entero positivo → 400 si no.
@@ -580,31 +575,50 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 - [ ] **TSK-002-N26** (PENDIENTE): RF-12.2b — verificar niveles no-PET en `catalogos.niveles_riesgo` y marcarlos `activo = false`.
   - **Requisito relacionado:** RF-12.2b — solo los 3 niveles PET son válidos.
   - **PR:** PR-H (`feat/risk-level-designation`).
-  - **Descripción:** Los únicos niveles de riesgo válidos según el PET del CEISH-ESPOCH son **Sin riesgo**, **Riesgo mínimo** y **Riesgo mayor al mínimo**. Cualquier otro nivel activo en `catalogos.niveles_riesgo` no debe aparecer en formularios ni ser aceptado por validaciones.
+  - **Descripción:** Los únicos niveles de riesgo válidos según el PET del CEISH-ESPOCH son **Sin riesgo** (`SIN_RIESG`, id=4), **Riesgo mínimo** (`RIESGO_MINIMO`, id=5) y **Riesgo mayor al mínimo** (`RIESGO_MAYOR`, id=7). El nivel `RIESGO_MODERADO` (id=6) está activo pero no pertenece al PET. El nivel `ENSAYO_CLINICO` (id=8) ya está inactivo.
 
-    **Paso 1 (investigación, solo lectura):**
-    Ejecutar en `ceish_db` (misma BD donde se creó el protocolo 169; resultado también obtenible en N23 query 4):
+    **Catálogo confirmado en N23 (ceish_db):**
+    | id | código | activo | notas |
+    |---|---|---|---|
+    | 4 | SIN_RIESG | true | PET (typo en código, ver nota al pie) |
+    | 5 | RIESGO_MINIMO | true | PET |
+    | 6 | RIESGO_MODERADO | true | NO PET — desactivar |
+    | 7 | RIESGO_MAYOR | true | PET (ver nota al pie) |
+    | 8 | ENSAYO_CLINICO | false | ya inactivo |
+
+    **Paso 1 (pre-verificación de referencias a nivel 6 — pendiente confirmar):**
+    Antes de crear la migración, ejecutar en `ceish_db`:
     ```sql
-    SELECT id, nombre, codigo, tipo_revision, activo FROM catalogos.niveles_riesgo ORDER BY id;
+    SELECT
+      (SELECT COUNT(*) FROM evaluacion.propuestas_riesgo WHERE nivel_riesgo_id = 6) AS propuestas_con_nivel6,
+      (SELECT COUNT(*) FROM public.protocolos       WHERE nivel_riesgo_id = 6)      AS protocolos_con_nivel6;
     ```
-    Documentar el resultado en este ítem antes de crear la migración.
+    Si hay filas con nivel 6, la migración puede ejecutarse igualmente (no se borra el registro; solo `activo = false`), pero hay que comunicar a los usuarios afectados que el nivel ya no es seleccionable.
 
-    **Paso 2 (migración, si hay niveles activos que no son PET):**
-    Crear migración `src/migrations/<timestamp>-MarkNonPetRiskLevelsInactive.ts` con:
+    **Paso 2 (migración):**
+    Crear `src/migrations/<timestamp>-MarkRiesgoModeradoInactive.ts` que apunta exclusivamente al nivel 6 por su código exacto:
     ```sql
+    -- up
     UPDATE catalogos.niveles_riesgo
     SET activo = false
-    WHERE activo = true
-      AND codigo NOT IN ('SIN_RIESGO', 'RIESGO_MINIMO', 'RIESGO_MAYOR_MINIMO');
+    WHERE codigo = 'RIESGO_MODERADO';
+
+    -- down
+    UPDATE catalogos.niveles_riesgo
+    SET activo = true
+    WHERE codigo = 'RIESGO_MODERADO';
     ```
-    El `down` revierte: `UPDATE ... SET activo = true WHERE codigo NOT IN (...)`.
-    **Nota:** los códigos exactos deben confirmarse en el Paso 1; si los códigos difieren, ajustar la lista.
-    **No se borran registros** si tienen filas que los referencian (FK en `asignaciones_pares_riesgo` o `propuestas_riesgo`).
+    **No usar `NOT IN`** — la lista de PET tiene un typo en el código (`SIN_RIESG`) y un nombre que difiere del PET (`RIESGO_MAYOR`); una lista `NOT IN` podría desactivarlos por error si los códigos cambian.
 
     **Paso 3 (validación ya existente):**
-    La validación `riskLevelRepo.findOne({ where: { id: dto.riskLevelId, isActive: true } })` ya existe en `submitPeerRiskLevel` (línea 1138 de `evaluations.service.ts`) — no requiere cambio de código adicional.
+    La validación `riskLevelRepo.findOne({ where: { id: dto.riskLevelId, isActive: true } })` ya existe en `submitPeerRiskLevel` (línea 1138) — no requiere cambio de código adicional.
+
+    **Nota — limpieza de catálogo propuesta para tarea futura (NO implementar aquí):**
+    - `SIN_RIESG` (id=4): el código tiene un typo (falta la 'O'). Corregir a `SIN_RIESGO` requiere una migración `UPDATE ... SET codigo = 'SIN_RIESGO' WHERE id = 4` y actualizar cualquier lógica que compare por código string.
+    - `RIESGO_MAYOR` (id=7): el PET llama a este nivel "Investigación con riesgo mayor al mínimo". Renombrar el `nombre` del catálogo (no el código) en otra migración.
+    Ambas son mejoras cosméticas con bajo riesgo técnico; proponer al equipo antes de ejecutar.
 
   - **Archivos afectados:**
-    - `src/migrations/<timestamp>-MarkNonPetRiskLevelsInactive.ts` — CREAR (solo si Paso 1 confirma niveles activos no-PET).
-  - **Pruebas necesarias:** `npx tsc --noEmit` limpio; migración ejecutable con `migration:run` y reversible con `migration:revert`; enviar un `riskLevelId` inactivo al endpoint devuelve 404.
-  - **Hecho cuando:** Solo los 3 niveles PET están activos en `ceish_db`; los demás tienen `activo = false`; tsc limpio; la validación de `isActive` rechaza IDs de niveles no-PET con 404.
+    - `src/migrations/<timestamp>-MarkRiesgoModeradoInactive.ts` — CREAR.
+  - **Pruebas necesarias:** `npx tsc --noEmit` limpio; migración ejecutable y reversible; `riskLevelId = 6` en endpoint devuelve 404.
+  - **Hecho cuando:** `RIESGO_MODERADO` tiene `activo = false` en `ceish_db`; los 3 niveles PET siguen activos; tsc limpio; validación `isActive` rechaza id=6 con 404.
