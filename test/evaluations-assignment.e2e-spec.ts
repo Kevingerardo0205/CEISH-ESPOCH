@@ -10,6 +10,7 @@ import { AssignEvaluatorsUseCase } from '../src/modules/evaluations/application/
 import { ReassignEvaluatorUseCase } from '../src/modules/evaluations/application/use-cases/reassign-evaluator.use-case';
 import { SubmitEvaluationUseCase } from '../src/modules/evaluations/application/use-cases/submit-evaluation.use-case';
 import { AssignEvaluatorsDto } from '../src/modules/evaluations/application/dtos/evaluator-dtos';
+import { IProtocolRepository } from '../src/modules/protocols/domain/ports/protocol.repository.port';
 
 describe('Evaluations Assignment Workflow (e2e integration)', () => {
   let inMemoryAssignments: EvaluationAssignmentEntity[] = [];
@@ -20,8 +21,10 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     saveAssignments: jest.Mock;
     findAssignmentById: jest.Mock;
     findAssignmentsByProtocolId: jest.Mock;
+    findActiveAssignmentsByVersionId: jest.Mock;
     executeReassignmentTransaction: jest.Mock;
   };
+  let protocolRepositoryMock: { findById: jest.Mock };
   let eventEmitterMock: { emit: jest.Mock };
   let assignUseCase: AssignEvaluatorsUseCase;
   let reassignUseCase: ReassignEvaluatorUseCase;
@@ -96,6 +99,21 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
             inMemoryAssignments.filter(
               (a) => a.protocolId === Number(protocolId),
             ),
+          );
+        }),
+      // In this mock, protocolId === versionId (both = 100 or 200)
+      findActiveAssignmentsByVersionId: jest
+        .fn()
+        .mockImplementation((versionId: number) => {
+          const ACTIVE = new Set([
+            AssignmentStatus.SUGGESTED,
+            AssignmentStatus.ASSIGNED,
+            AssignmentStatus.COMPLETED,
+          ]);
+          return Promise.resolve(
+            inMemoryAssignments
+              .filter((a) => a.protocolId === versionId && ACTIVE.has(a.status))
+              .map((a) => ({ id: a.id, statusId: a.status, versionId })),
           );
         }),
       executeReassignmentTransaction: jest.fn().mockImplementation(
@@ -198,6 +216,17 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
       }),
     };
 
+    // In-memory protocol store: protocolId maps to { versionActualId: protocolId, isRiskLevelDesignated: true }
+    protocolRepositoryMock = {
+      findById: jest.fn().mockImplementation((id: number) =>
+        Promise.resolve({
+          id,
+          versionActualId: id,
+          isRiskLevelDesignated: true,
+        }),
+      ),
+    };
+
     assignUseCase = new AssignEvaluatorsUseCase(
       repositoryMock,
       eventEmitterMock,
@@ -206,7 +235,10 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
       repositoryMock,
       eventEmitterMock,
     );
-    submitUseCase = new SubmitEvaluationUseCase(repositoryMock);
+    submitUseCase = new SubmitEvaluationUseCase(
+      repositoryMock,
+      protocolRepositoryMock as unknown as IProtocolRepository,
+    );
   });
 
   it('should run full end-to-end evaluation workflow: assign 4 -> pick 2 Annex 10 -> reassign by COI -> check completion status', async () => {
@@ -253,7 +285,8 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     expect(emittedEvents).toHaveLength(4);
 
     // 4. Verificar que el estado de completitud es false cuando faltan dictámenes
-    let isComplete = await submitUseCase.isCompletion100Percent(protocolId);
+    let isComplete =
+      await submitUseCase.isCompletion100PercentByProtocolId(protocolId);
     expect(isComplete).toBe(false);
 
     // 5. Reasignar a uno de los evaluadores por Conflicto de Interés (mismo perfil JURIDICO)
@@ -293,7 +326,8 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     }
 
     // 8. Verificar que el estado de completitud cambie a true (100% completado)
-    isComplete = await submitUseCase.isCompletion100Percent(protocolId);
+    isComplete =
+      await submitUseCase.isCompletion100PercentByProtocolId(protocolId);
     expect(isComplete).toBe(true);
   });
 
@@ -334,7 +368,7 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
 
     // 2. Verificar que completion-status del protocolo SIGUE SIENDO FALSE (la evaluación ética no está entregada)
     const isCompleteAfterRisk =
-      await submitUseCase.isCompletion100Percent(protocolId);
+      await submitUseCase.isCompletion100PercentByProtocolId(protocolId);
     expect(isCompleteAfterRisk).toBe(false);
 
     // 3. Verificar que el evaluador sigue con estado ASSIGNED (evaluación ética pendiente)
@@ -349,7 +383,7 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
 
     // 5. Ahora completion-status es TRUE
     const isCompleteAfterEthical =
-      await submitUseCase.isCompletion100Percent(protocolId);
+      await submitUseCase.isCompletion100PercentByProtocolId(protocolId);
     expect(isCompleteAfterEthical).toBe(true);
 
     // 6. La propuesta de riesgo preliminar sigue intacta en su entidad separada
@@ -358,5 +392,78 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     expect(inMemoryRiskProposals[0].observations).toBe(
       'Dictamen de riesgo preliminar',
     );
+  });
+
+  it('N34: 4 activas COMPLETED + 1 REASIGNED_COI → findActiveAssignmentsByVersionId excluye COI → pending vacío → protocolo avanzaría a EVALUADO=14', async () => {
+    // Simula el escenario del protocolo 169: Jaime en REASIGNED_COI (no activo),
+    // 4 reemplazantes en COMPLETED. La lógica corregida de submitEvaluation
+    // usa findActiveAssignmentsByVersionId que solo devuelve statusId ∈ {5,6,7}.
+    const protocolId = 400;
+    inMemoryAssignments = [
+      new EvaluationAssignmentEntity({
+        id: 10,
+        protocolId,
+        evaluatorId: 1,
+        evaluatorProfile: EvaluatorProfile.JURIDICO,
+        isAssignedForAnnex10: false,
+        deadlineDate: new Date(),
+        status: AssignmentStatus.REASIGNED_COI, // Jaime — excluido por findActive
+      }),
+      new EvaluationAssignmentEntity({
+        id: 11,
+        protocolId,
+        evaluatorId: 5,
+        evaluatorProfile: EvaluatorProfile.JURIDICO,
+        isAssignedForAnnex10: false,
+        deadlineDate: new Date(),
+        status: AssignmentStatus.COMPLETED,
+      }),
+      new EvaluationAssignmentEntity({
+        id: 12,
+        protocolId,
+        evaluatorId: 2,
+        evaluatorProfile: EvaluatorProfile.SOCIEDAD_CIVIL,
+        isAssignedForAnnex10: false,
+        deadlineDate: new Date(),
+        status: AssignmentStatus.COMPLETED,
+      }),
+      new EvaluationAssignmentEntity({
+        id: 13,
+        protocolId,
+        evaluatorId: 3,
+        evaluatorProfile: EvaluatorProfile.METODOLOGICO,
+        isAssignedForAnnex10: false,
+        deadlineDate: new Date(),
+        status: AssignmentStatus.COMPLETED,
+      }),
+      new EvaluationAssignmentEntity({
+        id: 14,
+        protocolId,
+        evaluatorId: 4,
+        evaluatorProfile: EvaluatorProfile.SALUD,
+        isAssignedForAnnex10: false,
+        deadlineDate: new Date(),
+        status: AssignmentStatus.COMPLETED,
+      }),
+    ];
+
+    const activeAssignments =
+      (await repositoryMock.findActiveAssignmentsByVersionId(
+        protocolId,
+      )) as Array<{ id: number; statusId: number; versionId: number }>;
+
+    // findActiveAssignmentsByVersionId excluye REASIGNED_COI → 4 activas
+    expect(activeAssignments).toHaveLength(4);
+
+    const pending = activeAssignments.filter(
+      (a) => a.statusId !== +AssignmentStatus.COMPLETED,
+    );
+    // Ninguna activa está pendiente → el servicio corregido avanza a EVALUADO=14
+    expect(pending).toHaveLength(0);
+
+    // completion-status también devuelve true (usa la misma lógica)
+    const isComplete =
+      await submitUseCase.isCompletion100PercentByProtocolId(protocolId);
+    expect(isComplete).toBe(true);
   });
 });

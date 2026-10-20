@@ -1,134 +1,191 @@
-/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/require-await, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-return */
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-argument */
 import 'reflect-metadata';
+import { NotFoundException } from '@nestjs/common';
 import { SubmitEvaluationUseCase } from './submit-evaluation.use-case';
-import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
-import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
+import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 
-describe('SubmitEvaluationUseCase (TSK-002-11)', () => {
-  let repositoryMock: any;
+const PROTOCOL_ID = 169;
+const VERSION_ID = 141;
+
+function makeAssignment(
+  id: number,
+  statusId: AssignmentStatus,
+): EvaluationAssignmentOrmEntity {
+  return {
+    id,
+    statusId,
+    versionId: VERSION_ID,
+  } as EvaluationAssignmentOrmEntity;
+}
+
+const COMPLETED_4 = [
+  makeAssignment(81, AssignmentStatus.COMPLETED),
+  makeAssignment(83, AssignmentStatus.COMPLETED),
+  makeAssignment(84, AssignmentStatus.COMPLETED),
+  makeAssignment(85, AssignmentStatus.COMPLETED),
+];
+
+describe('SubmitEvaluationUseCase (TSK-002-N33)', () => {
+  let evalRepoMock: { findActiveAssignmentsByVersionId: jest.Mock };
+  let protocolRepoMock: { findById: jest.Mock; update?: jest.Mock };
   let useCase: SubmitEvaluationUseCase;
 
-  const mockAssignments: EvaluationAssignmentEntity[] = [
-    new EvaluationAssignmentEntity({
-      id: 1,
-      protocolId: 101,
-      evaluatorId: 11,
-      evaluatorProfile: EvaluatorProfile.JURIDICO,
-      isAssignedForAnnex10: true,
-      deadlineDate: new Date(),
-      status: AssignmentStatus.COMPLETED,
-    }),
-    new EvaluationAssignmentEntity({
-      id: 2,
-      protocolId: 101,
-      evaluatorId: 12,
-      evaluatorProfile: EvaluatorProfile.SOCIEDAD_CIVIL,
-      isAssignedForAnnex10: false,
-      deadlineDate: new Date(),
-      status: AssignmentStatus.COMPLETED,
-    }),
-    new EvaluationAssignmentEntity({
-      id: 3,
-      protocolId: 101,
-      evaluatorId: 13,
-      evaluatorProfile: EvaluatorProfile.METODOLOGICO,
-      isAssignedForAnnex10: true,
-      deadlineDate: new Date(),
-      status: AssignmentStatus.COMPLETED,
-    }),
-    new EvaluationAssignmentEntity({
-      id: 4,
-      protocolId: 101,
-      evaluatorId: 14,
-      evaluatorProfile: EvaluatorProfile.SALUD,
-      isAssignedForAnnex10: false,
-      deadlineDate: new Date(),
-      status: AssignmentStatus.ASSIGNED, // Evaluador 4 aún no envía su dictamen
-    }),
-  ];
-
   beforeEach(() => {
-    repositoryMock = {
+    evalRepoMock = {
       findActiveAssignmentsByVersionId: jest
         .fn()
-        .mockResolvedValue([...mockAssignments]),
-      findAssignmentsByProtocolId: jest
-        .fn()
-        .mockResolvedValue([...mockAssignments]),
-      saveAssignmentStatus: jest.fn().mockImplementation(async (a) => a),
+        .mockResolvedValue([...COMPLETED_4]),
     };
-    useCase = new SubmitEvaluationUseCase(repositoryMock);
+    protocolRepoMock = {
+      findById: jest.fn().mockResolvedValue({
+        id: PROTOCOL_ID,
+        versionActualId: VERSION_ID,
+        isRiskLevelDesignated: true,
+      }),
+    };
+    useCase = new SubmitEvaluationUseCase(
+      evalRepoMock,
+      protocolRepoMock as any,
+    );
   });
 
-  it('should return isCompletion100Percent = false when at least 1 evaluator has not submitted', async () => {
-    const isComplete = await useCase.isCompletion100Percent(101);
-    expect(isComplete).toBe(false);
+  it('CS-U-01: protocolo 169 (versión 141; 4 asignaciones COMPLETED; 1 REASIGNADO_COI fuera del repo activo; nivel designado en pleno) → true', async () => {
+    // findActiveAssignmentsByVersionId ya excluye REASIGNADO_COI=27; devuelve 4.
+    const result =
+      await useCase.isCompletion100PercentByProtocolId(PROTOCOL_ID);
+
+    expect(result).toBe(true);
+    expect(protocolRepoMock.findById).toHaveBeenCalledWith(PROTOCOL_ID);
+    expect(evalRepoMock.findActiveAssignmentsByVersionId).toHaveBeenCalledWith(
+      VERSION_ID,
+    );
   });
 
-  it('should return isCompletion100Percent = true when ALL 4 active evaluators have COMPLETED status', async () => {
-    const allSubmittedMock = mockAssignments.map((a) => {
-      if (a.id === 4) {
-        return new EvaluationAssignmentEntity({
-          id: a.id,
-          protocolId: a.protocolId,
-          evaluatorId: a.evaluatorId,
-          evaluatorProfile: a.evaluatorProfile,
-          isAssignedForAnnex10: a.isAssignedForAnnex10,
-          deadlineDate: a.deadlineDate,
-          status: AssignmentStatus.COMPLETED,
-        });
-      }
-      return a;
+  it('CS-U-02: 4 asignaciones COMPLETED pero isRiskLevelDesignated = false → false', async () => {
+    protocolRepoMock.findById.mockResolvedValue({
+      id: PROTOCOL_ID,
+      versionActualId: VERSION_ID,
+      isRiskLevelDesignated: false,
     });
 
-    repositoryMock.findActiveAssignmentsByVersionId.mockResolvedValue(
-      allSubmittedMock,
-    );
+    const result =
+      await useCase.isCompletion100PercentByProtocolId(PROTOCOL_ID);
 
-    const isComplete = await useCase.isCompletion100Percent(101);
-    expect(isComplete).toBe(true);
+    expect(result).toBe(false);
+    expect(
+      evalRepoMock.findActiveAssignmentsByVersionId,
+    ).not.toHaveBeenCalled();
   });
 
-  it('should exclude reassigned assignments (status 26 or 27) from 100% calculation', async () => {
-    const withReassigned = [
-      ...mockAssignments.slice(0, 3).map(
-        (a) =>
-          new EvaluationAssignmentEntity({
-            id: a.id,
-            protocolId: a.protocolId,
-            evaluatorId: a.evaluatorId,
-            evaluatorProfile: a.evaluatorProfile,
-            isAssignedForAnnex10: a.isAssignedForAnnex10,
-            deadlineDate: a.deadlineDate,
-            status: AssignmentStatus.COMPLETED,
-          }),
-      ),
-      new EvaluationAssignmentEntity({
-        id: 99,
-        protocolId: 101,
-        evaluatorId: 99,
-        evaluatorProfile: EvaluatorProfile.SALUD,
-        isAssignedForAnnex10: false,
-        deadlineDate: new Date(),
-        status: AssignmentStatus.REASIGNED_VENCIMIENTO,
-      }),
-      new EvaluationAssignmentEntity({
-        id: 4,
-        protocolId: 101,
-        evaluatorId: 14,
-        evaluatorProfile: EvaluatorProfile.SALUD,
-        isAssignedForAnnex10: false,
-        deadlineDate: new Date(),
-        status: AssignmentStatus.COMPLETED,
-      }),
-    ];
+  it('CS-U-03: solo 3 asignaciones activas COMPLETED → false', async () => {
+    evalRepoMock.findActiveAssignmentsByVersionId.mockResolvedValue([
+      makeAssignment(81, AssignmentStatus.COMPLETED),
+      makeAssignment(83, AssignmentStatus.COMPLETED),
+      makeAssignment(84, AssignmentStatus.COMPLETED),
+    ]);
 
-    repositoryMock.findActiveAssignmentsByVersionId.mockResolvedValue(
-      withReassigned,
-    );
+    const result =
+      await useCase.isCompletion100PercentByProtocolId(PROTOCOL_ID);
 
-    const isComplete = await useCase.isCompletion100Percent(101);
-    expect(isComplete).toBe(true);
+    expect(result).toBe(false);
+  });
+
+  it('CS-U-04: más de 4 asignaciones activas → false', async () => {
+    evalRepoMock.findActiveAssignmentsByVersionId.mockResolvedValue([
+      makeAssignment(81, AssignmentStatus.COMPLETED),
+      makeAssignment(83, AssignmentStatus.COMPLETED),
+      makeAssignment(84, AssignmentStatus.COMPLETED),
+      makeAssignment(85, AssignmentStatus.COMPLETED),
+      makeAssignment(86, AssignmentStatus.ASSIGNED),
+    ]);
+
+    const result =
+      await useCase.isCompletion100PercentByProtocolId(PROTOCOL_ID);
+
+    expect(result).toBe(false);
+  });
+
+  it('CS-U-05: protocolo no encontrado → NotFoundException', async () => {
+    protocolRepoMock.findById.mockResolvedValue(null);
+
+    await expect(
+      useCase.isCompletion100PercentByProtocolId(999),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('CS-U-06: versionActualId undefined → false sin consultar asignaciones', async () => {
+    protocolRepoMock.findById.mockResolvedValue({
+      id: PROTOCOL_ID,
+      versionActualId: undefined,
+      isRiskLevelDesignated: true,
+    });
+
+    const result =
+      await useCase.isCompletion100PercentByProtocolId(PROTOCOL_ID);
+
+    expect(result).toBe(false);
+    expect(
+      evalRepoMock.findActiveAssignmentsByVersionId,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('CS-U-07: 4 activas pero una en ASSIGNED → false', async () => {
+    evalRepoMock.findActiveAssignmentsByVersionId.mockResolvedValue([
+      makeAssignment(81, AssignmentStatus.COMPLETED),
+      makeAssignment(83, AssignmentStatus.COMPLETED),
+      makeAssignment(84, AssignmentStatus.COMPLETED),
+      makeAssignment(85, AssignmentStatus.ASSIGNED),
+    ]);
+
+    const result =
+      await useCase.isCompletion100PercentByProtocolId(PROTOCOL_ID);
+
+    expect(result).toBe(false);
+  });
+
+  describe('finalizeIfComplete (TSK-002-N34)', () => {
+    it('CS-F-01: protocolo 169 completo (4 COMPLETED + isRiskLevelDesignated) → advanced: true y llama protocolRepository.update con statusId=14', async () => {
+      const updateMock = jest.fn().mockResolvedValue(undefined);
+      protocolRepoMock = {
+        findById: jest.fn().mockResolvedValue({
+          id: PROTOCOL_ID,
+          versionActualId: VERSION_ID,
+          isRiskLevelDesignated: true,
+        }),
+        update: updateMock,
+      };
+      useCase = new SubmitEvaluationUseCase(
+        evalRepoMock,
+        protocolRepoMock as any,
+      );
+
+      const result = await useCase.finalizeIfComplete(PROTOCOL_ID);
+
+      expect(result.advanced).toBe(true);
+      expect(result.protocolId).toBe(PROTOCOL_ID);
+      expect(updateMock).toHaveBeenCalledWith(PROTOCOL_ID, { statusId: 14 });
+    });
+
+    it('CS-F-02: protocolo sin isRiskLevelDesignated → advanced: false; no llama update', async () => {
+      const updateMock = jest.fn();
+      protocolRepoMock = {
+        findById: jest.fn().mockResolvedValue({
+          id: PROTOCOL_ID,
+          versionActualId: VERSION_ID,
+          isRiskLevelDesignated: false,
+        }),
+        update: updateMock,
+      };
+      useCase = new SubmitEvaluationUseCase(
+        evalRepoMock,
+        protocolRepoMock as any,
+      );
+
+      const result = await useCase.finalizeIfComplete(PROTOCOL_ID);
+
+      expect(result.advanced).toBe(false);
+      expect(updateMock).not.toHaveBeenCalled();
+    });
   });
 });

@@ -82,7 +82,35 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 
   - **RF-12.2g (Espera de segunda propuesta)**: Mientras solo uno de los 2 evaluadores de Anexo 10 ha enviado su propuesta vigente, el protocolo permanece en su estado actual sin cambios de estado, `riskLevelId` ni `isRiskLevelDesignated`. Los dictámenes de los 4 evaluadores siguen bloqueados.
 - **RF-12.3 (Reasignación Inmutable por Vencimiento o COI)**: Si un evaluador es desasignado por vencimiento del plazo o Conflicto de Interés (`CONFLICTO_INTERES`), el sistema debe conservar inmutable el registro saliente (marcando estado `REASIGNADO_VENCIMIENTO` o `REASIGNADO_COI` con timestamp y motivo) y filtrar obligatoriamente al evaluador reemplazante dentro del mismo perfil estricto (`JURIDICO`, `SOCIEDAD_CIVIL`, `METODOLOGICO` o `SALUD`), aplicando RF-12.7(e) para la fecha de entrega.
-- **RF-12.4 (Requisito de Completitud del 100%)**: El sistema debe impedir el avance a la fase de dictamen final o resolución si falta el reporte del Anexo 9 e Informe Narrativo de cualquiera de los 4 evaluadores (o el Anexo 10 de los 2 seleccionados aleatoriamente).
+- **RF-12.4 (Requisito de Completitud del 100%)**: El sistema debe impedir la emisión de la resolución final si no se cumplen **ambas** condiciones simultáneamente en la versión actual del protocolo (`versionActualId`):
+
+  a. **Nivel designado** (`isRiskLevelDesignated = true`): acuerdo automático (RF-12.2d) o designación en pleno (RF-12.2f). Este campo es la evidencia de que el Anexo 10 fue procesado. Propuestas individuales archivadas (`isCurrent = false`) no invalidan el requisito una vez que el nivel está designado.
+
+  b. **Cuatro dictámenes entregados**: `findActiveAssignmentsByVersionId(versionActualId)` devuelve exactamente 4 asignaciones con `statusId ∈ {SUGGESTED=5, ASSIGNED=6, COMPLETED=7}` y todas en estado `COMPLETED` (statusId=7). Asignaciones con `statusId = REASIGNADO_COI=27` o `REASIGNADO_VENCIMIENTO=26` no cuentan para el cuórum.
+
+  #### Contrato del endpoint `GET /evaluations/completion-status/:protocolId`
+
+  - `protocolId` se recibe como entero vía `ParseIntPipe` en el controlador.
+  - El controlador delega a `isCompletion100PercentByProtocolId(protocolId: number)` en `SubmitEvaluationUseCase`. El use case:
+    1. Busca el protocolo con `IProtocolRepository.findById(protocolId)`; devuelve `false` si no existe.
+    2. Verifica `protocol.isRiskLevelDesignated === true`; devuelve `false` si no.
+    3. Verifica `protocol.versionActualId` definido; devuelve `false` si no.
+    4. Llama a `evaluationRepository.findActiveAssignmentsByVersionId(protocol.versionActualId)`.
+    5. Verifica `length === 4` y `every(a => statusId === COMPLETED)`.
+  - `ISubmitEvaluationRepository` expone solo `findActiveAssignmentsByVersionId(versionId: number)`.
+  - `IProtocolRepository` se inyecta directamente (ya exportado por `ProtocolsModule`, disponible en `EvaluationsModule` via `forwardRef`).
+
+  #### Llamadores identificados
+
+  | Llamador | Archivo | Línea | Problema | Acción |
+  |---|---|---|---|---|
+  | `getCompletionStatus` | `evaluations.controller.ts` | 202 | Sin `ParseIntPipe`; pasa `string`; pasaba `protocolId` donde va `versionId` | Corregir: `ParseIntPipe` + `isCompletion100PercentByProtocolId` |
+  | Tests de `isCompletion100Percent` | `submit-evaluation.use-case.spec.ts` | 65, 89, 131 | Prueban el método obsoleto | Reescribir con el nuevo método |
+  | Pending check en `submitEvaluation` | `evaluations.service.ts` | ~710 | `findAssignmentsByVersionId` incluye `REASIGNADO_COI=27` en `pending`; protocolo nunca avanza a `EVALUADO=14` si hubo COI | Registrado como TSK-002-N34 (no implementar en este PR) |
+
+  #### Bandeja de Resoluciones (`GET /evaluations/evaluators/dashboard`)
+
+  La consulta filtra `isRiskLevelDesignated = true`; esto satisface la condición (a) para listar protocolos candidatos. El frontend habilita el botón de generación de resolución llamando `GET /evaluations/completion-status/:protocolId`; esa respuesta retorna `true` para el protocolo 169 después de implementar TSK-002-N33.
 - **RF-12.5 (Continuidad Evaluadora en Versiones Mayores v2.0/v3.0)**: Al resometer una versión mayor tras dictamen de subsanación (`v2.0`), el sistema debe heredar automáticamente la asignación de los 4 evaluadores originales de la versión previa.
 - **RF-12.6 (Notificaciones Automatizadas con Deep-Linking)**: El sistema debe notificar inmediatamente por correo al evaluador asignado/reasignado incluyendo el resumen del protocolo, el tiempo mínimo de revisión (`plazo_revision_oficio_dias`) y la indicación de que la fecha de entrega se informará cuando el protocolo se agende en una convocatoria, la indicación explícita sobre el Anexo 10 y enlace directo (deep-linking) a su formulario de evaluación.
 - **RF-12.7 (Plazos del Evaluador):**
@@ -102,7 +130,7 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 2f. **Criterio EARS (RF-12.2f — Designación en pleno)**: **Cuando** la Secretaría llame al endpoint de designación en pleno sobre un protocolo en estado `DISCREPANCIA_RIESGO` con un `riskLevelId` activo y un `meetingId` que incluya este protocolo, **el sistema debe** responder `200 OK`, aplicar la designación, derivar `reviewType`, avanzar estado a `EN_EVALUACION` (por código), registrar en bitácora con userId y meetingId, y notificar a los 4 evaluadores. **Si** el protocolo no está en `DISCREPANCIA_RIESGO` o la convocatoria no incluye este protocolo, **el sistema debe** responder `409 Conflict`.
 2g. **Criterio EARS (RF-12.2g — Espera)**: **Mientras** solo uno de los 2 evaluadores de Anexo 10 haya enviado su propuesta vigente, **el sistema no debe** modificar `riskLevelId`, `isRiskLevelDesignated`, ni el estado del protocolo.
 3. **Criterio EARS (RF-12.3)**: **Si** se ejecuta la reasignación de un evaluador por `VENCIMIENTO` o `CONFLICTO_INTERES`, **el sistema debe** registrar el evento en la bitácora de auditoría sin borrar el registro histórico, limitar la lista de selección al mismo perfil del evaluador saliente y aplicar RF-12.7(e) para la fecha de entrega del reemplazante.
-4. **Criterio EARS (RF-12.4)**: **Mientras** no se haya registrado el 100% de las evaluaciones de la cuota de 4 miembros (Anexos 9, Anexo 10 e Informes Narrativos), **el sistema debe** impedir la emisión de la resolución final de la Convocatoria.
+4. **Criterio EARS (RF-12.4)**: **Mientras** `protocol.isRiskLevelDesignated` sea `false` **o** las 4 asignaciones activas de `versionActualId` no estén todas en estado `COMPLETED` (excluyendo `REASIGNADO_COI=27` y `REASIGNADO_VENCIMIENTO=26`), **el sistema debe** retornar `isCompletion100Percent: false` desde `GET /evaluations/completion-status/:protocolId` e impedir la emisión de la resolución final.
 5. **Criterio EARS (RF-12.5)**: **Cuando** un protocolo resometido en versión v2.0 ingrese a control, **el sistema debe** vincular automáticamente a los mismos 4 evaluadores asignados en v1.0.
 6. **Criterio EARS (RF-12.6)**: **Cuando** un evaluador sea asignado o reasignado, **el sistema debe** despachar un correo con el resumen, la indicación explícita del Anexo 10 y la URL con deep-linking al panel del evaluador.
 

@@ -199,9 +199,13 @@ export class EvaluationsController {
     summary:
       'Consultar si el protocolo tiene el 100% de evaluaciones completadas',
   })
-  async getCompletionStatus(@Param('protocolId') protocolId: string) {
+  async getCompletionStatus(
+    @Param('protocolId', ParseIntPipe) protocolId: number,
+  ) {
     const isComplete =
-      await this.submitEvaluationUseCase.isCompletion100Percent(protocolId);
+      await this.submitEvaluationUseCase.isCompletion100PercentByProtocolId(
+        protocolId,
+      );
     return {
       protocolId,
       isCompletion100Percent: isComplete,
@@ -352,5 +356,18 @@ export class EvaluationsController {
     @Param('protocolId', ParseIntPipe) protocolId: number,
   ) {
     return this.getActiveAssignmentsUseCase.execute(protocolId);
+  }
+
+  @Patch('protocols/:protocolId/recalculate-status')
+  @Roles('SECRETARIA', 'PRESIDENTE')
+  @Permissions(Permission.EVALUATORS_ASSIGN)
+  @ApiOperation({
+    summary:
+      'Recalcular y reparar el estado EVALUADO (14) de un protocolo cuyos dictámenes están completos [TSK-002-N34]',
+  })
+  async recalculateProtocolStatus(
+    @Param('protocolId', ParseIntPipe) protocolId: number,
+  ) {
+    return this.submitEvaluationUseCase.finalizeIfComplete(protocolId);
   }
 }
