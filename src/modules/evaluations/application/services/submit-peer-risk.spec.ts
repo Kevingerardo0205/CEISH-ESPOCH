@@ -1,4 +1,4 @@
-import { DataSource } from 'typeorm';
+import { DataSource, In } from 'typeorm';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EvaluationsService } from './evaluations.service';
@@ -754,20 +754,11 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
     expect(mockEvalAssignmentRepo.find).toHaveBeenCalledWith(
       expect.objectContaining({ where: { versionId: 100 } }),
     );
-    expect(userRepoFindSpy).toHaveBeenCalled();
-    const rawCall: unknown[] | undefined = userRepoFindSpy.mock.calls.find(
-      (c) =>
-        c[0] != null && typeof c[0] === 'object' && 'where' in (c[0] as object),
-    );
-    if (rawCall) {
-      const callArg = rawCall[0] as { where: { id: unknown } };
-      const idFilter = callArg.where.id;
-      // In() de TypeORM expone _value con los IDs
-      const ids: number[] = Array.isArray(idFilter)
-        ? (idFilter as number[])
-        : (((idFilter as { _value?: number[] }) ?? {})._value ?? []);
-      expect(ids).toEqual(expect.arrayContaining([10, 20, 30, 40]));
-    }
+    expect(userRepoFindSpy).toHaveBeenCalledTimes(1);
+    const arg = userRepoFindSpy.mock.calls[0][0] as {
+      where: { id: ReturnType<typeof In> };
+    };
+    expect(arg.where.id).toEqual(In([10, 20, 30, 40]));
 
     userRepoFindSpy.mockRestore();
   });
