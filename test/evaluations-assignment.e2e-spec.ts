@@ -393,4 +393,77 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
       'Dictamen de riesgo preliminar',
     );
   });
+
+  it('N34: 4 activas COMPLETED + 1 REASIGNED_COI → findActiveAssignmentsByVersionId excluye COI → pending vacío → protocolo avanzaría a EVALUADO=14', async () => {
+    // Simula el escenario del protocolo 169: Jaime en REASIGNED_COI (no activo),
+    // 4 reemplazantes en COMPLETED. La lógica corregida de submitEvaluation
+    // usa findActiveAssignmentsByVersionId que solo devuelve statusId ∈ {5,6,7}.
+    const protocolId = 400;
+    inMemoryAssignments = [
+      new EvaluationAssignmentEntity({
+        id: 10,
+        protocolId,
+        evaluatorId: 1,
+        evaluatorProfile: EvaluatorProfile.JURIDICO,
+        isAssignedForAnnex10: false,
+        deadlineDate: new Date(),
+        status: AssignmentStatus.REASIGNED_COI, // Jaime — excluido por findActive
+      }),
+      new EvaluationAssignmentEntity({
+        id: 11,
+        protocolId,
+        evaluatorId: 5,
+        evaluatorProfile: EvaluatorProfile.JURIDICO,
+        isAssignedForAnnex10: false,
+        deadlineDate: new Date(),
+        status: AssignmentStatus.COMPLETED,
+      }),
+      new EvaluationAssignmentEntity({
+        id: 12,
+        protocolId,
+        evaluatorId: 2,
+        evaluatorProfile: EvaluatorProfile.SOCIEDAD_CIVIL,
+        isAssignedForAnnex10: false,
+        deadlineDate: new Date(),
+        status: AssignmentStatus.COMPLETED,
+      }),
+      new EvaluationAssignmentEntity({
+        id: 13,
+        protocolId,
+        evaluatorId: 3,
+        evaluatorProfile: EvaluatorProfile.METODOLOGICO,
+        isAssignedForAnnex10: false,
+        deadlineDate: new Date(),
+        status: AssignmentStatus.COMPLETED,
+      }),
+      new EvaluationAssignmentEntity({
+        id: 14,
+        protocolId,
+        evaluatorId: 4,
+        evaluatorProfile: EvaluatorProfile.SALUD,
+        isAssignedForAnnex10: false,
+        deadlineDate: new Date(),
+        status: AssignmentStatus.COMPLETED,
+      }),
+    ];
+
+    const activeAssignments =
+      (await repositoryMock.findActiveAssignmentsByVersionId(
+        protocolId,
+      )) as Array<{ id: number; statusId: number; versionId: number }>;
+
+    // findActiveAssignmentsByVersionId excluye REASIGNED_COI → 4 activas
+    expect(activeAssignments).toHaveLength(4);
+
+    const pending = activeAssignments.filter(
+      (a) => a.statusId !== +AssignmentStatus.COMPLETED,
+    );
+    // Ninguna activa está pendiente → el servicio corregido avanza a EVALUADO=14
+    expect(pending).toHaveLength(0);
+
+    // completion-status también devuelve true (usa la misma lógica)
+    const isComplete =
+      await submitUseCase.isCompletion100PercentByProtocolId(protocolId);
+    expect(isComplete).toBe(true);
+  });
 });

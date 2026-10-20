@@ -357,4 +357,17 @@ export class EvaluationsController {
   ) {
     return this.getActiveAssignmentsUseCase.execute(protocolId);
   }
+
+  @Patch('protocols/:protocolId/recalculate-status')
+  @Roles('SECRETARIA', 'PRESIDENTE')
+  @Permissions(Permission.EVALUATORS_ASSIGN)
+  @ApiOperation({
+    summary:
+      'Recalcular y reparar el estado EVALUADO (14) de un protocolo cuyos dictámenes están completos [TSK-002-N34]',
+  })
+  async recalculateProtocolStatus(
+    @Param('protocolId', ParseIntPipe) protocolId: number,
+  ) {
+    return this.submitEvaluationUseCase.finalizeIfComplete(protocolId);
+  }
 }

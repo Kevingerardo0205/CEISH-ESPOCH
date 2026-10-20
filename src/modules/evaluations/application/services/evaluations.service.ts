@@ -702,12 +702,14 @@ export class EvaluationsService {
         );
     }
 
-    // 6. Verificar si todas las evaluaciones de la versión han finalizado
-    const allAssignments =
-      await this.evaluationRepository.findAssignmentsByVersionId(
+    // 6. Verificar si todas las evaluaciones activas de la versión han finalizado.
+    // TSK-002-N34: findActiveAssignmentsByVersionId excluye REASIGNADO_COI (27) y
+    // REASIGNADO_VENCIMIENTO (26), que no participan en el dictamen final.
+    const activeAssignments =
+      await this.evaluationRepository.findActiveAssignmentsByVersionId(
         assignment.versionId,
       );
-    const pending = allAssignments.filter(
+    const pending = activeAssignments.filter(
       (a) => a.statusId !== +AssignmentStatus.COMPLETED,
     );
 

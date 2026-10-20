@@ -28,7 +28,7 @@ const COMPLETED_4 = [
 
 describe('SubmitEvaluationUseCase (TSK-002-N33)', () => {
   let evalRepoMock: { findActiveAssignmentsByVersionId: jest.Mock };
-  let protocolRepoMock: { findById: jest.Mock };
+  let protocolRepoMock: { findById: jest.Mock; update?: jest.Mock };
   let useCase: SubmitEvaluationUseCase;
 
   beforeEach(() => {
@@ -142,5 +142,50 @@ describe('SubmitEvaluationUseCase (TSK-002-N33)', () => {
       await useCase.isCompletion100PercentByProtocolId(PROTOCOL_ID);
 
     expect(result).toBe(false);
+  });
+
+  describe('finalizeIfComplete (TSK-002-N34)', () => {
+    it('CS-F-01: protocolo 169 completo (4 COMPLETED + isRiskLevelDesignated) → advanced: true y llama protocolRepository.update con statusId=14', async () => {
+      const updateMock = jest.fn().mockResolvedValue(undefined);
+      protocolRepoMock = {
+        findById: jest.fn().mockResolvedValue({
+          id: PROTOCOL_ID,
+          versionActualId: VERSION_ID,
+          isRiskLevelDesignated: true,
+        }),
+        update: updateMock,
+      };
+      useCase = new SubmitEvaluationUseCase(
+        evalRepoMock,
+        protocolRepoMock as any,
+      );
+
+      const result = await useCase.finalizeIfComplete(PROTOCOL_ID);
+
+      expect(result.advanced).toBe(true);
+      expect(result.protocolId).toBe(PROTOCOL_ID);
+      expect(updateMock).toHaveBeenCalledWith(PROTOCOL_ID, { statusId: 14 });
+    });
+
+    it('CS-F-02: protocolo sin isRiskLevelDesignated → advanced: false; no llama update', async () => {
+      const updateMock = jest.fn();
+      protocolRepoMock = {
+        findById: jest.fn().mockResolvedValue({
+          id: PROTOCOL_ID,
+          versionActualId: VERSION_ID,
+          isRiskLevelDesignated: false,
+        }),
+        update: updateMock,
+      };
+      useCase = new SubmitEvaluationUseCase(
+        evalRepoMock,
+        protocolRepoMock as any,
+      );
+
+      const result = await useCase.finalizeIfComplete(PROTOCOL_ID);
+
+      expect(result.advanced).toBe(false);
+      expect(updateMock).not.toHaveBeenCalled();
+    });
   });
 });

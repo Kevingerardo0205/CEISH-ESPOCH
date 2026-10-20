@@ -49,4 +49,30 @@ export class SubmitEvaluationUseCase {
 
     return assignments.every((a) => a.statusId === +AssignmentStatus.COMPLETED);
   }
+
+  /**
+   * Avanza el protocolo a EVALUADO (statusId=14) si cumple RF-12.4.
+   * Idempotente: si ya está en 14 o las condiciones no se cumplen, no modifica nada.
+   * Usado para reparar protocolos que ya tienen 4 dictámenes entregados pero cuyo
+   * statusId no se actualizó por el bug TSK-002-N34.
+   */
+  public async finalizeIfComplete(
+    protocolId: number,
+  ): Promise<{ protocolId: number; advanced: boolean; message: string }> {
+    const isComplete =
+      await this.isCompletion100PercentByProtocolId(protocolId);
+    if (!isComplete) {
+      return {
+        protocolId,
+        advanced: false,
+        message: 'El protocolo no cumple aún las condiciones para EVALUADO.',
+      };
+    }
+    await this.protocolRepository.update(protocolId, { statusId: 14 });
+    return {
+      protocolId,
+      advanced: true,
+      message: 'Protocolo avanzado a EVALUADO (statusId=14).',
+    };
+  }
 }

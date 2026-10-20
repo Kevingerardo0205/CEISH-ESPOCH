@@ -764,11 +764,21 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Pruebas necesarias:** `submitEvaluation` responde < 2 s en entorno de prueba; el correo se despacha tras el retorno 200; tsc limpio; tests E2E verdes.
   - **Hecho cuando:** latencia < 2 s; correo enviado de forma asíncrona sin bloquear la respuesta; documentos PDF/DOCX subidos antes de retornar 200.
 
-- [ ] **TSK-002-N34** (PENDIENTE — no implementar, solo registrado): Bug en `submitEvaluation` — protocolo no avanza a estado `EVALUADO=14` cuando hubo reasignación COI.
+- [x] **TSK-002-N34**: Bug en `submitEvaluation` — protocolo no avanza a estado `EVALUADO=14` cuando hubo reasignación COI. Añade endpoint de reparación para protocolos ya completados.
   - **Requisito relacionado:** RF-12.3, RF-12.4.
-  - **PR:** separado.
-  - **Descripción:** En `evaluations.service.ts` ~línea 706, `findAssignmentsByVersionId` devuelve TODAS las asignaciones de la versión, incluyendo `REASIGNADO_COI=27`. La condición `pending = all.filter(a => statusId !== COMPLETED)` incluye a la asignación COI como "pendiente", por lo que `pending.length > 0` y el protocolo nunca recibe `statusId = 14 (EVALUADO)` al completarse la última evaluación del grupo COI-reemplazado. El `getEvaluatorsDashboard` no filtra por statusId=14 (usa `isRiskLevelDesignated=true`), por lo que la bandeja de la Secretaría no se ve afectada directamente, pero el estado EVALUADO queda inconsistente.
-    **Fix propuesto:** usar `findActiveAssignmentsByVersionId` (ya filtra statusId ∈ {5,6,7}) en lugar de `findAssignmentsByVersionId` para el chequeo de completitud del paso 6.
-  - **Archivos afectados (cuando se implemente):** `evaluations.service.ts` (~línea 706).
-  - **Pruebas necesarias:** tras el último dictamen COI-reemplazado, `protocol.statusId === 14`; tsc limpio; tests verdes.
-  - **Hecho cuando:** protocolo con reasignación COI avanza a EVALUADO=14 al enviar el cuarto dictamen.
+  - **PR:** `fix/completion-status`.
+  - **Descripción:** En `evaluations.service.ts` ~línea 706, `findAssignmentsByVersionId` devuelve TODAS las asignaciones de la versión, incluyendo `REASIGNADO_COI=27`. La condición `pending = all.filter(a => statusId !== COMPLETED)` incluye a la asignación COI como "pendiente", por lo que `pending.length > 0` y el protocolo nunca recibe `statusId = 14 (EVALUADO)`. El frontend (Bandeja de Resoluciones) llama `getProtocolsByStatusId(14)`, por lo que el protocolo nunca aparece allí. El endpoint `completion-status` es independiente de la bandeja; la bandeja filtra por `statusId=14`, no por `completion-status`.
+    **Fix:** `findActiveAssignmentsByVersionId` (statusId ∈ {5,6,7}) en el paso 6 de `submitEvaluation`. Para protocolos ya completados (p. ej. 169): nuevo endpoint `PATCH /evaluations/protocols/:protocolId/recalculate-status` que llama `finalizeIfComplete(protocolId)` en `SubmitEvaluationUseCase`.
+  - **Archivos afectados (MODIFICAR):**
+    - `evaluations.service.ts` (~línea 706)
+    - `src/modules/evaluations/application/use-cases/submit-evaluation.use-case.ts` (nuevo método `finalizeIfComplete`)
+    - `src/modules/evaluations/application/use-cases/submit-evaluation.use-case.spec.ts` (CS-F-01, CS-F-02)
+    - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` (nuevo endpoint PATCH)
+    - `test/evaluations-assignment.e2e-spec.ts` (test N34)
+  - **Pruebas necesarias:**
+    - `CS-F-01`: protocolo 169 (4 COMPLETED + `isRiskLevelDesignated=true`) → `finalizeIfComplete` → `{ advanced: true }`.
+    - `CS-F-02`: protocolo sin nivel designado → `finalizeIfComplete` → `{ advanced: false }`.
+    - N34-E2E: `findActiveAssignmentsByVersionId` con 4 COMPLETED + 1 REASIGNED_COI → `pending = []`.
+  - **Hecho cuando:** `PATCH /evaluations/protocols/169/recalculate-status` responde `{ advanced: true }`; tsc limpio; tests verdes; eslint limpio.
+
+- [ ] **TSK-002-N35** (PENDIENTE — registrado, no implementar): `getSubmitProtocolInfo` incluye asignaciones `REASIGNADO_COI` en el campo `status: 'PENDING'` de la respuesta, lo que podría confundir al frontend al mostrar evaluadores ya reasignados como pendientes. No afecta flujo de completitud ni resolución. Archivo: `evaluations.service.ts` ~línea 1675. Fix: usar `findActiveAssignmentsByVersionId` en ese método.
