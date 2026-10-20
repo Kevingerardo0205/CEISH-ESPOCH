@@ -137,7 +137,6 @@ export class ProtocolsService {
       title: cleanData.title,
       studyTypeId: cleanData.studyTypeId,
       principalInvestigatorId: cleanData.principalInvestigatorId,
-      riskLevelId: cleanData.riskLevelId,
       financingAmount: cleanData.financingAmount,
       financingSources: cleanData.financingSources,
       sponsorRuc: cleanData.sponsorRuc,

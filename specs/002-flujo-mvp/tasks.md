@@ -476,7 +476,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Pruebas necesarias:** Ninguna (diagnóstico).
   - **Hecho cuando:** ✅ Causa raíz documentada.
 
-- [ ] **TSK-002-N24** (PENDIENTE): Refactorizar `submitPeerRiskLevel()` — usar enum de estados, añadir auditoría y notificaciones (RF-12.2c/d/e).
+- [x] **TSK-002-N24**: Refactorizar `submitPeerRiskLevel()` — usar enum de estados, añadir auditoría y notificaciones (RF-12.2c/d/e).
   - **Requisito relacionado:** RF-12.2c, RF-12.2d, RF-12.2e, RF-12.2g.
   - **PR:** PR-H (`feat/risk-level-designation`).
   - **Dependencias:** TSK-002-N23 (causa raíz conocida).
@@ -534,7 +534,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Pruebas necesarias:** `npm test` verde; `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` verde; `npx tsc --noEmit` limpio.
   - **Hecho cuando:** Dos propuestas iguales → `isRiskLevelDesignated = true` + `statusId = EN_EVALUACION` + 3 entradas de auditoría; dos propuestas distintas → `statusId = DISCREPANCIA_RIESGO` + propuestas archivadas + 2 entradas auditoría (sin resetear datos legacy); tsc y ESLint limpios.
 
-- [x] **TSK-002-N25** (PENDIENTE): Nuevo endpoint `PATCH /evaluations/protocols/:protocolId/risk-level` para designación en pleno (RF-12.2f).
+- [x] **TSK-002-N25**: Nuevo endpoint `PATCH /evaluations/protocols/:protocolId/risk-level` para designación en pleno (RF-12.2f).
   - **Requisito relacionado:** RF-12.2f — designación en pleno por Secretaría.
   - **PR:** PR-H (`feat/risk-level-designation`).
   - **Dependencias:** TSK-002-N24 (lógica de designación reutilizada).
@@ -570,7 +570,12 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` — MODIFICAR: añadir `@Patch('protocols/:protocolId/risk-level')`.
     - `test/risk-designation.e2e-spec.ts` — MODIFICAR/CREAR: añadir casos E2E para el endpoint (409 no-DISCREPANCIA, 409 convocatoria incorrecta, 200 designación exitosa, 400 no-entero, 404 protocolo inexistente).
   - **Pruebas necesarias:** `npm test` verde; E2E con casos PL-01…PL-05; `npx tsc --noEmit` limpio.
-  - **Hecho cuando:** Con protocolo en `DISCREPANCIA_RIESGO` y `meetingId` válido, el endpoint responde 200 y el protocolo queda con `isRiskLevelDesignated = true`, `statusId = EN_EVALUACION`; 409 en los casos de protocolo sin discrepancia o convocatoria incorrecta; tsc y ESLint limpios.
+  - **Hecho cuando:** ✅ Con protocolo en `DISCREPANCIA_RIESGO` y `meetingId` válido, el endpoint responde 200 y el protocolo queda con `isRiskLevelDesignated = true`, `statusId = EN_EVALUACION`; 409 en los casos de protocolo sin discrepancia o convocatoria incorrecta; tsc y ESLint limpios.
+  - **Evidencia prueba manual (ceish_db, 2026-10-20, sesión Secretaría):**
+    - `PATCH /api/evaluations/protocols/169/risk-level` con `{ riskLevelId: 5, meetingId: "7fe0e1c1-67db-455c-ae85-e1853467e57b" }` → 200, protocolo 169 en EN_EVALUACION (13), reviewType EXPEDITA.
+    - Segunda llamada al mismo endpoint → 409 (protocolo ya no está en DISCREPANCIA_RIESGO).
+    - Auditoría `RISK_LEVEL_PLENO_DESIGNATED` visible en la bitácora del protocolo.
+    - Evaluadora ya ve el formulario de dictamen (Anexo 9, revisión expedita).
 
 - [ ] **TSK-002-N26** (PENDIENTE): RF-12.2b — verificar niveles no-PET en `catalogos.niveles_riesgo` y marcarlos `activo = false`.
   - **Requisito relacionado:** RF-12.2b — solo los 3 niveles PET son válidos.
@@ -680,3 +685,45 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Pruebas necesarias:** `npm test` verde; contadores coinciden entre pantallas de inicio y Validación Documental; `POST /api/protocols` devuelve protocolo con `statusId = BORRADOR`; migración ejecutable y reversible.
   - **Hecho cuando:** `SELECT COUNT(*) FROM public.protocolos WHERE estado_id IS NULL` = 0; `SELECT COUNT(*) FROM versiones_protocolo WHERE estado_id = 1` = 0; tsc limpio; tests verdes; contadores de bandejas coherentes.
   - **No implementar hasta aprobación explícita.**
+
+- [ ] **TSK-002-N30** (PENDIENTE — no implementar, solo registrado): Deuda de esquema en `evaluacion.convocatoria_protocolos` y `evaluacion.convocatorias`.
+  - **Requisito relacionado:** RF-09 (convocatorias y numeración correlativa).
+  - **PR:** separado, a investigar antes de implementar.
+  - **Descripción:** Hallazgos observados en ceish_db que requieren análisis y decisión antes de cualquier migración:
+
+    **Columnas duplicadas:**
+    - `version_protocolo_id` (varchar, vacío) y `version_id` (int, el que usa el código) coexisten en `evaluacion.convocatoria_protocolos`. Proponer cuál se queda y migrar.
+    - `creado_en`/`actualizado_en` y `created_at`/`updated_at` coexisten. Decidir columna canónica y migrar.
+
+    **FKs sin confirmar:**
+    - `version_id` y `protocolo_id` podrían carecer de FK formal a `versiones_protocolo` y `protocolos`. Verificar con `\d evaluacion.convocatoria_protocolos` y agregar FK si falta.
+
+    **Datos vacíos:**
+    - `fecha_reunion` y `fecha_entrega_evaluacion` vacías en la fila de prueba. Confirmar de dónde las toma la pantalla del frontend.
+
+    **Numeración correlativa:**
+    - `convocatorias.codigo` vacío en convocatorias recientes aunque el frontend muestra "010-2026". Averiguar de dónde sale ese código mostrado y si la numeración correlativa (RF-09) se está guardando correctamente.
+
+    **Otros varchar _id:**
+    - Revisar si hay otras columnas `*_id` en varchar en el esquema `evaluacion` que deberían ser entero o uuid.
+
+  - **Archivos afectados (cuando se implemente):** migraciones TypeORM a definir tras el análisis.
+  - **Pruebas necesarias:** verificación manual de esquema; luego tsc limpio y migración ejecutable/reversible.
+  - **Hecho cuando:** columnas duplicadas eliminadas o consolidadas; FKs confirmadas o añadidas; columna de código canónica identificada; documentado en spec o ADR antes de implementar.
+
+- [ ] **TSK-002-N31** (PENDIENTE — no implementar, solo registrado): Zona horaria en bitácora — hora 5 horas adelantada respecto a Ecuador.
+  - **Requisito relacionado:** UX de auditoría — sin RF directo; afecta la lectura de la bitácora por Secretaría y Presidenta.
+  - **PR:** separado, a analizar antes de implementar.
+  - **Descripción:** Una acción realizada a las 09:05 hora de Ecuador (America/Guayaquil, UTC-5) se muestra en la bitácora como 14:05. La huella almacenada es 19:05Z. Síntoma: la columna `creado_en` / `created_at` de `sistema.audit_log` (u otras tablas de auditoría) se guarda en UTC pero se muestra sin conversión.
+
+    **Puntos a investigar:**
+    - Tipo de la columna en BD: `TIMESTAMP WITHOUT TIME ZONE` (no guarda zona) vs `TIMESTAMP WITH TIME ZONE` (guarda UTC).
+    - Si es `WITHOUT TIME ZONE`: el valor guardado (e.g. `2026-10-20 09:05:00`) puede interpretarse como UTC o local según la configuración de sesión de PostgreSQL.
+    - Si es `WITH TIME ZONE`: el ORM guarda correctamente en UTC (19:05Z) pero la UI muestra el valor raw en lugar de convertir a `America/Guayaquil`.
+    - Revisar `AuditLogOrmEntity` y `BaseOrmEntity`: si usan `@CreateDateColumn()` sin `timezone: true` / `{ type: 'timestamptz' }`.
+
+    **Regla a implementar (una sola):** guardar en UTC (`timestamptz` o valor UTC explícito) y convertir a `America/Guayaquil` en la capa de presentación (o en una vista SQL) antes de mostrar. No guardar hora local en la columna.
+
+  - **Archivos afectados (cuando se implemente):** `AuditLogOrmEntity`, `BaseOrmEntity`, posible migración de tipo de columna, capa de presentación o vista SQL.
+  - **Pruebas necesarias:** tras el fix, una acción a las 09:05 ECT se muestra como 09:05 en la bitácora; tsc limpio; migración ejecutable/reversible.
+  - **Hecho cuando:** la bitácora muestra hora correcta en America/Guayaquil; la regla de zona horaria está documentada en un ADR o en la spec antes de implementar.

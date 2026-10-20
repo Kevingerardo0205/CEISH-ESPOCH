@@ -918,6 +918,9 @@ describe('EvaluationsService - designatePlenumRiskLevel', () => {
       reviewType: ReviewType.EXPEDITA,
       statusId: ProtocolStatus.EN_EVALUACION,
     });
+    expect(mockConvocatoriaProtoRepo.findOne).toHaveBeenCalledWith({
+      where: { convocatoriaId: MEETING_ID, versionId: 141 },
+    });
     expect(mockAuditLogRepo.create).toHaveBeenCalledWith(
       expect.objectContaining({
         userId: USER_ID,
