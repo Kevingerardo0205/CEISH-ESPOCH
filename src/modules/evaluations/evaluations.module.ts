@@ -155,7 +155,7 @@ import { Logger } from '@nestjs/common';
                 payload as import('./infrastructure/adapters/mailer-notification.adapter').EvaluatorAssignedEventPayload;
               mailer.handleEvaluatorAssignedEvent(p).catch((err: unknown) => {
                 moduleLogger.error(
-                  `[N17] Error al enviar correo assignmentId=${p.assignmentId}: ${err instanceof Error ? err.message : String(err)}`,
+                  `[PR-G] Error al enviar correo assignmentId=${p.assignmentId}: ${err instanceof Error ? err.message : String(err)}`,
                 );
               });
             }
@@ -178,7 +178,7 @@ import { Logger } from '@nestjs/common';
                 payload as import('./infrastructure/adapters/mailer-notification.adapter').EvaluatorAssignedEventPayload;
               mailer.handleEvaluatorAssignedEvent(p).catch((err: unknown) => {
                 moduleLogger.error(
-                  `[N17] Error al enviar correo assignmentId=${p.assignmentId}: ${err instanceof Error ? err.message : String(err)}`,
+                  `[PR-G] Error al enviar correo assignmentId=${p.assignmentId}: ${err instanceof Error ? err.message : String(err)}`,
                 );
               });
             }

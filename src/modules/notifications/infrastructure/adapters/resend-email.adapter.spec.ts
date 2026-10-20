@@ -1,6 +1,8 @@
 import { Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
+import { Test } from '@nestjs/testing';
 import { ResendEmailAdapter } from './resend-email.adapter';
+import appConfig from '../../../../config/app.config';
 
 jest.mock('resend', () => ({
   Resend: jest.fn().mockImplementation(() => ({
@@ -183,6 +185,102 @@ describe('ResendEmailAdapter (TSK-002-N18, TSK-002-N20)', () => {
       await adapter.sendPasswordReset('user@test.com', '123456', 'Dr. Test');
 
       expect(mockSend).toHaveBeenCalledTimes(1);
+    });
+  });
+
+  // ─── N20: prueba de integración con ConfigModule real ──────────────────────────
+  // Demuestra que configService.get('app.emailEnabled') resuelve la clave correcta.
+  // Si se usara la clave incorrecta ('emailEnabled' sin prefijo), get() devolvería
+  // undefined → ?? true → emailEnabled=true → SDK sería llamado → el primer it
+  // fallaría en expect(mockSend).not.toHaveBeenCalled(). Esa sería la evidencia de ROJO.
+
+  describe('N20 — integración ConfigModule real: clave app.emailEnabled', () => {
+    const savedEnv: Record<string, string | undefined> = {};
+    const MANAGED_VARS = [
+      'JWT_SECRET',
+      'JWT_REFRESH_SECRET',
+      'ENCRYPTION_KEY',
+      'RESEND_API_KEY',
+      'EMAIL_FROM',
+      'FRONTEND_URL',
+      'EMAIL_ENABLED',
+    ];
+
+    beforeEach(() => {
+      for (const k of MANAGED_VARS) savedEnv[k] = process.env[k];
+      process.env.JWT_SECRET = 'fake-jwt-secret-for-integration-test';
+      process.env.JWT_REFRESH_SECRET = 'fake-refresh-secret-for-test-xx';
+      process.env.ENCRYPTION_KEY = 'fake-encryption-key-for-test-xxx';
+      process.env.RESEND_API_KEY = 're_fake_key_integration';
+      process.env.EMAIL_FROM = 'noreply@test.com';
+      process.env.FRONTEND_URL = 'http://localhost:4200';
+    });
+
+    afterEach(() => {
+      for (const k of MANAGED_VARS) {
+        if (savedEnv[k] === undefined) delete process.env[k];
+        else process.env[k] = savedEnv[k];
+      }
+    });
+
+    it('EMAIL_ENABLED=false → dry-run sin llamar al SDK', async () => {
+      process.env.EMAIL_ENABLED = 'false';
+      const mockSend = jest.fn();
+      Resend.mockImplementation(() => ({ emails: { send: mockSend } }));
+
+      const module = await Test.createTestingModule({
+        imports: [
+          ConfigModule.forRoot({ load: [appConfig], ignoreEnvFile: true }),
+        ],
+        providers: [ResendEmailAdapter],
+      }).compile();
+
+      const adapter = module.get(ResendEmailAdapter);
+      const logSpy = jest
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation(() => undefined);
+
+      await adapter.sendPasswordReset(
+        'test@ceish.ec',
+        '123456',
+        'Evaluador Test',
+      );
+
+      expect(mockSend).not.toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('dry-run'));
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.stringContaining('test@ceish.ec'),
+      );
+
+      await module.close();
+    });
+
+    it('EMAIL_ENABLED ausente → SDK se llama (habilitado por defecto)', async () => {
+      delete process.env.EMAIL_ENABLED;
+      const mockSend = jest
+        .fn()
+        .mockResolvedValue({ data: { id: 'msg-int-001' }, error: null });
+      Resend.mockImplementation(() => ({ emails: { send: mockSend } }));
+
+      const module = await Test.createTestingModule({
+        imports: [
+          ConfigModule.forRoot({ load: [appConfig], ignoreEnvFile: true }),
+        ],
+        providers: [ResendEmailAdapter],
+      }).compile();
+
+      const adapter = module.get(ResendEmailAdapter);
+      jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+
+      await adapter.sendPasswordReset(
+        'test@ceish.ec',
+        '123456',
+        'Evaluador Test',
+      );
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+
+      await module.close();
     });
   });
 });
