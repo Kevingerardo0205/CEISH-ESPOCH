@@ -97,6 +97,8 @@ import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
 import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
 import { endOfDayGuayaquil } from '../../../../shared/services/deadline-calculator.service';
+import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
+import { AuditLogOrmEntity } from '../../../audit/infrastructure/database/audit-log.entity.orm';
 import {
   SystemParamsService,
   SP_EVALUADOR_URGENTE_UMBRAL,
@@ -1072,7 +1074,9 @@ export class EvaluationsService {
     evaluatorId: number,
     dto: SubmitPeerRiskDto,
   ) {
-    return this.dataSource.transaction(async (manager) => {
+    const notify: { fn: (() => Promise<void>) | null } = { fn: null };
+
+    const txResult = await this.dataSource.transaction(async (manager) => {
       const evalAssignmentRepo = manager.getRepository(
         EvaluationAssignmentOrmEntity,
       );
@@ -1161,6 +1165,22 @@ export class EvaluationsService {
         });
         await riskProposalRepo.save(proposal);
 
+        // RF-12.2c — auditoría individual de la propuesta
+        const auditRepo = manager.getRepository(AuditLogOrmEntity);
+        await auditRepo.save(
+          auditRepo.create({
+            userId: evaluatorId,
+            action: 'RISK_PROPOSAL_SUBMITTED',
+            table: 'evaluacion.propuestas_riesgo',
+            recordId: canonicalAssignment.version?.protocolId,
+            newData: {
+              riskLevelId: dto.riskLevelId,
+              round: currentRound,
+              assignmentId,
+            },
+          }),
+        );
+
         // Verificar si los 2 evaluadores de Anexo 10 de esta versión ya enviaron su propuesta vigente
         if (annex10Assignments.length === 2) {
           const p1Assignment = annex10Assignments[0];
@@ -1199,12 +1219,69 @@ export class EvaluationsService {
                   protocol.riskLevelId = finalRiskLevelId;
                   protocol.reviewType = reviewType;
                   protocol.isRiskLevelDesignated = true;
-                  protocol.statusId = 13; // EN EVALUACIÓN
+                  protocol.statusId = ProtocolStatus.EN_EVALUACION;
                   await protocolOrmRepo.save(protocol);
+
+                  // RF-12.2d — auditoría de designación automática (origen SISTEMA)
+                  await auditRepo.save(
+                    auditRepo.create({
+                      action: 'RISK_LEVEL_AUTO_DESIGNATED',
+                      table: 'public.protocolos',
+                      recordId: protocolId,
+                      protocolCode: protocol.ceishCode,
+                      newData: {
+                        riskLevelId: finalRiskLevelId,
+                        reviewType,
+                        round: currentRound,
+                      },
+                    }),
+                  );
+
+                  // capturar datos para notificación post-commit (best-effort)
+                  const versionIdForNotif = canonicalAssignment.versionId;
+                  const protocolCodeForNotif = protocol.ceishCode ?? 'S/C';
+                  const reviewTypeForNotif = String(reviewType);
+                  notify.fn = async (): Promise<void> => {
+                    try {
+                      const allAssignments = await this.evalAssignmentRepo.find(
+                        {
+                          where: { versionId: versionIdForNotif },
+                          select: ['evaluatorId'],
+                        },
+                      );
+                      const userIds = [
+                        ...new Set(
+                          (allAssignments ?? []).map((a) => a.evaluatorId),
+                        ),
+                      ];
+                      const users = await this.userRepository.find({
+                        where: { id: In(userIds) },
+                        select: ['id', 'fullName', 'institutionalEmail'],
+                      });
+                      for (const user of users) {
+                        await this.emailService
+                          .sendRiskLevelDesignated(
+                            user.institutionalEmail,
+                            user.fullName,
+                            protocolCodeForNotif,
+                            reviewTypeForNotif,
+                          )
+                          .catch((err: unknown) =>
+                            this.logger.warn(
+                              `[N24] Error notif designación a ${user.institutionalEmail}: ${err instanceof Error ? err.message : String(err)}`,
+                            ),
+                          );
+                      }
+                    } catch (err: unknown) {
+                      this.logger.warn(
+                        `[N24] Error post-commit notif designación: ${err instanceof Error ? err.message : String(err)}`,
+                      );
+                    }
+                  };
                 }
               } else {
-                // Discrepancia: El sistema pasa el protocolo a estado 16 (DISCREPANCIA_RIESGO)
-                protocol.statusId = 16; // DISCREPANCIA_RIESGO
+                // Discrepancia: El sistema pasa el protocolo a estado DISCREPANCIA_RIESGO
+                protocol.statusId = ProtocolStatus.DISCREPANCIA_RIESGO;
                 protocol.isRiskLevelDesignated = false;
                 await protocolOrmRepo.save(protocol);
 
@@ -1212,6 +1289,58 @@ export class EvaluationsService {
                 p1Proposal.isCurrent = false;
                 p2Proposal.isCurrent = false;
                 await riskProposalRepo.save([p1Proposal, p2Proposal]);
+
+                // RF-12.2e — auditoría de discrepancia (origen SISTEMA)
+                const p1Level = await riskLevelRepo.findOne({
+                  where: { id: p1Proposal.riskLevelId },
+                  select: ['id', 'code'],
+                });
+                const p2Level = await riskLevelRepo.findOne({
+                  where: { id: p2Proposal.riskLevelId },
+                  select: ['id', 'code'],
+                });
+                await auditRepo.save(
+                  auditRepo.create({
+                    action: 'RISK_LEVEL_DISCREPANCY',
+                    table: 'public.protocolos',
+                    recordId: protocolId,
+                    protocolCode: protocol.ceishCode,
+                    newData: {
+                      p1: {
+                        riskLevelId: p1Proposal.riskLevelId,
+                        code: p1Level?.code,
+                      },
+                      p2: {
+                        riskLevelId: p2Proposal.riskLevelId,
+                        code: p2Level?.code,
+                      },
+                      round: currentRound,
+                    },
+                  }),
+                );
+
+                // capturar datos para notificación post-commit (best-effort)
+                const protocolCodeDisc = protocol.ceishCode ?? 'S/C';
+                const codesProposed = [
+                  p1Level?.code ?? String(p1Proposal.riskLevelId),
+                  p2Level?.code ?? String(p2Proposal.riskLevelId),
+                ];
+                notify.fn = async (): Promise<void> => {
+                  try {
+                    const secEmail =
+                      process.env.COMMITTEE_EMAIL ||
+                      'secretaria.ceish@espoch.edu.ec';
+                    await this.emailService.sendRiskDiscrepancyAlert(
+                      secEmail,
+                      protocolCodeDisc,
+                      codesProposed,
+                    );
+                  } catch (err: unknown) {
+                    this.logger.warn(
+                      `[N24] Error post-commit notif discrepancia: ${err instanceof Error ? err.message : String(err)}`,
+                    );
+                  }
+                };
 
                 return {
                   message:
@@ -1299,37 +1428,40 @@ export class EvaluationsService {
 
             protocol.reviewType = reviewType;
             protocol.isRiskLevelDesignated = true; // nivel_riesgo_confirmado = true
-            protocol.statusId = 13; // Volver a estado 'EN EVALUACIÓN' al resolver discrepancias
+            protocol.statusId = ProtocolStatus.EN_EVALUACION;
 
             await protocolOrmRepo.save(protocol);
           }
         } else {
-          // Discrepancia: El sistema no debe consolidar automáticamente al mayor,
-          // sino pasar el protocolo a un estado de disputa/discrepancia (statusId: 16)
-          // y volver a definir el nivel de riesgo por los pares evaluadores designados.
+          // Discrepancia (legacy): pasar el protocolo a estado DISCREPANCIA_RIESGO.
           const protocol = assignment.protocol;
-          protocol.statusId = 16; // 16 = DISCREPANCIA_RIESGO
+          protocol.statusId = ProtocolStatus.DISCREPANCIA_RIESGO;
           protocol.isRiskLevelDesignated = false;
           await protocolOrmRepo.save(protocol);
 
-          // Reiniciar las asignaciones de riesgo de los dos pares para permitir volver a definir
-          for (const pa of peerAssignments) {
-            pa.proposedRiskLevelId = undefined;
-            pa.observations = undefined;
-            pa.reportPath = undefined;
-            pa.submittedAt = undefined;
-            await peerRiskRepo.save(pa);
-          }
+          // TODO: [refactor/remove-legacy-evaluations] Retirar bloque legacy completo. El reset destructivo de las propuestas ya no se aplica; las propuestas se archivan solo en el path canónico (isCurrent = false).
 
           return {
             message:
-              'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El protocolo ha pasado a estado de discrepancia de riesgo y las asignaciones han sido reiniciadas para volver a ser definidas tras llegar a un acuerdo en pleno.',
+              'Se ha detectado una discrepancia en las propuestas del nivel de riesgo. El protocolo ha pasado a estado de discrepancia de riesgo y las propuestas han sido archivadas para permitir una nueva ronda tras el debate en pleno.',
           };
         }
       }
 
       return { message: 'Propuesta de nivel de riesgo enviada exitosamente.' };
     });
+
+    if (notify.fn) {
+      notify
+        .fn()
+        .catch((err: unknown) =>
+          this.logger.warn(
+            `[N24] Error en notificación post-commit: ${err instanceof Error ? err.message : String(err)}`,
+          ),
+        );
+    }
+
+    return txResult;
   }
 
   /**

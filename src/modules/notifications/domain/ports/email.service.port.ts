@@ -77,4 +77,17 @@ export abstract class IEmailServicePort {
     name: string,
     protocols: Array<{ code: string; reason: string }>,
   ): Promise<void>;
+
+  abstract sendRiskLevelDesignated(
+    email: string,
+    name: string,
+    protocolCode: string,
+    reviewType: string,
+  ): Promise<void>;
+
+  abstract sendRiskDiscrepancyAlert(
+    email: string,
+    protocolCode: string,
+    codesProposed: string[],
+  ): Promise<void>;
 }

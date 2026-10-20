@@ -11,6 +11,7 @@ import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity
 import { InvestigatorProfileOrmEntity } from '../../../auth/infrastructure/database/investigator-profile.entity.orm';
 import { EvaluatorProfileUserOrmEntity } from '../../infrastructure/database/evaluator-profile-user.entity.orm';
 import { RiskProposalOrmEntity } from '../../infrastructure/database/entities/risk-proposal.orm-entity';
+import { AuditLogOrmEntity } from '../../../audit/infrastructure/database/audit-log.entity.orm';
 import { IEvaluationRepository } from '../../domain/ports/evaluation.repository.port';
 import { IProtocolRepository } from '../../../protocols/domain/ports/protocol.repository.port';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
@@ -49,6 +50,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
   };
   let mockRiskLevelRepo: { findOne: jest.Mock };
   let mockProtocolOrmRepo: { findOne: jest.Mock; save: jest.Mock };
+  let mockAuditLogRepo: { create: jest.Mock; save: jest.Mock };
   let mockQueryBuilder: {
     setLock: jest.Mock;
     where: jest.Mock;
@@ -101,6 +103,12 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       findOne: jest.fn(),
       save: jest.fn().mockImplementation((entity) => Promise.resolve(entity)),
     };
+    mockAuditLogRepo = {
+      create: jest
+        .fn()
+        .mockImplementation((dto: Partial<AuditLogOrmEntity>) => dto),
+      save: jest.fn().mockResolvedValue({}),
+    };
     const mockManager = {
       getRepository: jest.fn().mockImplementation((entity) => {
         if (entity === EvaluationAssignmentOrmEntity)
@@ -109,6 +117,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
         if (entity === PeerRiskAssignmentOrmEntity) return mockPeerRiskRepo;
         if (entity === RiskLevelOrmEntity) return mockRiskLevelRepo;
         if (entity === ProtocolOrmEntity) return mockProtocolOrmRepo;
+        if (entity === AuditLogOrmEntity) return mockAuditLogRepo;
         return {};
       }),
     };
@@ -133,7 +142,13 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
         },
         { provide: IProtocolRepository, useValue: {} },
         { provide: ProtocolDeadlineService, useValue: {} },
-        { provide: IEmailServicePort, useValue: {} },
+        {
+          provide: IEmailServicePort,
+          useValue: {
+            sendRiskLevelDesignated: jest.fn().mockResolvedValue(undefined),
+            sendRiskDiscrepancyAlert: jest.fn().mockResolvedValue(undefined),
+          },
+        },
         { provide: ConflictOfInterestService, useValue: {} },
         {
           provide: getRepositoryToken(EvaluationAssignmentOrmEntity),
@@ -155,7 +170,10 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
           provide: getRepositoryToken(ProtocolOrmEntity),
           useValue: mockProtocolOrmRepo,
         },
-        { provide: getRepositoryToken(UserOrmEntity), useValue: {} },
+        {
+          provide: getRepositoryToken(UserOrmEntity),
+          useValue: { find: jest.fn().mockResolvedValue([]) },
+        },
         {
           provide: getRepositoryToken(InvestigatorProfileOrmEntity),
           useValue: {},
