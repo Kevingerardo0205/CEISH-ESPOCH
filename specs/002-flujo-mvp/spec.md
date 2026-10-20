@@ -44,6 +44,7 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 2. **Exclusión Aleatoria en Anexo 10**: **Cuando** se confirma la cuota de 4 evaluadores, **el sistema debe** escoger aleatoriamente a 2 evaluadores pertenecientes a `JURIDICO`, `METODOLOGICO` o `SALUD` para llenar el Anexo 10, excluyendo explícitamente a `SOCIEDAD_CIVIL`.
 3. **Reasignación Trazable por Motivo**: **Si** un evaluador es sustituido por `VENCIMIENTO` o `CONFLICTO_INTERES`, **el sistema debe** actualizar su estado histórico (`REASIGNADO_VENCIMIENTO` / `REASIGNADO_COI`), filtrar a los candidatos de reemplazo estrictamente por el mismo perfil saliente y aplicar RF-12.7(e) para la fecha de entrega.
 4. **Notificación con Deep-Linking**: **Cuando** se formaliza una asignación o reasignación, **el sistema debe** enviar un correo electrónico al evaluador con el código del protocolo, el tiempo mínimo de revisión (`plazo_revision_oficio_dias`) y la indicación de que la fecha de entrega se informará cuando el protocolo se agende en una convocatoria, la indicación explícita de si debe llenar el Anexo 10 y un enlace directo a su panel de evaluación.
+5. **Designación de Nivel de Riesgo**: **Cuando** los 2 evaluadores de Anexo 10 envíen propuestas coincidentes, **el sistema debe** designar automáticamente el nivel en el protocolo y liberar los dictámenes de los 4 evaluadores en la misma transacción. **Si** hay discrepancia, el protocolo debe pasar al estado `DISCREPANCIA_RIESGO` y la Secretaría debe poder registrar el nivel acordado en pleno (indicando la convocatoria que incluye este protocolo) para liberar los dictámenes.
 
 ---
 
@@ -52,7 +53,34 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 ### RF-12: Matriz de Asignación, Restricción de Cuotas y Reasignación de Evaluadores Pares
 
 - **RF-12.1 (Composición Estricta de Cuota)**: El sistema debe exigir la asignación de exactamente 4 evaluadores pares por protocolo, asignando obligatoriamente 1 miembro por cada uno de los 4 perfiles requeridos: `JURIDICO` (1), `SOCIEDAD_CIVIL` (1), `METODOLOGICO` (1) y `SALUD` / `ETICA` (1).
-- **RF-12.2 (Selección Aleatoria para Estratificación de Riesgo - Anexo 10)**: El sistema debe seleccionar automáticamente de forma aleatoria a 2 evaluadores de la lista asignada para diligenciar el Anexo 10 (Estratificación del Riesgo), excluyendo de forma estricta e innegociable al evaluador con perfil `SOCIEDAD_CIVIL` (la selección se realiza única y exclusivamente entre los perfiles técnicos: `JURIDICO`, `METODOLOGICO` y `SALUD` / `ETICA`).
+- **RF-12.2 (Estratificación del Riesgo: Selección Aleatoria, Propuesta y Designación del Nivel)**:
+
+  - **RF-12.2a (Selección aleatoria para Anexo 10)**: Al confirmar la asignación de los 4 evaluadores, el sistema selecciona aleatoriamente 2 (únicamente entre los perfiles `JURIDICO`, `METODOLOGICO` y `SALUD/ETICA`, excluyendo de forma estricta e innegociable a `SOCIEDAD_CIVIL`) para diligenciar el Anexo 10 (Estratificación del Riesgo). *Sin cambio respecto a la versión anterior.*
+
+  - **RF-12.2b (Niveles de riesgo válidos del PET)**: Los únicos niveles de riesgo válidos para la estratificación son los tres definidos en el PET del CEISH-ESPOCH: **Sin riesgo**, **Riesgo mínimo** y **Riesgo mayor al mínimo**. Cualquier otro nivel presente en `catalogos.niveles_riesgo` que no corresponda al PET debe marcarse `activo = false` para que no aparezca en formularios ni sea aceptado por las validaciones del sistema. Los registros inactivos no se borran si tienen filas que los referencian.
+
+  - **RF-12.2c (Auditoría de cada propuesta individual)**: **Cuando** un evaluador de Anexo 10 envíe su propuesta de nivel de riesgo, **el sistema debe** registrar inmediatamente en la bitácora de auditoría del protocolo: identificador del evaluador (userId), nivel propuesto (riskLevelId), número de ronda, timestamp. Este registro es independiente del resultado (acuerdo o discrepancia).
+
+  - **RF-12.2d (Designación automática por acuerdo)**: **Cuando** los 2 evaluadores de Anexo 10 de una misma versión de protocolo hayan enviado sus propuestas vigentes (`isCurrent = true`) y ambas coincidan en el mismo nivel de riesgo, **el sistema debe** en una única transacción atómica:
+    1. Fijar `riskLevelId` e `isRiskLevelDesignated = true` en el protocolo.
+    2. Derivar y fijar `reviewType` del protocolo a partir del campo `tipo_revision` del nivel designado en `catalogos.niveles_riesgo` (columna confirmada en ORM: `RiskLevelOrmEntity.reviewType` → `tipo_revision`, nullable).
+    3. Avanzar el estado del protocolo al código `EN_EVALUACION` (buscado por código, nunca por ID numérico).
+    4. Registrar en la bitácora de auditoría del protocolo: origen `SISTEMA`, nivel designado, ronda, timestamp.
+    5. Notificar por correo a los 4 evaluadores pares del protocolo que su dictamen ha sido liberado e indicar el tipo de revisión asignado (RF-12.6).
+
+  - **RF-12.2e (Estado de discrepancia)**: **Si** los 2 evaluadores enviaron propuestas vigentes con niveles distintos, **el sistema debe** en una única transacción atómica:
+    1. Avanzar el estado del protocolo al código `DISCREPANCIA_RIESGO` (buscado por código, nunca por ID numérico). No modificar `riskLevelId` ni `isRiskLevelDesignated`.
+    2. Archivar ambas propuestas de la ronda actual marcando `isCurrent = false` para dejar el historial intacto.
+    3. Registrar en la bitácora de auditoría del protocolo: origen `SISTEMA`, niveles propuestos por cada evaluador, ronda, timestamp.
+    4. Mantener bloqueado el envío de dictámenes de los 4 evaluadores hasta que la Secretaría registre el nivel acordado en pleno (RF-12.2f).
+    5. Notificar por correo a la Secretaría que el protocolo ha entrado en `DISCREPANCIA_RIESGO` y requiere su intervención en pleno (RF-12.6).
+
+  - **RF-12.2f (Designación en pleno por Secretaría)**: **Cuando** el estado del protocolo sea `DISCREPANCIA_RIESGO`, **el sistema debe** permitir a un usuario con rol `SECRETARIA` registrar el nivel de riesgo acordado en la sesión del pleno, aportando obligatoriamente:
+    - `riskLevelId`: nivel elegido (debe estar activo en el catálogo).
+    - `meetingId`: identificador de la convocatoria que incluya este protocolo. **Si** el protocolo no está asociado a ninguna convocatoria, el sistema responde `409 Conflict`. **Si** la convocatoria indicada no incluye este protocolo, el sistema responde `409 Conflict`.
+    Al registrarlo, el sistema aplica los mismos pasos 1–5 de RF-12.2d (designación, reviewType, estado `EN_EVALUACION`, bitácora, notificación a evaluadores), añadiendo el `meetingId` y el `userId` de la Secretaría. **Si** el protocolo no está en `DISCREPANCIA_RIESGO`, el sistema responde `409 Conflict`.
+
+  - **RF-12.2g (Espera de segunda propuesta)**: Mientras solo uno de los 2 evaluadores de Anexo 10 ha enviado su propuesta vigente, el protocolo permanece en su estado actual sin cambios de estado, `riskLevelId` ni `isRiskLevelDesignated`. Los dictámenes de los 4 evaluadores siguen bloqueados.
 - **RF-12.3 (Reasignación Inmutable por Vencimiento o COI)**: Si un evaluador es desasignado por vencimiento del plazo o Conflicto de Interés (`CONFLICTO_INTERES`), el sistema debe conservar inmutable el registro saliente (marcando estado `REASIGNADO_VENCIMIENTO` o `REASIGNADO_COI` con timestamp y motivo) y filtrar obligatoriamente al evaluador reemplazante dentro del mismo perfil estricto (`JURIDICO`, `SOCIEDAD_CIVIL`, `METODOLOGICO` o `SALUD`), aplicando RF-12.7(e) para la fecha de entrega.
 - **RF-12.4 (Requisito de Completitud del 100%)**: El sistema debe impedir el avance a la fase de dictamen final o resolución si falta el reporte del Anexo 9 e Informe Narrativo de cualquiera de los 4 evaluadores (o el Anexo 10 de los 2 seleccionados aleatoriamente).
 - **RF-12.5 (Continuidad Evaluadora en Versiones Mayores v2.0/v3.0)**: Al resometer una versión mayor tras dictamen de subsanación (`v2.0`), el sistema debe heredar automáticamente la asignación de los 4 evaluadores originales de la versión previa.
@@ -66,7 +94,13 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 
 #### Criterios de Aceptación EARS (RF-12)
 1. **Criterio EARS (RF-12.1)**: **Cuando** la Secretaría o Presidente asignen evaluadores a un protocolo, **el sistema debe** validar que la lista contenga exactamente 4 evaluadores con la combinación única de perfiles (`1 Jurídico`, `1 Sociedad Civil`, `1 Metodológico`, `1 Salud`), rechazando cualquier duplicidad o asignación incompleta.
-2. **Criterio EARS (RF-12.2)**: **Cuando** se confirme la asignación de los 4 evaluadores, **el sistema debe** elegir aleatoriamente a 2 evaluadores pertenecientes a los perfiles `JURIDICO`, `METODOLOGICO` o `SALUD` para responder el Anexo 10, excluyendo de forma estricta e innegociable al evaluador con perfil `SOCIEDAD_CIVIL` de dicha estratificación.
+2. **Criterio EARS (RF-12.2a — Selección)**: **Cuando** se confirme la asignación de los 4 evaluadores, **el sistema debe** elegir aleatoriamente a 2 evaluadores pertenecientes a los perfiles `JURIDICO`, `METODOLOGICO` o `SALUD` para responder el Anexo 10, excluyendo de forma estricta e innegociable al evaluador con perfil `SOCIEDAD_CIVIL` de dicha estratificación.
+2b. **Criterio EARS (RF-12.2b — Niveles válidos)**: **Cuando** un evaluador de Anexo 10 intente enviar su propuesta con un `riskLevelId` cuyo registro en `catalogos.niveles_riesgo` tenga `activo = false`, **el sistema debe** rechazar la solicitud con `400 Bad Request`. Los niveles inactivos no deben aparecer en la lista de opciones ofrecida al evaluador por la API.
+2c. **Criterio EARS (RF-12.2c — Auditoría individual)**: **Cuando** un evaluador de Anexo 10 envíe su propuesta de nivel de riesgo, **el sistema debe** crear un registro en la bitácora de auditoría del protocolo con userId, riskLevelId, ronda y timestamp, independientemente del resultado posterior.
+2d. **Criterio EARS (RF-12.2d — Designación automática)**: **Cuando** los 2 evaluadores de Anexo 10 envíen propuestas vigentes con el mismo `riskLevelId`, **el sistema debe** en una transacción: fijar `riskLevelId` e `isRiskLevelDesignated = true`, derivar `reviewType` desde `tipo_revision`, avanzar estado a `EN_EVALUACION` (por código), registrar en bitácora con origen `SISTEMA`, y notificar por correo a los 4 evaluadores. El nivel designado debe coincidir exactamente con el propuesto por ambos.
+2e. **Criterio EARS (RF-12.2e — Discrepancia)**: **Cuando** los 2 evaluadores de Anexo 10 envíen propuestas vigentes con `riskLevelId` distinto, **el sistema debe** avanzar el estado del protocolo a `DISCREPANCIA_RIESGO` (por código), archivar ambas propuestas (`isCurrent = false`), registrar en la bitácora, notificar a la Secretaría, y no modificar `riskLevelId` ni `isRiskLevelDesignated`. Los dictámenes de los 4 evaluadores quedan bloqueados.
+2f. **Criterio EARS (RF-12.2f — Designación en pleno)**: **Cuando** la Secretaría llame al endpoint de designación en pleno sobre un protocolo en estado `DISCREPANCIA_RIESGO` con un `riskLevelId` activo y un `meetingId` que incluya este protocolo, **el sistema debe** responder `200 OK`, aplicar la designación, derivar `reviewType`, avanzar estado a `EN_EVALUACION` (por código), registrar en bitácora con userId y meetingId, y notificar a los 4 evaluadores. **Si** el protocolo no está en `DISCREPANCIA_RIESGO` o la convocatoria no incluye este protocolo, **el sistema debe** responder `409 Conflict`.
+2g. **Criterio EARS (RF-12.2g — Espera)**: **Mientras** solo uno de los 2 evaluadores de Anexo 10 haya enviado su propuesta vigente, **el sistema no debe** modificar `riskLevelId`, `isRiskLevelDesignated`, ni el estado del protocolo.
 3. **Criterio EARS (RF-12.3)**: **Si** se ejecuta la reasignación de un evaluador por `VENCIMIENTO` o `CONFLICTO_INTERES`, **el sistema debe** registrar el evento en la bitácora de auditoría sin borrar el registro histórico, limitar la lista de selección al mismo perfil del evaluador saliente y aplicar RF-12.7(e) para la fecha de entrega del reemplazante.
 4. **Criterio EARS (RF-12.4)**: **Mientras** no se haya registrado el 100% de las evaluaciones de la cuota de 4 miembros (Anexos 9, Anexo 10 e Informes Narrativos), **el sistema debe** impedir la emisión de la resolución final de la Convocatoria.
 5. **Criterio EARS (RF-12.5)**: **Cuando** un protocolo resometido en versión v2.0 ingrese a control, **el sistema debe** vincular automáticamente a los mismos 4 evaluadores asignados en v1.0.
@@ -86,6 +120,8 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 
 - **Evaluadores Insuficientes en un Perfil**: Si la base de datos no cuenta con miembros disponibles en un perfil específico (ej. `JURIDICO`), el sistema rechazará la asignación mostrando una alerta descriptiva a la Secretaría.
 - **Resolicitud de Reasignación Concurrente**: Si dos usuarios administrativos intentan reasignar al mismo evaluador simultáneamente, se bloqueará mediante transacción atómica.
+- **Propuesta corregida antes de que llegue la segunda (reasignación del par)**: Si uno de los 2 evaluadores de Anexo 10 es reasignado (RF-12.3) después de haber enviado su propuesta vigente pero antes de que el otro par envíe la suya, la propuesta del evaluador saliente queda histórica (`isCurrent = false`). El nuevo evaluador designado para Anexo 10 inicia desde cero. El conteo de "ambos enviaron" aplica exclusivamente sobre las propuestas vigentes actuales (`isCurrent = true`).
+- **Reasignación de un evaluador de Anexo 10 cuando el protocolo está en DISCREPANCIA_RIESGO o ya designado**: Si el protocolo ya tiene `isRiskLevelDesignated = true`, una reasignación posterior de uno de los pares de riesgo no revierte la designación. Si el protocolo está en `DISCREPANCIA_RIESGO`, la reasignación no abre una ronda nueva ni cambia el estado: el nivel sigue pendiente de ser decidido en el pleno por la Secretaría (RF-12.2f). RF-12.3 no se modifica en esta tarea.
 
 ---
 
@@ -102,6 +138,9 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 2. Selección aleatoria de Anexo 10 excluyendo de forma estricta e innegociable al evaluador con perfil SOCIEDAD_CIVIL.
 3. Trazabilidad inmutable de reasignaciones por `VENCIMIENTO` o `CONFLICTO_INTERES` aplicando RF-12.7(e) para la fecha de entrega.
 4. Notificaciones por correo comprobables con deep-linking directo al panel.
+5. Designación automática del nivel de riesgo al recibir las 2 propuestas coincidentes: `isRiskLevelDesignated = true`, `reviewType` derivado del campo `tipo_revision` del catálogo y estado `EN_EVALUACION`. Registro en bitácora con origen `SISTEMA` y notificación por correo a los 4 evaluadores.
+6. Endpoint `PATCH /evaluations/protocols/:protocolId/risk-level` (rol `SECRETARIA`) para registrar el nivel acordado en pleno sobre protocolos en estado `DISCREPANCIA_RIESGO`, con `meetingId` obligatorio que incluya el protocolo.
+7. Nivel(es) del catálogo que no correspondan al PET marcados `activo = false`. Auditoría de cada propuesta individual (RF-12.2c): userId, riskLevelId, ronda, timestamp — independientemente del resultado.
 
 ---
 
