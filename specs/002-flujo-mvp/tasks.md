@@ -442,3 +442,146 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Archivos afectados:**
     - Frontend (repositorio correspondiente): confirmar o crear la ruta `/evaluations/:assignmentId/panel` que muestre el panel del evaluador para esa asignación.
   - **Hecho cuando:** la ruta `/evaluations/:assignmentId/panel` existe y responde correctamente en el entorno de staging con un `assignmentId` real; documentado en el PR de N19.
+
+- [ ] **TSK-002-N23** (PENDIENTE): Diagnosticar causa raíz del bug en protocolo 169 — dos propuestas iguales no activaron designación automática.
+  - **Requisito relacionado:** RF-12.2d — designación automática por acuerdo.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Descripción:** El protocolo 169 (`CEISH-ESPOCH-IO-007-2026`) tiene dos evaluadores Anexo 10 (Gabriel Tamayo, versión 141, y Verónica Cando) que enviaron "riesgo mínimo" (mismo nivel) y el protocolo quedó con `riskLevelId = null`, `isRiskLevelDesignated = false`. Los dictámenes de los 4 evaluadores muestran "Evaluación suspendida" porque `annexToUse = null` cuando `isRiskLevelDesignated = false`.
+
+    Hipótesis a confirmar contra `ceish_test_db` (solo lectura):
+    1. ¿Los `assignmentId` de Gabriel Tamayo y Verónica Cando existen en `evaluacion.asignaciones_evaluacion` (canonical) o solo en `evaluacion.asignaciones_pares_riesgo` (legacy)?
+    2. Si son legacy: ¿cuántas filas existen en `asignaciones_pares_riesgo` para `protocolo_id = 169`? Si son ≠ 2, la condición `allSubmitted && peerAssignments.length === 2` (línea 1273) nunca se cumple.
+    3. Si son legacy: ¿Los `proposedRiskLevelId` de ambas filas son iguales? ¿O se resetearon a `undefined` por una ejecución previa de la rama de discrepancia (línea 1316)?
+    4. Si son canonical: ¿Existen filas en `evaluacion.propuestas_riesgo` con `asignacion_id` de esos evaluadores y `es_vigente = true`?
+    5. Verificar si `catalogos.niveles_riesgo` tiene `tipo_revision` en la fila correspondiente a "riesgo mínimo".
+
+    Documentar la causa confirmada en este ítem (actualizar a `[x]`) antes de implementar N24.
+  - **Archivos afectados:** Ninguno (solo lectura de BD). La causa raíz documenta qué líneas de `evaluations.service.ts` (1067–1330) son el punto de fallo.
+  - **Pruebas necesarias:** Ninguna (diagnóstico).
+  - **Hecho cuando:** La causa raíz está identificada y documentada; el investigador puede señalar la línea exacta en `evaluations.service.ts` donde falla la lógica para el protocolo 169.
+
+- [ ] **TSK-002-N24** (PENDIENTE): Refactorizar `submitPeerRiskLevel()` — corregir bug, usar enum de estados, auditoría y notificaciones (RF-12.2c/d/e).
+  - **Requisito relacionado:** RF-12.2c, RF-12.2d, RF-12.2e, RF-12.2g.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Dependencias:** TSK-002-N23 (causa raíz conocida).
+  - **Descripción:** Refactorizar el método `submitPeerRiskLevel` en `evaluations.service.ts` (líneas 1067–1331) para cumplir la spec. Cambios requeridos:
+
+    **1 — Estados por enum (líneas 1202, 1207, 1302, 1311):**
+    Reemplazar los magic numbers `protocol.statusId = 13` y `protocol.statusId = 16` por `ProtocolStatus.EN_EVALUACION` y `ProtocolStatus.DISCREPANCIA_RIESGO` del enum ya importado en `protocol-status.enum.ts`.
+
+    **2 — Auditoría de cada propuesta individual (RF-12.2c):**
+    Inmediatamente después de guardar la propuesta con `riskProposalRepo.save(proposal)` (y el equivalente en la ruta legacy), registrar en `sistema.audit_log` dentro de la misma transacción usando `manager.getRepository(AuditLogOrmEntity)`:
+    ```ts
+    { action: 'RISK_PROPOSAL_SUBMITTED', table: 'evaluacion.propuestas_riesgo',
+      recordId: protocolId, userId: evaluatorId,
+      newData: { riskLevelId: dto.riskLevelId, round: currentRound, assignmentId } }
+    ```
+    Requiere importar `AuditLogOrmEntity` en `evaluations.service.ts` (ya existe en la BD). Requiere añadir `AuditLogOrmEntity` a `TypeOrmModule.forFeature` en `evaluations.module.ts`.
+
+    **3 — Designación automática (RF-12.2d) — ruta canonical:**
+    Dentro del bloque `if (p1Proposal.riskLevelId === p2Proposal.riskLevelId)` (línea 1185):
+    - Mantener la lógica de derivar `reviewType` desde `finalRiskLevel.reviewType` (ya existente).
+    - Añadir registro de auditoría en la misma transacción: `action = 'RISK_LEVEL_AUTO_DESIGNATED'`, `userId = null` (SISTEMA), `newData = { riskLevelId, reviewType, round, versionId }`.
+    - Tras commit de la transacción, notificar best-effort a los 4 evaluadores (NO dentro de la transacción): llamar a `IEmailServicePort.sendRiskLevelDesignated(email, name, protocolCode, reviewType)` para cada asignación activa de la versión. Si falla, `Logger.error` sin relanzar.
+    - **Nota:** `sendRiskLevelDesignated` es un método **nuevo** que debe añadirse a `IEmailServicePort` (puerto) y a `ResendEmailAdapter` (adaptador) con dry-run guard y `result.error` check (misma pauta que N18/N20).
+
+    **4 — Discrepancia (RF-12.2e) — ruta canonical:**
+    Dentro del bloque `else` (línea 1205):
+    - Ya archiva propuestas con `isCurrent = false` — mantener.
+    - Añadir auditoría: `action = 'RISK_LEVEL_DISCREPANCY'`, `userId = null`, `newData = { p1: { riskLevelId, evaluatorId }, p2: { riskLevelId, evaluatorId }, round }`.
+    - Tras commit, notificar best-effort a la Secretaría: `IEmailServicePort.sendRiskDiscrepancyAlert(emailSecretaria, protocolCode, codesProposed)`. Método **nuevo** con misma pauta.
+
+    **5 — Corrección ruta legacy (RF-12.2e, anti-destrucción de datos):**
+    En el bloque `else` de discrepancia legacy (líneas 1315–1322), eliminar el reset destructivo:
+    ```ts
+    pa.proposedRiskLevelId = undefined;
+    pa.observations = undefined;
+    pa.reportPath = undefined;
+    pa.submittedAt = undefined;
+    ```
+    Reemplazar por un registro equivalente a "archivar" que conserve los datos históricos. Dado que `PeerRiskAssignmentOrmEntity` no tiene columna `isCurrent`, la acción correcta es documentar en auditoría y **no modificar** los campos existentes (la BD guarda el historial, los datos ya guardados no se deben destruir). Si la lógica de "permitir nueva ronda" depende de resetear estos campos, documentar en un `TODO` con el issue y no resetear hasta tener una migración que añada `es_vigente` a la tabla legacy.
+
+    **6 — Prueba de regresión:**
+    En `test/real-db-evaluations.e2e-spec.ts` o en un nuevo archivo `test/risk-designation.e2e-spec.ts`, añadir un caso E2E:
+    - Crear 2 propuestas de riesgo con el mismo `riskLevelId` para un protocolo de prueba.
+    - Verificar que el protocolo quede con `isRiskLevelDesignated = true`, `riskLevelId` asignado y `statusId = ProtocolStatus.EN_EVALUACION`.
+    - Verificar que existan 2 entradas en `sistema.audit_log` con `action = 'RISK_PROPOSAL_SUBMITTED'` y 1 con `action = 'RISK_LEVEL_AUTO_DESIGNATED'`.
+
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR (líneas 1067–1331).
+    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR: añadir `AuditLogOrmEntity` a `TypeOrmModule.forFeature`.
+    - `src/modules/notifications/domain/ports/email.service.port.ts` — MODIFICAR: añadir métodos `sendRiskLevelDesignated` y `sendRiskDiscrepancyAlert`.
+    - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: implementar los 2 métodos nuevos con dry-run guard y `result.error` check.
+    - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.spec.ts` — MODIFICAR: añadir tests para los 2 métodos nuevos.
+    - `test/risk-designation.e2e-spec.ts` — CREAR suite E2E (o ampliar `real-db-evaluations.e2e-spec.ts`).
+    - `src/modules/evaluations/application/services/submit-peer-risk.spec.ts` — MODIFICAR: añadir pruebas unitarias del flujo refactorizado.
+  - **Pruebas necesarias:** `npm test` verde; `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` verde; `npx tsc --noEmit` limpio.
+  - **Hecho cuando:** Dos propuestas iguales → `isRiskLevelDesignated = true` + `statusId = EN_EVALUACION` + 3 entradas de auditoría; dos propuestas distintas → `statusId = DISCREPANCIA_RIESGO` + propuestas archivadas + 2 entradas auditoría (sin resetear datos legacy); tsc y ESLint limpios.
+
+- [ ] **TSK-002-N25** (PENDIENTE): Nuevo endpoint `PATCH /evaluations/protocols/:protocolId/risk-level` para designación en pleno (RF-12.2f).
+  - **Requisito relacionado:** RF-12.2f — designación en pleno por Secretaría.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Dependencias:** TSK-002-N24 (lógica de designación reutilizada).
+  - **Descripción:** Endpoint que permite a un usuario con rol `SECRETARIA` registrar el nivel de riesgo acordado en sesión de pleno sobre un protocolo en estado `DISCREPANCIA_RIESGO`.
+
+    **DTO** (`DesignatePlenumRiskDto`):
+    ```ts
+    { riskLevelId: number;  // @IsInt @IsPositive
+      meetingId: string;    // @IsUUID
+    }
+    ```
+
+    **Validaciones** (responden antes de abrir la transacción):
+    1. `protocolId` es entero positivo → 400 si no.
+    2. Protocolo existe en `public.protocolos` → 404 en español si no.
+    3. `protocol.statusId === ProtocolStatus.DISCREPANCIA_RIESGO` → 409 `"El protocolo no está en estado de discrepancia de riesgo"` si no.
+    4. `riskLevel` existe en `catalogos.niveles_riesgo` con `isActive = true` → 404 si no.
+    5. Existe fila en `evaluacion.convocatoria_protocolos` con `convocatoria_id = meetingId` Y `protocolo_id = protocolId` → 409 `"La convocatoria indicada no incluye este protocolo"` si no.
+
+    **Acción** (en una única transacción):
+    - Aplica pasos 1–4 de RF-12.2d: fijar `riskLevelId`, `isRiskLevelDesignated = true`, derivar `reviewType` de `tipo_revision`, avanzar estado a `EN_EVALUACION`.
+    - Registrar en auditoría: `action = 'RISK_LEVEL_PLENO_DESIGNATED'`, `userId = req.user.id`, `newData = { riskLevelId, meetingId, round: 'pleno' }`.
+    - Tras commit, notificar best-effort a los 4 evaluadores con `sendRiskLevelDesignated` (misma función de N24).
+
+    **Seguridad:** `@JwtAuthGuard`, `@Roles('SECRETARIA')`, `@Permissions(Permission.EVALUATORS_ASSIGN)`.
+    **Respuesta:** 200 `{ message: 'Nivel de riesgo designado en pleno exitosamente.', riskLevelId, reviewType, statusId }`.
+
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/dtos/evaluator-dtos.ts` — MODIFICAR: añadir `DesignatePlenumRiskDto`.
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR: añadir método `designatePlenumRiskLevel(protocolId, dto, userId)`.
+    - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` — MODIFICAR: añadir `@Patch('protocols/:protocolId/risk-level')`.
+    - `test/risk-designation.e2e-spec.ts` — MODIFICAR/CREAR: añadir casos E2E para el endpoint (409 no-DISCREPANCIA, 409 convocatoria incorrecta, 200 designación exitosa, 400 no-entero, 404 protocolo inexistente).
+  - **Pruebas necesarias:** `npm test` verde; E2E con casos PL-01…PL-05; `npx tsc --noEmit` limpio.
+  - **Hecho cuando:** Con protocolo en `DISCREPANCIA_RIESGO` y `meetingId` válido, el endpoint responde 200 y el protocolo queda con `isRiskLevelDesignated = true`, `statusId = EN_EVALUACION`; 409 en los casos de protocolo sin discrepancia o convocatoria incorrecta; tsc y ESLint limpios.
+
+- [ ] **TSK-002-N26** (PENDIENTE): RF-12.2b — verificar niveles no-PET en `catalogos.niveles_riesgo` y marcarlos `activo = false`.
+  - **Requisito relacionado:** RF-12.2b — solo los 3 niveles PET son válidos.
+  - **PR:** PR-H (`feat/risk-level-designation`).
+  - **Descripción:** Los únicos niveles de riesgo válidos según el PET del CEISH-ESPOCH son **Sin riesgo**, **Riesgo mínimo** y **Riesgo mayor al mínimo**. Cualquier otro nivel activo en `catalogos.niveles_riesgo` no debe aparecer en formularios ni ser aceptado por validaciones.
+
+    **Paso 1 (investigación, solo lectura):**
+    Ejecutar en `ceish_test_db`:
+    ```sql
+    SELECT id, nombre, codigo, tipo_revision, activo FROM catalogos.niveles_riesgo ORDER BY id;
+    ```
+    Documentar el resultado en este ítem antes de crear la migración.
+
+    **Paso 2 (migración, si hay niveles activos que no son PET):**
+    Crear migración `src/migrations/<timestamp>-MarkNonPetRiskLevelsInactive.ts` con:
+    ```sql
+    UPDATE catalogos.niveles_riesgo
+    SET activo = false
+    WHERE activo = true
+      AND codigo NOT IN ('SIN_RIESGO', 'RIESGO_MINIMO', 'RIESGO_MAYOR_MINIMO');
+    ```
+    El `down` revierte: `UPDATE ... SET activo = true WHERE codigo NOT IN (...)`.
+    **Nota:** los códigos exactos deben confirmarse en el Paso 1; si los códigos difieren, ajustar la lista.
+    **No se borran registros** si tienen filas que los referencian (FK en `asignaciones_pares_riesgo` o `propuestas_riesgo`).
+
+    **Paso 3 (validación ya existente):**
+    La validación `riskLevelRepo.findOne({ where: { id: dto.riskLevelId, isActive: true } })` ya existe en `submitPeerRiskLevel` (línea 1138 de `evaluations.service.ts`) — no requiere cambio de código adicional.
+
+  - **Archivos afectados:**
+    - `src/migrations/<timestamp>-MarkNonPetRiskLevelsInactive.ts` — CREAR (solo si Paso 1 confirma niveles activos no-PET).
+  - **Pruebas necesarias:** `npx tsc --noEmit` limpio; migración ejecutable con `migration:run` y reversible con `migration:revert`; enviar un `riskLevelId` inactivo al endpoint devuelve 404.
+  - **Hecho cuando:** Solo los 3 niveles PET están activos en `ceish_test_db`; los demás tienen `activo = false`; tsc limpio; la validación de `isActive` rechaza IDs de niveles no-PET con 404.
