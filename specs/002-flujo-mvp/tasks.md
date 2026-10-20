@@ -401,7 +401,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Tests:** `npm test` → todos los tests existentes verdes más nuevos; `npx tsc --noEmit` limpio; ESLint sin errores sobre archivos tocados.
   - **Hecho cuando:** `grep -r 'evaluador@espoch.edu.ec'` no aparece en código fuente; `findEnrichmentInfo` es el único punto donde se consulta el email del evaluador para notificaciones; tsc limpio; tests unitarios y E2E verdes; catch registra warning con `evaluadorId` y `protocolId`; logger presente en los tres archivos modificados.
 
-- [ ] **TSK-002-N18** (PENDIENTE): El SDK de Resend no lanza excepción ante respuesta `{ data, error }` — `"Email de asignación enviado"` se loguea aunque la petición falle con 401.
+- [x] **TSK-002-N18**: El SDK de Resend no lanza excepción ante respuesta `{ data, error }` — `"Email de asignación enviado"` se loguea aunque la petición falle con 401.
   - **Requisito relacionado:** RF-12.6 — notificación fiable al evaluador.
   - **PR:** posterior a PR-F.
   - **Descripción:** En `resend-email.adapter.ts`, `this.resend.emails.send(...)` devuelve `{ data, error }` en lugar de lanzar. El adaptador solo hace `await` sobre la llamada pero no inspecciona `error`. Si la clave `RESEND_API_KEY` es inválida o el dominio no está verificado, la respuesta contiene `error != null` pero el código no lo detecta y el log dice "Email enviado" igualmente. Es necesario comprobar `if (result.error) throw new Error(...)` para que los fallos sean observables.
@@ -419,7 +419,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR (depende de TSK-002-N09): el bridge pasa el `assignmentId` del payload al adaptador.
   - **Hecho cuando:** el correo enviado a través de Resend contiene un enlace dinámico `${FRONTEND_URL}/evaluations/${assignmentId}/panel` (no la URL genérica de login); tsc limpio; prueba unitaria verifica el enlace en el html del template.
 
-- [ ] **TSK-002-N20** (PENDIENTE): No existe bandera para deshabilitar el envío de correos en desarrollo.
+- [x] **TSK-002-N20**: No existe bandera para deshabilitar el envío de correos en desarrollo.
   - **Requisito relacionado:** Calidad del entorno de desarrollo.
   - **PR:** posterior a PR-F.
   - **Descripción:** En entorno local o de pruebas, cada ejecución de tests o cada asignación de prueba intenta enviar un correo real a través del SDK de Resend (aunque falle silenciosamente). No hay variable `EMAIL_ENABLED=false` ni modo "dry-run". Se debe añadir soporte para `EMAIL_ENABLED` en `AppConfig` y respetarlo en `ResendEmailAdapter` antes de llamar al SDK.
@@ -427,3 +427,18 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/config/app.config.ts` — MODIFICAR: añadir `emailEnabled: process.env.EMAIL_ENABLED !== 'false'`.
     - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: retornar `void` sin llamar al SDK si `!emailEnabled`.
   - **Hecho cuando:** con `EMAIL_ENABLED=false` en `.env`, los tests E2E no intentan contactar Resend; tsc limpio.
+
+- [ ] **TSK-002-N21** (PENDIENTE): Cuando falla el envío de correo de recuperación de contraseña o de confirmación de cuenta, el usuario recibe HTTP 200 sin saber que el correo no llegó.
+  - **Requisito relacionado:** RF-12.6 — notificación fiable; UX de flujos de auth.
+  - **Descripción:** `N18` hace que `sendPasswordReset` y `sendEmailConfirmation` registren `Logger.error` en lugar de lanzar excepción (para no romper flujos de auth sin manejo de error local). Consecuencia: si Resend falla, `auth.service.ts` devuelve HTTP 200 y el usuario ve un mensaje de éxito, pero el correo nunca llega. Es necesario decidir la UX correcta: ¿devolver 500/502 y que el usuario reintente? ¿Devolver 200 pero mostrar un aviso de "correo pendiente, revisa en unos minutos"? ¿Reintentos internos? La decisión requiere alineación con producto antes de implementar.
+  - **Archivos afectados (cuando se implemente):**
+    - `src/modules/auth/application/services/auth.service.ts` — MODIFICAR: según decisión de UX, propagar error o cambiar el mensaje de respuesta cuando el correo falla.
+    - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: según decisión, puede relanzar en métodos de auth o devolver `boolean` indicando éxito.
+  - **Hecho cuando:** el comportamiento ante fallo de correo en flujos de auth está documentado y aceptado por producto; la implementación elegida tiene pruebas unitarias verdes; tsc limpio.
+
+- [ ] **TSK-002-N22** (PENDIENTE): Verificar que la ruta del deep-link del panel de evaluador exista en el frontend antes de implementar `N19`.
+  - **Requisito relacionado:** RF-12.6 — deep-link correcto al panel de evaluación.
+  - **Descripción:** `N19` (bloqueada por `TSK-002-N09`) enviará en el correo de asignación el enlace `${FRONTEND_URL}/evaluations/${assignmentId}/panel`. Si esa ruta no existe en el frontend, el evaluador llegará a un 404. Esta tarea verifica (o crea) la ruta en el frontend antes de que `N19` se active en producción.
+  - **Archivos afectados:**
+    - Frontend (repositorio correspondiente): confirmar o crear la ruta `/evaluations/:assignmentId/panel` que muestre el panel del evaluador para esa asignación.
+  - **Hecho cuando:** la ruta `/evaluations/:assignmentId/panel` existe y responde correctamente en el entorno de staging con un `assignmentId` real; documentado en el PR de N19.
