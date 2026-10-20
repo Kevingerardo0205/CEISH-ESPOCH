@@ -441,19 +441,42 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** `N19` (bloqueada por `TSK-002-N09`) enviará en el correo de asignación el enlace `${FRONTEND_URL}/evaluations/${assignmentId}/panel`. Si esa ruta no existe en el frontend, el evaluador llegará a un 404. Esta tarea verifica (o crea) la ruta en el frontend antes de que `N19` se active en producción.
   - **Archivos afectados:**
     - Frontend (repositorio correspondiente): confirmar o crear la ruta `/evaluations/:assignmentId/panel` que muestre el panel del evaluador para esa asignación.
-  - **Hecho cuando:** la ruta `/evaluations/:assignmentId/panel` existe y responde correctamente en el entorno de staging con un `assignmentId` real; documentado en el PR de N19.
+  - **Hecho cuando:** la ruta `/evaluations/:assignmentId/panel` existe y responde correctamente en entorno local con un `assignmentId` real; documentado en el PR de N19.
 
 - [ ] **TSK-002-N23** (PENDIENTE): Diagnosticar causa raíz del bug en protocolo 169 — dos propuestas iguales no activaron designación automática.
   - **Requisito relacionado:** RF-12.2d — designación automática por acuerdo.
   - **PR:** PR-H (`feat/risk-level-designation`).
   - **Descripción:** El protocolo 169 (`CEISH-ESPOCH-IO-007-2026`) tiene dos evaluadores Anexo 10 (Gabriel Tamayo, versión 141, y Verónica Cando) que enviaron "riesgo mínimo" (mismo nivel) y el protocolo quedó con `riskLevelId = null`, `isRiskLevelDesignated = false`. Los dictámenes de los 4 evaluadores muestran "Evaluación suspendida" porque `annexToUse = null` cuando `isRiskLevelDesignated = false`.
 
-    Hipótesis a confirmar contra `ceish_test_db` (solo lectura):
-    1. ¿Los `assignmentId` de Gabriel Tamayo y Verónica Cando existen en `evaluacion.asignaciones_evaluacion` (canonical) o solo en `evaluacion.asignaciones_pares_riesgo` (legacy)?
-    2. Si son legacy: ¿cuántas filas existen en `asignaciones_pares_riesgo` para `protocolo_id = 169`? Si son ≠ 2, la condición `allSubmitted && peerAssignments.length === 2` (línea 1273) nunca se cumple.
-    3. Si son legacy: ¿Los `proposedRiskLevelId` de ambas filas son iguales? ¿O se resetearon a `undefined` por una ejecución previa de la rama de discrepancia (línea 1316)?
-    4. Si son canonical: ¿Existen filas en `evaluacion.propuestas_riesgo` con `asignacion_id` de esos evaluadores y `es_vigente = true`?
-    5. Verificar si `catalogos.niveles_riesgo` tiene `tipo_revision` en la fila correspondiente a "riesgo mínimo".
+    **Pista confirmada:** Los formularios de riesgo se enviaron vía `/evaluations/evaluate-risk/84` (Gabriel Tamayo) y `/evaluate-risk/83` (Verónica Cando). Los IDs 83 y 84 corresponden a `evaluacion.asignaciones_evaluacion` de la versión 141 — se usó la **ruta canónica**. El diagnóstico debe centrarse en el estado de `evaluacion.propuestas_riesgo` para esas asignaciones.
+
+    Consultas a ejecutar en `ceish_db` (solo lectura):
+    ```sql
+    -- 1. Propuestas de riesgo de las dos asignaciones Anexo 10 de la versión 141
+    SELECT pr.id, pr.asignacion_id, pr.nivel_riesgo_id, pr.ronda, pr.es_vigente, pr.fecha_propuesta
+    FROM evaluacion.propuestas_riesgo pr
+    WHERE pr.asignacion_id IN (83, 84)
+    ORDER BY pr.asignacion_id, pr.ronda;
+
+    -- 2. Estado actual del protocolo 169
+    SELECT id, codigo_ceish, status_id, nivel_riesgo_id, nivel_riesgo_confirmado, tipo_revision
+    FROM public.protocolos
+    WHERE id = 169;
+
+    -- 3. Asignaciones Anexo 10 de la versión 141 (para confirmar isAssignedForAnnex10 y statusId)
+    SELECT id, evaluador_id, es_asignado_anexo_10, estado_id
+    FROM evaluacion.asignaciones_evaluacion
+    WHERE version_id = 141 AND es_asignado_anexo_10 = true;
+
+    -- 4. Niveles de riesgo disponibles (para confirmar tipo_revision)
+    SELECT id, nombre, codigo, tipo_revision, activo FROM catalogos.niveles_riesgo ORDER BY id;
+    ```
+
+    Con los resultados, determinar cuál de estas causas es la real:
+    - A. Ambas propuestas tienen `es_vigente = true` pero `nivel_riesgo_id` distinto → la BD muestra discrepancia real.
+    - B. Solo una propuesta tiene `es_vigente = true` (la otra fue archivada o nunca se guardó) → la condición `p1Proposal && p2Proposal` (línea 1176) falló.
+    - C. El campo `tipo_revision` del nivel es `null` → `reviewType` queda como `PLENO` por defecto pero algo falla al guardar.
+    - D. Los `nivel_riesgo_id` de ambas propuestas son distintos aunque el usuario eligió "riesgo mínimo" en ambos casos (IDs distintos en el catálogo).
 
     Documentar la causa confirmada en este ítem (actualizar a `[x]`) antes de implementar N24.
   - **Archivos afectados:** Ninguno (solo lectura de BD). La causa raíz documenta qué líneas de `evaluations.service.ts` (1067–1330) son el punto de fallo.
@@ -491,7 +514,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - Añadir auditoría: `action = 'RISK_LEVEL_DISCREPANCY'`, `userId = null`, `newData = { p1: { riskLevelId, evaluatorId }, p2: { riskLevelId, evaluatorId }, round }`.
     - Tras commit, notificar best-effort a la Secretaría: `IEmailServicePort.sendRiskDiscrepancyAlert(emailSecretaria, protocolCode, codesProposed)`. Método **nuevo** con misma pauta.
 
-    **5 — Corrección ruta legacy (RF-12.2e, anti-destrucción de datos):**
+    **5 — Corrección ruta legacy (RF-12.2e, anti-destrucción de datos — alcance mínimo):**
     En el bloque `else` de discrepancia legacy (líneas 1315–1322), eliminar el reset destructivo:
     ```ts
     pa.proposedRiskLevelId = undefined;
@@ -499,7 +522,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     pa.reportPath = undefined;
     pa.submittedAt = undefined;
     ```
-    Reemplazar por un registro equivalente a "archivar" que conserve los datos históricos. Dado que `PeerRiskAssignmentOrmEntity` no tiene columna `isCurrent`, la acción correcta es documentar en auditoría y **no modificar** los campos existentes (la BD guarda el historial, los datos ya guardados no se deben destruir). Si la lógica de "permitir nueva ronda" depende de resetear estos campos, documentar en un `TODO` con el issue y no resetear hasta tener una migración que añada `es_vigente` a la tabla legacy.
+    **Acción correcta:** no modificar los campos; agregar únicamente un `TODO` que señale la rama `refactor/remove-legacy-evaluations` donde se retira el flujo completo. El flujo legacy (`evaluacion.asignaciones_pares_riesgo`) está siendo retirado y no vale la pena rediseñarlo en este PR. La corrección mínima es quitar el reset para que los datos históricos no se destruyan si la ruta legacy aún se ejecuta.
 
     **6 — Prueba de regresión:**
     En `test/real-db-evaluations.e2e-spec.ts` o en un nuevo archivo `test/risk-designation.e2e-spec.ts`, añadir un caso E2E:
@@ -524,10 +547,10 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Dependencias:** TSK-002-N24 (lógica de designación reutilizada).
   - **Descripción:** Endpoint que permite a un usuario con rol `SECRETARIA` registrar el nivel de riesgo acordado en sesión de pleno sobre un protocolo en estado `DISCREPANCIA_RIESGO`.
 
-    **DTO** (`DesignatePlenumRiskDto`):
+    **DTO** (`DesignatePlenumRiskDto`) — tipos verificados contra ORM:
     ```ts
-    { riskLevelId: number;  // @IsInt @IsPositive
-      meetingId: string;    // @IsUUID
+    { riskLevelId: number;  // @IsInt @IsPositive  (catalogos.niveles_riesgo.id → integer)
+      meetingId: string;    // @IsUUID             (evaluacion.convocatorias.id → uuid, confirmado en ConvocatoriaOrmEntity:29)
     }
     ```
 
@@ -560,7 +583,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** Los únicos niveles de riesgo válidos según el PET del CEISH-ESPOCH son **Sin riesgo**, **Riesgo mínimo** y **Riesgo mayor al mínimo**. Cualquier otro nivel activo en `catalogos.niveles_riesgo` no debe aparecer en formularios ni ser aceptado por validaciones.
 
     **Paso 1 (investigación, solo lectura):**
-    Ejecutar en `ceish_test_db`:
+    Ejecutar en `ceish_db` (misma BD donde se creó el protocolo 169; resultado también obtenible en N23 query 4):
     ```sql
     SELECT id, nombre, codigo, tipo_revision, activo FROM catalogos.niveles_riesgo ORDER BY id;
     ```
@@ -584,4 +607,4 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Archivos afectados:**
     - `src/migrations/<timestamp>-MarkNonPetRiskLevelsInactive.ts` — CREAR (solo si Paso 1 confirma niveles activos no-PET).
   - **Pruebas necesarias:** `npx tsc --noEmit` limpio; migración ejecutable con `migration:run` y reversible con `migration:revert`; enviar un `riskLevelId` inactivo al endpoint devuelve 404.
-  - **Hecho cuando:** Solo los 3 niveles PET están activos en `ceish_test_db`; los demás tienen `activo = false`; tsc limpio; la validación de `isActive` rechaza IDs de niveles no-PET con 404.
+  - **Hecho cuando:** Solo los 3 niveles PET están activos en `ceish_db`; los demás tienen `activo = false`; tsc limpio; la validación de `isActive` rechaza IDs de niveles no-PET con 404.
