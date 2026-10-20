@@ -534,7 +534,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Pruebas necesarias:** `npm test` verde; `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` verde; `npx tsc --noEmit` limpio.
   - **Hecho cuando:** Dos propuestas iguales → `isRiskLevelDesignated = true` + `statusId = EN_EVALUACION` + 3 entradas de auditoría; dos propuestas distintas → `statusId = DISCREPANCIA_RIESGO` + propuestas archivadas + 2 entradas auditoría (sin resetear datos legacy); tsc y ESLint limpios.
 
-- [ ] **TSK-002-N25** (PENDIENTE): Nuevo endpoint `PATCH /evaluations/protocols/:protocolId/risk-level` para designación en pleno (RF-12.2f).
+- [x] **TSK-002-N25** (PENDIENTE): Nuevo endpoint `PATCH /evaluations/protocols/:protocolId/risk-level` para designación en pleno (RF-12.2f).
   - **Requisito relacionado:** RF-12.2f — designación en pleno por Secretaría.
   - **PR:** PR-H (`feat/risk-level-designation`).
   - **Dependencias:** TSK-002-N24 (lógica de designación reutilizada).
