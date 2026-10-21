@@ -754,16 +754,17 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Archivos afectados:**
     - MODIFICAR `test/real-db-evaluations.e2e-spec.ts`
     - MODIFICAR `test/meeting-pdf-real.e2e-spec.ts`
-  - **Descripción:** Las suites E2E dejan residuos en `ceish_test_db` porque (a) los IDs 993 y 994 están ausentes de las listas de limpieza global de `real-db-evaluations`; (b) el afterAll interno de N17 no limpia `propuestas_riesgo` ni usa `asignacion_nueva_id` en el historial; (c) `meeting-pdf-real` comparte el ID de protocolo/versión 993 con `real-db-evaluations` y su pre-clean no cubre las FKs de asignaciones; (d) ningún cleanup global incluye `recepcion.recepciones` antes de borrar `versiones_protocolo`. La consecuencia es que la segunda ejecución consecutiva falla con ~50 tests.
+    - MODIFICAR `test/jest-e2e.json`
+  - **Descripción:** Las suites E2E dejan residuos en `ceish_test_db` porque (a) los IDs 993 y 994 están ausentes de las listas de limpieza global de `real-db-evaluations`; (b) el afterAll interno de N17 no limpia `propuestas_riesgo` ni usa `asignacion_nueva_id` en el historial; (c) `meeting-pdf-real` comparte el ID de protocolo/versión 993 con `real-db-evaluations` y su pre-clean no cubre las FKs de asignaciones; (d) ningún cleanup global incluye `recepcion.recepciones` antes de borrar `versiones_protocolo`; (e) sin `maxWorkers: 1`, las suites corren en paralelo contra la misma BD, lo que provoca fallos de cuenta global de convocatorias y errores `duplicate key uq_convocatoria_protocolos_version`.
   - **Subobjetivos:**
     - A. Script SQL de limpieza puntual (scratchpad, no repo): eliminación segura en FK-safe order, dentro de una transacción.
     - B. `real-db-evaluations`: agregar 993, 994 a los IN-lists del beforeAll y afterAll globales; agregar `DELETE FROM recepcion.recepciones` antes de `DELETE FROM versiones_protocolo`; pre-clean en beforeAll de N17; arreglar afterAll de N17 (propuestas_riesgo + asignacion_nueva_id).
     - C. `meeting-pdf-real`: renombrar protocolo/versión 993 → 988 para eliminar el solapamiento; agregar limpieza FK-safe de asignaciones antes de borrar versiones en beforeAll y afterAll.
-    - D. _(NO aplica — `package*.json` está prohibido; `--runInBand` se pasa explícitamente en `npx jest ... --runInBand`)_.
+    - D. `test/jest-e2e.json`: agregar `"maxWorkers": 1` — las suites comparten una única BD (`ceish_test_db`); la ejecución paralela (workers > 1) produce interferencia de datos entre suites y falla el guardia global de convocatorias de `real-db-evaluations` (recibe 66 vs baseline 65 cuando `meeting-pdf-real` corre en simultáneo).
   - **Tests:**
-    - Dos ejecuciones consecutivas de `npx jest --config ./test/jest-e2e.json --forceExit --runInBand`: ambas deben pasar sin nuevos fallos.
-    - Residuos en los rangos 988-994, 990-999 y usuarios 900-915: 0 filas tras cada ejecución.
-  - **Hecho cuando:** tsc limpio; ≥ 147 E2E pasan en dos runs seguidos; 0 residuos verificados con query manual.
+    - Dos ejecuciones consecutivas de `npm run test:e2e` (sin flags extra): ambas deben pasar con "Test Suites: 12 passed, 12 total" y 138 tests.
+    - Residuos en los rangos 985-999 y usuarios 900-915: 0 filas tras cada ejecución.
+  - **Hecho cuando:** tsc limpio; 138 E2E pasan en dos runs seguidos con `npm run test:e2e`; 0 residuos verificados con query manual.
 
 - [ ] **TSK-002-N32** (PENDIENTE — no implementar, solo registrado): Latencia de ~15 s en `POST /api/evaluations/submit`.
   - **Requisito relacionado:** RF-12 (rendimiento del flujo de evaluación).
