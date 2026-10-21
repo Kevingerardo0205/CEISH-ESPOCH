@@ -749,7 +749,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `CS-U-04`: más de 4 asignaciones activas → `false`.
   - **Hecho cuando:** `GET /api/evaluations/completion-status/169` devuelve `isCompletion100Percent: true`; tsc limpio; todos los tests de regresión en verde; eslint limpio sobre archivos tocados.
 
-- [ ] **TSK-E2E-01**: Aislamiento y limpieza de datos E2E — eliminar residuos entre ejecuciones consecutivas.
+- [x] **TSK-E2E-01**: Aislamiento y limpieza de datos E2E — eliminar residuos entre ejecuciones consecutivas.
   - **Requisito relacionado:** Calidad de pruebas (RNF — suites idempotentes).
   - **Archivos afectados:**
     - MODIFICAR `test/real-db-evaluations.e2e-spec.ts`
