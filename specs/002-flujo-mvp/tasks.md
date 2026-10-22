@@ -311,12 +311,12 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 - [x] **TSK-002-N11**: Corregir fallback `adminUserId ?? 1` en `EvaluationsController.reassignEvaluator`.
   - **Requisito relacionado:** Integridad de auditoría — `RF-12.3` registra `ejecutado_por`.
   - **PR:** posterior a PR-D.
-  - **Descripción:** En `evaluations.controller.ts` (línea 191), cuando `req.user` es `undefined`, el controlador usa `adminUserId = 1` y persiste `ejecutado_por = 1` en `evaluacion.asignacion_historial`, falsificando la auditoría. La causa raíz: el fallback `req.user?.id ? Number(req.user.id) : 1` no lanza error cuando el guard falla o cuando se llama sin token. **Investigado en PASO 0**: `JwtAuthGuard` está activo a nivel de clase; en los tests E2E existentes se sobreescribe; en producción nunca debería llegar con `req.user` falsy, pero el fallback permite silenciarlo. Fix: eliminarlo y lanzar `UnauthorizedException` explícita. Segundo fallback detectado en `reassign-evaluator.use-case.ts:277–279` (`|| 1`); queda como código muerto tras el fix del controlador — reportado, no modificado (fuera de scope de la tarea, que solo lista el controlador).
+  - **Descripción:** En `evaluations.controller.ts` (línea 191), cuando `req.user` es `undefined`, el controlador usa `adminUserId = 1` y persiste `ejecutado_por = 1` en `evaluacion.asignacion_historial`, falsificando la auditoría. La causa raíz: el fallback `req.user?.id ? Number(req.user.id) : 1` no lanza error cuando el guard falla o cuando se llama sin token. **Investigado:** `JwtAuthGuard` está activo a nivel de clase; en los tests E2E existentes se sobreescribe; en producción nunca debería llegar con `req.user` falsy, pero el fallback permite silenciarlo. Fix: validar que `rawId` sea number puro o string `/^\d+$/`, exigir `Number.isInteger(n) && n > 0`, y lanzar `UnauthorizedException` si no pasa. Segundo fallback detectado en `reassign-evaluator.use-case.ts:277–279` (`|| 1`); queda inalcanzable con el controlador validando entero positivo — reportado, no modificado (fuera de scope de la tarea, que solo lista el controlador).
   - **Archivos afectados:**
     - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` (línea 191) — MODIFICAR: eliminar el fallback `?? 1` y lanzar `UnauthorizedException` si `req.user` es falsy o su `id` no es numérico.
     - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.spec.ts` — CREAR: unit tests N11-U-01…N11-U-03 para `reassignEvaluator`.
-  - **Hecho cuando:** `req.user` undefined/id inválido en `POST /evaluations/reassign` devuelve 401; caso de uso no es invocado; ningún registro de historial queda con `ejecutado_por = 1` por falta de autenticación; tsc limpio; tests verdes.
-  - **Resultado:** tsc limpio; 384 unit tests verdes (+3: N11-U-01, N11-U-02, N11-U-03); 147 E2E verdes; ESLint sin errores sobre archivos tocados.
+  - **Hecho cuando:** `req.user` undefined/id inválido en `POST /evaluations/reassign` devuelve 401; el caso de uso no es invocado; tsc limpio; tests verdes.
+  - **Resultado:** tsc limpio; 394 unit tests verdes (+13: N11-U-01…N11-U-03, N11-U-Neg×9, N11-U-Pos); 149 E2E verdes; ESLint sin errores sobre archivos tocados.
 
 - [ ] **TSK-002-N12** (PENDIENTE): Consolidar enum `AssignmentStatus` duplicado.
   - **Requisito relacionado:** Limpieza de deuda técnica; sin RF directo.
@@ -340,9 +340,9 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `GET /api/evaluations/protocol/:protocolId/active-assignments`
     - `POST /api/evaluations/reassign` (cobertura N11, 401 sin token)
   - **Archivos afectados:**
-    - `test/reassignment-read-auth.e2e-spec.ts` — CREAR suite E2E con guards reales (N13-A-01…N13-A-04, N13-B-01…N13-B-04, N13-C-01 para POST).
-  - **Hecho cuando:** sin token devuelve 401 real (JwtAuthGuard activo); con JWT de rol `EVALUADOR` devuelve 403 real (RolesGuard activo); token con rol `SECRETARIA` llega al use case y devuelve 200; `POST /reassign` sin token devuelve 401; tsc limpio; tests verdes.
-  - **Resultado:** tsc limpio; 384 unit tests verdes; 147 E2E verdes (+9: N13-A-01…N13-A-04, N13-B-01…N13-B-04, N13-C-01); ESLint sin errores sobre archivos tocados.
+    - `test/reassignment-read-auth.e2e-spec.ts` — CREAR suite E2E con guards reales (N13-A-01…N13-A-05, N13-B-01…N13-B-05, N13-C-01 para POST).
+  - **Hecho cuando:** sin token devuelve 401 real (JwtAuthGuard activo); con JWT de rol `EVALUADOR` devuelve 403 real (RolesGuard activo); token con rol `SECRETARIA` o `PRESIDENTE` llega al use case y devuelve 200; `POST /reassign` sin token devuelve 401 y el caso de uso no es invocado; tsc limpio; tests verdes.
+  - **Resultado:** tsc limpio; 394 unit tests verdes; 149 E2E verdes (+11: N13-A-01…N13-A-05, N13-B-01…N13-B-05, N13-C-01); ESLint sin errores sobre archivos tocados.
 
 - [x] **TSK-002-N14**: Implementar `GET /api/evaluations/protocol/:protocolId/active-assignments`.
   - **Requisito relacionado:** `RF-12.4` — lista de asignaciones activas de un protocolo.
