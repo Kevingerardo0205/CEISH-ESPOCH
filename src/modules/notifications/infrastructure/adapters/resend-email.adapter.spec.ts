@@ -371,7 +371,7 @@ describe('ResendEmailAdapter (TSK-002-N18, TSK-002-N20)', () => {
 
   // ─── N22: sendHtml ──────────────────────────────────────────────────────────
 
-  describe('N22 — sendHtml', () => {
+  describe('N09 — sendHtml', () => {
     it('envía html tal cual a resend.emails.send', async () => {
       const { adapter, mockSend } = makeAdapter(true);
       mockSend.mockResolvedValue({ data: { id: 'msg-html-001' }, error: null });

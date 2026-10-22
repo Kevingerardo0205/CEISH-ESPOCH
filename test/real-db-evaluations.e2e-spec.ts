@@ -101,13 +101,6 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       .useValue({ canActivate: () => true })
       .overrideProvider(AuditService)
       .useValue({ createLog: jest.fn().mockResolvedValue(undefined) })
-      .overrideProvider(MailerNotificationAdapter)
-      .useValue(
-        new MailerNotificationAdapter({
-          sendMail: (opts: { to: string; subject: string; html: string }) =>
-            sendHtmlMock(opts.to, opts.subject, opts.html) as Promise<void>,
-        }),
-      )
       .overrideProvider(IEmailServicePort)
       .useValue({
         sendEvaluationAssignment: jest.fn().mockResolvedValue(undefined),
