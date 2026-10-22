@@ -33,7 +33,7 @@ export class UnscheduledProtocolsAlertService {
     private readonly systemParams: SystemParamsService,
   ) {}
 
-  @Cron('0 8 * * *', { timeZone: 'America/Guayaquil' })
+  @Cron('0 8 * * *', { timeZone: 'America/Guayaquil', unrefTimeout: true })
   async runDailyCheck(): Promise<void> {
     this.logger.log(
       'TSK-002-N03: iniciando verificación diaria de protocolos sin convocatoria',
