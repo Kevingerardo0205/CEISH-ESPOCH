@@ -368,4 +368,53 @@ describe('ResendEmailAdapter (TSK-002-N18, TSK-002-N20)', () => {
       expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('dry-run'));
     });
   });
+
+  // ─── N22: sendHtml ──────────────────────────────────────────────────────────
+
+  describe('N09 — sendHtml', () => {
+    it('envía html tal cual a resend.emails.send', async () => {
+      const { adapter, mockSend } = makeAdapter(true);
+      mockSend.mockResolvedValue({ data: { id: 'msg-html-001' }, error: null });
+      jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+
+      await adapter.sendHtml(
+        'dest@ceish.ec',
+        'Asunto de Prueba',
+        '<p>Contenido HTML</p>',
+      );
+
+      expect(mockSend).toHaveBeenCalledTimes(1);
+      expect(mockSend).toHaveBeenCalledWith(
+        expect.objectContaining({
+          to: 'dest@ceish.ec',
+          subject: 'Asunto de Prueba',
+          html: '<p>Contenido HTML</p>',
+        }),
+      );
+    });
+
+    it('lanza si result.error no es null', async () => {
+      const { adapter, mockSend } = makeAdapter(true);
+      mockSend.mockResolvedValue({
+        data: null,
+        error: { message: 'rate_limit_exceeded', statusCode: 429 },
+      });
+
+      await expect(
+        adapter.sendHtml('dest@ceish.ec', 'Asunto', '<p>HTML</p>'),
+      ).rejects.toThrow('rate_limit_exceeded');
+    });
+
+    it('EMAIL_ENABLED=false → dry-run, SDK no se llama', async () => {
+      const { adapter, mockSend } = makeAdapter(false);
+      const logSpy = jest
+        .spyOn(Logger.prototype, 'log')
+        .mockImplementation(() => undefined);
+
+      await adapter.sendHtml('dest@ceish.ec', 'Asunto', '<p>HTML</p>');
+
+      expect(mockSend).not.toHaveBeenCalled();
+      expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('dry-run'));
+    });
+  });
 });

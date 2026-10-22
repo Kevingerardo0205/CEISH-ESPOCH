@@ -10,7 +10,7 @@ export interface EvaluatorAssignedEventPayload {
   protocolCode?: string;
   evaluatorProfile: EvaluatorProfile;
   isAssignedForAnnex10: boolean;
-  deadlineDate: string;
+  deadlineDate?: string | null;
   isReassignment?: boolean;
 }
 
@@ -47,16 +47,15 @@ export class MailerNotificationAdapter {
     const evaluatorName =
       payload.evaluatorFullName ?? 'Estimado(a) Evaluador(a)';
     const protocolCode = payload.protocolCode ?? payload.protocolId;
-    const deepLinkUrl = `${this.baseUrl}/evaluations/${payload.assignmentId}/panel`;
-    const formattedDeadline = new Date(payload.deadlineDate).toLocaleDateString(
-      'es-EC',
-      {
-        timeZone: 'UTC',
-        year: 'numeric',
-        month: 'long',
-        day: 'numeric',
-      },
-    );
+    const deepLinkUrl = payload.assignmentId
+      ? `${this.baseUrl}/dashboard/evaluations/evaluate/${payload.assignmentId}`
+      : `${this.baseUrl}/dashboard/evaluations/list`;
+    const rawDeadline = payload.deadlineDate || null;
+    const deadlineDateObj = rawDeadline ? new Date(rawDeadline) : null;
+    const deadlineSection =
+      deadlineDateObj !== null && !isNaN(deadlineDateObj.getTime())
+        ? `<p><strong>Fecha límite normativo de entrega:</strong> ${deadlineDateObj.toLocaleDateString('es-EC', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' })}</p>`
+        : `<p>La fecha límite de entrega será comunicada por la Secretaría.</p>`;
 
     const subject = payload.isReassignment
       ? `[REASIGNACIÓN] Evaluación Ética - Protocolo ${protocolCode}`
@@ -79,7 +78,7 @@ export class MailerNotificationAdapter {
         
         ${annex10Notice}
 
-        <p><strong>Fecha límite normativo de entrega:</strong> ${formattedDeadline}</p>
+        ${deadlineSection}
         
         <p style="margin-top: 24px;">
           <a href="${deepLinkUrl}" style="background-color: #0056b3; color: white; padding: 12px 20px; text-decoration: none; border-radius: 4px; font-weight: bold; display: inline-block;">

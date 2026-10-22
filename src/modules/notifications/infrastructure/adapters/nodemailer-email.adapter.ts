@@ -294,4 +294,8 @@ export class NodemailerEmailAdapter implements IEmailServicePort {
       text: `Discrepancia de riesgo en protocolo ${protocolCode}. Niveles propuestos: ${codesProposed.join(' / ')}.`,
     });
   }
+
+  async sendHtml(email: string, subject: string, html: string): Promise<void> {
+    await this.sendMailWithRetry({ to: email, subject, html });
+  }
 }

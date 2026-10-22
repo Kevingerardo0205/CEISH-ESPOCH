@@ -62,6 +62,7 @@ import { EvaluatorAssignmentAdapterService } from './application/services/evalua
 import { UnscheduledProtocolsAlertService } from './application/services/unscheduled-protocols-alert.service';
 import { AuthModule } from '../auth/auth.module';
 import { Logger } from '@nestjs/common';
+import { ConfigService } from '@nestjs/config';
 
 @Module({
   imports: [
@@ -126,23 +127,30 @@ import { Logger } from '@nestjs/common';
       provide: MailerNotificationAdapter,
       useFactory: (
         emailService: IEmailServicePort,
-      ): MailerNotificationAdapter =>
-        new MailerNotificationAdapter({
-          sendMail: async (options: {
-            to: string;
-            subject: string;
-            html: string;
-          }): Promise<void> => {
-            // Adapt to IEmailServicePort or fallback
-            await emailService.sendEvaluationAssignment(
-              options.to,
-              'Evaluador',
-              options.subject,
-              null,
-            );
+        config: ConfigService,
+      ): MailerNotificationAdapter => {
+        const frontendUrl = config.get<string>(
+          'FRONTEND_URL',
+          'https://localhost:4200',
+        );
+        return new MailerNotificationAdapter(
+          {
+            sendMail: async (options: {
+              to: string;
+              subject: string;
+              html: string;
+            }): Promise<void> => {
+              await emailService.sendHtml(
+                options.to,
+                options.subject,
+                options.html,
+              );
+            },
           },
-        }),
-      inject: [IEmailServicePort],
+          frontendUrl,
+        );
+      },
+      inject: [IEmailServicePort, ConfigService],
     },
     {
       provide: AssignEvaluatorsUseCase,

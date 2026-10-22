@@ -531,4 +531,25 @@ export class ResendEmailAdapter implements IEmailServicePort {
       throw error;
     }
   }
+
+  async sendHtml(email: string, subject: string, html: string): Promise<void> {
+    if (this.dryRun(email, subject)) return;
+    try {
+      const result = await this.resend.emails.send({
+        from: this.fromEmail,
+        to: email,
+        subject,
+        html,
+      });
+      if (result.error) {
+        throw new Error(
+          `[Resend] Error en sendHtml: ${result.error.message} (${(result.error as { statusCode?: number }).statusCode ?? 'N/A'})`,
+        );
+      }
+      this.logger.log(`sendHtml exitoso a ${email}, id: ${result.data?.id}`);
+    } catch (error) {
+      this.logger.error(`Error enviando correo HTML a ${email}:`, error);
+      throw error;
+    }
+  }
 }
