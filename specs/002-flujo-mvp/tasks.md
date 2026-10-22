@@ -805,7 +805,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 
 - [ ] **TSK-002-N35** (PENDIENTE — registrado, no implementar): `getSubmitProtocolInfo` incluye asignaciones `REASIGNADO_COI` en el campo `status: 'PENDING'` de la respuesta, lo que podría confundir al frontend al mostrar evaluadores ya reasignados como pendientes. No afecta flujo de completitud ni resolución. Archivo: `evaluations.service.ts` ~línea 1675. Fix: usar `findActiveAssignmentsByVersionId` en ese método.
 
-- [ ] **TSK-002-N36** (PENDIENTE): Rechazar al mismo evaluador como reemplazante por CONFLICTO_INTERES y demostrar con pruebas que VENCIMIENTO lo permite.
+- [x] **TSK-002-N36** (COMPLETADA): Rechazar al mismo evaluador como reemplazante por CONFLICTO_INTERES y demostrar con pruebas que VENCIMIENTO lo permite.
   - **Requisito relacionado:** RF-12.3 (`specs/002-flujo-mvp/spec.md`) — Decisión reunión 21/10/2026.
   - **Criterio EARS:** Criterio EARS RF-12.3 — Reasignación por VENCIMIENTO y por CONFLICTO_INTERES.
   - **PR:** posterior a PR-E.
@@ -816,6 +816,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR: añadir guard al inicio del método `execute`, antes de Validación 1, que lance `ConflictException` si `reason === CONFLICTO_INTERES` y `numReplacementId === currentAssignment.evaluatorId`.
     - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.spec.ts` — MODIFICAR: añadir caso N36-U-01 (VENCIMIENTO mismo evaluador → resultado exitoso, sin excepción) y N36-U-02 (COI mismo evaluador → `ConflictException`). No existe ningún test actual con el mismo evaluador (verificado: todos usan `replacementEvaluatorId: 25` con saliente `evaluatorId: 15`).
   - **Hecho cuando:** tsc limpio; unit tests N36-U-01 y N36-U-02 verdes; el endpoint COI con mismo evaluador devuelve 409; eslint limpio sobre archivos tocados.
+  - **Resultado:** tsc limpio; 406 unit tests (56 suites); 151 E2E (13 suites) × 2 pasadas estables. Tests añadidos: N36-U-01, N36-U-02, N36-U-03 (unit); 13a (409 COI mismo evaluador), 13b (201 VENCIMIENTO mismo evaluador) (E2E). Pendiente: parte frontend (FRONTEND-CEISH).
 
 - [ ] **TSK-002-N37** (PENDIENTE — requiere decisión previa): Fijar plazo del reemplazante a +24 horas corridas cuando el motivo es `VENCIMIENTO`.
   - **Requisito relacionado:** RF-12.7(e) — Decisión reunión 21/10/2026.

@@ -178,18 +178,18 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
     // Limpiar datos previos de prueba de forma acotada
     await dataSource.query(`
-      UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 993, 994, 996, 997, 998, 999);
+      UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 993, 994, 995, 996, 997, 998, 999);
       -- convocatorias primero: la FK convocatoria_protocolos→convocatorias es ON DELETE CASCADE
-      DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999));
-      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 993, 994, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
-      DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999)));
-      DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999));
-      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999));
-      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999));
-      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999);
-      DELETE FROM recepcion.recepciones WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999);
-      DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 993, 994, 996, 997, 998, 999);
-      DELETE FROM public.protocolos WHERE id IN (991, 992, 993, 994, 996, 997, 998, 999);
+      DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+      DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999)));
+      DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM recepcion.recepciones WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM public.protocolos WHERE id IN (991, 992, 993, 994, 995, 996, 997, 998, 999);
       DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
       DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
       DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%';
@@ -324,18 +324,18 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     try {
       if (dataSource && dataSource.isInitialized) {
         await dataSource.query(`
-          UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 993, 994, 996, 997, 998, 999);
+          UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (991, 992, 993, 994, 995, 996, 997, 998, 999);
           -- convocatorias primero: la FK convocatoria_protocolos→convocatorias es ON DELETE CASCADE
-          DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999));
-          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 993, 994, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
-          DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999)));
-          DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999));
-          DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999));
-          DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999));
-          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999);
-          DELETE FROM recepcion.recepciones WHERE version_id IN (991, 992, 993, 994, 996, 997, 998, 999);
-          DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 993, 994, 996, 997, 998, 999);
-          DELETE FROM public.protocolos WHERE id IN (991, 992, 993, 994, 996, 997, 998, 999);
+          DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999) OR protocolo_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+          DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999)));
+          DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM recepcion.recepciones WHERE version_id IN (991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM public.versiones_protocolo WHERE id IN (991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM public.protocolos WHERE id IN (991, 992, 993, 994, 995, 996, 997, 998, 999);
           DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
           DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
           DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%' OR nombre LIKE 'TEST-N08-%';
@@ -2832,4 +2832,98 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       handleSpy.mockRestore();
     });
   }); // end describe('12. TSK-002-N17')
+
+  describe('13. TSK-002-N36 — CONFLICTO_INTERES rechaza mismo evaluador; VENCIMIENTO lo permite', () => {
+    // Protocolo 995 para tests N36.
+    // 13a: COI con evaluador 901→901 (mismo) → 409, sin historial.
+    // 13b: VENCIMIENTO con evaluador 901→901 (mismo) → 201, historial creado.
+    const PC = 995;
+    const ASG_PC = 9950;
+
+    beforeAll(async () => {
+      await dataSource.query(`
+        DELETE FROM evaluacion.asignacion_historial
+          WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC})
+             OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC});
+        DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC};
+        UPDATE public.protocolos SET version_actual_id = NULL WHERE id = ${PC};
+        DELETE FROM public.versiones_protocolo WHERE id = ${PC};
+        DELETE FROM public.protocolos WHERE id = ${PC};
+      `);
+      await dataSource.query(`
+        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision, codigo_ceish)
+        VALUES (${PC}, 'Protocolo N36 Mismo Evaluador E2E', 901, 10, 'PLENO', 'CEISH-ESPOCH-EI-995-2099')
+        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+        VALUES (${PC}, ${PC}, 1, 10)
+        ON CONFLICT (id) DO NOTHING;
+        UPDATE public.protocolos SET version_actual_id = ${PC} WHERE id = ${PC};
+        INSERT INTO evaluacion.asignaciones_evaluacion
+          (id, version_id, evaluador_id, perfil_id, estado_id, es_asignado_anexo_10, fecha_asignacion, fecha_limite)
+        VALUES
+          (${ASG_PC}, ${PC}, 901, ${saludProfileId}, ${AssignmentStatus.ASSIGNED}, false, NOW(), NULL)
+        ON CONFLICT (id) DO NOTHING;
+      `);
+    });
+
+    afterAll(async () => {
+      await dataSource.query(`
+        DELETE FROM evaluacion.asignacion_historial
+          WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC})
+             OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC});
+        DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC};
+        UPDATE public.protocolos SET version_actual_id = NULL WHERE id = ${PC};
+        DELETE FROM public.versiones_protocolo WHERE id = ${PC};
+        DELETE FROM public.protocolos WHERE id = ${PC};
+      `);
+    });
+
+    it('13a. POST /reassign CONFLICTO_INTERES mismo evaluador → 409, sin historial (TSK-002-N36)', async () => {
+      sendHtmlMock.mockClear();
+
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .set('x-user-id', '901')
+        .send({
+          currentAssignmentId: ASG_PC,
+          replacementEvaluatorId: 901,
+          replacementEvaluatorProfile: EvaluatorProfile.SALUD,
+          reason: 'CONFLICTO_INTERES',
+          reasonDescription:
+            'El evaluador tiene conflicto de interés consigo mismo.',
+        });
+
+      expect(res.status).toBe(409);
+
+      const historialRows: Array<{ cnt: string }> = await dataSource.query(
+        `SELECT COUNT(*) AS cnt FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id = $1`,
+        [ASG_PC],
+      );
+      expect(Number(historialRows[0].cnt)).toBe(0);
+      expect(sendHtmlMock).not.toHaveBeenCalled();
+    });
+
+    it('13b. POST /reassign VENCIMIENTO mismo evaluador → 201, historial creado (TSK-002-N36)', async () => {
+      sendHtmlMock.mockClear();
+
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .set('x-user-id', '901')
+        .send({
+          currentAssignmentId: ASG_PC,
+          replacementEvaluatorId: 901,
+          replacementEvaluatorProfile: EvaluatorProfile.SALUD,
+          reason: 'VENCIMIENTO',
+          reasonDescription: 'Plazo vencido; se reasigna al mismo evaluador.',
+        });
+
+      expect(res.status).toBe(201);
+
+      const historialRows: Array<{ cnt: string }> = await dataSource.query(
+        `SELECT COUNT(*) AS cnt FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id = $1`,
+        [ASG_PC],
+      );
+      expect(Number(historialRows[0].cnt)).toBe(1);
+    });
+  }); // end describe('13. TSK-002-N36')
 });
