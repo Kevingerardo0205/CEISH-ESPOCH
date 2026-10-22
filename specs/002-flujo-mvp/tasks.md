@@ -373,6 +373,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 
 - [ ] **TSK-002-N15** (PENDIENTE): `ReassignEvaluatorUseCase` no valida el estado de la asignación saliente.
   - **Requisito relacionado:** Sin regla documentada en los specs. RF-12.3 (`specs/002-flujo-mvp/spec.md:56`) — texto exacto verificado: «Si un evaluador es desasignado por vencimiento del plazo o Conflicto de Interés (`CONFLICTO_INTERES`), el sistema debe conservar inmutable el registro saliente (marcando estado `REASIGNADO_VENCIMIENTO` o `REASIGNADO_COI` con timestamp y motivo) y filtrar obligatoriamente al evaluador reemplazante dentro del mismo perfil estricto (`JURIDICO`, `SOCIEDAD_CIVIL`, `METODOLOGICO` o `SALUD`), aplicando RF-12.7(e) para la fecha de entrega.» La regla describe qué hacer al reasignar; no establece como precondición que el estado previo deba ser SUGGESTED o ASSIGNED.
+  - **Actualización 21/10/2026:** La reunión no abordó explícitamente si se puede reasignar un estado COMPLETED o ya REASIGNED_*. Decisión de negocio sigue PENDIENTE.
   - **PR:** posterior a PR-E.
   - **Descripción:** En `reassign-evaluator.use-case.ts`, después de `findAssignmentById` (línea ~100), el caso de uso no verifica el `statusId` de la asignación saliente. Permite reasignar asignaciones ya en estado `COMPLETED` (7) o en estados `REASIGNED_VENCIMIENTO` (26) / `REASIGNED_COI` (27). **DECISIÓN DE NEGOCIO PENDIENTE:** confirmar con el Presidente o la Secretaría si una asignación en estado COMPLETED o ya REASIGNED_* puede volver a reasignarse. Solo tras esa confirmación se implementa (o descarta) la validación de estado.
   - **Archivos afectados:**
@@ -381,6 +382,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 
 - [ ] **TSK-002-N16** (PENDIENTE): `ReassignEvaluatorDto` exige `replacementEvaluatorProfile`; el contrato del cliente actual no lo envía.
   - **Requisito relacionado:** RF-12.3 (`specs/002-flujo-mvp/spec.md:56`) — texto exacto verificado: «[el sistema debe] filtrar obligatoriamente al evaluador reemplazante dentro del mismo perfil estricto (`JURIDICO`, `SOCIEDAD_CIVIL`, `METODOLOGICO` o `SALUD`), aplicando RF-12.7(e) para la fecha de entrega.» La regla exige que el reemplazante sea del mismo perfil que el saliente, pero no determina si ese perfil debe viajar en el body del cliente o derivarse del registro saliente.
+  - **Actualización 21/10/2026:** La reunión confirma que el formulario de reasignación expone al Secretario la selección del evaluador reemplazante; el perfil puede derivarse del saliente en el backend. Decisión técnica (opción a vs b) sigue pendiente de confirmación con frontend.
   - **PR:** posterior a PR-E.
   - **Descripción:** `ReassignEvaluatorDto` (`evaluator-dtos.ts:72` — línea verificada: `replacementEvaluatorProfile: EvaluatorProfile;` con `@IsEnum` sin `@IsOptional`) declara el campo como obligatorio. El contrato de la API enviado por el cliente actual no incluye este campo, por lo que las peticiones de reasignación fallan la validación. El caso de uso consume `dto.replacementEvaluatorProfile` en tres puntos — líneas verificadas: 206 (`replacementEvaluatorProfile: dto.replacementEvaluatorProfile`), 294 (`evaluatorProfile: dto.replacementEvaluatorProfile`) y 307 (`evaluatorProfile: dto.replacementEvaluatorProfile`). Opciones a evaluar: (a) derivarlo del evaluador saliente, que ya se carga en `findAssignmentById`, y eliminar el campo del DTO; (b) que el cliente lo envíe y documentar el campo como obligatorio en el contrato.
   - **Archivos afectados:**
@@ -802,3 +804,48 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Hecho cuando:** `PATCH /evaluations/protocols/169/recalculate-status` responde `{ advanced: true }`; tsc limpio; tests verdes; eslint limpio.
 
 - [ ] **TSK-002-N35** (PENDIENTE — registrado, no implementar): `getSubmitProtocolInfo` incluye asignaciones `REASIGNADO_COI` en el campo `status: 'PENDING'` de la respuesta, lo que podría confundir al frontend al mostrar evaluadores ya reasignados como pendientes. No afecta flujo de completitud ni resolución. Archivo: `evaluations.service.ts` ~línea 1675. Fix: usar `findActiveAssignmentsByVersionId` en ese método.
+
+- [ ] **TSK-002-N36** (PENDIENTE): Distinguir VENCIMIENTO vs COI en la selección del evaluador reemplazante.
+  - **Requisito relacionado:** RF-12.3 (`specs/002-flujo-mvp/spec.md`) — Decisión reunión 21/10/2026.
+  - **Criterio EARS:** Criterio EARS RF-12.3 — Reasignación por VENCIMIENTO y por CONFLICTO_INTERES.
+  - **PR:** posterior a PR-E.
+  - **Descripción:** Actualmente `ReassignEvaluatorUseCase` no distingue el motivo al filtrar candidatos reemplazantes. Por `VENCIMIENTO` se debe permitir que `replacementEvaluatorId` sea el mismo que el `evaluadorId` del saliente (mismo evaluador). Por `CONFLICTO_INTERES` se debe rechazar con `409 Conflict` si `replacementEvaluatorId` coincide con el `evaluadorId` saliente. El motivo llega en `dto.reason` (`ReassignEvaluatorDto`).
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR: añadir lógica de validación post-`findAssignmentById` que rechace el mismo evaluador cuando `reason === 'CONFLICTO_INTERES'`.
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.spec.ts` — MODIFICAR: añadir casos N36-U-01 (VENCIMIENTO mismo evaluador → ok) y N36-U-02 (COI mismo evaluador → ConflictException).
+  - **Hecho cuando:** tsc limpio; unit tests N36-U-01 y N36-U-02 verdes; eslint limpio sobre archivos tocados.
+
+- [ ] **TSK-002-N37** (PENDIENTE): Fijar `fecha_entrega_evaluacion = fecha_reasignacion + 24 horas corridas` cuando el motivo es `VENCIMIENTO`.
+  - **Requisito relacionado:** RF-12.7(e) — Decisión reunión 21/10/2026.
+  - **Criterio EARS:** Criterio EARS RF-12.3 — Reasignación por VENCIMIENTO.
+  - **PR:** posterior a TSK-002-N36.
+  - **Descripción:** Actualmente `ReassignEvaluatorUseCase` hereda `fecha_entrega_evaluacion` de la convocatoria para todos los motivos (RF-12.7(e) anterior). Según la decisión del 21/10/2026, cuando `dto.reason === 'VENCIMIENTO'` la fecha de entrega debe ser `new Date(fechaReasignacion.getTime() + 24 * 60 * 60 * 1000)` (24 horas corridas). Cuando el motivo es `CONFLICTO_INTERES` u otro, continúa la lógica vigente (herencia de convocatoria o `null` si no agendado). La `fechaReasignacion` es la fecha UTC del momento de ejecución del use case. No usar `toISOString().split('T')[0]` ni `.slice(0,10)`.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR: rama `if (reason === 'VENCIMIENTO')` que calcula `+24h` antes de invocar el repositorio de creación.
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.spec.ts` — MODIFICAR: añadir casos N37-U-01 (VENCIMIENTO → fecha = reasignacion+24h) y N37-U-02 (COI → fecha heredada).
+  - **Hecho cuando:** tsc limpio; unit tests N37-U-01 y N37-U-02 verdes; eslint limpio sobre archivos tocados.
+
+- [ ] **TSK-002-N38** (PENDIENTE): Aceptar evidencia PDF opcional en el formulario de reasignación.
+  - **Requisito relacionado:** RF-12.3 — Decisión reunión 21/10/2026 (formulario incluye evidencia PDF opcional).
+  - **PR:** posterior a TSK-002-N36.
+  - **Descripción:** El endpoint `POST /evaluations/reassign` debe aceptar un archivo PDF opcional (`multipart/form-data`). Si se adjunta, se sube a almacenamiento (`IStorageService.uploadFile`) y se guarda la URL resultante en `evaluacion.asignacion_historial.evidencia_url` (columna nueva). Si no se adjunta, `evidencia_url` queda `null`. El campo `observacion` (texto libre) es independiente del PDF. **No agregar la columna ni la migración sin aprobación del equipo** — registrado aquí para planificación. La migración debe añadir `evidencia_url TEXT NULL` a `evaluacion.asignacion_historial`.
+  - **Archivos afectados (pendiente aprobación de migración):**
+    - `src/migrations/<timestamp>-AddEvidenciaUrlToAsignacionHistorial.ts` — CREAR.
+    - `src/modules/evaluations/infrastructure/database/entities/assignment-history.orm-entity.ts` — MODIFICAR: añadir `@Column({ name: 'evidencia_url', nullable: true }) evidenciaUrl: string | null`.
+    - `src/modules/evaluations/application/dtos/evaluator-dtos.ts` — MODIFICAR: añadir campo opcional `@IsOptional() @IsUrl() evidenciaUrl?: string` en `ReassignEvaluatorDto` (la URL llega ya cargada, o el controlador recibe el archivo).
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR: pasar `evidenciaUrl` al repositorio.
+  - **Hecho cuando:** migración aprobada y ejecutada; endpoint acepta `multipart/form-data`; `evidencia_url` guardada correctamente; tsc limpio; tests verdes.
+
+- [ ] **TSK-002-N39** (PENDIENTE): Implementar informe global de reasignaciones por evaluador (RF-12.8).
+  - **Requisito relacionado:** RF-12.8 (`specs/002-flujo-mvp/spec.md`) — Decisión reunión 21/10/2026.
+  - **Criterio EARS:** Criterio EARS RF-12.8 — Informe de reasignaciones.
+  - **PR:** posterior a TSK-002-N36.
+  - **Descripción:** Crear un endpoint `GET /evaluations/reassignment-report` accesible para `SECRETARIA` y `PRESIDENTE` que acepte parámetros opcionales `desde` y `hasta` (fechas ISO-8601). Devuelve un arreglo con un objeto por evaluador que incluya: `evaluadorId`, `nombreCompleto`, `totalVencimiento` (conteo de registros en `asignacion_historial` con `motivo = 'VENCIMIENTO'` en el período), y `alerta: boolean` (`true` si `totalVencimiento >= 3`). Sin sanción, sin bloqueo, sin notificación automática: el campo `alerta` es solo informativo.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/use-cases/get-reassignment-report.use-case.ts` — CREAR.
+    - `src/modules/evaluations/domain/ports/evaluation.repository.port.ts` — MODIFICAR: añadir `getReassignmentReport(desde?: Date, hasta?: Date): Promise<ReassignmentReportItem[]>`.
+    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR: implementar la consulta SQL.
+    - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` — MODIFICAR: añadir endpoint `GET reassignment-report` con `@Roles('SECRETARIA', 'PRESIDENTE')`.
+    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR: registrar el nuevo use case.
+    - `src/modules/evaluations/application/use-cases/get-reassignment-report.use-case.spec.ts` — CREAR.
+  - **Hecho cuando:** endpoint devuelve JSON con `alerta: true` para evaluadores con ≥3 VENCIMIENTO; tsc limpio; unit tests verdes; eslint limpio sobre archivos tocados.
