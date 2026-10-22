@@ -39,6 +39,8 @@ describe('Reassignment Auth E2E — guards reales (TSK-002-N13)', () => {
   let app: INestApplication;
   let tokenSecretaria: string;
   let tokenEvaluador: string;
+  let tokenPresidente: string;
+  let reassignMock: { execute: jest.Mock };
 
   beforeAll(async () => {
     const dbName = process.env.TEST_DB_NAME || 'ceish_test_db';
@@ -61,7 +63,7 @@ describe('Reassignment Auth E2E — guards reales (TSK-002-N13)', () => {
         assignments: [],
       }),
     };
-    const reassignMock = {
+    reassignMock = {
       execute: jest
         .fn()
         .mockResolvedValue({ message: 'Reasignación exitosa.' }),
@@ -163,6 +165,17 @@ describe('Reassignment Auth E2E — guards reales (TSK-002-N13)', () => {
       },
       { secret, expiresIn: '1h' },
     );
+
+    tokenPresidente = await jwtService.signAsync(
+      {
+        sub: 3,
+        id: 3,
+        email: 'presidente@espoch.edu.ec',
+        roles: ['PRESIDENTE'],
+        permissions: [],
+      },
+      { secret, expiresIn: '1h' },
+    );
   });
 
   afterAll(async () => {
@@ -200,6 +213,18 @@ describe('Reassignment Auth E2E — guards reales (TSK-002-N13)', () => {
       const res = await request(app.getHttpServer())
         .get(url)
         .set('Authorization', `Bearer ${tokenSecretaria}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        data: expect.any(Array),
+        statusCode: 200,
+        message: 'Success',
+      });
+    });
+
+    it('N13-A-05: token válido con rol PRESIDENTE → 200 con envoltorio ResponseInterceptor', async () => {
+      const res = await request(app.getHttpServer())
+        .get(url)
+        .set('Authorization', `Bearer ${tokenPresidente}`);
       expect(res.status).toBe(200);
       expect(res.body).toMatchObject({
         data: expect.any(Array),
@@ -247,6 +272,18 @@ describe('Reassignment Auth E2E — guards reales (TSK-002-N13)', () => {
         message: 'Success',
       });
     });
+
+    it('N13-B-05: token válido con rol PRESIDENTE → 200 con envoltorio ResponseInterceptor', async () => {
+      const res = await request(app.getHttpServer())
+        .get(url)
+        .set('Authorization', `Bearer ${tokenPresidente}`);
+      expect(res.status).toBe(200);
+      expect(res.body).toMatchObject({
+        data: expect.objectContaining({ assignments: expect.any(Array) }),
+        statusCode: 200,
+        message: 'Success',
+      });
+    });
   });
 
   // ── Bloque C: POST /api/evaluations/reassign (cobertura N11) ─────────────
@@ -264,6 +301,7 @@ describe('Reassignment Auth E2E — guards reales (TSK-002-N13)', () => {
       const res = await request(app.getHttpServer()).post(url).send(validBody);
       expect(res.status).toBe(401);
       expect(res.body.statusCode).toBe(401);
+      expect(reassignMock.execute).not.toHaveBeenCalled();
     });
   });
 });
