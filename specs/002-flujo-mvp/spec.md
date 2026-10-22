@@ -184,7 +184,15 @@ Definir la especificación completa del módulo de Asignación, Restricción de 
 
 ## 10. Pendientes por confirmar
 
-> **Decisiones tomadas — reunión 21/10/2026 (reasignación):** (1) Motivos admitidos: `VENCIMIENTO` (plazo vencido) y salida del comité (`CONFLICTO_INTERES`). (2) Por `VENCIMIENTO`, se puede proponer al mismo evaluador saliente; por `CONFLICTO_INTERES`, queda excluido. (3) Plazo del reemplazante por `VENCIMIENTO`: 24 horas corridas desde la reasignación. (4) Formulario: selección de evaluador, motivo, observación libre, evidencia PDF opcional; sin botón "recordar" en perfil Secretaría. (5) Informe: por evaluador, conteo `VENCIMIENTO`, filtrable por fecha, marca ≥3 (sin sanción, sin bloqueo, sin notificación). (6) Evaluador con plazo vencido: no puede enviar; queda "plazo vencido"; actúa Secretaría. — Modelado en RF-12.3, RF-12.7(e), RF-12.8 y TSK-002-N36..N39.
+> **Decisiones tomadas — reunión 21/10/2026 (reasignación):** (1) Motivos admitidos hoy: `VENCIMIENTO` (plazo vencido) y `CONFLICTO_INTERES`; la reasignación por renuncia o salida del comité **no está modelada aún** (pendiente de definición). (2) Por `VENCIMIENTO`, se puede proponer al mismo evaluador saliente; por `CONFLICTO_INTERES`, queda excluido. (3) Plazo del reemplazante por `VENCIMIENTO`: 24 horas corridas desde la reasignación. (4) Formulario: selección de evaluador, motivo, observación libre (`justification`), evidencia PDF opcional; sin botón "recordar" en perfil Secretaría. (5) Informe: por evaluador, conteo `VENCIMIENTO`, filtrable por rango de fechas (ventana de conteo sin definir aún), marca ≥3 (sin sanción, sin bloqueo, sin notificación). (6) Evaluador con plazo vencido: no puede enviar; queda "plazo vencido"; actúa Secretaría. — Modelado en RF-12.3, RF-12.7(e), RF-12.8 y TSK-002-N36..N39.
+
+Pendientes abiertos identificados en la reunión:
+
+- **(i)** Estados de la asignación saliente que permiten reasignar: ¿se puede reasignar una asignación en estado `COMPLETED` (7) o ya `REASIGNADO_VENCIMIENTO` (26) / `REASIGNADO_COI` (27)? Ver TSK-002-N15.
+- **(ii)** Motivo para la reasignación por renuncia o salida del comité: no definido; podría ser un tercer motivo diferente a `VENCIMIENTO` y `CONFLICTO_INTERES`.
+- **(iii)** Plazo del reemplazante en `CONFLICTO_INTERES` y en el futuro motivo de salida del comité: ¿herencia de convocatoria, un plazo fijo diferente a las 24h, u otro?
+- **(iv)** Ventana de conteo para el informe RF-12.8: el filtro es por rango de fechas libre, pero no está definido si hay una ventana rodante implícita (semestral, anual) para decidir si un evaluador tiene ≥3.
+- **(v)** Divergencias de RF-12.1 con lo discutido en la reunión (3 evaluadores por protocolo con mínimo parametrizable, revisión en pleno con todos los perfiles, riesgo solo por `METODOLOGICO` y `SALUD`): a tratar en un PR aparte; **no modificar RF-12.1, RF-12.2 ni RF-12.4 hasta ese PR**.
 
 - Entrega del informe: miércoles 12:00 posterior a la sesión (presidenta).
 - Documentos faltantes: 30 días, ¿laborables o calendario?
