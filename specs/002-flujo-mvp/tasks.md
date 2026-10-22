@@ -760,7 +760,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - A. Script SQL de limpieza puntual (scratchpad, no repo): eliminación segura en FK-safe order, dentro de una transacción.
     - B. `real-db-evaluations`: agregar 993, 994 a los IN-lists del beforeAll y afterAll globales; agregar `DELETE FROM recepcion.recepciones` antes de `DELETE FROM versiones_protocolo`; pre-clean en beforeAll de N17; arreglar afterAll de N17 (propuestas_riesgo + asignacion_nueva_id).
     - C. `meeting-pdf-real`: renombrar protocolo/versión 993 → 988 para eliminar el solapamiento; agregar limpieza FK-safe de asignaciones antes de borrar versiones en beforeAll y afterAll.
-    - D. `test/jest-e2e.json`: agregar `"maxWorkers": 1` — las suites comparten una única BD (`ceish_test_db`); la ejecución paralela (workers > 1) produce interferencia de datos entre suites y falla el guardia global de convocatorias de `real-db-evaluations` (recibe 66 vs baseline 65 cuando `meeting-pdf-real` corre en simultáneo).
+    - D. `test/jest-e2e.json`: agregar `"maxWorkers": 1` (serializa suites) y `"forceExit": true` (Jest 29 queda colgado tras app.close() por handles internos de TypeORM/NestJS) — las suites comparten una única BD (`ceish_test_db`); la ejecución paralela (workers > 1) produce interferencia de datos entre suites y falla el guardia global de convocatorias de `real-db-evaluations` (recibe 66 vs baseline 65 cuando `meeting-pdf-real` corre en simultáneo).
   - **Tests:**
     - Dos ejecuciones consecutivas de `npm run test:e2e` (sin flags extra): ambas deben pasar con "Test Suites: 12 passed, 12 total" y 138 tests.
     - Residuos en los rangos 985-999 y usuarios 900-915: 0 filas tras cada ejecución.
