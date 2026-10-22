@@ -52,4 +52,43 @@ describe('EvaluationsController.reassignEvaluator (TSK-002-N11)', () => {
     expect(adminUserId).toBe(42);
     expect(result).toEqual({ success: true });
   });
+
+  // ── Nuevos casos negativos: ids inválidos deben lanzar UnauthorizedException ──
+
+  it.each([
+    ['0 (cero)', 0],
+    ['-1 (negativo)', -1],
+    ['1.5 (decimal)', 1.5],
+    ['NaN', NaN],
+    ['"" (cadena vacía)', ''],
+    ['"abc" (texto no numérico)', 'abc'],
+    ['true (boolean)', true],
+    ['false (boolean)', false],
+    ['undefined', undefined],
+  ])(
+    'N11-U-Neg: id = %s → lanza UnauthorizedException sin invocar el caso de uso',
+    async (_label, idValue) => {
+      await expect(
+        controller.reassignEvaluator(
+          {} as any,
+          { user: { id: idValue } } as any,
+        ),
+      ).rejects.toThrow(UnauthorizedException);
+      expect(reassignMock).not.toHaveBeenCalled();
+    },
+  );
+
+  // ── Caso positivo: string numérico ────────────────────────────────────────
+
+  it('N11-U-Pos: id "30" (string numérico) → caso de uso recibe 30 como number', async () => {
+    const result = await controller.reassignEvaluator(
+      {} as any,
+      { user: { id: '30' } } as any,
+    );
+
+    expect(reassignMock).toHaveBeenCalledTimes(1);
+    const [, adminUserId] = reassignMock.mock.calls[0] as [unknown, number];
+    expect(adminUserId).toBe(30);
+    expect(result).toEqual({ success: true });
+  });
 });

@@ -190,12 +190,18 @@ export class EvaluationsController {
     @Request() req: Request & { user?: JwtPayload },
   ) {
     const rawId = req.user?.id;
-    if (rawId == null || !Number.isFinite(Number(rawId))) {
+    const n: number =
+      typeof rawId === 'number'
+        ? rawId
+        : typeof rawId === 'string' && /^\d+$/.test(rawId)
+          ? Number(rawId)
+          : NaN;
+    if (!Number.isInteger(n) || n <= 0) {
       throw new UnauthorizedException(
         'El usuario autenticado no tiene un identificador válido.',
       );
     }
-    const adminUserId = Number(rawId);
+    const adminUserId = n;
     return this.reassignEvaluatorUseCase.execute(dto, adminUserId);
   }
 
