@@ -149,16 +149,19 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
       SET statement_timeout = '10s';
     `);
 
-    // Limpieza preventiva de datos TEST-M4 de ejecuciones anteriores
+    // Limpieza preventiva de datos TEST-M4 de ejecuciones anteriores (FK-safe)
     await dataSource.query(`
-      DELETE FROM evaluacion.convocatorias
-        WHERE id IN (
-          SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id = 993
-        ) OR numero_convocatoria LIKE 'TEST-M4-%';
+      DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988));
+      DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988);
+      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988);
+      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988);
+      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988;
+      DELETE FROM evaluacion.convocatorias WHERE id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id = 988) OR numero_convocatoria LIKE 'TEST-M4-%';
+      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id = 988;
       DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-M4-%';
-      UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 993;
-      DELETE FROM public.versiones_protocolo WHERE id = 993;
-      DELETE FROM public.protocolos WHERE id = 993;
+      UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 988;
+      DELETE FROM public.versiones_protocolo WHERE id = 988;
+      DELETE FROM public.protocolos WHERE id = 988;
       DELETE FROM catalogos.usuarios WHERE id = 910;
     `);
 
@@ -170,17 +173,17 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
 
       INSERT INTO public.protocolos
         (id, titulo, investigador_principal_id, nivel_riesgo_id, estado_id)
-      SELECT 993,
+      SELECT 988,
              'Protocolo TEST-M4 PDF Generator',
              910,
              (SELECT id FROM catalogos.niveles_riesgo LIMIT 1),
              10
-      WHERE NOT EXISTS (SELECT 1 FROM public.protocolos WHERE id = 993);
+      WHERE NOT EXISTS (SELECT 1 FROM public.protocolos WHERE id = 988);
 
       INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
-      VALUES (993, 993, 1, 10) ON CONFLICT (id) DO NOTHING;
+      VALUES (988, 988, 1, 10) ON CONFLICT (id) DO NOTHING;
 
-      UPDATE public.protocolos SET version_actual_id = 993 WHERE id = 993;
+      UPDATE public.protocolos SET version_actual_id = 988 WHERE id = 988;
     `);
   }, 60000);
 
@@ -188,14 +191,17 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
     try {
       if (dataSource?.isInitialized) {
         await dataSource.query(`
-          DELETE FROM evaluacion.convocatorias
-            WHERE id IN (
-              SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id = 993
-            ) OR numero_convocatoria LIKE 'TEST-M4-%';
+          DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988));
+          DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988);
+          DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988);
+          DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988);
+          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 988;
+          DELETE FROM evaluacion.convocatorias WHERE id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id = 988) OR numero_convocatoria LIKE 'TEST-M4-%';
+          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id = 988;
           DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-M4-%';
-          UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 993;
-          DELETE FROM public.versiones_protocolo WHERE id = 993;
-          DELETE FROM public.protocolos WHERE id = 993;
+          UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 988;
+          DELETE FROM public.versiones_protocolo WHERE id = 988;
+          DELETE FROM public.protocolos WHERE id = 988;
           DELETE FROM catalogos.usuarios WHERE id = 910;
         `);
       }
@@ -224,7 +230,7 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
         sessionType: 'ORDINARIA',
         meetingDate: '2026-08-12T14:00:00.000Z',
         evalSubmissionDeadline: '2026-08-18T17:00:00.000Z',
-        protocolVersionIds: [993],
+        protocolVersionIds: [988],
       })
       .expect(201);
 
@@ -293,7 +299,7 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
         sessionType: 'ORDINARIA',
         meetingDate: '2026-09-10T10:00:00.000Z',
         evalSubmissionDeadline: '2026-09-16T17:00:00.000Z',
-        protocolVersionIds: [993],
+        protocolVersionIds: [988],
       })
       .expect(201);
 
@@ -346,7 +352,7 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
         sessionType: 'EXTRAORDINARIA',
         meetingDate: '2026-08-20T10:00:00.000Z',
         evalSubmissionDeadline: '2026-08-26T17:00:00.000Z',
-        protocolVersionIds: [993],
+        protocolVersionIds: [988],
         locationId: lugarId,
       })
       .expect(201);
