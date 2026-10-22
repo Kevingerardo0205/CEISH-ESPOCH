@@ -1,4 +1,9 @@
-import { NotFoundException, BadRequestException, Logger } from '@nestjs/common';
+import {
+  NotFoundException,
+  BadRequestException,
+  ConflictException,
+  Logger,
+} from '@nestjs/common';
 import { ReassignEvaluatorDto } from '../dtos/evaluator-dtos';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import { AssignmentHistoryEntity } from '../../domain/entities/assignment-history.entity';
@@ -6,7 +11,10 @@ import {
   EvaluatorReassignmentService,
   ReassignmentResult,
 } from '../../domain/services/evaluator-reassignment.service';
-import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
+import {
+  EvaluatorProfile,
+  ReassignmentReason,
+} from '../../../../shared/enums/evaluator-enums';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 import { AssignmentHistoryOrmEntity } from '../../infrastructure/database/entities/assignment-history.orm-entity';
@@ -150,6 +158,16 @@ export class ReassignEvaluatorUseCase {
       (typeof currentAssignment.protocolId === 'number'
         ? currentAssignment.protocolId
         : 1);
+
+    // Guard N36: CONFLICTO_INTERES prohíbe al mismo evaluador como reemplazante (RF-12.3b)
+    if (
+      dto.reason === ReassignmentReason.CONFLICTO_INTERES &&
+      numReplacementId === currentAssignment.evaluatorId
+    ) {
+      throw new ConflictException(
+        'El evaluador reemplazante no puede ser el mismo que el evaluador saliente cuando el motivo es conflicto de interés.',
+      );
+    }
 
     // Validación 1: El evaluador de reemplazo no debe estar ya asignado activamente a esta versión
     if (this.reassignmentRepository.findActiveAssignmentsByVersionId) {

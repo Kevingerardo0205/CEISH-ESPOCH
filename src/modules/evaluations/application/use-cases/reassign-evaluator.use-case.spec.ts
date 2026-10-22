@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument, @typescript-eslint/require-await, @typescript-eslint/no-unsafe-call */
 import 'reflect-metadata';
-import { NotFoundException } from '@nestjs/common';
+import { NotFoundException, ConflictException } from '@nestjs/common';
 import { ReassignEvaluatorUseCase } from './reassign-evaluator.use-case';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import {
@@ -319,6 +319,61 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
     expect(eventPayload).not.toHaveProperty('evaluatorEmail');
     expect(eventPayload).not.toHaveProperty('evaluatorFullName');
     expect(eventPayload).not.toHaveProperty('protocolCode');
+  });
+
+  it('N36-U-01: VENCIMIENTO con mismo evaluador saliente → resultado exitoso, sin excepción (RF-12.3)', async () => {
+    const dto: ReassignEvaluatorDto = {
+      currentAssignmentId: 101,
+      replacementEvaluatorId: 15, // mismo que ormEntityMock.evaluatorId
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.VENCIMIENTO,
+      reasonDescription: 'Plazo vencido; se reasigna al mismo evaluador.',
+    };
+
+    const result = await useCase.execute(dto, 1);
+
+    expect(repositoryMock.executeReassignmentTransaction).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(result.newAssignment.evaluatorId).toBe(15);
+    expect(result.outgoingAssignment.status).toBe(
+      AssignmentStatus.REASIGNED_VENCIMIENTO,
+    );
+  });
+
+  it('N36-U-02: CONFLICTO_INTERES con mismo evaluador saliente → ConflictException, sin persistencia (RF-12.3b)', async () => {
+    const dto: ReassignEvaluatorDto = {
+      currentAssignmentId: 101,
+      replacementEvaluatorId: 15, // mismo que ormEntityMock.evaluatorId
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.CONFLICTO_INTERES,
+      reasonDescription: 'El evaluador tiene conflicto de interés consigo mismo.',
+    };
+
+    await expect(useCase.execute(dto, 1)).rejects.toThrow(ConflictException);
+    expect(
+      repositoryMock.executeReassignmentTransaction,
+    ).not.toHaveBeenCalled();
+  });
+
+  it('N36-U-03: CONFLICTO_INTERES con evaluador distinto → resultado exitoso (regresión RF-12.3b)', async () => {
+    const dto: ReassignEvaluatorDto = {
+      currentAssignmentId: 101,
+      replacementEvaluatorId: 25, // distinto al saliente (id=15)
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.CONFLICTO_INTERES,
+      reasonDescription: 'El evaluador es coinvestigador.',
+    };
+
+    const result = await useCase.execute(dto, 1);
+
+    expect(repositoryMock.executeReassignmentTransaction).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(result.newAssignment.evaluatorId).toBe(25);
+    expect(result.outgoingAssignment.status).toBe(
+      AssignmentStatus.REASIGNED_COI,
+    );
   });
 
   it('should throw NotFoundException if assignment not found', async () => {
