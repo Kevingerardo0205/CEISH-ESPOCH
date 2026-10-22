@@ -50,8 +50,10 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
   let juridicoProfileId: number;
   let sociedadCivilProfileId: number;
   let globalConvocatoriaBaseline: number;
+  let sendHtmlMock: jest.Mock;
 
   beforeAll(async () => {
+    sendHtmlMock = jest.fn().mockResolvedValue(undefined);
     // 1. Guard de seguridad de Base de Datos
     const dbName = process.env.TEST_DB_NAME || 'ceish_test_db';
     if (
@@ -102,7 +104,8 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       .overrideProvider(MailerNotificationAdapter)
       .useValue(
         new MailerNotificationAdapter({
-          sendMail: jest.fn().mockResolvedValue(undefined),
+          sendMail: (opts: { to: string; subject: string; html: string }) =>
+            sendHtmlMock(opts.to, opts.subject, opts.html) as Promise<void>,
         }),
       )
       .overrideProvider(IEmailServicePort)
@@ -113,6 +116,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         sendEmailVerification: jest.fn().mockResolvedValue(undefined),
         sendCallNotification: jest.fn().mockResolvedValue(undefined),
         sendUnscheduledProtocolsAlert: jest.fn().mockResolvedValue(undefined),
+        sendHtml: sendHtmlMock,
       })
       .overrideProvider(IStorageService)
       .useValue({
@@ -2735,6 +2739,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     });
 
     it('12a. POST /assign → handleEvaluatorAssignedEvent recibe evaluatorEmail y evaluatorFullName reales (findEnrichmentInfo SQL real)', async () => {
+      sendHtmlMock.mockClear();
       const handleSpy = jest.spyOn(
         mailerAdapter,
         'handleEvaluatorAssignedEvent',
@@ -2756,6 +2761,12 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(res.status).toBe(201);
       expect(handleSpy).toHaveBeenCalledTimes(4);
 
+      await Promise.allSettled(
+        handleSpy.mock.results
+          .filter((r) => r.type === 'return')
+          .map((r) => r.value),
+      );
+
       const payloads = handleSpy.mock.calls.map((c) => c[0]);
       const emails = payloads.map((p) => p.evaluatorEmail);
       expect(emails).toContain('salud@test.com');
@@ -2768,10 +2779,23 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         expect(p.protocolCode).toBe('CEISH-ESPOCH-EI-993-2099'),
       );
 
+      // N19: deeplink correcto en el HTML del correo enviado
+      expect(sendHtmlMock).toHaveBeenCalledTimes(4);
+      for (const p of payloads) {
+        expect(sendHtmlMock).toHaveBeenCalledWith(
+          p.evaluatorEmail,
+          expect.any(String),
+          expect.stringContaining(
+            `/dashboard/evaluations/evaluate/${p.assignmentId}`,
+          ),
+        );
+      }
+
       handleSpy.mockRestore();
     });
 
     it('12b. POST /reassign → handleEvaluatorAssignedEvent recibe evaluatorEmail del evaluador entrante 905 (findEnrichmentInfo SQL real)', async () => {
+      sendHtmlMock.mockClear();
       const handleSpy = jest.spyOn(
         mailerAdapter,
         'handleEvaluatorAssignedEvent',
@@ -2790,11 +2814,27 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(res.status).toBe(201);
       expect(handleSpy).toHaveBeenCalledTimes(1);
 
+      await Promise.allSettled(
+        handleSpy.mock.results
+          .filter((r) => r.type === 'return')
+          .map((r) => r.value),
+      );
+
       const [payload] = handleSpy.mock.calls[0];
       expect(payload.evaluatorEmail).toBe('reemplazo@test.com');
       expect(payload.evaluatorFullName).toBe('Dr. Reemplazo');
       expect(payload.protocolCode).toBe('CEISH-ESPOCH-EI-994-2099');
       expect(payload.isReassignment).toBe(true);
+
+      // N19: deeplink correcto en el HTML del correo de reasignación
+      expect(sendHtmlMock).toHaveBeenCalledTimes(1);
+      expect(sendHtmlMock).toHaveBeenCalledWith(
+        payload.evaluatorEmail,
+        expect.any(String),
+        expect.stringContaining(
+          `/dashboard/evaluations/evaluate/${payload.assignmentId}`,
+        ),
+      );
 
       handleSpy.mockRestore();
     });
