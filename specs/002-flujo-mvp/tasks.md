@@ -280,14 +280,17 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Tests:** `npm test` verde tras las eliminaciones; `npx tsc --noEmit` sin errores.
   - **Hecho cuando:** `calculateEvaluatorDeadline` y `PLAZO_REVISION_OFICIO_PLENO_LEGACY_DIAS` no aparecen en `git grep` de `src/`; todos los tests pasan.
 
-- [ ] **TSK-002-N09**: Rediseñar el puente de correos de asignación en `evaluations.module.ts` (~línea 131).
+- [x] **TSK-002-N09**: Rediseñar el puente de correos de asignación en `evaluations.module.ts` (~línea 131).
   - **Requisito relacionado:** `RF-12.7` — notificación al evaluador al ser asignado.
-  - **PR:** PR-C3 o posterior (después de TSK-009-N04).
-  - **Descripción:** El puente actual envía nombre fijo `"Evaluador"`, usa `protocolCode` como asunto y descarta el HTML de la plantilla. Criterios de aceptación: (a) nombre real del evaluador en el campo `name`; (b) asunto tomado de la plantilla `getEvaluationAssignmentTemplate`; (c) cuerpo HTML generado por la plantilla, no texto plano; (d) prueba unitaria que verifique los tres puntos anteriores mockeando `IEmailServicePort`.
+  - **PR:** `fix/correo-asignacion-deeplink` (junto con TSK-002-N19 y TSK-002-N22).
+  - **Descripción:** El puente actual enviaba nombre fijo `"Evaluador"`, usaba `protocolCode` como asunto y descartaba el HTML de la plantilla. **Solución implementada (2026-10-22):** se añadió `sendHtml(email, subject, html)` a `IEmailServicePort` y sus dos implementaciones (`ResendEmailAdapter`, `NodemailerEmailAdapter`). El factory de `MailerNotificationAdapter` en `evaluations.module.ts` ahora inyecta `ConfigService`, pasa `FRONTEND_URL` como `baseUrl` al adaptador, y el bridge llama `emailService.sendHtml(options.to, options.subject, options.html)` — preservando el HTML rico construido por `MailerNotificationAdapter` (nombre real del evaluador, protocolo real, deeplink correcto).
   - **Archivos afectados:**
-    - `src/modules/evaluations/evaluations.module.ts` (~línea 131) — MODIFICAR el bridge de correos.
-    - Test nuevo a definir (ubicación: junto al servicio que llame al bridge).
-  - **Hecho cuando:** El correo de asignación incluye nombre real, asunto de plantilla y cuerpo HTML; la prueba pasa en verde.
+    - `src/modules/notifications/domain/ports/email.service.port.ts` — MODIFICAR: añadir `sendHtml`.
+    - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: implementar `sendHtml`.
+    - `src/modules/notifications/infrastructure/adapters/nodemailer-email.adapter.ts` — MODIFICAR: implementar `sendHtml`.
+    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR: inyectar `ConfigService`, pasar `frontendUrl`, bridge usa `sendHtml`.
+    - `src/modules/evaluations/infrastructure/adapters/mailer-notification.adapter.spec.ts` — MODIFICAR: añadir tests N09-U-01, N19-U-01, N19-U-02.
+  - **Hecho cuando:** tsc limpio; 397 tests verdes (56 suites); ESLint sin errores.
 
 - [x] **TSK-002-N10**: Implementar `GET /api/evaluations/protocol/:protocolId/reassignment-history`.
   - **Requisito relacionado:** `RF-12.3` — historial inmutable de reasignaciones de evaluadores.
@@ -413,15 +416,13 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: inspeccionar `result.error`.
   - **Hecho cuando:** cuando Resend devuelve `error`, el adaptador lanza excepción (capturada en `.catch(()=>{})`) y el log refleja el fallo en lugar del éxito; tsc limpio.
 
-- [ ] **TSK-002-N19** (BLOQUEADA por TSK-002-N09): el deep-link del correo de asignación apunta a login genérico en lugar de al panel del evaluador.
+- [x] **TSK-002-N19**: el deep-link del correo de asignación apunta a login genérico en lugar de al panel del evaluador.
   - **Requisito relacionado:** RF-12.6 — deep-link correcto al panel de evaluación en producción.
-  - **PR:** mismo PR que TSK-002-N09 (arreglo del bridge en `evaluations.module.ts`).
-  - **Descripción:** El correo real que recibe el evaluador al ser asignado es generado por `ResendEmailAdapter.sendEvaluationAssignment` → `getEvaluationAssignmentTemplate`. Este template (`email-templates.ts:94`) incluye el enlace `https://ceish-espoch.edu.ec/login` (genérico, hardcodeado), en lugar de `${frontendUrl}/evaluations/${assignmentId}/panel` (deep-link al panel). `MailerNotificationAdapter` sí construye el deep-link correcto en su HTML, pero ese HTML es descartado por el bridge en `evaluations.module.ts:127-139`, que llama a `sendEvaluationAssignment` pasando el asunto como `protocolCode` e ignorando el html. Por esta razón, cambiar `baseUrl` en `MailerNotificationAdapter` no arregla el correo real hasta que se corrija el bridge (TSK-002-N09). **Lugar real del fix (verificado):** `src/modules/notifications/infrastructure/templates/email-templates.ts:94` (`<a href="https://ceish-espoch.edu.ec/login">` → usar `panelUrl` dinámico); `resend-email.adapter.ts:sendEvaluationAssignment` (recibir `assignmentId`, construir `panelUrl` con `FRONTEND_URL` ya leído del constructor); `evaluations.module.ts:127-139` (el bridge debe pasar `assignmentId` junto con el correo para que se pueda armar el deep-link).
-  - **Archivos afectados (cuando se implemente):**
-    - `src/modules/notifications/infrastructure/templates/email-templates.ts` — MODIFICAR: añadir parámetro `panelUrl` a `getEvaluationAssignmentTemplate` y usarlo en el enlace del botón.
-    - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: `sendEvaluationAssignment` recibe `assignmentId: string` y construye `panelUrl = \`${this.baseUrl}/evaluations/${assignmentId}/panel\`` usando `FRONTEND_URL` ya leído en el constructor.
-    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR (depende de TSK-002-N09): el bridge pasa el `assignmentId` del payload al adaptador.
-  - **Hecho cuando:** el correo enviado a través de Resend contiene un enlace dinámico `${FRONTEND_URL}/evaluations/${assignmentId}/panel` (no la URL genérica de login); tsc limpio; prueba unitaria verifica el enlace en el html del template.
+  - **PR:** `fix/correo-asignacion-deeplink` (junto con TSK-002-N09 y TSK-002-N22).
+  - **Descripción:** **Solución implementada (2026-10-22):** `MailerNotificationAdapter` construye el deep-link a partir de `baseUrl` (inyectado desde `FRONTEND_URL`). La ruta correcta confirmada con el frontend (TSK-002-N22) es `/dashboard/evaluations/evaluate/${assignmentId}` con fallback `/dashboard/evaluations/list` cuando no hay `assignmentId`. El bridge ahora preserva el HTML completo del adaptador (ver TSK-002-N09). **Ruta verificada:** `${FRONTEND_URL}/dashboard/evaluations/evaluate/${assignmentId}`.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/infrastructure/adapters/mailer-notification.adapter.ts` — MODIFICAR: deeplink corregido a `/dashboard/evaluations/evaluate/${assignmentId}` con fallback a `/dashboard/evaluations/list`.
+  - **Hecho cuando:** tsc limpio; 397 tests verdes; N19-U-01 y N19-U-02 pasan en verde.
 
 - [x] **TSK-002-N20**: No existe bandera para deshabilitar el envío de correos en desarrollo.
   - **Requisito relacionado:** Calidad del entorno de desarrollo.
@@ -440,12 +441,10 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/notifications/infrastructure/adapters/resend-email.adapter.ts` — MODIFICAR: según decisión, puede relanzar en métodos de auth o devolver `boolean` indicando éxito.
   - **Hecho cuando:** el comportamiento ante fallo de correo en flujos de auth está documentado y aceptado por producto; la implementación elegida tiene pruebas unitarias verdes; tsc limpio.
 
-- [ ] **TSK-002-N22** (PENDIENTE): Verificar que la ruta del deep-link del panel de evaluador exista en el frontend antes de implementar `N19`.
+- [x] **TSK-002-N22**: Verificar que la ruta del deep-link del panel de evaluador exista en el frontend.
   - **Requisito relacionado:** RF-12.6 — deep-link correcto al panel de evaluación.
-  - **Descripción:** `N19` (bloqueada por `TSK-002-N09`) enviará en el correo de asignación el enlace `${FRONTEND_URL}/evaluations/${assignmentId}/panel`. Si esa ruta no existe en el frontend, el evaluador llegará a un 404. Esta tarea verifica (o crea) la ruta en el frontend antes de que `N19` se active en producción.
-  - **Archivos afectados:**
-    - Frontend (repositorio correspondiente): confirmar o crear la ruta `/evaluations/:assignmentId/panel` que muestre el panel del evaluador para esa asignación.
-  - **Hecho cuando:** la ruta `/evaluations/:assignmentId/panel` existe y responde correctamente en entorno local con un `assignmentId` real; documentado en el PR de N19.
+  - **Descripción:** **Verificado (2026-10-22):** La ruta frontend real es `/dashboard/evaluations/evaluate/:assignmentId` (no `/evaluations/:assignmentId/panel`, que no existe). Fallback: `/dashboard/evaluations/list`. Implementado en `mailer-notification.adapter.ts` como parte del PR `fix/correo-asignacion-deeplink`. La ruta `/evaluations/:assignmentId/panel` listada en la descripción original era incorrecta — corregida en este PR.
+  - **Hecho cuando:** URL corregida documentada en `mailer-notification.adapter.ts`; pruebas N19-U-01 y N19-U-02 pasan en verde.
 
 - [x] **TSK-002-N23**: Diagnosticar causa raíz aparente en protocolo 169 — no era un bug de código.
   - **Requisito relacionado:** RF-12.2d — designación automática por acuerdo.
@@ -852,3 +851,10 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR: registrar el nuevo use case.
     - `src/modules/evaluations/application/use-cases/get-reassignment-report.use-case.spec.ts` — CREAR (no existe aún — verificado).
   - **Hecho cuando:** endpoint devuelve JSON con `alerta: true` para evaluadores con ≥3 `VENCIMIENTO`; tsc limpio; unit tests verdes; eslint limpio sobre archivos tocados.
+
+- [ ] **TSK-002-N40** (PENDIENTE — NO IMPLEMENTAR): El frontend no preserva el `returnUrl` del deep-link al redirigir al login.
+  - **Requisito relacionado:** RF-12.6 — deep-link funcional al panel de evaluación (el enlace del correo debe sobrevivir al flujo de autenticación).
+  - **Descripción:** El correo de asignación ya incluye el enlace directo `${FRONTEND_URL}/dashboard/evaluations/evaluate/${assignmentId}`. Si el evaluador no tiene sesión activa, `AuthGuard` del frontend lo redirige a `/auth/login` sin pasar `?returnUrl=...`. Tras autenticarse, el evaluador llega al dashboard genérico y pierde el enlace de la asignación. **Esta tarea es del repositorio FRONTEND-CEISH**, no del backend. No implementar aquí.
+  - **Archivos afectados:**
+    - Frontend (FRONTEND-CEISH): el `AuthGuard` debe capturar la URL actual y redirigir a `/auth/login?returnUrl=%2Fdashboard%2Fevaluations%2Fevaluate%2F${assignmentId}`; tras el login exitoso, redirigir a `returnUrl` en lugar de al dashboard genérico.
+  - **Hecho cuando:** el evaluador que accede al enlace del correo sin sesión activa es llevado directamente al panel de su asignación tras autenticarse; documentado en el PR del frontend.

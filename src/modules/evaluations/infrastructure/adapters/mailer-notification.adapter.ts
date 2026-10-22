@@ -47,7 +47,9 @@ export class MailerNotificationAdapter {
     const evaluatorName =
       payload.evaluatorFullName ?? 'Estimado(a) Evaluador(a)';
     const protocolCode = payload.protocolCode ?? payload.protocolId;
-    const deepLinkUrl = `${this.baseUrl}/evaluations/${payload.assignmentId}/panel`;
+    const deepLinkUrl = payload.assignmentId
+      ? `${this.baseUrl}/dashboard/evaluations/evaluate/${payload.assignmentId}`
+      : `${this.baseUrl}/dashboard/evaluations/list`;
     const formattedDeadline = new Date(payload.deadlineDate).toLocaleDateString(
       'es-EC',
       {

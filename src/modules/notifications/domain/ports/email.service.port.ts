@@ -90,4 +90,10 @@ export abstract class IEmailServicePort {
     protocolCode: string,
     codesProposed: string[],
   ): Promise<void>;
+
+  abstract sendHtml(
+    email: string,
+    subject: string,
+    html: string,
+  ): Promise<void>;
 }
