@@ -180,6 +180,89 @@ describe('MailerNotificationAdapter (TSK-002-16)', () => {
     );
   });
 
+  it('N09-U-02: deadlineDate null → texto alternativo, sin "1970" ni "Invalid Date"', async () => {
+    const payload = {
+      assignmentId: 'asg-701',
+      protocolId: 'prot-701',
+      evaluatorId: 'eval-701',
+      evaluatorEmail: 'nulldate@espoch.edu.ec',
+      evaluatorFullName: 'Dr. Prueba Nula',
+      protocolCode: 'CEISH-ESPOCH-EI-012-2026',
+      evaluatorProfile: EvaluatorProfile.SALUD,
+      isAssignedForAnnex10: false,
+      deadlineDate: null,
+    };
+
+    await adapter.handleEvaluatorAssignedEvent(payload);
+
+    const mailOptions = (
+      mailerServiceMock.sendMail.mock.calls as Array<
+        [{ to: string; subject: string; html: string }]
+      >
+    )[0][0];
+
+    expect(mailOptions.html).not.toContain('1970');
+    expect(mailOptions.html).not.toContain('Invalid Date');
+    expect(mailOptions.html).toContain(
+      'La fecha límite de entrega será comunicada por la Secretaría.',
+    );
+  });
+
+  it('N09-U-03: deadlineDate undefined → texto alternativo, sin "1970" ni "Invalid Date"', async () => {
+    const payload = {
+      assignmentId: 'asg-702',
+      protocolId: 'prot-702',
+      evaluatorId: 'eval-702',
+      evaluatorEmail: 'undefdate@espoch.edu.ec',
+      evaluatorFullName: 'Dr. Prueba Undef',
+      protocolCode: 'CEISH-ESPOCH-EI-013-2026',
+      evaluatorProfile: EvaluatorProfile.METODOLOGICO,
+      isAssignedForAnnex10: false,
+    };
+
+    await adapter.handleEvaluatorAssignedEvent(payload);
+
+    const mailOptions = (
+      mailerServiceMock.sendMail.mock.calls as Array<
+        [{ to: string; subject: string; html: string }]
+      >
+    )[0][0];
+
+    expect(mailOptions.html).not.toContain('1970');
+    expect(mailOptions.html).not.toContain('Invalid Date');
+    expect(mailOptions.html).toContain(
+      'La fecha límite de entrega será comunicada por la Secretaría.',
+    );
+  });
+
+  it('N09-U-04: deadlineDate cadena vacía → texto alternativo, sin "1970" ni "Invalid Date"', async () => {
+    const payload = {
+      assignmentId: 'asg-703',
+      protocolId: 'prot-703',
+      evaluatorId: 'eval-703',
+      evaluatorEmail: 'emptydate@espoch.edu.ec',
+      evaluatorFullName: 'Dr. Prueba Vacía',
+      protocolCode: 'CEISH-ESPOCH-EI-014-2026',
+      evaluatorProfile: EvaluatorProfile.JURIDICO,
+      isAssignedForAnnex10: false,
+      deadlineDate: '',
+    };
+
+    await adapter.handleEvaluatorAssignedEvent(payload);
+
+    const mailOptions = (
+      mailerServiceMock.sendMail.mock.calls as Array<
+        [{ to: string; subject: string; html: string }]
+      >
+    )[0][0];
+
+    expect(mailOptions.html).not.toContain('1970');
+    expect(mailOptions.html).not.toContain('Invalid Date');
+    expect(mailOptions.html).toContain(
+      'La fecha límite de entrega será comunicada por la Secretaría.',
+    );
+  });
+
   it('should format date string 2026-03-12 correctly as 12 de marzo de 2026 even under America/Guayaquil timezone', async () => {
     const payload = {
       assignmentId: 'asg-103',
