@@ -2839,12 +2839,16 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     // 13b: VENCIMIENTO con evaluador 901→901 (mismo) → 201, historial creado.
     const PC = 995;
     const ASG_PC = 9950;
+    const ASG_PC2 = 9951;
+    const CONV_N37_ID = '00000000-0000-0000-0000-000000009950';
+    const CONV_N37_DEADLINE = new Date('2099-12-01T17:00:00.000Z');
 
     beforeAll(async () => {
       await dataSource.query(`
         DELETE FROM evaluacion.asignacion_historial
           WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC})
              OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC});
+        DELETE FROM evaluacion.convocatorias WHERE id = '${CONV_N37_ID}' OR numero_convocatoria = 'CONV-N37-TEST-995';
         DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC};
         UPDATE public.protocolos SET version_actual_id = NULL WHERE id = ${PC};
         DELETE FROM public.versiones_protocolo WHERE id = ${PC};
@@ -2861,13 +2865,21 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         INSERT INTO evaluacion.asignaciones_evaluacion
           (id, version_id, evaluador_id, perfil_id, estado_id, es_asignado_anexo_10, fecha_asignacion, fecha_limite)
         VALUES
-          (${ASG_PC}, ${PC}, 901, ${saludProfileId}, ${AssignmentStatus.ASSIGNED}, false, NOW(), NULL)
+          (${ASG_PC}, ${PC}, 901, ${saludProfileId}, ${AssignmentStatus.ASSIGNED}, false, NOW(), NULL),
+          (${ASG_PC2}, ${PC}, 901, ${saludProfileId}, ${AssignmentStatus.ASSIGNED}, false, NOW(), NULL)
+        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO evaluacion.convocatorias (id, numero_convocatoria, tipo_session, fecha_reunion, fecha_entrega_evaluacion, estado)
+        VALUES ('${CONV_N37_ID}', 'CONV-N37-TEST-995', 'ORDINARIA', '2099-11-15 14:00:00+00', '2099-12-01 17:00:00+00', 'PROGRAMADA')
+        ON CONFLICT (id) DO NOTHING;
+        INSERT INTO evaluacion.convocatoria_protocolos (id, convocatoria_id, protocolo_id, version_id, orden, fecha_plazo_normativo)
+        VALUES ('00000000-0000-0000-0000-000000099500', '${CONV_N37_ID}', ${PC}, ${PC}, 1, '2099-12-01 17:00:00+00')
         ON CONFLICT (id) DO NOTHING;
       `);
     });
 
     afterAll(async () => {
       await dataSource.query(`
+        DELETE FROM evaluacion.convocatorias WHERE id = '${CONV_N37_ID}';
         DELETE FROM evaluacion.asignacion_historial
           WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC})
              OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PC});
@@ -2903,9 +2915,46 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(sendHtmlMock).not.toHaveBeenCalled();
     });
 
-    it('13b. POST /reassign VENCIMIENTO mismo evaluador → 201, historial creado (TSK-002-N36)', async () => {
+    it('13c. POST /reassign CONFLICTO_INTERES con convocatoria → 201, fecha_limite_ts = fecha_entrega_evaluacion (TSK-002-N37)', async () => {
       sendHtmlMock.mockClear();
 
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/reassign')
+        .set('x-user-id', '901')
+        .send({
+          currentAssignmentId: ASG_PC2,
+          replacementEvaluatorId: 905,
+          replacementEvaluatorProfile: EvaluatorProfile.SALUD,
+          reason: 'CONFLICTO_INTERES',
+          reasonDescription:
+            'El evaluador tiene conflicto de interés declarado.',
+        });
+
+      expect(res.status).toBe(201);
+
+      // N37: la nueva asignación hereda fecha_entrega_evaluacion de la convocatoria PROGRAMADA
+      const newAsgRows: Array<{
+        fecha_limite_ts: string | null;
+        fecha_limite: string | null;
+      }> = await dataSource.query(
+        `SELECT fecha_limite_ts::text AS fecha_limite_ts, fecha_limite::text AS fecha_limite
+           FROM evaluacion.asignaciones_evaluacion
+           WHERE version_id = $1 AND estado_id = ${AssignmentStatus.ASSIGNED} AND evaluador_id = 905
+           ORDER BY id DESC LIMIT 1`,
+        [PC],
+      );
+      expect(newAsgRows.length).toBe(1);
+      expect(newAsgRows[0].fecha_limite_ts).not.toBeNull();
+      expect(new Date(newAsgRows[0].fecha_limite_ts!).getTime()).toBe(
+        CONV_N37_DEADLINE.getTime(),
+      );
+      expect(newAsgRows[0].fecha_limite).toBe('2099-12-01');
+    });
+
+    it('13b. POST /reassign VENCIMIENTO mismo evaluador → 201, historial y fecha_limite_ts +24h (TSK-002-N36, TSK-002-N37)', async () => {
+      sendHtmlMock.mockClear();
+
+      const t0 = Date.now();
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/reassign')
         .set('x-user-id', '901')
@@ -2916,6 +2965,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           reason: 'VENCIMIENTO',
           reasonDescription: 'Plazo vencido; se reasigna al mismo evaluador.',
         });
+      const t1 = Date.now();
 
       expect(res.status).toBe(201);
 
@@ -2924,6 +2974,27 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         [ASG_PC],
       );
       expect(Number(historialRows[0].cnt)).toBe(1);
+
+      // N37: nueva asignación debe tener fecha_limite_ts = now+24h y fecha_limite = fecha ECT (RF-12.7(e), TSK-002-N37)
+      const newAsgRows: Array<{
+        fecha_limite_ts: string | null;
+        fecha_limite: string | null;
+      }> = await dataSource.query(
+        `SELECT fecha_limite_ts::text AS fecha_limite_ts, fecha_limite::text AS fecha_limite
+           FROM evaluacion.asignaciones_evaluacion
+           WHERE version_id = $1 AND estado_id = ${AssignmentStatus.ASSIGNED} AND id != $2
+           ORDER BY id DESC LIMIT 1`,
+        [PC, ASG_PC],
+      );
+      expect(newAsgRows.length).toBe(1);
+      expect(newAsgRows[0].fecha_limite_ts).not.toBeNull();
+      const tsMs = new Date(newAsgRows[0].fecha_limite_ts!).getTime();
+      expect(tsMs).toBeGreaterThanOrEqual(t0 + 24 * 60 * 60 * 1000);
+      expect(tsMs).toBeLessThanOrEqual(t1 + 24 * 60 * 60 * 1000);
+      const expectedDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Guayaquil',
+      }).format(new Date(newAsgRows[0].fecha_limite_ts!));
+      expect(newAsgRows[0].fecha_limite).toBe(expectedDate);
     });
   }); // end describe('13. TSK-002-N36')
 });

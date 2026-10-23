@@ -4,6 +4,7 @@ import {
   ConflictException,
   Logger,
 } from '@nestjs/common';
+import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
 import { ReassignEvaluatorDto } from '../dtos/evaluator-dtos';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 import { AssignmentHistoryEntity } from '../../domain/entities/assignment-history.entity';
@@ -31,7 +32,7 @@ export interface IReassignmentRepository {
     evaluatorId: number | string,
     profileId: number,
   ): Promise<boolean>;
-  findActiveConvocatoriaDeadline?(versionId: number): Promise<string | null>;
+  findActiveConvocatoriaDeadline?(versionId: number): Promise<Date | null>;
   executeReassignmentTransaction?(params: {
     outgoingAssignmentId: number;
     outgoingStatusId: number;
@@ -206,12 +207,24 @@ export class ReassignEvaluatorUseCase {
       }
     }
 
-    // 2. Heredar fecha_entrega_evaluacion de la convocatoria activa (RF-12.7(e))
-    const convocatoriaDeadline = this.reassignmentRepository
-      .findActiveConvocatoriaDeadline
-      ? await this.reassignmentRepository.findActiveConvocatoriaDeadline(
-          rawVersionId,
-        )
+    // 2. Calcular plazo del reemplazante (RF-12.7(e), TSK-002-N37)
+    // VENCIMIENTO: +24 horas corridas desde ahora (independiente de la convocatoria).
+    // Otro motivo: hereda fecha_entrega_evaluacion de la convocatoria activa, o null si no está agendado.
+    const convocatoriaDeadlineTs: Date | null =
+      dto.reason !== ReassignmentReason.VENCIMIENTO &&
+      this.reassignmentRepository.findActiveConvocatoriaDeadline
+        ? await this.reassignmentRepository.findActiveConvocatoriaDeadline(
+            rawVersionId,
+          )
+        : null;
+
+    const newDeadlineTs: Date | null =
+      dto.reason === ReassignmentReason.VENCIMIENTO
+        ? new Date(Date.now() + 24 * 60 * 60 * 1000)
+        : convocatoriaDeadlineTs;
+
+    const newDeadlineStr: string | null = newDeadlineTs
+      ? toCalendarDateString(newDeadlineTs)
       : null;
 
     const newAssignmentId =
@@ -231,7 +244,7 @@ export class ReassignEvaluatorUseCase {
         replacementEvaluatorProfile: dto.replacementEvaluatorProfile,
         reason: dto.reason,
         adminUserId,
-        deadline: convocatoriaDeadline,
+        deadline: newDeadlineStr,
         newAssignmentId,
         historyId,
         justification: dto.reasonDescription,
@@ -274,6 +287,7 @@ export class ReassignEvaluatorUseCase {
             isAssignedForAnnex10:
               reassignmentResult.newAssignment.isAssignedForAnnex10,
             deadline: reassignmentResult.newAssignment.deadlineDate,
+            deadlineTimestamp: newDeadlineTs,
           },
           auditHistory: {
             previousAssignmentId:
@@ -323,6 +337,8 @@ export class ReassignEvaluatorUseCase {
             deadlineDate:
               res.newAssignment.deadline ??
               reassignmentResult.newAssignment.deadlineDate,
+            deadlineTimestamp:
+              res.newAssignment.deadlineTimestamp ?? newDeadlineTs,
             status: res.newAssignment.statusId,
           }),
           auditHistory: new AssignmentHistoryEntity({
