@@ -817,6 +817,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.spec.ts` — MODIFICAR: añadir caso N36-U-01 (VENCIMIENTO mismo evaluador → resultado exitoso, sin excepción) y N36-U-02 (COI mismo evaluador → `ConflictException`). No existe ningún test actual con el mismo evaluador (verificado: todos usan `replacementEvaluatorId: 25` con saliente `evaluatorId: 15`).
   - **Hecho cuando:** tsc limpio; unit tests N36-U-01 y N36-U-02 verdes; el endpoint COI con mismo evaluador devuelve 409; eslint limpio sobre archivos tocados.
   - **Resultado:** tsc limpio; 406 unit tests (56 suites); 151 E2E (13 suites) × 2 pasadas estables. Tests añadidos: N36-U-01, N36-U-02, N36-U-03 (unit); 13a (409 COI mismo evaluador), 13b (201 VENCIMIENTO mismo evaluador) (E2E). Pendiente: parte frontend (FRONTEND-CEISH).
+  - **Nota de rediseño frontend:** El frontend entrará en un rediseño completo; este ítem se incorporará a ese rediseño.
 
 - [ ] **TSK-002-N37** (PENDIENTE — requiere decisión previa): Fijar plazo del reemplazante a +24 horas corridas cuando el motivo es `VENCIMIENTO`.
   - **Requisito relacionado:** RF-12.7(e) — Decisión reunión 21/10/2026.
@@ -861,3 +862,52 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Archivos afectados:**
     - Frontend (FRONTEND-CEISH): el `AuthGuard` debe capturar la URL actual y redirigir a `/auth/login?returnUrl=%2Fdashboard%2Fevaluations%2Fevaluate%2F${assignmentId}`; tras el login exitoso, redirigir a `returnUrl` en lugar de al dashboard genérico.
   - **Hecho cuando:** el evaluador que accede al enlace del correo sin sesión activa es llevado directamente al panel de su asignación tras autenticarse; documentado en el PR del frontend.
+  - **Nota de rediseño frontend:** El frontend entrará en un rediseño completo; este ítem se incorporará a ese rediseño.
+
+- [ ] **TSK-002-N41** (PENDIENTE — requiere confirmación, NO IMPLEMENTAR): Disparar la notificación al evaluador cuando el protocolo entra en una convocatoria, en lugar de al asignar; la reasignación sigue notificando de inmediato.
+  - **Requisito relacionado:** RF-12.7 PROPUESTA (22/10/2026) — `specs/002-flujo-mvp/spec.md`, pendiente de confirmar con Secretaría y Presidencia.
+  - **PR:** posterior a confirmación con Secretaría/Presidencia.
+  - **Descripción:** Hoy `AssignEvaluatorsUseCase` (`src/modules/evaluations/application/use-cases/assign-evaluators.use-case.ts`) emite el evento `evaluator.assigned` inmediatamente al crear las asignaciones (`deadlineDate: null` en línea 88). La propuesta consiste en suprimir ese emit en `assign-evaluators.use-case.ts` y, en su lugar, emitirlo en `CreateMeetingUseCase` (`src/modules/evaluations/application/services/create-meeting.use-case.ts`) justo después de persistir los `convocatoria_protocolos`, iterando sobre las asignaciones activas de cada `version_id` añadido. La reasignación (`reassign-evaluator.use-case.ts`) ya notifica de inmediato y **no se modifica**. Pendientes por confirmar antes de implementar: preguntas (b), (c) y (d) del ítem (vi) de la sección 10 de spec.md.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/use-cases/assign-evaluators.use-case.ts` — MODIFICAR: suprimir el emit de `evaluator.assigned`.
+    - `src/modules/evaluations/application/services/create-meeting.use-case.ts` — MODIFICAR: añadir lógica de emisión de `evaluator.assigned` para los `version_id` recién añadidos a la convocatoria.
+    - `src/modules/evaluations/application/services/create-meeting.use-case.spec.ts` — MODIFICAR: añadir casos para el nuevo emit.
+    - `src/modules/evaluations/application/use-cases/assign-evaluators.use-case.spec.ts` (por verificar si existe) — MODIFICAR: actualizar caso del emit.
+  - **Hecho cuando:** decisión confirmada con Secretaría y Presidencia; el evaluador recibe correo solo cuando el protocolo está en una convocatoria; la reasignación sigue notificando de inmediato; tsc limpio; unit tests y E2E verdes; eslint limpio.
+
+- [ ] **TSK-002-N42** (PENDIENTE — requiere confirmación, NO IMPLEMENTAR): Filtrar `GET /evaluations/my-assignments` y `GET /evaluations/peer-assignments/my-pending` a asignaciones cuyo protocolo está en convocatoria.
+  - **Requisito relacionado:** RF-12.7 PROPUESTA (22/10/2026) — pendiente de confirmar con Secretaría y Presidencia.
+  - **PR:** posterior a TSK-002-N41.
+  - **Descripción:** Hoy `getMyAssignments` (`evaluations.service.ts:219`) llama a `findAssignmentsByEvaluatorId` (repo), filtra por `statusId === ASSIGNED`, y no hace JOIN con `evaluacion.convocatoria_protocolos`. `getMyPendingPeerAssignments` (`evaluations.service.ts:1005`) usa `TypeORM.find` con `evaluatorId`, `isAssignedForAnnex10: true`, `statusId: In([ASSIGNED, SUGGESTED])`, sin join con convocatorias. La propuesta añade a ambas consultas un JOIN (o subquery) con `evaluacion.convocatoria_protocolos` filtrando `version_id = asignacion.version_id`. La Secretaría usa `GET /evaluations/protocol/:protocolId/active-assignments` (`GetActiveAssignmentsUseCase`) para ver todas las asignaciones — ese endpoint **no se modifica**. Pendiente por confirmar antes de implementar: preguntas (d) y (e) del ítem (vi) de la sección 10 de spec.md.
+  - **Pruebas afectadas:**
+    - `src/modules/evaluations/application/services/evaluations-urgency.service.spec.ts` líneas 109, 122, 134, 148, 234 (unit — `getMyAssignments`): los mocks del repositorio necesitarán incluir el join de convocatoria.
+    - `test/real-db-evaluations.e2e-spec.ts` líneas 764, 776 (E2E — `GET /api/evaluations/peer-assignments/my-pending`): los protocolos sembrados en esos tests deberán estar en una convocatoria para que aparezcan, o los tests deben adaptarse.
+    - `test/evaluations-contract.e2e-spec.ts` líneas 837–845 (E2E — `peer-assignments/my-pending`, solo comprueba autenticación; probablemente no se ve afectado).
+  - **Archivos afectados:**
+    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR: `findAssignmentsByEvaluatorId` para añadir JOIN con `convocatoria_protocolos`.
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR: `getMyPendingPeerAssignments` para añadir filtro de convocatoria.
+    - `src/modules/evaluations/application/services/evaluations-urgency.service.spec.ts` — MODIFICAR: actualizar mocks.
+    - `test/real-db-evaluations.e2e-spec.ts` — MODIFICAR: adaptar tests de `peer-assignments/my-pending`.
+  - **Hecho cuando:** decisión confirmada; `my-assignments` y `peer-assignments/my-pending` solo devuelven asignaciones en convocatoria; `active-assignments` no se ve afectado; tsc limpio; tests verdes; eslint limpio.
+
+- [ ] **TSK-002-N43** (PENDIENTE — requiere confirmación, NO IMPLEMENTAR): Comprobar que el protocolo de la asignación está en convocatoria en los endpoints donde el evaluador abre, evalúa o entrega.
+  - **Requisito relacionado:** RF-12.7 PROPUESTA (22/10/2026) — pendiente de confirmar con Secretaría y Presidencia.
+  - **PR:** posterior a TSK-002-N42.
+  - **Descripción:** Hoy los endpoints de entrega e inspección de una asignación solo validan propiedad (`assignment.evaluatorId !== evaluatorId`) y estado (`statusId`). La propuesta añade una comprobación de convocatoria en: `POST /evaluations/submit` (`submitEvaluation`, `evaluations.service.ts:269`); `GET /evaluations/:id/checklist-details` (`getEvaluationChecklistDetails`, `evaluations.service.ts`); `GET /evaluations/:id/document` (`getEvaluationDocumentUrl`); `GET /evaluations/:id/document/docx` (`getEvaluationDocxUrl`). El código de respuesta al acceder a una asignación fuera de convocatoria está **pendiente de decidir**: 403, 404, u ocultar solo en lista. Ver pregunta (e) del ítem (vi) de la sección 10 de spec.md.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR: añadir guard en los métodos listados.
+    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR: añadir método que compruebe si una asignación está en convocatoria.
+    - `src/modules/evaluations/domain/ports/evaluation.repository.port.ts` — MODIFICAR: declarar el método nuevo.
+    - Archivos de test unitarios de los use cases afectados — MODIFICAR: añadir casos.
+  - **Hecho cuando:** decisión de código de respuesta tomada; endpoints rechazan acceso a asignaciones fuera de convocatoria con el código acordado; tsc limpio; tests verdes; eslint limpio.
+
+- [ ] **TSK-002-N44** (PENDIENTE — requiere confirmación, NO IMPLEMENTAR): Propagar `fecha_entrega_evaluacion` de la convocatoria a las asignaciones activas con `fecha_limite` nula cuando el protocolo entra en la convocatoria.
+  - **Requisito relacionado:** RF-12.7(b) y RF-12.7 PROPUESTA (22/10/2026) — pendiente de confirmar con Secretaría y Presidencia.
+  - **PR:** posterior a TSK-002-N37 (decisión de esquema de columna `fecha_limite`) y a TSK-002-N41.
+  - **Descripción:** Hoy **no existe ningún código** que propague `fecha_entrega_evaluacion` de una convocatoria a las asignaciones al agregar un protocolo a esa convocatoria. El único lugar donde se lee `findActiveConvocatoriaDeadline` es `reassign-evaluator.use-case.ts:210`, solo durante una reasignación, no en la creación de la reunión. `assign-evaluators.use-case.ts` fija `deadline: null` (línea 172). `create-meeting.use-case.ts` no toca `fecha_limite` de las asignaciones. La propuesta: en `CreateMeetingUseCase`, tras persistir los `convocatoria_protocolos`, iterar sobre las asignaciones activas de cada `version_id` añadido y actualizar `fecha_limite` a `convocatoria.fecha_entrega_evaluacion` cuando sea null. **Dependencia con N37:** `fecha_limite` es de tipo `date` (string `YYYY-MM-DD`) en la entidad ORM, mientras `fecha_entrega_evaluacion` es `timestamptz`; N37 debe resolver el tipo de columna antes de implementar N44. Relación con N41: si se activa N44, la notificación al evaluador (N41) ya tiene fecha disponible en ese momento.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/services/create-meeting.use-case.ts` — MODIFICAR: añadir lógica de propagación de `fecha_entrega_evaluacion` a las asignaciones activas de los `version_id` añadidos.
+    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR: añadir método de actualización masiva de `fecha_limite` para una lista de asignaciones.
+    - `src/modules/evaluations/domain/ports/evaluation.repository.port.ts` — MODIFICAR: declarar el método.
+    - `src/modules/evaluations/application/services/create-meeting.use-case.spec.ts` — MODIFICAR: añadir caso de propagación.
+  - **Hecho cuando:** confirmación de N37 (tipo de columna); al crear una convocatoria con protocolos ya asignados, las asignaciones activas con `fecha_limite = null` reciben la `fecha_entrega_evaluacion` de esa convocatoria; tsc limpio; tests verdes; eslint limpio.
