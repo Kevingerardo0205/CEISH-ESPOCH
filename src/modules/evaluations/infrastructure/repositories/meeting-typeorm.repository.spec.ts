@@ -303,6 +303,118 @@ describe('MeetingTypeOrmRepository — tolerancia a fechas string del ORM', () =
     });
   });
 
+  describe('saveMeetingWithAtomicNumber — propagación de fecha_limite_ts (TSK-002-N44)', () => {
+    /** Construye un DataSource mock con queryRunner que captura las llamadas a query(). */
+    function makeQrDataSource(sequenceValue: number = 1): {
+      ds: DataSource;
+      queryCalls: Array<[string, unknown[]]>;
+    } {
+      const queryCalls: Array<[string, unknown[]]> = [];
+      const qr: any = {
+        connect: jest.fn().mockResolvedValue(undefined),
+        startTransaction: jest.fn().mockResolvedValue(undefined),
+        query: jest
+          .fn()
+          .mockImplementation((sql: string, params: unknown[]) => {
+            queryCalls.push([sql, params ?? []]);
+            // Simular las distintas respuestas del queryRunner
+            if (sql.includes('secuencias_convocatoria')) {
+              return Promise.resolve([{ ultimo_secuencial: sequenceValue }]);
+            }
+            return Promise.resolve([]);
+          }),
+        manager: {
+          save: jest
+            .fn()
+            .mockImplementation((_Entity: any, entity: any) =>
+              Promise.resolve({ ...entity, id: 'uuid-test-01' }),
+            ),
+          findOne: jest.fn().mockResolvedValue({
+            id: 991,
+            protocolId: 100,
+          }),
+        },
+        commitTransaction: jest.fn().mockResolvedValue(undefined),
+        rollbackTransaction: jest.fn().mockResolvedValue(undefined),
+        release: jest.fn().mockResolvedValue(undefined),
+      };
+      const ds = {
+        getRepository: jest.fn().mockReturnValue({}),
+        createQueryRunner: jest.fn().mockReturnValue(qr),
+      } as unknown as DataSource;
+      return { ds, queryCalls };
+    }
+
+    it('N44-U-01: escribe fecha_limite (date) Y fecha_limite_ts (timestamp) en el UPDATE cuando hay versiones agendadas', async () => {
+      const { ds, queryCalls } = makeQrDataSource();
+      const repo = new MeetingTypeOrmRepository(ds);
+
+      const evalDeadline = new Date('2026-10-14T17:00:00.000Z');
+      await repo.saveMeetingWithAtomicNumber(
+        {
+          sessionType: 'ORDINARIA',
+          meetingDate: new Date('2026-10-08T09:00:00.000Z'),
+          protocolVersionIds: [991],
+        },
+        '2026',
+        evalDeadline,
+      );
+
+      const updateCall = queryCalls.find(
+        ([sql]) => sql.includes('fecha_limite') && sql.includes('UPDATE'),
+      );
+      expect(updateCall).toBeDefined();
+      const [, params] = updateCall!;
+      // $1 = fecha_limite (string date), $2 = fecha_limite_ts (Date), $3 = version ids, $4 = estado ASSIGNED
+      expect(typeof params[0]).toBe('string'); // fecha_limite como YYYY-MM-DD
+      expect(params[1]).toBe(evalDeadline); // fecha_limite_ts = instante exacto
+      expect(params[2]).toEqual([991]);
+    });
+
+    it('N44-U-02: el UPDATE incluye fecha_limite_ts = $2 en el SQL (no solo fecha_limite)', async () => {
+      const { ds, queryCalls } = makeQrDataSource();
+      const repo = new MeetingTypeOrmRepository(ds);
+
+      await repo.saveMeetingWithAtomicNumber(
+        {
+          sessionType: 'ORDINARIA',
+          meetingDate: new Date('2026-10-08T09:00:00.000Z'),
+          protocolVersionIds: [991],
+        },
+        '2026',
+        new Date('2026-10-14T17:00:00.000Z'),
+      );
+
+      const updateCall = queryCalls.find(
+        ([sql]) => sql.includes('fecha_limite') && sql.includes('UPDATE'),
+      );
+      expect(updateCall).toBeDefined();
+      const [sql] = updateCall!;
+      expect(sql).toContain('fecha_limite_ts');
+      expect(sql).toContain('$2');
+    });
+
+    it('N44-U-03: sin protocolVersionIds vacío, no se ejecuta el UPDATE', async () => {
+      const { ds, queryCalls } = makeQrDataSource();
+      const repo = new MeetingTypeOrmRepository(ds);
+
+      await repo.saveMeetingWithAtomicNumber(
+        {
+          sessionType: 'ORDINARIA',
+          meetingDate: new Date('2026-10-08T09:00:00.000Z'),
+          protocolVersionIds: [],
+        },
+        '2026',
+        new Date('2026-10-14T17:00:00.000Z'),
+      );
+
+      const updateCall = queryCalls.find(
+        ([sql]) => sql.includes('fecha_limite') && sql.includes('UPDATE'),
+      );
+      expect(updateCall).toBeUndefined();
+    });
+  });
+
   describe('findPendingProtocols', () => {
     it('tolera receptionDate como string y filtra protocolos sin activeVersion', async () => {
       const protocols = [
