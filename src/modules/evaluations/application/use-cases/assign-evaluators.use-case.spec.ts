@@ -22,7 +22,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     useCase = new AssignEvaluatorsUseCase(repositoryMock, eventEmitterMock);
   });
 
-  it('should successfully validate quota, pick 2 Annex 10 randomly, save 4 assignments (numeric IDs) and emit email notification events', async () => {
+  it('should successfully validate quota, pick 2 Annex 10 randomly and save 4 assignments (numeric IDs) — NO emit when version not in convocatoria (N41)', async () => {
     const dto: AssignEvaluatorsDto = {
       protocolId: 10,
       versionId: 2,
@@ -64,11 +64,8 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     );
     expect(sociedadCivilEntity?.isAssignedForAnnex10).toBe(false);
 
-    // 4. Dispara el evento de notificación para cada evaluador
-    expect(eventEmitterMock.emit).toHaveBeenCalledWith(
-      'evaluator.assigned',
-      expect.anything(),
-    );
+    // 4. N41: usa saveAssignments (deadlineDate=null) → emit NO disparado
+    expect(eventEmitterMock.emit).not.toHaveBeenCalled();
   });
 
   it('should support persisting via saveAssignmentsTransaction', async () => {
@@ -414,6 +411,10 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
         evaluatorFullName: 'Dr. Felipe Torres',
         ceishCode: 'CEISH-ESPOCH-EI-010-2026',
       }),
+      // N41: versión ya en convocatoria → emit se dispara
+      findActiveConvocatoriaDeadline: jest
+        .fn()
+        .mockResolvedValue(new Date('2027-01-20T22:00:00.000Z')),
     };
 
     const enrichedEmitter = { emit: jest.fn() };
@@ -465,6 +466,10 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
         .fn()
         .mockResolvedValue({ id: 42, protocolId: 25 }),
       findEnrichmentInfo: jest.fn().mockRejectedValue(error),
+      // N41: versión ya en convocatoria → emit se dispara
+      findActiveConvocatoriaDeadline: jest
+        .fn()
+        .mockResolvedValue(new Date('2027-01-20T22:00:00.000Z')),
     };
 
     const enrichedEmitter = { emit: jest.fn() };
@@ -525,6 +530,10 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
         .fn()
         .mockResolvedValue({ id: 42, protocolId: 25 }),
       findEnrichmentInfo: jest.fn().mockResolvedValue(null),
+      // N41: versión ya en convocatoria → emit se dispara
+      findActiveConvocatoriaDeadline: jest
+        .fn()
+        .mockResolvedValue(new Date('2027-01-20T22:00:00.000Z')),
     };
 
     const enrichedEmitter = { emit: jest.fn() };
@@ -582,6 +591,93 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
 
     await expect(transactionalUseCase.execute(dto)).rejects.toThrow(
       NotFoundException,
+    );
+  });
+
+  // ── TSK-002-N41 ────────────────────────────────────────────────────────────
+  it('N41-U-01: saveAssignmentsTransaction SIN convocatoria → emit NO invocado, deadline null en ormPayloads', async () => {
+    const ormSpy = jest.fn().mockImplementation(async (payloads: any[]) =>
+      payloads.map((p, idx) => ({
+        id: idx + 1,
+        versionId: p.versionId,
+        evaluatorId: p.evaluatorId,
+        isAssignedForAnnex10: p.isAssignedForAnnex10,
+        deadline: p.deadline,
+        statusId: p.statusId,
+      })),
+    );
+    const repo = {
+      saveAssignmentsTransaction: ormSpy,
+      findVersionByProtocolId: jest
+        .fn()
+        .mockResolvedValue({ id: 42, protocolId: 25 }),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
+    };
+    const emitter = { emit: jest.fn() };
+    const uc = new AssignEvaluatorsUseCase(repo, emitter);
+
+    await uc.execute({
+      protocolId: 25,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    });
+
+    expect(repo.findActiveConvocatoriaDeadline).toHaveBeenCalledWith(42);
+    const payloads = ormSpy.mock.calls[0][0] as any[];
+    expect(payloads.every((p) => p.deadline === null)).toBe(true);
+    // N41: sin convocatoria → emit NO se dispara
+    expect(emitter.emit).not.toHaveBeenCalled();
+  });
+
+  it('N41-U-02: saveAssignmentsTransaction CON convocatoria vigente → emit invocado 4 veces, deadline propagado', async () => {
+    const convocatoriaDeadline = new Date('2027-01-20T22:00:00.000Z');
+    const ormSpy = jest.fn().mockImplementation(async (payloads: any[]) =>
+      payloads.map((p, idx) => ({
+        id: idx + 1,
+        versionId: p.versionId,
+        evaluatorId: p.evaluatorId,
+        isAssignedForAnnex10: p.isAssignedForAnnex10,
+        deadline: p.deadline,
+        statusId: p.statusId,
+      })),
+    );
+    const repo = {
+      saveAssignmentsTransaction: ormSpy,
+      findVersionByProtocolId: jest
+        .fn()
+        .mockResolvedValue({ id: 42, protocolId: 25 }),
+      findActiveConvocatoriaDeadline: jest
+        .fn()
+        .mockResolvedValue(convocatoriaDeadline),
+    };
+    const emitter = { emit: jest.fn() };
+    const uc = new AssignEvaluatorsUseCase(repo, emitter);
+
+    await uc.execute({
+      protocolId: 25,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
+    });
+
+    // deadline se propaga a todos los ormPayloads
+    const payloads = ormSpy.mock.calls[0][0] as any[];
+    expect(payloads.every((p) => typeof p.deadline === 'string')).toBe(true);
+    expect(payloads.every((p) => p.deadlineTimestamp instanceof Date)).toBe(
+      true,
+    );
+    // N41: con convocatoria vigente → emit se dispara para cada evaluador
+    expect(emitter.emit).toHaveBeenCalledTimes(4);
+    expect(emitter.emit).toHaveBeenCalledWith(
+      'evaluator.assigned',
+      expect.objectContaining({ deadlineDate: expect.any(String) }),
     );
   });
 });

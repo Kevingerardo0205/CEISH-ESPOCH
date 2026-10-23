@@ -41,6 +41,10 @@ import { EvaluationTypeOrmRepository } from './infrastructure/repositories/evalu
 import { IProtocolRepository } from '../protocols/domain/ports/protocol.repository.port';
 import { MeetingTypeOrmRepository } from './infrastructure/repositories/meeting-typeorm.repository';
 import { IEmailServicePort } from '../notifications/domain/ports/email.service.port';
+import type { IMeetingRepositoryPort } from './domain/ports/meeting-repository.port';
+import type { IMeetingPdfGeneratorPort } from './domain/ports/meeting-pdf-generator.port';
+import { IUserRepository } from '../auth/domain/ports/user.repository.port';
+import type { EvaluatorAssignedEventPayload } from './infrastructure/adapters/mailer-notification.adapter';
 
 import { ProtocolsModule } from '../protocols/protocols.module';
 import { forwardRef } from '@nestjs/common';
@@ -106,7 +110,50 @@ import { ConfigService } from '@nestjs/config';
     CallsService,
     EvaluatorAssignmentAdapterService,
     UnscheduledProtocolsAlertService,
-    CreateMeetingUseCase,
+    {
+      provide: CreateMeetingUseCase,
+      useFactory: (
+        meetingRepo: IMeetingRepositoryPort,
+        pdfGen: IMeetingPdfGeneratorPort,
+        calcDates: CalculateMeetingDatesService,
+        emailService: IEmailServicePort,
+        userRepo: IUserRepository,
+        mailer: MailerNotificationAdapter,
+      ): CreateMeetingUseCase => {
+        const moduleLogger = new Logger('EvaluationsModule');
+        return new CreateMeetingUseCase(
+          meetingRepo,
+          pdfGen,
+          calcDates,
+          emailService,
+          userRepo,
+          {
+            emit: (
+              event: string,
+              payload: EvaluatorAssignedEventPayload,
+            ): void => {
+              if (event === 'evaluator.assigned') {
+                mailer
+                  .handleEvaluatorAssignedEvent(payload)
+                  .catch((err: unknown) => {
+                    moduleLogger.error(
+                      `[N41] Error al enviar correo assignmentId=${payload.assignmentId}: ${err instanceof Error ? err.message : String(err)}`,
+                    );
+                  });
+              }
+            },
+          },
+        );
+      },
+      inject: [
+        'IMeetingRepositoryPort',
+        'IMeetingPdfGeneratorPort',
+        CalculateMeetingDatesService,
+        IEmailServicePort,
+        IUserRepository,
+        MailerNotificationAdapter,
+      ],
+    },
     CalculateMeetingDatesService,
     PdfGeneratorService,
     DocxGeneratorService,

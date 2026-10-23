@@ -21,6 +21,18 @@ export interface NormativeDeadlineInput {
   receptionDate: Date | undefined;
 }
 
+/** Datos de evaluador ASSIGNED enriquecidos para emitir notificación al agendar (TSK-002-N41). */
+export interface AssignedEvaluatorInfo {
+  assignmentId: number;
+  evaluatorId: number;
+  protocolId: number;
+  evaluatorEmail: string | null;
+  evaluatorFullName: string | null;
+  protocolCode: string | null;
+  evaluatorProfile: string;
+  isAssignedForAnnex10: boolean;
+}
+
 /**
  * Versión con asignación ASSIGNED activa y sin convocatoria "agendada"
  * (cualquier estado salvo CANCELADA). Usada por UnscheduledProtocolsAlertService (TSK-002-N03).
@@ -121,4 +133,9 @@ export interface IMeetingRepositoryPort {
   ): Promise<MeetingPlaceFullModel>;
 
   deletePlace(id: string): Promise<void>;
+
+  /** Devuelve asignaciones ASSIGNED activas con datos de contacto para emitir notificación al agendar (TSK-002-N41). */
+  findAssignedEvaluatorsForVersions(
+    versionIds: number[],
+  ): Promise<AssignedEvaluatorInfo[]>;
 }

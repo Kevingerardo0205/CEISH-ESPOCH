@@ -52,6 +52,7 @@ describe('MeetingsController (T017 / RF-09)', () => {
       createPlace: jest.fn(),
       updatePlace: jest.fn(),
       deletePlace: jest.fn(),
+      findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),
     };
 
     pdfGeneratorMock = {

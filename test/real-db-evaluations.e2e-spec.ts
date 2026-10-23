@@ -1,4 +1,20 @@
 ﻿/* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument, @typescript-eslint/unbound-method, @typescript-eslint/no-unsafe-call */
+
+// Elevar los límites del DosDefenseMiddleware para que no dispare 429 durante los ~74
+// requests que acumula la suite completa en menos de 60 s (ventana deslizante).
+jest.mock('../src/shared/middleware/dos-defense.config', () => ({
+  ...jest.requireActual('../src/shared/middleware/dos-defense.config'),
+  DOS_DEFENSE_CONFIG: {
+    ...jest.requireActual('../src/shared/middleware/dos-defense.config')
+      .DOS_DEFENSE_CONFIG,
+    MAX_PETICIONES: 10_000,
+    MAX_PETICIONES_AUTH: 10_000,
+    MAX_PETICIONES_MEDIA: 10_000,
+    MAX_INFRACCIONES: 10_000,
+    DURACION_BLOQUEO_MS: 0,
+  },
+}));
+
 process.env.DB_NAME = process.env.TEST_DB_NAME || 'ceish_test_db';
 process.env.DB_HOST =
   process.env.TEST_DB_HOST || process.env.DB_HOST || 'localhost';
@@ -2768,6 +2784,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${V});
           DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${V}) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${V});
           DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${V};
+          DELETE FROM evaluacion.convocatorias WHERE id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id = ${V});
           UPDATE public.protocolos SET version_actual_id = NULL WHERE id = ${V};
           DELETE FROM public.versiones_protocolo WHERE id = ${V};
           DELETE FROM public.protocolos WHERE id = ${V};
@@ -2775,7 +2792,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       }
     });
 
-    it('12a. POST /assign → handleEvaluatorAssignedEvent recibe evaluatorEmail y evaluatorFullName reales (findEnrichmentInfo SQL real)', async () => {
+    it('12a (N41). POST /assign SIN convocatoria → NO emite correo (deadline null)', async () => {
       sendHtmlMock.mockClear();
       const handleSpy = jest.spyOn(
         mailerAdapter,
@@ -2796,36 +2813,18 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         });
 
       expect(res.status).toBe(201);
-      expect(handleSpy).toHaveBeenCalledTimes(4);
+      // N41: versión PA no está en ninguna convocatoria → handleEvaluatorAssignedEvent NO se invoca
+      expect(handleSpy).not.toHaveBeenCalled();
+      expect(sendHtmlMock).not.toHaveBeenCalled();
 
-      await Promise.allSettled(
-        handleSpy.mock.results
-          .filter((r) => r.type === 'return')
-          .map((r) => r.value),
-      );
-
-      const payloads = handleSpy.mock.calls.map((c) => c[0]);
-      const emails = payloads.map((p) => p.evaluatorEmail);
-      expect(emails).toContain('salud@test.com');
-      expect(emails).toContain('metodologo@test.com');
-      expect(emails).toContain('juridico@test.com');
-      expect(emails).toContain('lego@test.com');
-
-      // codigo_ceish sembrado en beforeAll para protocolo 993
-      payloads.forEach((p) =>
-        expect(p.protocolCode).toBe('CEISH-ESPOCH-EI-993-2099'),
-      );
-
-      // N19: deeplink correcto en el HTML del correo enviado
-      expect(sendHtmlMock).toHaveBeenCalledTimes(4);
-      for (const p of payloads) {
-        expect(sendHtmlMock).toHaveBeenCalledWith(
-          p.evaluatorEmail,
-          expect.any(String),
-          expect.stringContaining(
-            `/dashboard/evaluations/evaluate/${p.assignmentId}`,
-          ),
+      // Verificar en BD: fecha_limite IS NULL para las 4 asignaciones recién creadas
+      const rows: Array<{ fecha_limite: string | null }> =
+        await dataSource.query(
+          `SELECT fecha_limite FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PA} AND estado_id = ${AssignmentStatus.ASSIGNED}`,
         );
+      expect(rows.length).toBe(4);
+      for (const row of rows) {
+        expect(row.fecha_limite).toBeNull();
       }
 
       handleSpy.mockRestore();
@@ -2875,7 +2874,122 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
       handleSpy.mockRestore();
     });
-  }); // end describe('12. TSK-002-N17')
+
+    it('12c (N41). POST /meetings con versión PA asignada → emite correo individual a cada evaluador asignado', async () => {
+      sendHtmlMock.mockClear();
+      const handleSpy = jest.spyOn(
+        mailerAdapter,
+        'handleEvaluatorAssignedEvent',
+      );
+
+      const resMeeting = await request(app.getHttpServer())
+        .post('/api/evaluations/meetings')
+        .set('x-user-id', '901')
+        .send({
+          sessionType: 'ORDINARIA',
+          meetingDate: '2027-03-15T09:00:00.000Z',
+          evalSubmissionDeadline: '2027-03-20T22:00:00.000Z',
+          protocolVersionIds: [PA],
+        });
+
+      expect([200, 201]).toContain(resMeeting.status);
+
+      // Esperar que notifyAssignedEvaluatorsAsync complete (fire-and-forget + BD query)
+      await new Promise((resolve) => setTimeout(resolve, 500));
+
+      // N41: 4 emails individuales (uno por evaluador ASSIGNED de la versión PA)
+      expect(handleSpy).toHaveBeenCalledTimes(4);
+      await Promise.allSettled(
+        handleSpy.mock.results
+          .filter((r) => r.type === 'return')
+          .map((r) => r.value),
+      );
+
+      const payloads = handleSpy.mock.calls.map((c) => c[0]);
+      const emails = payloads.map((p) => p.evaluatorEmail);
+      expect(emails).toContain('salud@test.com');
+      expect(emails).toContain('metodologo@test.com');
+      expect(emails).toContain('juridico@test.com');
+      expect(emails).toContain('lego@test.com');
+
+      // deadlineDate propagado desde evalSubmissionDeadline
+      for (const p of payloads) {
+        expect(p.deadlineDate).toBeTruthy();
+        expect(typeof p.deadlineDate).toBe('string');
+      }
+
+      // N19-style: deeplink correcto en el HTML del correo enviado
+      expect(sendHtmlMock).toHaveBeenCalledTimes(4);
+      for (const p of payloads) {
+        expect(sendHtmlMock).toHaveBeenCalledWith(
+          p.evaluatorEmail,
+          expect.any(String),
+          expect.stringContaining(
+            `/dashboard/evaluations/evaluate/${p.assignmentId}`,
+          ),
+        );
+      }
+
+      handleSpy.mockRestore();
+    });
+
+    it('12d (N41). POST /assign CON versión PA ya en convocatoria PROGRAMADA → emite correo inmediatamente', async () => {
+      // Pre-condición: eliminar las asignaciones de 12a para evitar duplicados
+      await dataSource.query(
+        `DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PA} AND estado_id = ${AssignmentStatus.ASSIGNED}`,
+      );
+
+      sendHtmlMock.mockClear();
+      const handleSpy = jest.spyOn(
+        mailerAdapter,
+        'handleEvaluatorAssignedEvent',
+      );
+
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/assign')
+        .set('x-user-id', '901')
+        .send({
+          protocolId: PA,
+          evaluators: [
+            { evaluatorId: 901, profile: EvaluatorProfile.SALUD },
+            { evaluatorId: 902, profile: EvaluatorProfile.METODOLOGICO },
+            { evaluatorId: 903, profile: EvaluatorProfile.JURIDICO },
+            { evaluatorId: 904, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+          ],
+        });
+
+      expect(res.status).toBe(201);
+      // N41: versión PA ya está en convocatoria PROGRAMADA → handleEvaluatorAssignedEvent invocado 4 veces
+      expect(handleSpy).toHaveBeenCalledTimes(4);
+
+      await Promise.allSettled(
+        handleSpy.mock.results
+          .filter((r) => r.type === 'return')
+          .map((r) => r.value),
+      );
+
+      // deeplink y fecha_limite en el correo
+      const payloads = handleSpy.mock.calls.map((c) => c[0]);
+      for (const p of payloads) {
+        expect(p.deadlineDate).toBeTruthy();
+        expect(p.protocolCode).toBe('CEISH-ESPOCH-EI-993-2099');
+      }
+
+      expect(sendHtmlMock).toHaveBeenCalledTimes(4);
+
+      // Verificar en BD: fecha_limite propagada desde la convocatoria
+      const rows: Array<{ fecha_limite: string | null }> =
+        await dataSource.query(
+          `SELECT fecha_limite FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PA} AND estado_id = ${AssignmentStatus.ASSIGNED}`,
+        );
+      expect(rows.length).toBe(4);
+      for (const row of rows) {
+        expect(row.fecha_limite).not.toBeNull();
+      }
+
+      handleSpy.mockRestore();
+    });
+  }); // end describe('12. TSK-002-N17/N41')
 
   describe('13. TSK-002-N36 — CONFLICTO_INTERES rechaza mismo evaluador; VENCIMIENTO lo permite', () => {
     // Protocolo 995 para tests N36.

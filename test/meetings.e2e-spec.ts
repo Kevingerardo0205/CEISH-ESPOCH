@@ -136,6 +136,7 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
     findAssignedVersionsWithoutScheduledMeeting: jest
       .fn()
       .mockResolvedValue([]),
+    findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),
   };
 
   const mockPdfGenerator = {

@@ -281,8 +281,8 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     );
     expect(sociedadCivilEntity?.isAssignedForAnnex10).toBe(false);
 
-    // 3. Verificar la emisión de eventos de notificación con Deep-Linking
-    expect(emittedEvents).toHaveLength(4);
+    // 3. N41: sin convocatoria vigente (saveAssignments path → deadlineDate=null) → NO se emiten eventos
+    expect(emittedEvents).toHaveLength(0);
 
     // 4. Verificar que el estado de completitud es false cuando faltan dictámenes
     let isComplete =

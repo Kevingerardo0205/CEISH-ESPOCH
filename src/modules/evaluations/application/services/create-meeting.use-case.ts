@@ -7,7 +7,9 @@ import {
 import type {
   CreateMeetingParams,
   IMeetingRepositoryPort,
+  AssignedEvaluatorInfo,
 } from '../../domain/ports/meeting-repository.port';
+import type { EvaluatorAssignedEventPayload } from '../../infrastructure/adapters/mailer-notification.adapter';
 import type { MeetingEntity } from '../../domain/entities/meeting.entity';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
 import {
@@ -20,6 +22,12 @@ import { meetingPdfUrl } from '../../../../shared/utils/meeting-pdf-url.helper';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { IUserRepository } from '../../../auth/domain/ports/user.repository.port';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
+import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
+import type { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
+
+interface IEvaluatorEventEmitter {
+  emit(event: string, payload: EvaluatorAssignedEventPayload): void;
+}
 
 @Injectable()
 export class CreateMeetingUseCase {
@@ -35,6 +43,7 @@ export class CreateMeetingUseCase {
     private readonly emailService: IEmailServicePort,
     @Inject(IUserRepository)
     private readonly userRepository: IUserRepository,
+    private readonly evaluatorEmitter: IEvaluatorEventEmitter,
   ) {}
 
   async execute(params: CreateMeetingParams): Promise<{
@@ -156,6 +165,10 @@ export class CreateMeetingUseCase {
     // 7. URL del PDF es determinista; la generación y envío de correos son fire-and-forget
     const pdfUrl = meetingPdfUrl(savedMeeting.id);
     void this.notifyMembersAsync(savedMeeting, params);
+    void this.notifyAssignedEvaluatorsAsync(
+      params,
+      datesVo.evalSubmissionDeadline,
+    );
 
     return {
       id: savedMeeting.id,
@@ -163,6 +176,44 @@ export class CreateMeetingUseCase {
       pdfUrl,
       warnings,
     };
+  }
+
+  private async notifyAssignedEvaluatorsAsync(
+    params: CreateMeetingParams,
+    deadline: Date,
+  ): Promise<void> {
+    if (!params.protocolVersionIds?.length) return;
+    let assigned: AssignedEvaluatorInfo[];
+    try {
+      assigned = await this.meetingRepository.findAssignedEvaluatorsForVersions(
+        params.protocolVersionIds,
+      );
+    } catch (e) {
+      this.logger.error(
+        `[N41] Error al buscar evaluadores asignados para versiones ${params.protocolVersionIds.join(',')}: ${e instanceof Error ? e.message : String(e)}`,
+      );
+      return;
+    }
+    const deadlineDate = toCalendarDateString(deadline);
+    for (const ev of assigned) {
+      try {
+        this.evaluatorEmitter.emit('evaluator.assigned', {
+          assignmentId: String(ev.assignmentId),
+          protocolId: String(ev.protocolId),
+          evaluatorId: String(ev.evaluatorId),
+          evaluatorProfile: ev.evaluatorProfile as EvaluatorProfile,
+          isAssignedForAnnex10: ev.isAssignedForAnnex10,
+          deadlineDate,
+          evaluatorEmail: ev.evaluatorEmail ?? undefined,
+          evaluatorFullName: ev.evaluatorFullName ?? undefined,
+          protocolCode: ev.protocolCode ?? undefined,
+        });
+      } catch (e) {
+        this.logger.error(
+          `[N41] Error al emitir evento para assignmentId=${ev.assignmentId}: ${e instanceof Error ? e.message : String(e)}`,
+        );
+      }
+    }
   }
 
   private async notifyMembersAsync(

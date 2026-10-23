@@ -29,6 +29,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
   let pdfGeneratorMock: jest.Mocked<IMeetingPdfGeneratorPort>;
   let emailServiceMock: jest.Mocked<IEmailServicePort>;
   let userRepoMock: jest.Mocked<IUserRepository>;
+  let evaluatorEmitterMock: { emit: jest.Mock };
   let calculateDatesService: CalculateMeetingDatesService;
 
   beforeEach(() => {
@@ -47,6 +48,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       createPlace: jest.fn(),
       updatePlace: jest.fn(),
       deletePlace: jest.fn(),
+      findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),
     };
     pdfGeneratorMock = {
       generateAgendaPdf: jest.fn().mockResolvedValue({
@@ -88,6 +90,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       update: jest.fn(),
       findWithToken: jest.fn(),
     } as unknown as jest.Mocked<IUserRepository>;
+    evaluatorEmitterMock = { emit: jest.fn() };
     calculateDatesService = new CalculateMeetingDatesService(mockSystemParams);
 
     useCase = new CreateMeetingUseCase(
@@ -96,6 +99,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       calculateDatesService,
       emailServiceMock,
       userRepoMock,
+      evaluatorEmitterMock,
     );
   });
 
@@ -340,6 +344,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       svcWith3,
       emailServiceMock,
       userRepoMock,
+      evaluatorEmitterMock,
     );
 
     const meetingDate = new Date('2026-11-03T14:00:00.000Z'); // Lunes
@@ -687,6 +692,104 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       expect(callOrder[0]).toBe('save');
       expect(callOrder[1]).toBe('pdf');
       expect(callOrder[2]).toBe('email');
+    });
+  });
+
+  // ── TSK-002-N41 ────────────────────────────────────────────────────────────
+  describe('TSK-002-N41: notifyAssignedEvaluatorsAsync al crear convocatoria', () => {
+    const baseParams = {
+      sessionType: SessionType.ORDINARIA,
+      meetingDate: new Date('2027-01-15T09:00:00.000Z'),
+      evalSubmissionDeadline: new Date('2027-01-20T22:00:00.000Z'),
+      protocolVersionIds: [137],
+    };
+    const savedEntity: MeetingEntity = {
+      id: 'meet-n41',
+      numeroConvocatoria: '001-2027',
+      anioLectivo: 2027,
+      tipoSession: SessionType.ORDINARIA,
+      fechaReunion: baseParams.meetingDate,
+      fechaEntregaEvaluacion: baseParams.evalSubmissionDeadline,
+      estado: ConvocatoriaStatus.PROGRAMADA,
+    };
+
+    beforeEach(() => {
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+    });
+
+    it('N41-U-03: findAssignedEvaluatorsForVersions se invoca con los versionIds de la reunión creada', async () => {
+      repositoryMock.findAssignedEvaluatorsForVersions.mockResolvedValue([]);
+
+      await useCase.execute(baseParams);
+      await flushAsync();
+
+      expect(
+        repositoryMock.findAssignedEvaluatorsForVersions,
+      ).toHaveBeenCalledWith([137]);
+    });
+
+    it('N41-U-04: evaluatorEmitter.emit se invoca para cada evaluador ASSIGNED encontrado', async () => {
+      repositoryMock.findAssignedEvaluatorsForVersions.mockResolvedValue([
+        {
+          assignmentId: 1,
+          evaluatorId: 901,
+          protocolId: 10,
+          evaluatorEmail: 'salud@test.com',
+          evaluatorFullName: 'Dr. Salud',
+          protocolCode: 'CEISH-001',
+          evaluatorProfile: 'Salud',
+          isAssignedForAnnex10: true,
+        },
+        {
+          assignmentId: 2,
+          evaluatorId: 902,
+          protocolId: 10,
+          evaluatorEmail: 'metodologo@test.com',
+          evaluatorFullName: 'Dra. Metodologa',
+          protocolCode: 'CEISH-001',
+          evaluatorProfile: 'Metodológico',
+          isAssignedForAnnex10: false,
+        },
+        {
+          assignmentId: 3,
+          evaluatorId: 903,
+          protocolId: 10,
+          evaluatorEmail: 'juridico@test.com',
+          evaluatorFullName: 'Abg. Juridico',
+          protocolCode: 'CEISH-001',
+          evaluatorProfile: 'Jurídico',
+          isAssignedForAnnex10: false,
+        },
+        {
+          assignmentId: 4,
+          evaluatorId: 904,
+          protocolId: 10,
+          evaluatorEmail: 'lego@test.com',
+          evaluatorFullName: 'Lic. Lego',
+          protocolCode: 'CEISH-001',
+          evaluatorProfile: 'Sociedad Civil',
+          isAssignedForAnnex10: false,
+        },
+      ]);
+
+      const result = await useCase.execute(baseParams);
+      await flushAsync();
+
+      // La reunión se crea correctamente
+      expect(result.id).toBe('meet-n41');
+
+      // N41: emit se dispara 4 veces (una por evaluador ASSIGNED)
+      expect(evaluatorEmitterMock.emit).toHaveBeenCalledTimes(4);
+      expect(evaluatorEmitterMock.emit).toHaveBeenCalledWith(
+        'evaluator.assigned',
+        expect.objectContaining({
+          assignmentId: '1',
+          evaluatorEmail: 'salud@test.com',
+          protocolCode: 'CEISH-001',
+          // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
+          deadlineDate: expect.any(String),
+        }),
+      );
     });
   });
 });
