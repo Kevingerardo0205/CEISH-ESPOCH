@@ -119,6 +119,7 @@ Para respetar la integridad de los datos productivos/de prueba existentes:
 
 ### 6.1 Decisiones Confirmadas
 1. **Meetings como Bounded Context Canónico**: `MeetingsController` y `CreateMeetingUseCase` son la única vía de agendamiento; `CallsController` queda deprecado.
+   - Retiro programado de CallsController/CallsService: TSK-002-N47 (`specs/002-flujo-mvp/tasks.md`), tras verificar que ningún cliente llama `POST /api/evaluations/calls` (PASO PREVIO de TSK-002-N44).
 2. **Numeración Atómica Opción E**: Tabla de secuencias anuales + `UNIQUE` constraint en PostgreSQL + retry loop ante errores `23505`/`40001`.
 3. **Fuente Canónica de Enums**: Ubicados exclusivamente en `src/shared/enums/agenda-section.enum.ts` (sin duplicados en otros módulos).
 4. **Desacoplamiento de Puertos**: `IMeetingRepositoryPort` retornará tipos de dominio puros e interfaces TypeScript, eliminando dependencias hacia `ConvocatoriaOrmEntity`.
