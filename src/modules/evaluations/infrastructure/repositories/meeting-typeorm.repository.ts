@@ -183,15 +183,21 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
           }
         }
 
-        // 5. Propagar fecha_limite a las asignaciones ASSIGNED de los protocolos agendados
+        // 5. Propagar fecha_limite y fecha_limite_ts a las asignaciones ASSIGNED de los protocolos agendados
         if (params.protocolVersionIds && params.protocolVersionIds.length > 0) {
           const fechaLimite = toCalendarDateString(evalSubmissionDeadline);
           await queryRunner.query(
             `UPDATE evaluacion.asignaciones_evaluacion
-             SET fecha_limite = $1
-             WHERE version_id = ANY($2)
-               AND estado_id = $3`,
-            [fechaLimite, params.protocolVersionIds, AssignmentStatus.ASSIGNED],
+             SET fecha_limite = $1,
+                 fecha_limite_ts = $2
+             WHERE version_id = ANY($3)
+               AND estado_id = $4`,
+            [
+              fechaLimite,
+              evalSubmissionDeadline,
+              params.protocolVersionIds,
+              AssignmentStatus.ASSIGNED,
+            ],
           );
         }
 

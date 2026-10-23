@@ -860,16 +860,24 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         meetingId = (resCreate.body.data?.id ?? resCreate.body.id) as string;
 
         // Verificar SQL: todas las asignaciones ASIGNADO de versión 991 tienen fecha_limite = '2026-10-14'
+        // y fecha_limite_ts = instante exacto de evalSubmissionDeadline (TSK-002-N44)
         const rows = await dataSource.query(`
-          SELECT id, fecha_limite::text AS fecha_limite_str
+          SELECT id,
+                 fecha_limite::text AS fecha_limite_str,
+                 fecha_limite_ts AS fecha_limite_ts_utc
           FROM evaluacion.asignaciones_evaluacion
           WHERE version_id = 991
             AND estado_id = ${AssignmentStatus.ASSIGNED}
           ORDER BY id ASC;
         `);
         expect(rows.length).toBeGreaterThan(0);
+        const expectedTs = new Date('2026-10-14T17:00:00.000Z');
         for (const row of rows) {
           expect(row.fecha_limite_str).toBe('2026-10-14');
+          // fecha_limite_ts debe conservar el instante exacto (hora 17:00 UTC)
+          expect((row.fecha_limite_ts_utc as Date).getTime()).toBe(
+            expectedTs.getTime(),
+          );
         }
       } finally {
         if (meetingId) {
@@ -932,16 +940,41 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         expect([200, 201]).toContain(resMeeting.status);
         meetingId = (resMeeting.body.data?.id ?? resMeeting.body.id) as string;
 
-        // 4. Verificar que fecha_limite se propagó a las asignaciones ASIGNADO (RF-12.7(b))
+        // 4. Verificar que fecha_limite y fecha_limite_ts se propagaron a las asignaciones ASIGNADO (RF-12.7(b), TSK-002-N44)
         const updatedRows = await dataSource.query(`
-          SELECT id, fecha_limite::text AS fecha_limite_str
+          SELECT id,
+                 fecha_limite::text AS fecha_limite_str,
+                 fecha_limite_ts AS fecha_limite_ts_utc
           FROM evaluacion.asignaciones_evaluacion
           WHERE version_id = 997 AND estado_id = ${AssignmentStatus.ASSIGNED}
           ORDER BY id ASC;
         `);
         expect(updatedRows.length).toBe(4);
+        const expectedTs6b = new Date('2026-10-24T17:00:00.000Z');
         for (const row of updatedRows) {
           expect(row.fecha_limite_str).toBe('2026-10-24');
+          // fecha_limite_ts debe conservar el instante exacto (TSK-002-N44)
+          expect((row.fecha_limite_ts_utc as Date).getTime()).toBe(
+            expectedTs6b.getTime(),
+          );
+        }
+
+        // 5. Verificar que asignaciones NO en estado ASSIGNED (p. ej. SUGGESTED=5) de la misma versión NO se modifican
+        await dataSource.query(`
+          INSERT INTO evaluacion.asignaciones_evaluacion
+            (version_id, evaluador_id, estado_id, es_asignado_anexo_10, fecha_asignacion)
+          VALUES (997, 905, ${AssignmentStatus.SUGGESTED}, false, NOW())
+          ON CONFLICT DO NOTHING;
+        `);
+        const suggestedRows = await dataSource.query(`
+          SELECT fecha_limite::text AS fecha_limite_str, fecha_limite_ts
+          FROM evaluacion.asignaciones_evaluacion
+          WHERE version_id = 997 AND estado_id = ${AssignmentStatus.SUGGESTED}
+          ORDER BY id ASC;
+        `);
+        // La asignación SUGGESTED insertada después del UPDATE no debe tener fecha_limite_ts
+        for (const row of suggestedRows) {
+          expect(row.fecha_limite_ts).toBeNull();
         }
       } finally {
         if (meetingId) {
