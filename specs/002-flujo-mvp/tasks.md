@@ -201,11 +201,11 @@ Las tareas marcadas con `[x]` certifican componentes previamente implementados y
 
 Los siguientes parámetros deben leerse de la configuración del sistema (no hardcodeados):
 
-| Parámetro                                | Valor inicial             | RF                                                                                                                                                  |
-| ---------------------------------------- | ------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `plazo_revision_oficio_dias`             | 8 días laborables         | RF-12.7(c): tiempo mínimo de revisión en oficio; si `fecha_reunion` queda a menos de este valor desde `fecha_asignacion`, advertencia no bloqueante |
-| `dias_max_sin_convocatoria`              | 8 días laborables         | RF-12.7(d): alerta a Secretaría/Presidencia cuando protocolo-versión lleva más de este valor sin convocatoria                                       |
-| `dias_alerta_normativo_sin_convocatoria` | pendiente de confirmación | RF-12.7(d): alerta de proximidad al `fecha_plazo_normativo` sin convocatoria; aplica RF-ALR                                                         |
+| Parámetro | Valor inicial | RF |
+|---|---|---|
+| `plazo_revision_oficio_dias` | 8 días laborables | RF-12.7(c): tiempo mínimo de revisión en oficio; si `fecha_reunion` queda a menos de este valor desde `fecha_asignacion`, advertencia no bloqueante |
+| `dias_max_sin_convocatoria` | 8 días laborables | RF-12.7(d): alerta a Secretaría/Presidencia cuando protocolo-versión lleva más de este valor sin convocatoria |
+| `dias_alerta_normativo_sin_convocatoria` | pendiente de confirmación | RF-12.7(d): alerta de proximidad al `fecha_plazo_normativo` sin convocatoria; aplica RF-ALR |
 
 ---
 
@@ -329,8 +329,8 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** Existe duplicación del enum `AssignmentStatus` (verificado con `git grep -n "AssignmentStatus" -- src test`):
     - `src/shared/enums/evaluator-enums.ts` — define valores **string** (`ASSIGNED='ASSIGNED'`, `SUBMITTED='SUBMITTED'`, `REASIGNED_VENCIMIENTO='REASIGNED_VENCIMIENTO'`, `REASIGNED_COI='REASIGNED_COI'`). **Solo lo importa su propio test `src/shared/enums/evaluator-enums.spec.ts`; ningún archivo de producción lo usa.**
     - `src/modules/evaluations/domain/enums/assignment-status.enum.ts` — define valores **numéricos** (`SUGGESTED=5`, `ASSIGNED=6`, `COMPLETED=7`, `ARCHIVED=8`, `REASIGNED_VENCIMIENTO=26`, `REASIGNED_COI=27`). **Es el único utilizado** en todos los repositorios, use cases, services y tests funcionales.
-      Nota ortográfica: ambos enums usan `REASIGNED_*` (una sola S), no `REASSIGNED_*`.
-      Acción: evaluar si `evaluator-enums.ts:AssignmentStatus` puede eliminarse o debe alinearse; si se elimina, eliminar también `evaluator-enums.spec.ts` o redirigirlo al enum numérico.
+    Nota ortográfica: ambos enums usan `REASIGNED_*` (una sola S), no `REASSIGNED_*`.
+    Acción: evaluar si `evaluator-enums.ts:AssignmentStatus` puede eliminarse o debe alinearse; si se elimina, eliminar también `evaluator-enums.spec.ts` o redirigirlo al enum numérico.
   - **Archivos afectados:**
     - `src/shared/enums/evaluator-enums.ts` — MODIFICAR (eliminar o consolidar `AssignmentStatus` string).
     - `src/shared/enums/evaluator-enums.spec.ts` — MODIFICAR o ELIMINAR según decisión anterior.
@@ -397,7 +397,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 - [x] **TSK-002-N17**: Enriquecer el evento `evaluator.assigned` con `evaluatorEmail`, `evaluatorFullName` y `protocolCode`.
   - **Requisito relacionado:** RF-12.6 — notificación al evaluador por correo con deep-link.
   - **PR:** PR-F (`feat/n17-enriquecer-evento-evaluador`).
-  - **Descripción:** El `MailerNotificationAdapter` tiene un fallback `evaluador@espoch.edu.ec` (línea 38) porque los eventos emitidos por `AssignEvaluatorsUseCase` (línea 195) y `ReassignEvaluatorUseCase` (línea 324) no incluyen `evaluatorEmail`, `evaluatorFullName` ni `protocolCode`. Se añade el método `findEnrichmentInfo(evaluatorId: number, protocolId: number)` a `IEvaluationRepository` (puerto abstracto) y a las mini-interfaces locales de ambos use cases. La consulta SQL une `catalogos.usuarios` y `public.protocolos` por sus IDs. La llamada es _best-effort_: si falla o devuelve `null`, el evento se emite igual sin los campos de enriquecimiento. Se elimina el fallback `evaluador@espoch.edu.ec` en `handleEvaluatorAssignedEvent`; si `evaluatorEmail` es `undefined`, la función retorna sin enviar.
+  - **Descripción:** El `MailerNotificationAdapter` tiene un fallback `evaluador@espoch.edu.ec` (línea 38) porque los eventos emitidos por `AssignEvaluatorsUseCase` (línea 195) y `ReassignEvaluatorUseCase` (línea 324) no incluyen `evaluatorEmail`, `evaluatorFullName` ni `protocolCode`. Se añade el método `findEnrichmentInfo(evaluatorId: number, protocolId: number)` a `IEvaluationRepository` (puerto abstracto) y a las mini-interfaces locales de ambos use cases. La consulta SQL une `catalogos.usuarios` y `public.protocolos` por sus IDs. La llamada es *best-effort*: si falla o devuelve `null`, el evento se emite igual sin los campos de enriquecimiento. Se elimina el fallback `evaluador@espoch.edu.ec` en `handleEvaluatorAssignedEvent`; si `evaluatorEmail` es `undefined`, la función retorna sin enviar.
   - **Archivos afectados:**
     - `src/modules/evaluations/domain/ports/evaluation.repository.port.ts` — MODIFICAR: añadir `EvaluatorEnrichmentInfo` y método abstracto `findEnrichmentInfo`.
     - `src/modules/evaluations/application/use-cases/assign-evaluators.use-case.ts` — MODIFICAR: añadir `findEnrichmentInfo?` a la mini-interfaz local; enriquecer el payload del evento.
@@ -463,14 +463,13 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - El "mismo nivel" observado en la prueba fue un error de selección del usuario durante el experimento.
 
     **Catálogo `catalogos.niveles_riesgo`** (verificado):
-
-    | id  | código             | activo | tipo_revision |
-    | --- | ------------------ | ------ | ------------- |
-    | 4   | SIN_RIESG _(typo)_ | true   | —             |
-    | 5   | RIESGO_MINIMO      | true   | —             |
-    | 6   | RIESGO_MODERADO    | true   | —             |
-    | 7   | RIESGO_MAYOR       | true   | —             |
-    | 8   | ENSAYO_CLINICO     | false  | —             |
+    | id | código | activo | tipo_revision |
+    |---|---|---|---|
+    | 4 | SIN_RIESG *(typo)* | true | — |
+    | 5 | RIESGO_MINIMO | true | — |
+    | 6 | RIESGO_MODERADO | true | — |
+    | 7 | RIESGO_MAYOR | true | — |
+    | 8 | ENSAYO_CLINICO | false | — |
 
     **Consecuencias para tareas siguientes:**
     - N24: no hay bug a corregir en la comparación; el foco es auditoría + notificaciones + enum + quitar reset legacy.
@@ -493,13 +492,11 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 
     **2 — Auditoría de cada propuesta individual (RF-12.2c):**
     Inmediatamente después de guardar la propuesta con `riskProposalRepo.save(proposal)` (y el equivalente en la ruta legacy), registrar en `sistema.audit_log` dentro de la misma transacción usando `manager.getRepository(AuditLogOrmEntity)`:
-
     ```ts
     { action: 'RISK_PROPOSAL_SUBMITTED', table: 'evaluacion.propuestas_riesgo',
       recordId: protocolId, userId: evaluatorId,
       newData: { riskLevelId: dto.riskLevelId, round: currentRound, assignmentId } }
     ```
-
     Requiere importar `AuditLogOrmEntity` en `evaluations.service.ts` (ya existe en la BD). Requiere añadir `AuditLogOrmEntity` a `TypeOrmModule.forFeature` en `evaluations.module.ts`.
 
     **3 — Designación automática (RF-12.2d) — ruta canonical:**
@@ -517,21 +514,19 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 
     **5 — Corrección ruta legacy (RF-12.2e, anti-destrucción de datos — alcance mínimo):**
     En el bloque `else` de discrepancia legacy (líneas 1315–1322), eliminar el reset destructivo:
-
     ```ts
     pa.proposedRiskLevelId = undefined;
     pa.observations = undefined;
     pa.reportPath = undefined;
     pa.submittedAt = undefined;
     ```
-
     **Acción correcta:** no modificar los campos; agregar únicamente un `TODO` que señale la rama `refactor/remove-legacy-evaluations` donde se retira el flujo completo. El flujo legacy (`evaluacion.asignaciones_pares_riesgo`) está siendo retirado y no vale la pena rediseñarlo en este PR. La corrección mínima es quitar el reset para que los datos históricos no se destruyan si la ruta legacy aún se ejecuta.
 
     **6 — Prueba de regresión (verificación del flujo completo):**
     En `test/risk-designation.e2e-spec.ts` (nuevo archivo), dos casos E2E con protocolos de prueba en `ceish_test_db`:
     - **RD-01 (acuerdo):** Dos propuestas con el mismo `riskLevelId` → el protocolo queda con `isRiskLevelDesignated = true`, `riskLevelId` asignado, `statusId = ProtocolStatus.EN_EVALUACION`; 2 entradas `RISK_PROPOSAL_SUBMITTED` y 1 `RISK_LEVEL_AUTO_DESIGNATED` en `sistema.audit_log`.
     - **RD-02 (discrepancia):** Dos propuestas con `riskLevelId` distinto → `statusId = ProtocolStatus.DISCREPANCIA_RIESGO`, propuestas archivadas (`es_vigente = false`), 2 entradas `RISK_PROPOSAL_SUBMITTED` y 1 `RISK_LEVEL_DISCREPANCY`; datos de propuestas NO reseteados a null.
-      El protocolo 169 (ya en `DISCREPANCIA_RIESGO` con convocatoria 010-2026 en `ceish_db`) es un caso real validado pero NO se usa en el E2E automatizado (apunta a `ceish_test_db`).
+    El protocolo 169 (ya en `DISCREPANCIA_RIESGO` con convocatoria 010-2026 en `ceish_db`) es un caso real validado pero NO se usa en el E2E automatizado (apunta a `ceish_test_db`).
 
   - **Archivos afectados:**
     - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR (líneas 1067–1331).
@@ -551,11 +546,9 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** Endpoint que permite a un usuario con rol `SECRETARIA` registrar el nivel de riesgo acordado en sesión de pleno sobre un protocolo en estado `DISCREPANCIA_RIESGO`.
 
     **DTO** (`DesignatePlenumRiskDto`) — tipos verificados contra ORM:
-
     ```ts
-    {
-      riskLevelId: number; // @IsInt @IsPositive  (catalogos.niveles_riesgo.id → integer)
-      meetingId: string; // @IsUUID             (evaluacion.convocatorias.id → uuid, confirmado en ConvocatoriaOrmEntity:29)
+    { riskLevelId: number;  // @IsInt @IsPositive  (catalogos.niveles_riesgo.id → integer)
+      meetingId: string;    // @IsUUID             (evaluacion.convocatorias.id → uuid, confirmado en ConvocatoriaOrmEntity:29)
     }
     ```
 
@@ -595,23 +588,21 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Descripción:** Los únicos niveles de riesgo válidos según el PET del CEISH-ESPOCH son **Sin riesgo** (`SIN_RIESG`, id=4), **Riesgo mínimo** (`RIESGO_MINIMO`, id=5) y **Riesgo mayor al mínimo** (`RIESGO_MAYOR`, id=7). El nivel `RIESGO_MODERADO` (id=6) está activo pero no pertenece al PET. El nivel `ENSAYO_CLINICO` (id=8) ya está inactivo.
 
     **Catálogo confirmado en N23 (ceish_db):**
-
-    | id  | código          | activo | notas                                 |
-    | --- | --------------- | ------ | ------------------------------------- |
-    | 4   | SIN_RIESG       | true   | PET (typo en código, ver nota al pie) |
-    | 5   | RIESGO_MINIMO   | true   | PET                                   |
-    | 6   | RIESGO_MODERADO | true   | NO PET — desactivar                   |
-    | 7   | RIESGO_MAYOR    | true   | PET (ver nota al pie)                 |
-    | 8   | ENSAYO_CLINICO  | false  | ya inactivo                           |
+    | id | código | activo | notas |
+    |---|---|---|---|
+    | 4 | SIN_RIESG | true | PET (typo en código, ver nota al pie) |
+    | 5 | RIESGO_MINIMO | true | PET |
+    | 6 | RIESGO_MODERADO | true | NO PET — desactivar |
+    | 7 | RIESGO_MAYOR | true | PET (ver nota al pie) |
+    | 8 | ENSAYO_CLINICO | false | ya inactivo |
 
     **Paso 1 (referencias a nivel 6 — confirmado en ceish_db 2026-10-20):**
     - `evaluacion.propuestas_riesgo` con `nivel_riesgo_id = 6`: **0 filas**.
     - `public.protocolos` con `nivel_riesgo_id = 6`: **15 filas** (ids 6–104, borradores de prueba sin `codigo_ceish`, `estado_id = NULL`, creados entre 6 y 22 de mayo de 2026; el formulario de creación tenía selector de riesgo). No se modifican (son datos de prueba).
-      La migración puede ejecutarse sin riesgo de romper propuestas ni protocolos activos.
+    La migración puede ejecutarse sin riesgo de romper propuestas ni protocolos activos.
 
     **Paso 2 (migración):**
     Crear `src/migrations/<timestamp>-MarkRiesgoModeradoInactive.ts` que apunta exclusivamente al nivel 6 por su código exacto:
-
     ```sql
     -- up
     UPDATE catalogos.niveles_riesgo
@@ -623,7 +614,6 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     SET activo = true
     WHERE codigo = 'RIESGO_MODERADO';
     ```
-
     **No usar `NOT IN`** — la lista de PET tiene un typo en el código (`SIN_RIESG`) y un nombre que difiere del PET (`RIESGO_MAYOR`); una lista `NOT IN` podría desactivarlos por error si los códigos cambian.
 
     **Paso 3 (validación ya existente):**
@@ -632,7 +622,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     **Nota — limpieza de catálogo propuesta para tarea futura (NO implementar aquí):**
     - `SIN_RIESG` (id=4): el código tiene un typo (falta la 'O'). Corregir a `SIN_RIESGO` requiere una migración `UPDATE ... SET codigo = 'SIN_RIESGO' WHERE id = 4` y actualizar cualquier lógica que compare por código string.
     - `RIESGO_MAYOR` (id=7): el PET llama a este nivel "Investigación con riesgo mayor al mínimo". Renombrar el `nombre` del catálogo (no el código) en otra migración.
-      Ambas son mejoras cosméticas con bajo riesgo técnico; proponer al equipo antes de ejecutar.
+    Ambas son mejoras cosméticas con bajo riesgo técnico; proponer al equipo antes de ejecutar.
 
   - **Archivos afectados:**
     - `src/migrations/<timestamp>-MarkRiesgoModeradoInactive.ts` — CREAR.
@@ -668,11 +658,11 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **PR:** separado, a aprobar antes de implementar.
   - **Descripción:** Existen tres tracks de estado en paralelo sin una fuente de verdad documentada ni acordada:
 
-    | Track                     | Tabla / columna                 | Semántica actual                                                                                                                                             |
-    | ------------------------- | ------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-    | Flujo del proceso         | `public.protocolos.estado_id`   | Estado vivo del protocolo (9–21, `ProtocolStatus`). Cambia en cada transición.                                                                               |
+    | Track | Tabla / columna | Semántica actual |
+    |---|---|---|
+    | Flujo del proceso | `public.protocolos.estado_id` | Estado vivo del protocolo (9–21, `ProtocolStatus`). Cambia en cada transición. |
     | Disposición de la versión | `versiones_protocolo.estado_id` | Estado final de cada versión (APROBADO/RECHAZADO/REQUIERE_SUBSANACION/EN_CONTROL_DOCUMENTAL). Solo lo escribe `calls.service.ts` y `resolutions.service.ts`. |
-    | Checklist documental      | `recepcion.estado_id`           | Progreso de recepción. Es la fuente actual de bandejas de Secretaría (`ProtocolOrmEntity.receptionStatus` getter).                                           |
+    | Checklist documental | `recepcion.estado_id` | Progreso de recepción. Es la fuente actual de bandejas de Secretaría (`ProtocolOrmEntity.receptionStatus` getter). |
 
     **Síntoma observado:** En prueba real, los contadores no coincidían entre pantallas (inicio mostraba 3/110, Validación Documental mostraba 0/0 con 3 tarjetas visibles). Hay confusión real en producción, no solo de nomenclatura.
 
@@ -719,7 +709,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     **Numeración correlativa:**
     - `convocatorias.codigo` vacío en convocatorias recientes aunque el frontend muestra "010-2026". Averiguar de dónde sale ese código mostrado y si la numeración correlativa (RF-09) se está guardando correctamente.
 
-    **Otros varchar \_id:**
+    **Otros varchar _id:**
     - Revisar si hay otras columnas `*_id` en varchar en el esquema `evaluacion` que deberían ser entero o uuid.
 
   - **Archivos afectados (cuando se implemente):** migraciones TypeORM a definir tras el análisis.
@@ -750,7 +740,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     1. `@Param('protocolId')` sin `ParseIntPipe` → el parámetro llegaba como `string '169'`; las dos ramas `typeof === 'number'` se saltaban.
     2. Incluso con el tipo correcto, se habría pasado el `protocolId` donde el repositorio espera un `versionId`; `findActiveAssignmentsByVersionId(169)` devolvería 0 filas porque las asignaciones están bajo `versionId = 141`.
     3. El método `findAssignmentsByProtocolId` no existe en `IEvaluationRepository` — la tercera rama siempre falsa.
-       Fix: nuevo método `isCompletion100PercentByProtocolId(protocolId)` en `SubmitEvaluationUseCase` que resuelve `versionActualId` y verifica `isRiskLevelDesignated`; el método obsoleto eliminado; controlador solo agrega `ParseIntPipe`.
+    Fix: nuevo método `isCompletion100PercentByProtocolId(protocolId)` en `SubmitEvaluationUseCase` que resuelve `versionActualId` y verifica `isRiskLevelDesignated`; el método obsoleto eliminado; controlador solo agrega `ParseIntPipe`.
   - **Archivos afectados:**
     - MODIFICAR `src/modules/evaluations/application/use-cases/submit-evaluation.use-case.ts`
     - MODIFICAR `src/modules/evaluations/application/use-cases/submit-evaluation.use-case.spec.ts`
@@ -788,10 +778,10 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     1. `await Promise.all([generateAnnex9Pdf, generateAnnex9Docx])` — generación CPU-bound del PDF y DOCX en paralelo.
     2. `await Promise.all([uploadFile(pdf), uploadFile(docx)])` — subida a Cloudflare R2 en paralelo.
     3. `await emailService.sendEvaluationSubmitted(...)` — envío síncrono de correo a Secretaría.
-       Los tres bloques deben completarse antes de que el endpoint responda 200.
-       **Regla de negocio:** el PDF y el DOCX del Anexo 9 son el documento oficial del dictamen (valor legal); su generación y subida a R2 NO pueden moverse a segundo plano. Solo el correo (paso 3) puede hacerse fire-and-forget después del commit en BD.
-       Los documentos se generan una sola vez por envío (los endpoints `GET /:id/document` y `GET /:id/document/docx` solo generan URLs firmadas de R2, no regeneran).
-       **Fix propuesto (para aprobación):** mover únicamente `emailService.sendEvaluationSubmitted` a IIFE fire-and-forget post-commit; el resto (generación + upload) permanece síncrono.
+    Los tres bloques deben completarse antes de que el endpoint responda 200.
+    **Regla de negocio:** el PDF y el DOCX del Anexo 9 son el documento oficial del dictamen (valor legal); su generación y subida a R2 NO pueden moverse a segundo plano. Solo el correo (paso 3) puede hacerse fire-and-forget después del commit en BD.
+    Los documentos se generan una sola vez por envío (los endpoints `GET /:id/document` y `GET /:id/document/docx` solo generan URLs firmadas de R2, no regeneran).
+    **Fix propuesto (para aprobación):** mover únicamente `emailService.sendEvaluationSubmitted` a IIFE fire-and-forget post-commit; el resto (generación + upload) permanece síncrono.
   - **Archivos afectados (cuando se implemente):** `evaluations.service.ts` (~línea 694).
   - **Pruebas necesarias:** `submitEvaluation` responde < 2 s en entorno de prueba; el correo se despacha tras el retorno 200; tsc limpio; tests E2E verdes.
   - **Hecho cuando:** latencia < 2 s; correo enviado de forma asíncrona sin bloquear la respuesta; documentos PDF/DOCX subidos antes de retornar 200.
@@ -833,13 +823,16 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Requisito relacionado:** RF-12.7(e) — Decisión reunión 21/10/2026.
   - **Criterio EARS:** Criterio EARS RF-12.3 — Reasignación por VENCIMIENTO.
   - **PR:** posterior a TSK-002-N36.
-  - **Descripción:** Actualmente `ReassignEvaluatorUseCase` escribe el plazo en la columna `fecha_limite` de `evaluacion.asignaciones_evaluacion` (campo `deadline` en la entidad ORM, tipo `date` / `string 'YYYY-MM-DD'`). La decisión del 21/10/2026 establece "24 horas corridas" para VENCIMIENTO, lo que implica un instante exacto (hora incluida), no una fecha de calendario. **Decisión previa necesaria:** ¿se migra `fecha_limite` a `timestamptz` (cambio de esquema requerido) o se añade una columna `fecha_limite_ts timestamptz NULL` paralela? La `convocatoria.fecha_entrega_evaluacion` ya es `timestamptz` (verificado: `convocatoria.orm-entity.ts:57`). Hasta que se tome esta decisión, **esta tarea no está lista para implementarse**. Cuando se resuelva, la lógica será: si `dto.reason === 'VENCIMIENTO'`, `deadline = new Date(now.getTime() + 24 * 60 * 60 * 1000)`; si `CONFLICTO_INTERES` u otro, continúa la lógica vigente (herencia de convocatoria o `null`). No usar `toISOString().split('T')[0]` ni `.slice(0,10)`.
-  - **Archivos afectados (condicionados a la decisión de esquema):**
-    - `src/migrations/<timestamp>-...` — CREAR: migración para cambio de tipo o columna nueva.
-    - `src/modules/evaluations/infrastructure/database/evaluation-assignment.entity.orm.ts` — MODIFICAR: columna de plazo.
-    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR: rama `if (reason === 'VENCIMIENTO')` para +24h.
-    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.spec.ts` — MODIFICAR: casos N37-U-01 y N37-U-02.
-  - **Hecho cuando:** ✓ decisión de esquema (opción a: columna `fecha_limite_ts timestamptz NULL`); migración `1870000000000-AddFechaLimiteTsToAsignaciones` ejecutada en `ceish_test_db`; tsc limpio; 18 unit tests (N37-U-01..N37-U-04) verdes; E2E 13b (VENCIMIENTO +24h DB) y 13c (COI hereda convocatoria) verdes; eslint limpio; 152/152 E2E.
+  - **Descripción:** Decisión tomada: opción (a) — se añade una columna `fecha_limite_ts timestamptz NULL` paralela; `fecha_limite` (`date`, string `'YYYY-MM-DD'`) se sigue escribiendo, derivada con `toCalendarDateString` en `America/Guayaquil`. Lógica implementada: si `dto.reason === 'VENCIMIENTO'`, `newDeadlineTs = new Date(Date.now() + 24 * 60 * 60 * 1000)` (24 horas corridas desde ahora, independiente de la convocatoria); otros motivos heredan `fecha_entrega_evaluacion` de la convocatoria activa o `null` si no hay convocatoria agendada. `findActiveConvocatoriaDeadline` devuelve `Promise<Date | null>` y no se llama para VENCIMIENTO. Ningún lector (urgencia, alertas, correos) usa aún `fecha_limite_ts`; ver TSK-002-N45.
+  - **Archivos afectados:**
+    - `src/migrations/1870000000000-AddFechaLimiteTsToAsignaciones.ts` — CREAR: `ALTER TABLE evaluacion.asignaciones_evaluacion ADD COLUMN fecha_limite_ts timestamptz NULL`.
+    - `src/modules/evaluations/infrastructure/database/evaluation-assignment.entity.orm.ts` — MODIFICAR: añadir `@Column({ name: 'fecha_limite_ts', type: 'timestamptz', nullable: true }) deadlineTimestamp?: Date | null`.
+    - `src/modules/evaluations/domain/entities/evaluation-assignment.entity.ts` — MODIFICAR: añadir `deadlineTimestamp?: Date | null` a `EvaluationAssignmentProps` y como campo `readonly` en la clase.
+    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR: `findActiveConvocatoriaDeadline` devuelve `Promise<Date | null>` (antes `Promise<string | null>`).
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — MODIFICAR: rama `if (reason === 'VENCIMIENTO')` para +24h; pasa `deadlineTimestamp` a `executeReassignmentTransaction`.
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.spec.ts` — MODIFICAR: 18 unit tests totales; N37-U-01..N37-U-04 añadidos; mock de `findActiveConvocatoriaDeadline` devuelve `Date | null`.
+    - `test/real-db-evaluations.e2e-spec.ts` — MODIFICAR: suite 13 — 13b extendido (VENCIMIENTO: verifica `fecha_limite_ts` en BD en `[t0+24h, t1+24h]` y `fecha_limite` = fecha ECT); 13c nuevo (COI con convocatoria: verifica `fecha_limite_ts === fecha_entrega_evaluacion`).
+  - **Hecho cuando:** ✓ decisión de esquema (opción a); migración `1870000000000` aplicada en `ceish_test_db`; tsc limpio; 410 unit (56 suites) y 152 E2E (13 suites) verdes; eslint limpio.
 
 - [ ] **TSK-002-N38** (PENDIENTE): Aceptar evidencia PDF opcional en el formulario de reasignación.
   - **Requisito relacionado:** RF-12.3 — Decisión reunión 21/10/2026 (formulario incluye evidencia PDF opcional).
@@ -913,11 +906,20 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 
 - [ ] **TSK-002-N44** (PENDIENTE — desbloqueada por TSK-002-N37, NO IMPLEMENTAR): Corregir la propagación de `fecha_entrega_evaluacion` a las asignaciones activas cuando el protocolo entra en la convocatoria (brecha de tipo `date` vs `timestamptz`).
   - **Requisito relacionado:** RF-12.7(b) — requisito preexistente, **no** parte de la propuesta N41–N43.
-  - **PR:** posterior a TSK-002-N37 (decisión de esquema de columna `fecha_limite`).
-  - **Descripción:** RF-12.7(b) **ya está parcialmente implementado**: `meeting-typeorm.repository.ts:186-196` ejecuta un `UPDATE evaluacion.asignaciones_evaluacion SET fecha_limite = $1 WHERE version_id = ANY($2) AND estado_id = $3` que propaga el plazo a todas las asignaciones con estado `ASSIGNED` al añadir protocolos-versión a la convocatoria (ruta canónica, `saveMeetingWithAtomicNumber`). El mismo patrón existe en `calls.service.ts:295-309` (ruta legacy). El único lugar donde hoy se lee `findActiveConvocatoriaDeadline` con ese fin es `reassign-evaluator.use-case.ts:210` (reasignación), no la creación de la reunión. `assign-evaluators.use-case.ts` fija `deadline: null` (línea 172) porque en ese momento aún no hay convocatoria. **Lo que falta (y esta tarea cubre):** la brecha de tipo entre `fecha_limite` (`date`, string `YYYY-MM-DD` en la entidad ORM) y `fecha_entrega_evaluacion` (`timestamptz`, `convocatoria.orm-entity.ts:57`); el valor se puede truncar al convertir. N37 debe resolver el tipo de columna antes de implementar N44. **N44 no depende de la confirmación de la propuesta N41–N43**: es un requisito preexistente. Sí debe verificarse si la ruta legacy (`calls.service.ts:createCall`) sigue activa y, de ser así, actualizarla en paralelo; ver pregunta (g) del ítem (vi) de spec.md. Relación con N41: una vez N44 corrija la propagación del plazo, la notificación individual de N41 ya dispondrá de la fecha en ese momento. **Diferencia de filtro entre rutas:** la ruta legacy (`calls.service.ts:295-309`) actualiza **todas** las asignaciones de la versión sin filtrar por estado (`.find({ where: { versionId } })`), mientras que la canónica (`meeting-typeorm.repository.ts:186-196`) filtra solo `estado_id = ASSIGNED`; antes de implementar N44 se debe decidir cuál comportamiento es correcto y alinearlos.
+  - **PR:** posterior a TSK-002-N37.
+  - **Descripción:** RF-12.7(b) **ya está parcialmente implementado**: `meeting-typeorm.repository.ts:186-196` ejecuta un `UPDATE evaluacion.asignaciones_evaluacion SET fecha_limite = $1 WHERE version_id = ANY($2) AND estado_id = $3` que propaga el plazo a las asignaciones `ASSIGNED` al añadir protocolos-versión a la convocatoria (ruta canónica, `saveMeetingWithAtomicNumber`). El mismo patrón existe en `calls.service.ts:295-309` (ruta legacy). N37 ya creó la columna `fecha_limite_ts timestamptz`; N44 debe escribir `fecha_limite_ts` además de `fecha_limite` en ambos UPDATE de propagación, conservando la hora de `fecha_entrega_evaluacion`. **Diferencia de filtro entre rutas:** la ruta legacy (`calls.service.ts:295-309`) actualiza **todas** las asignaciones de la versión sin filtrar por estado (`.find({ where: { versionId } })`), mientras que la canónica (`meeting-typeorm.repository.ts:186-196`) filtra solo `estado_id = ASSIGNED`; antes de implementar N44 se debe alinear este comportamiento. **N44 no depende de la confirmación de la propuesta N41–N43**: es un requisito preexistente. Sí debe verificarse si la ruta legacy (`calls.service.ts:createCall`) sigue activa antes de modificarla; ver pregunta (g) del ítem (vi) de spec.md. Relación con N41: una vez N44 corrija la propagación del plazo, la notificación individual de N41 ya dispondrá de la fecha con hora.
   - **Archivos afectados:**
-    - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` — MODIFICAR: líneas 186-196, ajustar el parámetro del UPDATE de `fecha_limite` al tipo/columna que decida N37 (ruta canónica, solo asignaciones `ASSIGNED`).
-    - `src/modules/evaluations/application/services/calls.service.ts` — MODIFICAR: líneas 295-309, ajustar `toCalendarDateString(evaluationDeadline)` al tipo/columna decidido por N37 (ruta legacy; solo si sigue activa; ver pregunta (g) de spec.md).
-    - `test/real-db-evaluations.e2e-spec.ts` — MODIFICAR: suite 6 (líneas ~836-888, RF-12.7(a)+(b)): actualizar la aserción `fecha_limite_str` (hoy `'2026-10-14'` como `date`) al nuevo tipo/formato que decida N37.
-  - **Nota N37→N44:** la columna `fecha_limite_ts` (`timestamptz`) añadida por N37 aún **no** se propaga en el UPDATE de `meeting-typeorm.repository.ts:186-196` ni en `calls.service.ts:295-309`; N44 debe incluir esa propagación junto con la corrección del tipo `date` → `timestamptz`.
-  - **Hecho cuando:** N37 resuelta; al agendar un protocolo con asignaciones ASSIGNED, tanto `fecha_limite` (date) como `fecha_limite_ts` (timestamptz) reflejan `fecha_entrega_evaluacion` sin perder la hora; mismo comportamiento en la ruta legacy si sigue activa; tsc limpio; tests verdes; eslint limpio.
+    - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` — MODIFICAR: líneas 186-196, añadir escritura de `fecha_limite_ts` al UPDATE (ruta canónica, solo asignaciones `ASSIGNED`).
+    - `src/modules/evaluations/application/services/calls.service.ts` — MODIFICAR: líneas 295-309, añadir escritura de `fecha_limite_ts` al UPDATE (ruta legacy; solo si sigue activa; ver pregunta (g) de spec.md).
+    - `test/real-db-evaluations.e2e-spec.ts` — MODIFICAR: suite 6 (líneas ~836-888, RF-12.7(a)+(b)): añadir aserción de `fecha_limite_ts` junto a la de `fecha_limite`.
+  - **Hecho cuando:** al agendar un protocolo con asignaciones `ASSIGNED`, tanto `fecha_limite` (date) como `fecha_limite_ts` (timestamptz) reflejan `fecha_entrega_evaluacion` sin perder la hora; mismo comportamiento en la ruta legacy si sigue activa; tsc limpio; tests verdes; eslint limpio.
+
+- [ ] **TSK-002-N45** (PENDIENTE — NO IMPLEMENTAR): Migrar los lectores de plazo de `fecha_limite` (`date`) a `fecha_limite_ts` (`timestamptz`) y mostrar la hora en el correo de asignación cuando el plazo es +24 h por VENCIMIENTO.
+  - **Requisito relacionado:** RF-12.7(e) — extensión de TSK-002-N37; los lectores de plazo deben usar el instante exacto.
+  - **PR:** posterior a TSK-002-N44.
+  - **Descripción:** N37 añadió la columna `fecha_limite_ts timestamptz` y la escribe en el flujo de reasignación, pero ningún lector (servicio de urgencia, alertas, correos de asignación) la consume aún. N44 extiende la escritura a los flujos de agendamiento. N45 migra la lectura: (1) `evaluations-urgency.service.ts` y cualquier otro lector que calcule proximidad o vencimiento de plazo deben leer `fecha_limite_ts` cuando no sea `null`, con fallback a `fecha_limite` para asignaciones sin `fecha_limite_ts`. (2) El correo de asignación enviado por `MailerNotificationAdapter.handleEvaluatorAssignedEvent` debe mostrar la hora del plazo cuando sea +24 h por VENCIMIENTO (identificable porque el evento ya incluye `reassignmentReason: 'VENCIMIENTO'`). Antes de implementar, confirmar el formato de hora en el correo (`HH:mm ECT` o `HH:mm UTC`).
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/services/evaluations-urgency.service.ts` — MODIFICAR: usar `fecha_limite_ts` cuando esté disponible; fallback a `fecha_limite`.
+    - `src/modules/notifications/infrastructure/adapters/mailer-notification.adapter.ts` — MODIFICAR: incluir hora en el correo cuando `reassignmentReason === 'VENCIMIENTO'`.
+    - Archivos de tests de los servicios afectados — MODIFICAR: actualizar mocks y aserciones.
+  - **Hecho cuando:** los lectores de plazo usan `fecha_limite_ts`; el correo de VENCIMIENTO muestra la hora; tsc limpio; unit tests y E2E verdes; eslint limpio.
