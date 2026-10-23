@@ -927,6 +927,22 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           expect(row.fecha_limite_str).toBeNull();
         }
 
+        // 2.5. Insertar asignación SUGGESTED ANTES de crear la reunión para probar que el UPDATE la excluye (TSK-002-N44)
+        await dataSource.query(`
+          INSERT INTO evaluacion.asignaciones_evaluacion
+            (version_id, evaluador_id, estado_id, es_asignado_anexo_10, fecha_asignacion)
+          VALUES (997, 905, ${AssignmentStatus.SUGGESTED}, false, NOW())
+          ON CONFLICT DO NOTHING;
+        `);
+        const suggestedPre = await dataSource.query(`
+          SELECT fecha_limite::text AS fecha_limite_str, fecha_limite_ts
+          FROM evaluacion.asignaciones_evaluacion
+          WHERE version_id = 997 AND estado_id = ${AssignmentStatus.SUGGESTED};
+        `);
+        expect(suggestedPre.length).toBe(1);
+        expect(suggestedPre[0].fecha_limite_str).toBeNull();
+        expect(suggestedPre[0].fecha_limite_ts).toBeNull();
+
         // 3. Crear convocatoria que incluye versión 997
         const resMeeting = await request(app.getHttpServer())
           .post('/api/evaluations/meetings')
@@ -959,21 +975,16 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           );
         }
 
-        // 5. Verificar que asignaciones NO en estado ASSIGNED (p. ej. SUGGESTED=5) de la misma versión NO se modifican
-        await dataSource.query(`
-          INSERT INTO evaluacion.asignaciones_evaluacion
-            (version_id, evaluador_id, estado_id, es_asignado_anexo_10, fecha_asignacion)
-          VALUES (997, 905, ${AssignmentStatus.SUGGESTED}, false, NOW())
-          ON CONFLICT DO NOTHING;
-        `);
+        // 5. Verificar que la asignación SUGGESTED preexistente NO fue modificada por el UPDATE (solo afecta estado_id = ASSIGNED)
         const suggestedRows = await dataSource.query(`
           SELECT fecha_limite::text AS fecha_limite_str, fecha_limite_ts
           FROM evaluacion.asignaciones_evaluacion
           WHERE version_id = 997 AND estado_id = ${AssignmentStatus.SUGGESTED}
           ORDER BY id ASC;
         `);
-        // La asignación SUGGESTED insertada después del UPDATE no debe tener fecha_limite_ts
+        expect(suggestedRows.length).toBe(1);
         for (const row of suggestedRows) {
+          expect(row.fecha_limite_str).toBeNull();
           expect(row.fecha_limite_ts).toBeNull();
         }
       } finally {
