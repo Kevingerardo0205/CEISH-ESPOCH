@@ -907,7 +907,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - Archivos de test unitarios de los use cases afectados — MODIFICAR: añadir casos.
   - **Hecho cuando:** endpoints rechazan con `403 Forbidden` y mensaje "el protocolo aún no está en una convocatoria" el acceso a asignaciones cuyo protocolo no está en convocatoria; tsc limpio; tests verdes; eslint limpio.
 
-- [ ] **TSK-002-N44** (PENDIENTE — SIGUIENTE EN LA SECUENCIA, desbloqueada por TSK-002-N37): Corregir la propagación de `fecha_entrega_evaluacion` a las asignaciones activas cuando el protocolo entra en la convocatoria (brecha de tipo `date` vs `timestamptz`).
+- [x] **TSK-002-N44** (COMPLETADA — commit 664bee7, rama feat/n44-fecha-limite-ts-agendar): Corregir la propagación de `fecha_entrega_evaluacion` a las asignaciones activas cuando el protocolo entra en la convocatoria (brecha de tipo `date` vs `timestamptz`).
   - **Requisito relacionado:** RF-12.7(b) — requisito preexistente; no depende de N41–N43; N41 y N42 dependen de esta tarea.
   - **PR:** posterior a TSK-002-N37.
   - **PASO PREVIO obligatorio (verificación de uso de la ruta legacy):** Ejecutar en el backend: `git grep -n "POST.*evaluations/calls\|createCall\|/api/evaluations/calls" -- src/`. Adicionalmente, el usuario debe verificar en el repositorio **FRONTEND-CEISH** (no está en este repo) que ningún componente ni servicio llame a `POST /api/evaluations/calls`. Reportar el resultado antes de implementar; si algún cliente activo usa la ruta, escalar antes de continuar. Referencia: `specs/003-flujo-mvp/reconciliation.md` sección 6.1.1 (`CallsController` deprecado); `specs/003-flujo-mvp/plan.md` PR-B1.
