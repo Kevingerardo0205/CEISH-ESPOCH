@@ -54,6 +54,7 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
               statusId: params.newAssignment.statusId,
               isAssignedForAnnex10: params.newAssignment.isAssignedForAnnex10,
               deadline: params.newAssignment.deadline,
+              deadlineTimestamp: params.newAssignment.deadlineTimestamp,
             },
             auditHistory: {
               id: 1,
@@ -120,9 +121,10 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
   });
 
   it('should inherit fechaEntregaEvaluacion from active convocatoria when available (RF-12.7(e), TSK-002-N02)', async () => {
+    // Mock devuelve Date (nueva firma); toCalendarDateString(2026-10-14T17:00Z) = '2026-10-14' en ECT
     repositoryMock.findActiveConvocatoriaDeadline = jest
       .fn()
-      .mockResolvedValue('2026-10-14');
+      .mockResolvedValue(new Date('2026-10-14T17:00:00.000Z'));
 
     const dto: ReassignEvaluatorDto = {
       currentAssignmentId: 101,
@@ -139,21 +141,29 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
     expect(result.newAssignment.deadlineDate).toBe('2026-10-14');
   });
 
-  it('should set deadlineDate null when no active convocatoria exists (RF-12.7(e), TSK-002-N02)', async () => {
-    repositoryMock.findActiveConvocatoriaDeadline = jest
-      .fn()
-      .mockResolvedValue(null);
+  it('VENCIMIENTO sin convocatoria → deadlineDate = fecha calendario now+24h (RF-12.7(e), TSK-002-N37)', async () => {
+    // VENCIMIENTO ignora la convocatoria; findActiveConvocatoriaDeadline no debe llamarse
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-10-24T12:00:00.000Z'));
+    try {
+      const dto: ReassignEvaluatorDto = {
+        currentAssignmentId: 101,
+        replacementEvaluatorId: 25,
+        replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+        reason: ReassignmentReason.VENCIMIENTO,
+      };
 
-    const dto: ReassignEvaluatorDto = {
-      currentAssignmentId: 101,
-      replacementEvaluatorId: 25,
-      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
-      reason: ReassignmentReason.VENCIMIENTO,
-    };
+      const result = await useCase.execute(dto, 1);
 
-    const result = await useCase.execute(dto, 1);
-
-    expect(result.newAssignment.deadlineDate).toBeNull();
+      // now = 2026-10-24T12:00:00Z; +24h = 2026-10-25T12:00:00Z; en ECT = 2026-10-25 07:00 → '2026-10-25'
+      expect(result.newAssignment.deadlineDate).toBe('2026-10-25');
+      expect(result.newAssignment.deadlineTimestamp).toEqual(
+        new Date('2026-10-25T12:00:00.000Z'),
+      );
+      expect(repositoryMock.findActiveConvocatoriaDeadline).toBeUndefined();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('should throw error when trying to replace with a heterogeneous profile', async () => {
@@ -321,6 +331,101 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
     expect(eventPayload).not.toHaveProperty('protocolCode');
   });
 
+  it('N37-U-01: VENCIMIENTO → deadlineTs = now+24h exactas, deadlineDate = fecha ECT (RF-12.7(e), TSK-002-N37)', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-11-01T00:00:00.000Z'));
+    try {
+      const dto: ReassignEvaluatorDto = {
+        currentAssignmentId: 101,
+        replacementEvaluatorId: 25,
+        replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+        reason: ReassignmentReason.VENCIMIENTO,
+      };
+
+      const result = await useCase.execute(dto, 1);
+
+      const expectedTs = new Date('2026-11-02T00:00:00.000Z');
+      // 2026-11-02T00:00:00Z en ECT (UTC-5) = 2026-11-01 19:00 → fecha '2026-11-01'
+      expect(result.newAssignment.deadlineTimestamp).toEqual(expectedTs);
+      expect(result.newAssignment.deadlineDate).toBe('2026-11-01');
+      expect(result.newAssignment.evaluatorId).toBe(25);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('N37-U-02: VENCIMIENTO con convocatoria activa → ignora convocatoria, usa now+24h (RF-12.7(e), TSK-002-N37)', async () => {
+    jest.useFakeTimers();
+    jest.setSystemTime(new Date('2026-11-01T00:00:00.000Z'));
+    try {
+      repositoryMock.findActiveConvocatoriaDeadline = jest
+        .fn()
+        .mockResolvedValue(new Date('2026-11-10T17:00:00.000Z'));
+
+      const dto: ReassignEvaluatorDto = {
+        currentAssignmentId: 101,
+        replacementEvaluatorId: 25,
+        replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+        reason: ReassignmentReason.VENCIMIENTO,
+      };
+
+      const result = await useCase.execute(dto, 1);
+
+      // Debe ignorar la convocatoria y usar now+24h
+      expect(
+        repositoryMock.findActiveConvocatoriaDeadline,
+      ).not.toHaveBeenCalled();
+      expect(result.newAssignment.deadlineTimestamp).toEqual(
+        new Date('2026-11-02T00:00:00.000Z'),
+      );
+      expect(result.newAssignment.deadlineDate).toBe('2026-11-01');
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('N37-U-03: CONFLICTO_INTERES con convocatoria → hereda timestamp y fecha ECT (RF-12.7(e), TSK-002-N37)', async () => {
+    // fecha_entrega_evaluacion: 2026-11-10T17:00:00Z = 2026-11-10 12:00 ECT → '2026-11-10'
+    repositoryMock.findActiveConvocatoriaDeadline = jest
+      .fn()
+      .mockResolvedValue(new Date('2026-11-10T17:00:00.000Z'));
+
+    const dto: ReassignEvaluatorDto = {
+      currentAssignmentId: 101,
+      replacementEvaluatorId: 25,
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.CONFLICTO_INTERES,
+    };
+
+    const result = await useCase.execute(dto, 1);
+
+    expect(repositoryMock.findActiveConvocatoriaDeadline).toHaveBeenCalledWith(
+      99,
+    );
+    expect(result.newAssignment.deadlineTimestamp).toEqual(
+      new Date('2026-11-10T17:00:00.000Z'),
+    );
+    expect(result.newAssignment.deadlineDate).toBe('2026-11-10');
+  });
+
+  it('N37-U-04: CONFLICTO_INTERES sin convocatoria → deadlineTs y deadlineDate null (RF-12.7(e), TSK-002-N37)', async () => {
+    repositoryMock.findActiveConvocatoriaDeadline = jest
+      .fn()
+      .mockResolvedValue(null);
+
+    const dto: ReassignEvaluatorDto = {
+      currentAssignmentId: 101,
+      replacementEvaluatorId: 25,
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.CONFLICTO_INTERES,
+    };
+
+    const result = await useCase.execute(dto, 1);
+
+    expect(result.newAssignment.deadlineTimestamp).toBeNull();
+    expect(result.newAssignment.deadlineDate).toBeNull();
+  });
+
   it('N36-U-01: VENCIMIENTO con mismo evaluador saliente → resultado exitoso, sin excepción (RF-12.3)', async () => {
     const dto: ReassignEvaluatorDto = {
       currentAssignmentId: 101,
@@ -347,7 +452,8 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
       replacementEvaluatorId: 15, // mismo que ormEntityMock.evaluatorId
       replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
       reason: ReassignmentReason.CONFLICTO_INTERES,
-      reasonDescription: 'El evaluador tiene conflicto de interés consigo mismo.',
+      reasonDescription:
+        'El evaluador tiene conflicto de interés consigo mismo.',
     };
 
     await expect(useCase.execute(dto, 1)).rejects.toThrow(ConflictException);

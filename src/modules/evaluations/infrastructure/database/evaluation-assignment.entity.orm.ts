@@ -80,6 +80,13 @@ export class EvaluationAssignmentOrmEntity {
   })
   deadline?: string | null;
 
+  @Column({
+    name: 'fecha_limite_ts',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  deadlineTimestamp?: Date | null;
+
   @CreateDateColumn({ name: 'fecha_asignacion', type: 'timestamp' })
   assignedAt!: Date;
 

@@ -19,7 +19,6 @@ import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity
 
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
-import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
 import { ConvocatoriaStatus } from '../database/entities/convocatoria.orm-entity';
 
 @Injectable()
@@ -82,7 +81,7 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
 
   async findActiveConvocatoriaDeadline(
     versionId: number,
-  ): Promise<string | null> {
+  ): Promise<Date | null> {
     // Solo convocatorias vigentes: PROGRAMADA o EN_CURSO excluye CANCELADA y CONCLUIDA
     const rows: Array<{ fecha_entrega_evaluacion: Date | null }> =
       await this.dataSource.query(
@@ -97,7 +96,7 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
         [versionId, ConvocatoriaStatus.PROGRAMADA, ConvocatoriaStatus.EN_CURSO],
       );
     if (!rows.length || !rows[0].fecha_entrega_evaluacion) return null;
-    return toCalendarDateString(new Date(rows[0].fecha_entrega_evaluacion));
+    return new Date(rows[0].fecha_entrega_evaluacion);
   }
 
   async saveAssignmentsTransaction(
