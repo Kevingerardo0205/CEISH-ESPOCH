@@ -372,6 +372,18 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           `[ORPHAN-AFTER] convocatorias sin convocatoria_protocolos: ${orphanRowsAfter[0].count}`,
         );
 
+        // Verificar residuos en rangos de test (version_id 990–999)
+        const residuosAsign: Array<{ count: string }> = await dataSource.query(
+          `SELECT COUNT(*) AS count FROM evaluacion.asignaciones_evaluacion WHERE version_id BETWEEN 990 AND 999`,
+        );
+        const residuosConvProt: Array<{ count: string }> =
+          await dataSource.query(
+            `SELECT COUNT(*) AS count FROM evaluacion.convocatoria_protocolos WHERE version_id BETWEEN 990 AND 999`,
+          );
+        console.log(
+          `[RESIDUOS] asignaciones version_id 990-999: ${residuosAsign[0].count} | convocatoria_protocolos: ${residuosConvProt[0].count}`,
+        );
+
         // Guardia de higiene global: estado final debe coincidir con el baseline post-cleanup
         if (globalConvocatoriaBaseline !== undefined) {
           const finalRows: Array<{ count: string }> = await dataSource.query(
