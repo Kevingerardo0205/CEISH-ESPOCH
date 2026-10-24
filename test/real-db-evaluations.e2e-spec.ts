@@ -217,6 +217,13 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     );
     globalConvocatoriaBaseline = Number(baseRows[0].count);
 
+    const orphanRowsBefore: Array<{ count: string }> = await dataSource.query(
+      `SELECT COUNT(*) AS count FROM evaluacion.convocatorias c WHERE NOT EXISTS (SELECT 1 FROM evaluacion.convocatoria_protocolos cp WHERE cp.convocatoria_id = c.id)`,
+    );
+    console.log(
+      `[ORPHAN-BEFORE] convocatorias sin convocatoria_protocolos: ${orphanRowsBefore[0].count}`,
+    );
+
     // Resolver catálogos dinámicamente sin IDs fijos ni borrados
     await dataSource.query(`
       INSERT INTO catalogos.criterios_evaluacion (tipo, descripcion)
@@ -356,6 +363,13 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
           DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%' OR nombre LIKE 'TEST-N08-%';
         `);
+
+        const orphanRowsAfter: Array<{ count: string }> = await dataSource.query(
+          `SELECT COUNT(*) AS count FROM evaluacion.convocatorias c WHERE NOT EXISTS (SELECT 1 FROM evaluacion.convocatoria_protocolos cp WHERE cp.convocatoria_id = c.id)`,
+        );
+        console.log(
+          `[ORPHAN-AFTER] convocatorias sin convocatoria_protocolos: ${orphanRowsAfter[0].count}`,
+        );
 
         // Guardia de higiene global: estado final debe coincidir con el baseline post-cleanup
         if (globalConvocatoriaBaseline !== undefined) {
@@ -2982,18 +2996,53 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
       expect(sendHtmlMock).toHaveBeenCalledTimes(4);
 
+      // Obtener fecha_entrega_evaluacion de la convocatoria PROGRAMADA de PA (la creada en 12c)
+      const convRows: Array<{ fecha_entrega_evaluacion: Date | null }> =
+        await dataSource.query(
+          `SELECT c.fecha_entrega_evaluacion
+           FROM evaluacion.convocatorias c
+           JOIN evaluacion.convocatoria_protocolos cp ON cp.convocatoria_id = c.id
+           WHERE cp.version_id = $1 AND c.estado = 'PROGRAMADA'
+           ORDER BY c.fecha_reunion DESC LIMIT 1`,
+          [PA],
+        );
+      expect(convRows.length).toBe(1);
+      const convDeadline = convRows[0].fecha_entrega_evaluacion;
+      expect(convDeadline).not.toBeNull();
+
+      // Fecha calendario en America/Guayaquil derivada del instante de la convocatoria
+      const guayaquilDate = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Guayaquil',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      }).format(convDeadline!);
+
       // Verificar en BD: fecha_limite y fecha_limite_ts propagadas desde la convocatoria
+      // node-postgres devuelve DATE y TIMESTAMPTZ como objetos Date
       const rows: Array<{
-        fecha_limite: string | null;
-        fecha_limite_ts: string | null;
+        fecha_limite: Date | null;
+        fecha_limite_ts: Date | null;
       }> = await dataSource.query(
         'SELECT fecha_limite, fecha_limite_ts FROM evaluacion.asignaciones_evaluacion WHERE version_id = $1 AND estado_id = $2',
         [PA, AssignmentStatus.ASSIGNED],
       );
       expect(rows.length).toBe(4);
+      const guayaquilFmt = new Intl.DateTimeFormat('en-CA', {
+        timeZone: 'America/Guayaquil',
+        year: 'numeric',
+        month: '2-digit',
+        day: '2-digit',
+      });
       for (const row of rows) {
         expect(row.fecha_limite).not.toBeNull();
         expect(row.fecha_limite_ts).not.toBeNull();
+        // fecha_limite_ts debe ser el mismo instante exacto que fecha_entrega_evaluacion de la convocatoria
+        expect(new Date(row.fecha_limite_ts!).getTime()).toBe(
+          new Date(convDeadline!).getTime(),
+        );
+        // fecha_limite (DATE) debe coincidir con la fecha calendario en America/Guayaquil
+        expect(guayaquilFmt.format(row.fecha_limite!)).toBe(guayaquilDate);
       }
 
       handleSpy.mockRestore();
