@@ -867,7 +867,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Hecho cuando:** el evaluador que accede al enlace del correo sin sesión activa es llevado directamente al panel de su asignación tras autenticarse; documentado en el PR del frontend.
   - **Nota de rediseño frontend:** El frontend entrará en un rediseño completo; este ítem se incorporará a ese rediseño.
 
-- [ ] **TSK-002-N41** (PENDIENTE — decisión aprobada 23/10/2026): Disparar la notificación al evaluador cuando el protocolo entra en una convocatoria, en lugar de al asignar; la asignación inicial sin convocatoria no emite correo; si el protocolo ya está en convocatoria al asignar o reasignar, el correo se envía en ese momento.
+- [x] **TSK-002-N41** (CUMPLIDA — 23/10/2026): Disparar la notificación al evaluador cuando el protocolo entra en una convocatoria, en lugar de al asignar; la asignación inicial sin convocatoria no emite correo; si el protocolo ya está en convocatoria al asignar o reasignar, el correo se envía en ese momento.
   - **Requisito relacionado:** RF-12.7 — APROBADO (23/10/2026), ver `specs/002-flujo-mvp/spec.md`.
   - **PR:** posterior a TSK-002-N44.
   - **Depende de:** TSK-002-N44 (cumplida).
