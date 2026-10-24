@@ -23,6 +23,7 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     findAssignmentsByProtocolId: jest.Mock;
     findActiveAssignmentsByVersionId: jest.Mock;
     executeReassignmentTransaction: jest.Mock;
+    findActiveConvocatoriaDeadline: jest.Mock;
   };
   let protocolRepositoryMock: { findById: jest.Mock };
   let eventEmitterMock: { emit: jest.Mock };
@@ -116,6 +117,7 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
               .map((a) => ({ id: a.id, statusId: a.status, versionId })),
           );
         }),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
       executeReassignmentTransaction: jest.fn().mockImplementation(
         (params: {
           outgoingAssignmentId: number;
@@ -281,8 +283,8 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     );
     expect(sociedadCivilEntity?.isAssignedForAnnex10).toBe(false);
 
-    // 3. Verificar la emisión de eventos de notificación con Deep-Linking
-    expect(emittedEvents).toHaveLength(4);
+    // 3. N41: sin convocatoria vigente (saveAssignments path → deadlineDate=null) → NO se emiten eventos
+    expect(emittedEvents).toHaveLength(0);
 
     // 4. Verificar que el estado de completitud es false cuando faltan dictámenes
     let isComplete =
@@ -465,5 +467,81 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     const isComplete =
       await submitUseCase.isCompletion100PercentByProtocolId(protocolId);
     expect(isComplete).toBe(true);
+  });
+
+  // ── TSK-002-N41 ────────────────────────────────────────────────────────────
+  describe('N41: saveAssignmentsTransaction CON convocatoria vigente → emit 4 eventos', () => {
+    let transactionEmitter: { emit: jest.Mock };
+    let txRepoMock: {
+      saveAssignmentsTransaction: jest.Mock;
+      findVersionByProtocolId: jest.Mock;
+      findActiveConvocatoriaDeadline: jest.Mock;
+    };
+
+    beforeEach(() => {
+      transactionEmitter = {
+        emit: jest
+          .fn()
+          .mockImplementation((event: string, payload: unknown) => {
+            emittedEvents.push({ event, payload });
+          }),
+      };
+      txRepoMock = {
+        saveAssignmentsTransaction: jest.fn().mockImplementation(
+          (
+            payloads: Array<{
+              evaluatorId: number;
+              isAssignedForAnnex10: boolean;
+              deadline: string | null;
+              statusId: number;
+            }>,
+          ) =>
+            payloads.map((p, idx) => ({
+              id: idx + 100,
+              versionId: 300,
+              evaluatorId: p.evaluatorId,
+              isAssignedForAnnex10: p.isAssignedForAnnex10,
+              deadline: p.deadline,
+              statusId: p.statusId,
+            })),
+        ),
+        findVersionByProtocolId: jest
+          .fn()
+          .mockResolvedValue({ id: 300, protocolId: 300 }),
+        findActiveConvocatoriaDeadline: jest
+          .fn()
+          .mockResolvedValue(new Date('2027-03-20T22:00:00.000Z')),
+      };
+    });
+
+    it('N41-B4: saveAssignmentsTransaction CON convocatoria vigente → 4 eventos evaluator.assigned con deadlineDate', async () => {
+      emittedEvents = [];
+      const txUseCase = new AssignEvaluatorsUseCase(
+        txRepoMock,
+        transactionEmitter,
+      );
+
+      const dto = {
+        protocolId: 300,
+        evaluators: [
+          { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+          { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+          { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+          { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+        ],
+      };
+
+      await txUseCase.execute(dto);
+
+      // N41: versión en convocatoria → 4 eventos emitidos
+      expect(emittedEvents).toHaveLength(4);
+      for (const { event, payload } of emittedEvents) {
+        expect(event).toBe('evaluator.assigned');
+        expect((payload as Record<string, unknown>).deadlineDate).toBeTruthy();
+        expect(typeof (payload as Record<string, unknown>).deadlineDate).toBe(
+          'string',
+        );
+      }
+    });
   });
 });

@@ -41,6 +41,10 @@ import { EvaluationTypeOrmRepository } from './infrastructure/repositories/evalu
 import { IProtocolRepository } from '../protocols/domain/ports/protocol.repository.port';
 import { MeetingTypeOrmRepository } from './infrastructure/repositories/meeting-typeorm.repository';
 import { IEmailServicePort } from '../notifications/domain/ports/email.service.port';
+import type { IMeetingRepositoryPort } from './domain/ports/meeting-repository.port';
+import type { IMeetingPdfGeneratorPort } from './domain/ports/meeting-pdf-generator.port';
+import { IUserRepository } from '../auth/domain/ports/user.repository.port';
+import type { EvaluatorAssignedEventPayload } from './infrastructure/adapters/mailer-notification.adapter';
 
 import { ProtocolsModule } from '../protocols/protocols.module';
 import { forwardRef } from '@nestjs/common';
@@ -63,6 +67,24 @@ import { UnscheduledProtocolsAlertService } from './application/services/unsched
 import { AuthModule } from '../auth/auth.module';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+
+function buildEvaluatorAssignedBridge(
+  mailer: MailerNotificationAdapter,
+  label: string,
+): { emit(event: string, payload: Record<string, unknown>): void } {
+  const logger = new Logger('EvaluationsModule');
+  return {
+    emit(event: string, payload: Record<string, unknown>): void {
+      if (event !== 'evaluator.assigned') return;
+      const p = payload as unknown as EvaluatorAssignedEventPayload;
+      mailer.handleEvaluatorAssignedEvent(p).catch((err: unknown) => {
+        logger.error(
+          `[${label}] Error al enviar correo assignmentId=${String(p.assignmentId)}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+    },
+  };
+}
 
 @Module({
   imports: [
@@ -106,7 +128,33 @@ import { ConfigService } from '@nestjs/config';
     CallsService,
     EvaluatorAssignmentAdapterService,
     UnscheduledProtocolsAlertService,
-    CreateMeetingUseCase,
+    {
+      provide: CreateMeetingUseCase,
+      useFactory: (
+        meetingRepo: IMeetingRepositoryPort,
+        pdfGen: IMeetingPdfGeneratorPort,
+        calcDates: CalculateMeetingDatesService,
+        emailService: IEmailServicePort,
+        userRepo: IUserRepository,
+        mailer: MailerNotificationAdapter,
+      ): CreateMeetingUseCase =>
+        new CreateMeetingUseCase(
+          meetingRepo,
+          pdfGen,
+          calcDates,
+          emailService,
+          userRepo,
+          buildEvaluatorAssignedBridge(mailer, 'N41'),
+        ),
+      inject: [
+        'IMeetingRepositoryPort',
+        'IMeetingPdfGeneratorPort',
+        CalculateMeetingDatesService,
+        IEmailServicePort,
+        IUserRepository,
+        MailerNotificationAdapter,
+      ],
+    },
     CalculateMeetingDatesService,
     PdfGeneratorService,
     DocxGeneratorService,
@@ -157,22 +205,11 @@ import { ConfigService } from '@nestjs/config';
       useFactory: (
         repo: IEvaluationRepository,
         mailer: MailerNotificationAdapter,
-      ): AssignEvaluatorsUseCase => {
-        const moduleLogger = new Logger('EvaluationsModule');
-        return new AssignEvaluatorsUseCase(repo, {
-          emit: (event: string, payload: unknown): void => {
-            if (event === 'evaluator.assigned') {
-              const p =
-                payload as import('./infrastructure/adapters/mailer-notification.adapter').EvaluatorAssignedEventPayload;
-              mailer.handleEvaluatorAssignedEvent(p).catch((err: unknown) => {
-                moduleLogger.error(
-                  `[PR-G] Error al enviar correo assignmentId=${p.assignmentId}: ${err instanceof Error ? err.message : String(err)}`,
-                );
-              });
-            }
-          },
-        });
-      },
+      ): AssignEvaluatorsUseCase =>
+        new AssignEvaluatorsUseCase(
+          repo,
+          buildEvaluatorAssignedBridge(mailer, 'PR-G'),
+        ),
       inject: [IEvaluationRepository, MailerNotificationAdapter],
     },
     {
@@ -180,22 +217,11 @@ import { ConfigService } from '@nestjs/config';
       useFactory: (
         repo: IEvaluationRepository,
         mailer: MailerNotificationAdapter,
-      ): ReassignEvaluatorUseCase => {
-        const moduleLogger = new Logger('EvaluationsModule');
-        return new ReassignEvaluatorUseCase(repo, {
-          emit: (event: string, payload: unknown): void => {
-            if (event === 'evaluator.assigned') {
-              const p =
-                payload as import('./infrastructure/adapters/mailer-notification.adapter').EvaluatorAssignedEventPayload;
-              mailer.handleEvaluatorAssignedEvent(p).catch((err: unknown) => {
-                moduleLogger.error(
-                  `[PR-G] Error al enviar correo assignmentId=${p.assignmentId}: ${err instanceof Error ? err.message : String(err)}`,
-                );
-              });
-            }
-          },
-        });
-      },
+      ): ReassignEvaluatorUseCase =>
+        new ReassignEvaluatorUseCase(
+          repo,
+          buildEvaluatorAssignedBridge(mailer, 'PR-G'),
+        ),
       inject: [IEvaluationRepository, MailerNotificationAdapter],
     },
     {

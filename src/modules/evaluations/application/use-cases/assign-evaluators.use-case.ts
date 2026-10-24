@@ -7,6 +7,7 @@ import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
 import { EvaluatorEnrichmentInfo } from '../../domain/ports/evaluation.repository.port';
+import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
 
 // Internal type — carries the catalog profileId resolved by the adapter.
 // Never appears in the public API contract; not a DTO class.
@@ -41,6 +42,8 @@ export interface IEvaluationRepository {
     evaluatorId: number,
     protocolId: number,
   ): Promise<EvaluatorEnrichmentInfo | null>;
+  /** Devuelve la fecha de entrega de la convocatoria vigente para esta versión, o null si no hay ninguna (TSK-002-N41). */
+  findActiveConvocatoriaDeadline(versionId: number): Promise<Date | null>;
 }
 
 export interface IEventEmitter {
@@ -92,6 +95,7 @@ export class AssignEvaluatorsUseCase {
     // 5. Persistir atómicamente en la base de datos
     let savedEntities: EvaluationAssignmentEntity[];
     let enrichProtocolId: number | undefined;
+    let isInConvocatoria = false;
     if (this.evaluationRepository.saveAssignments) {
       savedEntities =
         await this.evaluationRepository.saveAssignments(assignmentEntities);
@@ -151,6 +155,17 @@ export class AssignEvaluatorsUseCase {
         }
         resolvedVersionId = found.id;
       }
+
+      // N41: si la versión ya tiene convocatoria vigente, propagar la fecha_limite al crear la asignación
+      let convDeadlineTs: Date | null = null;
+      if (resolvedVersionId !== undefined) {
+        convDeadlineTs =
+          await this.evaluationRepository.findActiveConvocatoriaDeadline(
+            resolvedVersionId,
+          );
+      }
+      isInConvocatoria = convDeadlineTs !== null;
+
       const ormPayloads = assignmentEntities.map((entity, index) => {
         const dtoItem = dto.evaluators[index];
         const rawEvaluatorId = entity.evaluatorId;
@@ -169,7 +184,10 @@ export class AssignEvaluatorsUseCase {
           profileId: dtoItem?.profileId,
           statusId: AssignmentStatus.ASSIGNED,
           isAssignedForAnnex10: entity.isAssignedForAnnex10,
-          deadline: null,
+          deadline: convDeadlineTs
+            ? toCalendarDateString(convDeadlineTs)
+            : null,
+          deadlineTimestamp: convDeadlineTs,
         };
       });
       const ormEntities =
@@ -200,7 +218,9 @@ export class AssignEvaluatorsUseCase {
     }
 
     // 6. Notificar asincrónicamente con Deep-Linking por cada evaluador asignado
+    // N41: solo emitir si la versión ya estaba en convocatoria vigente al momento de asignar
     for (const entity of savedEntities) {
+      if (!isInConvocatoria) continue;
       const payload: Record<string, unknown> = {
         assignmentId: entity.id,
         protocolId: entity.protocolId,

@@ -12,6 +12,7 @@ import {
   AssignmentDeadlineSnapshot,
   NormativeDeadlineInput,
   UnscheduledVersionInfo,
+  AssignedEvaluatorInfo,
 } from '../../domain/ports/meeting-repository.port';
 import {
   MeetingEntity,
@@ -547,5 +548,49 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
     }
     place.activo = false;
     await repo.save(place);
+  }
+
+  async findAssignedEvaluatorsForVersions(
+    versionIds: number[],
+  ): Promise<AssignedEvaluatorInfo[]> {
+    if (!versionIds.length) return [];
+    const rows: Array<{
+      assignment_id: number;
+      evaluator_id: number;
+      protocol_id: number;
+      evaluator_email: string | null;
+      evaluator_full_name: string | null;
+      protocol_code: string | null;
+      evaluator_profile: string | null;
+      is_assigned_for_annex10: boolean;
+    }> = await this.dataSource.query(
+      `SELECT
+         ae.id                      AS assignment_id,
+         ae.evaluador_id            AS evaluator_id,
+         vp.protocolo_id            AS protocol_id,
+         u.email_institucional      AS evaluator_email,
+         u.nombres_completos        AS evaluator_full_name,
+         p.codigo_ceish             AS protocol_code,
+         pe.nombre                  AS evaluator_profile,
+         ae.es_asignado_anexo_10    AS is_assigned_for_annex10
+       FROM evaluacion.asignaciones_evaluacion ae
+       JOIN public.versiones_protocolo vp  ON vp.id = ae.version_id
+       JOIN public.protocolos p            ON p.id  = vp.protocolo_id
+       LEFT JOIN catalogos.usuarios u      ON u.id  = ae.evaluador_id
+       LEFT JOIN catalogos.perfiles_evaluador pe ON pe.id = ae.perfil_id
+       WHERE ae.version_id = ANY($1)
+         AND ae.estado_id  = $2`,
+      [versionIds, AssignmentStatus.ASSIGNED],
+    );
+    return rows.map((r) => ({
+      assignmentId: r.assignment_id,
+      evaluatorId: r.evaluator_id,
+      protocolId: r.protocol_id,
+      evaluatorEmail: r.evaluator_email,
+      evaluatorFullName: r.evaluator_full_name,
+      protocolCode: r.protocol_code,
+      evaluatorProfile: r.evaluator_profile ?? '',
+      isAssignedForAnnex10: r.is_assigned_for_annex10,
+    }));
   }
 }

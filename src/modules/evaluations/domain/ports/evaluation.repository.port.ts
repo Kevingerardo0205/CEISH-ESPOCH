@@ -115,6 +115,11 @@ export abstract class IEvaluationRepository {
   ): Promise<ReassignmentHistoryRawRow[]>;
   abstract protocolExists(protocolId: number): Promise<boolean>;
 
+  // Convocatoria deadline [TSK-002-N41]
+  abstract findActiveConvocatoriaDeadline(
+    versionId: number,
+  ): Promise<Date | null>;
+
   // Active assignments [RF-12.4]
   // Deuda: toda la asignación (assign-evaluators.use-case.ts:127-143,
   // evaluations.service.ts:856-858, EvaluatorAssignmentAdapterService) está fijada

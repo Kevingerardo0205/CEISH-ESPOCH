@@ -70,6 +70,7 @@ const meetingRepositoryMock: IMeetingRepositoryPort = {
   getOldestAssignedDates: jest.fn().mockResolvedValue([]),
   findNormativeDeadlineInputs: jest.fn().mockResolvedValue([]),
   findAssignedVersionsWithoutScheduledMeeting: jest.fn().mockResolvedValue([]),
+  findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),
 };
 
 const mockPdfGenerator = {
