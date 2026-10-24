@@ -2894,8 +2894,12 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
       expect([200, 201]).toContain(resMeeting.status);
 
-      // Esperar que notifyAssignedEvaluatorsAsync complete (fire-and-forget + BD query)
-      await new Promise((resolve) => setTimeout(resolve, 500));
+      // Esperar que notifyAssignedEvaluatorsAsync complete (fire-and-forget + BD query).
+      // Máximo 3 s; polling cada 50 ms para no depender de un sleep fijo.
+      const start = Date.now();
+      while (handleSpy.mock.calls.length < 4 && Date.now() - start < 3000) {
+        await new Promise((r) => setTimeout(r, 50));
+      }
 
       // N41: 4 emails individuales (uno por evaluador ASSIGNED de la versión PA)
       expect(handleSpy).toHaveBeenCalledTimes(4);
@@ -2936,7 +2940,8 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     it('12d (N41). POST /assign CON versión PA ya en convocatoria PROGRAMADA → emite correo inmediatamente', async () => {
       // Pre-condición: eliminar las asignaciones de 12a para evitar duplicados
       await dataSource.query(
-        `DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PA} AND estado_id = ${AssignmentStatus.ASSIGNED}`,
+        'DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = $1 AND estado_id = $2',
+        [PA, AssignmentStatus.ASSIGNED],
       );
 
       sendHtmlMock.mockClear();
@@ -2977,14 +2982,18 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
       expect(sendHtmlMock).toHaveBeenCalledTimes(4);
 
-      // Verificar en BD: fecha_limite propagada desde la convocatoria
-      const rows: Array<{ fecha_limite: string | null }> =
-        await dataSource.query(
-          `SELECT fecha_limite FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PA} AND estado_id = ${AssignmentStatus.ASSIGNED}`,
-        );
+      // Verificar en BD: fecha_limite y fecha_limite_ts propagadas desde la convocatoria
+      const rows: Array<{
+        fecha_limite: string | null;
+        fecha_limite_ts: string | null;
+      }> = await dataSource.query(
+        'SELECT fecha_limite, fecha_limite_ts FROM evaluacion.asignaciones_evaluacion WHERE version_id = $1 AND estado_id = $2',
+        [PA, AssignmentStatus.ASSIGNED],
+      );
       expect(rows.length).toBe(4);
       for (const row of rows) {
         expect(row.fecha_limite).not.toBeNull();
+        expect(row.fecha_limite_ts).not.toBeNull();
       }
 
       handleSpy.mockRestore();

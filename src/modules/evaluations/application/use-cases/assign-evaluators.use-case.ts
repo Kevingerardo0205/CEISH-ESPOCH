@@ -43,7 +43,7 @@ export interface IEvaluationRepository {
     protocolId: number,
   ): Promise<EvaluatorEnrichmentInfo | null>;
   /** Devuelve la fecha de entrega de la convocatoria vigente para esta versión, o null si no hay ninguna (TSK-002-N41). */
-  findActiveConvocatoriaDeadline?(versionId: number): Promise<Date | null>;
+  findActiveConvocatoriaDeadline(versionId: number): Promise<Date | null>;
 }
 
 export interface IEventEmitter {
@@ -95,6 +95,7 @@ export class AssignEvaluatorsUseCase {
     // 5. Persistir atómicamente en la base de datos
     let savedEntities: EvaluationAssignmentEntity[];
     let enrichProtocolId: number | undefined;
+    let isInConvocatoria = false;
     if (this.evaluationRepository.saveAssignments) {
       savedEntities =
         await this.evaluationRepository.saveAssignments(assignmentEntities);
@@ -157,15 +158,13 @@ export class AssignEvaluatorsUseCase {
 
       // N41: si la versión ya tiene convocatoria vigente, propagar la fecha_limite al crear la asignación
       let convDeadlineTs: Date | null = null;
-      if (
-        this.evaluationRepository.findActiveConvocatoriaDeadline &&
-        resolvedVersionId !== undefined
-      ) {
+      if (resolvedVersionId !== undefined) {
         convDeadlineTs =
           await this.evaluationRepository.findActiveConvocatoriaDeadline(
             resolvedVersionId,
           );
       }
+      isInConvocatoria = convDeadlineTs !== null;
 
       const ormPayloads = assignmentEntities.map((entity, index) => {
         const dtoItem = dto.evaluators[index];
@@ -219,9 +218,9 @@ export class AssignEvaluatorsUseCase {
     }
 
     // 6. Notificar asincrónicamente con Deep-Linking por cada evaluador asignado
-    // N41: solo emitir si la asignación ya tiene fecha_limite (versión en convocatoria vigente)
+    // N41: solo emitir si la versión ya estaba en convocatoria vigente al momento de asignar
     for (const entity of savedEntities) {
-      if (entity.deadlineDate === null) continue;
+      if (!isInConvocatoria) continue;
       const payload: Record<string, unknown> = {
         assignmentId: entity.id,
         protocolId: entity.protocolId,

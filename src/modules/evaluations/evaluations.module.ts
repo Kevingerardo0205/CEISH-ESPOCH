@@ -68,6 +68,24 @@ import { AuthModule } from '../auth/auth.module';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 
+function buildEvaluatorAssignedBridge(
+  mailer: MailerNotificationAdapter,
+  label: string,
+): { emit(event: string, payload: Record<string, unknown>): void } {
+  const logger = new Logger('EvaluationsModule');
+  return {
+    emit(event: string, payload: Record<string, unknown>): void {
+      if (event !== 'evaluator.assigned') return;
+      const p = payload as unknown as EvaluatorAssignedEventPayload;
+      mailer.handleEvaluatorAssignedEvent(p).catch((err: unknown) => {
+        logger.error(
+          `[${label}] Error al enviar correo assignmentId=${String(p.assignmentId)}: ${err instanceof Error ? err.message : String(err)}`,
+        );
+      });
+    },
+  };
+}
+
 @Module({
   imports: [
     TypeOrmModule.forFeature([
@@ -119,32 +137,15 @@ import { ConfigService } from '@nestjs/config';
         emailService: IEmailServicePort,
         userRepo: IUserRepository,
         mailer: MailerNotificationAdapter,
-      ): CreateMeetingUseCase => {
-        const moduleLogger = new Logger('EvaluationsModule');
-        return new CreateMeetingUseCase(
+      ): CreateMeetingUseCase =>
+        new CreateMeetingUseCase(
           meetingRepo,
           pdfGen,
           calcDates,
           emailService,
           userRepo,
-          {
-            emit: (
-              event: string,
-              payload: EvaluatorAssignedEventPayload,
-            ): void => {
-              if (event === 'evaluator.assigned') {
-                mailer
-                  .handleEvaluatorAssignedEvent(payload)
-                  .catch((err: unknown) => {
-                    moduleLogger.error(
-                      `[N41] Error al enviar correo assignmentId=${payload.assignmentId}: ${err instanceof Error ? err.message : String(err)}`,
-                    );
-                  });
-              }
-            },
-          },
-        );
-      },
+          buildEvaluatorAssignedBridge(mailer, 'N41'),
+        ),
       inject: [
         'IMeetingRepositoryPort',
         'IMeetingPdfGeneratorPort',
@@ -204,22 +205,11 @@ import { ConfigService } from '@nestjs/config';
       useFactory: (
         repo: IEvaluationRepository,
         mailer: MailerNotificationAdapter,
-      ): AssignEvaluatorsUseCase => {
-        const moduleLogger = new Logger('EvaluationsModule');
-        return new AssignEvaluatorsUseCase(repo, {
-          emit: (event: string, payload: unknown): void => {
-            if (event === 'evaluator.assigned') {
-              const p =
-                payload as import('./infrastructure/adapters/mailer-notification.adapter').EvaluatorAssignedEventPayload;
-              mailer.handleEvaluatorAssignedEvent(p).catch((err: unknown) => {
-                moduleLogger.error(
-                  `[PR-G] Error al enviar correo assignmentId=${p.assignmentId}: ${err instanceof Error ? err.message : String(err)}`,
-                );
-              });
-            }
-          },
-        });
-      },
+      ): AssignEvaluatorsUseCase =>
+        new AssignEvaluatorsUseCase(
+          repo,
+          buildEvaluatorAssignedBridge(mailer, 'PR-G'),
+        ),
       inject: [IEvaluationRepository, MailerNotificationAdapter],
     },
     {
@@ -227,22 +217,11 @@ import { ConfigService } from '@nestjs/config';
       useFactory: (
         repo: IEvaluationRepository,
         mailer: MailerNotificationAdapter,
-      ): ReassignEvaluatorUseCase => {
-        const moduleLogger = new Logger('EvaluationsModule');
-        return new ReassignEvaluatorUseCase(repo, {
-          emit: (event: string, payload: unknown): void => {
-            if (event === 'evaluator.assigned') {
-              const p =
-                payload as import('./infrastructure/adapters/mailer-notification.adapter').EvaluatorAssignedEventPayload;
-              mailer.handleEvaluatorAssignedEvent(p).catch((err: unknown) => {
-                moduleLogger.error(
-                  `[PR-G] Error al enviar correo assignmentId=${p.assignmentId}: ${err instanceof Error ? err.message : String(err)}`,
-                );
-              });
-            }
-          },
-        });
-      },
+      ): ReassignEvaluatorUseCase =>
+        new ReassignEvaluatorUseCase(
+          repo,
+          buildEvaluatorAssignedBridge(mailer, 'PR-G'),
+        ),
       inject: [IEvaluationRepository, MailerNotificationAdapter],
     },
     {

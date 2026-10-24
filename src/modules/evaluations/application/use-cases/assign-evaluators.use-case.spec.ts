@@ -83,6 +83,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
           })),
         ),
       findVersionById: jest.fn().mockResolvedValue({ id: 1, protocolId: 25 }),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
     };
 
     const transactionalUseCase = new AssignEvaluatorsUseCase(
@@ -162,6 +163,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
       findVersionByProtocolId: jest
         .fn()
         .mockResolvedValue({ id: 42, protocolId: 25 }),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
     };
 
     const transactionalUseCase = new AssignEvaluatorsUseCase(
@@ -194,6 +196,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     const transactionRepoMock = {
       saveAssignmentsTransaction: jest.fn(),
       findVersionByProtocolId: jest.fn().mockResolvedValue(null),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
     };
 
     const transactionalUseCase = new AssignEvaluatorsUseCase(
@@ -223,6 +226,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     const transactionRepoMock = {
       saveAssignmentsTransaction: jest.fn(),
       findVersionById: jest.fn().mockResolvedValue(null),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
     };
     const transactionalUseCase = new AssignEvaluatorsUseCase(
       transactionRepoMock,
@@ -250,6 +254,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     const transactionRepoMock = {
       saveAssignmentsTransaction: jest.fn(),
       findVersionById: jest.fn().mockResolvedValue({ id: 5, protocolId: 99 }),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
     };
     const transactionalUseCase = new AssignEvaluatorsUseCase(
       transactionRepoMock,
@@ -277,6 +282,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     const transactionRepoMock = {
       saveAssignmentsTransaction: jest.fn(),
       findVersionByProtocolId: jest.fn(),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
     };
     const transactionalUseCase = new AssignEvaluatorsUseCase(
       transactionRepoMock,
@@ -303,6 +309,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
     const transactionRepoMock = {
       saveAssignmentsTransaction: jest.fn(),
       findVersionByProtocolId: jest.fn(),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
     };
     const transactionalUseCase = new AssignEvaluatorsUseCase(
       transactionRepoMock,
@@ -331,6 +338,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
       findVersionByProtocolId: jest
         .fn()
         .mockResolvedValue({ id: 42, protocolId: 25 }),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
     };
     const transactionalUseCase = new AssignEvaluatorsUseCase(
       transactionRepoMock,
@@ -370,6 +378,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
       findVersionByProtocolId: jest
         .fn()
         .mockResolvedValue({ id: 42, protocolId: 25 }),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
     };
     const transactionalUseCase = new AssignEvaluatorsUseCase(
       transactionRepoMock,
@@ -572,6 +581,7 @@ describe('AssignEvaluatorsUseCase (TSK-002-09)', () => {
         .mockRejectedValue(
           new NotFoundException('Protocolo con ID 999 no encontrado'),
         ),
+      findActiveConvocatoriaDeadline: jest.fn().mockResolvedValue(null),
     };
 
     const transactionalUseCase = new AssignEvaluatorsUseCase(

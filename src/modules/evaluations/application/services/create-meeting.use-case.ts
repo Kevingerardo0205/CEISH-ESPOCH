@@ -9,7 +9,6 @@ import type {
   IMeetingRepositoryPort,
   AssignedEvaluatorInfo,
 } from '../../domain/ports/meeting-repository.port';
-import type { EvaluatorAssignedEventPayload } from '../../infrastructure/adapters/mailer-notification.adapter';
 import type { MeetingEntity } from '../../domain/entities/meeting.entity';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
 import {
@@ -23,10 +22,9 @@ import { IEmailServicePort } from '../../../notifications/domain/ports/email.ser
 import { IUserRepository } from '../../../auth/domain/ports/user.repository.port';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
 import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
-import type { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 
 interface IEvaluatorEventEmitter {
-  emit(event: string, payload: EvaluatorAssignedEventPayload): void;
+  emit(event: string, payload: Record<string, unknown>): void;
 }
 
 @Injectable()
@@ -201,7 +199,7 @@ export class CreateMeetingUseCase {
           assignmentId: String(ev.assignmentId),
           protocolId: String(ev.protocolId),
           evaluatorId: String(ev.evaluatorId),
-          evaluatorProfile: ev.evaluatorProfile as EvaluatorProfile,
+          evaluatorProfile: ev.evaluatorProfile,
           isAssignedForAnnex10: ev.isAssignedForAnnex10,
           deadlineDate,
           evaluatorEmail: ev.evaluatorEmail ?? undefined,

@@ -728,6 +728,89 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       ).toHaveBeenCalledWith([137]);
     });
 
+    it('N41-U-05: evaluatorEmitter.emit se invoca DESPUÉS de saveMeetingWithAtomicNumber (orden N41)', async () => {
+      const callOrder: string[] = [];
+
+      repositoryMock.saveMeetingWithAtomicNumber.mockImplementation(() => {
+        callOrder.push('save');
+        return Promise.resolve(savedEntity);
+      });
+      repositoryMock.findAssignedEvaluatorsForVersions.mockImplementation(
+        () => {
+          callOrder.push('query');
+          return Promise.resolve([
+            {
+              assignmentId: 77,
+              evaluatorId: 901,
+              protocolId: 10,
+              evaluatorProfile: 'Salud',
+              isAssignedForAnnex10: true,
+              evaluatorEmail: 'salud@test.com',
+              evaluatorFullName: 'Dr. Salud',
+              protocolCode: 'CEISH-001',
+            },
+          ]);
+        },
+      );
+      evaluatorEmitterMock.emit.mockImplementation(() => {
+        callOrder.push('emit');
+      });
+
+      await useCase.execute(baseParams);
+      await flushAsync();
+
+      const saveIdx = callOrder.indexOf('save');
+      const emitIdx = callOrder.indexOf('emit');
+      expect(saveIdx).toBeGreaterThanOrEqual(0);
+      expect(emitIdx).toBeGreaterThan(saveIdx);
+    });
+
+    it('N41-U-06: error en evaluatorEmitter.emit no revierte el execute (fire-and-forget resiliente)', async () => {
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
+      repositoryMock.findAssignedEvaluatorsForVersions.mockResolvedValue([
+        {
+          assignmentId: 88,
+          evaluatorId: 901,
+          protocolId: 10,
+          evaluatorProfile: 'Salud',
+          isAssignedForAnnex10: true,
+          evaluatorEmail: 'salud@test.com',
+          evaluatorFullName: 'Dr. Salud',
+          protocolCode: 'CEISH-001',
+        },
+      ]);
+      evaluatorEmitterMock.emit.mockImplementation(() => {
+        throw new Error('SMTP fallo');
+      });
+
+      const result = await useCase.execute(baseParams);
+      await flushAsync();
+
+      expect(result.id).toBe('meet-n41');
+      expect(evaluatorEmitterMock.emit).toHaveBeenCalled();
+    });
+
+    it('N41-U-07: protocolVersionIds vacío → BadRequestException (ORDEN_DEL_DIA_VACIO); findAssignedEvaluatorsForVersions y emit NO se invocan', async () => {
+      const emptyParams = {
+        sessionType: SessionType.ORDINARIA,
+        meetingDate: new Date('2027-01-15T09:00:00.000Z'),
+        evalSubmissionDeadline: new Date('2027-01-20T22:00:00.000Z'),
+        protocolVersionIds: [] as number[],
+        followUpReportIds: [] as number[],
+      };
+
+      await expect(useCase.execute(emptyParams)).rejects.toThrow(
+        BadRequestException,
+      );
+      await expect(useCase.execute(emptyParams)).rejects.toThrow(
+        'ORDEN_DEL_DIA_VACIO',
+      );
+      expect(
+        repositoryMock.findAssignedEvaluatorsForVersions,
+      ).not.toHaveBeenCalled();
+      expect(evaluatorEmitterMock.emit).not.toHaveBeenCalled();
+    });
+
     it('N41-U-04: evaluatorEmitter.emit se invoca para cada evaluador ASSIGNED encontrado', async () => {
       repositoryMock.findAssignedEvaluatorsForVersions.mockResolvedValue([
         {
