@@ -364,9 +364,10 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%' OR nombre LIKE 'TEST-N08-%';
         `);
 
-        const orphanRowsAfter: Array<{ count: string }> = await dataSource.query(
-          `SELECT COUNT(*) AS count FROM evaluacion.convocatorias c WHERE NOT EXISTS (SELECT 1 FROM evaluacion.convocatoria_protocolos cp WHERE cp.convocatoria_id = c.id)`,
-        );
+        const orphanRowsAfter: Array<{ count: string }> =
+          await dataSource.query(
+            `SELECT COUNT(*) AS count FROM evaluacion.convocatorias c WHERE NOT EXISTS (SELECT 1 FROM evaluacion.convocatoria_protocolos cp WHERE cp.convocatoria_id = c.id)`,
+          );
         console.log(
           `[ORPHAN-AFTER] convocatorias sin convocatoria_protocolos: ${orphanRowsAfter[0].count}`,
         );
