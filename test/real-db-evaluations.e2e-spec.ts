@@ -217,13 +217,6 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     );
     globalConvocatoriaBaseline = Number(baseRows[0].count);
 
-    const orphanRowsBefore: Array<{ count: string }> = await dataSource.query(
-      `SELECT COUNT(*) AS count FROM evaluacion.convocatorias c WHERE NOT EXISTS (SELECT 1 FROM evaluacion.convocatoria_protocolos cp WHERE cp.convocatoria_id = c.id)`,
-    );
-    console.log(
-      `[ORPHAN-BEFORE] convocatorias sin convocatoria_protocolos: ${orphanRowsBefore[0].count}`,
-    );
-
     // Resolver catálogos dinámicamente sin IDs fijos ni borrados
     await dataSource.query(`
       INSERT INTO catalogos.criterios_evaluacion (tipo, descripcion)
@@ -364,14 +357,6 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%' OR nombre LIKE 'TEST-N08-%';
         `);
 
-        const orphanRowsAfter: Array<{ count: string }> =
-          await dataSource.query(
-            `SELECT COUNT(*) AS count FROM evaluacion.convocatorias c WHERE NOT EXISTS (SELECT 1 FROM evaluacion.convocatoria_protocolos cp WHERE cp.convocatoria_id = c.id)`,
-          );
-        console.log(
-          `[ORPHAN-AFTER] convocatorias sin convocatoria_protocolos: ${orphanRowsAfter[0].count}`,
-        );
-
         // Verificar residuos en rangos de test (version_id 990–999)
         const residuosAsign: Array<{ count: string }> = await dataSource.query(
           `SELECT COUNT(*) AS count FROM evaluacion.asignaciones_evaluacion WHERE version_id BETWEEN 990 AND 999`,
@@ -380,9 +365,8 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           await dataSource.query(
             `SELECT COUNT(*) AS count FROM evaluacion.convocatoria_protocolos WHERE version_id BETWEEN 990 AND 999`,
           );
-        console.log(
-          `[RESIDUOS] asignaciones version_id 990-999: ${residuosAsign[0].count} | convocatoria_protocolos: ${residuosConvProt[0].count}`,
-        );
+        expect(Number(residuosAsign[0].count)).toBe(0);
+        expect(Number(residuosConvProt[0].count)).toBe(0);
 
         // Guardia de higiene global: estado final debe coincidir con el baseline post-cleanup
         if (globalConvocatoriaBaseline !== undefined) {
@@ -3032,21 +3016,15 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       }).format(convDeadline!);
 
       // Verificar en BD: fecha_limite y fecha_limite_ts propagadas desde la convocatoria
-      // node-postgres devuelve DATE y TIMESTAMPTZ como objetos Date
+      // fecha_limite se castea a TEXT para evitar conversión de zona horaria en Node.js
       const rows: Array<{
-        fecha_limite: Date | null;
+        fecha_limite: string | null;
         fecha_limite_ts: Date | null;
       }> = await dataSource.query(
-        'SELECT fecha_limite, fecha_limite_ts FROM evaluacion.asignaciones_evaluacion WHERE version_id = $1 AND estado_id = $2',
+        'SELECT fecha_limite::text, fecha_limite_ts FROM evaluacion.asignaciones_evaluacion WHERE version_id = $1 AND estado_id = $2',
         [PA, AssignmentStatus.ASSIGNED],
       );
       expect(rows.length).toBe(4);
-      const guayaquilFmt = new Intl.DateTimeFormat('en-CA', {
-        timeZone: 'America/Guayaquil',
-        year: 'numeric',
-        month: '2-digit',
-        day: '2-digit',
-      });
       for (const row of rows) {
         expect(row.fecha_limite).not.toBeNull();
         expect(row.fecha_limite_ts).not.toBeNull();
@@ -3054,8 +3032,8 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         expect(new Date(row.fecha_limite_ts!).getTime()).toBe(
           new Date(convDeadline!).getTime(),
         );
-        // fecha_limite (DATE) debe coincidir con la fecha calendario en America/Guayaquil
-        expect(guayaquilFmt.format(row.fecha_limite!)).toBe(guayaquilDate);
+        // fecha_limite (DATE::text) es directamente 'YYYY-MM-DD' — sin conversión TZ
+        expect(row.fecha_limite).toBe(guayaquilDate);
       }
 
       handleSpy.mockRestore();

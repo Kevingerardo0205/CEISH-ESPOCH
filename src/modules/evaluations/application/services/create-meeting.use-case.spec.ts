@@ -728,13 +728,17 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       ).toHaveBeenCalledWith([137]);
     });
 
-    it('N41-U-05: evaluatorEmitter.emit se invoca DESPUÉS de saveMeetingWithAtomicNumber (orden N41)', async () => {
+    it('N41-U-05 reescrito: evaluatorEmitter.emit se invoca DESPUÉS de saveMeetingWithAtomicNumber (orden N41 — deferred)', async () => {
       const callOrder: string[] = [];
 
-      repositoryMock.saveMeetingWithAtomicNumber.mockImplementation(() => {
-        callOrder.push('save');
-        return Promise.resolve(savedEntity);
+      let resolveSave!: (val: MeetingEntity) => void;
+      const saveDeferred = new Promise<MeetingEntity>((res) => {
+        resolveSave = res;
       });
+
+      repositoryMock.saveMeetingWithAtomicNumber.mockImplementation(
+        () => saveDeferred,
+      );
       repositoryMock.findAssignedEvaluatorsForVersions.mockImplementation(
         () => {
           callOrder.push('query');
@@ -756,13 +760,24 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
         callOrder.push('emit');
       });
 
-      await useCase.execute(baseParams);
+      const executePromise = useCase.execute(baseParams);
+      await flushAsync();
+      // Con código correcto: notify aún no fue llamado (save no resolvió)
+      expect(
+        repositoryMock.findAssignedEvaluatorsForVersions,
+      ).not.toHaveBeenCalled();
+      expect(evaluatorEmitterMock.emit).not.toHaveBeenCalled();
+
+      callOrder.push('save');
+      resolveSave(savedEntity);
+      await executePromise;
       await flushAsync();
 
-      const saveIdx = callOrder.indexOf('save');
-      const emitIdx = callOrder.indexOf('emit');
-      expect(saveIdx).toBeGreaterThanOrEqual(0);
-      expect(emitIdx).toBeGreaterThan(saveIdx);
+      expect(
+        repositoryMock.findAssignedEvaluatorsForVersions,
+      ).toHaveBeenCalled();
+      expect(evaluatorEmitterMock.emit).toHaveBeenCalled();
+      expect(callOrder).toEqual(['save', 'query', 'emit']);
     });
 
     it('N41-U-06: error en evaluatorEmitter.emit no revierte el execute (fire-and-forget resiliente)', async () => {
