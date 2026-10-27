@@ -885,7 +885,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - Mutation checks: (a) quitar `if (!isInConvocatoria) continue` en `assign-evaluators.use-case.ts` → fallan N41-U-01 y 12a; (b1) mover `void this.notifyAssignedEvaluatorsAsync(...)` antes de `await saveMeetingWithAtomicNumber` → falla N41-U-05 (único detector del orden; 12c no lo detecta); (b2) eliminar la llamada → fallan N41-U-03, U-04, U-05, U-06 y 12c.
     - Tests: `npm test` 420/420 (corrida 1), 420/420 (corrida 2); `npm run test:e2e` 155/155 (corrida 1), 155/155 (corrida 2). `npx tsc --noEmit` limpio. `npx eslint` limpio sobre los 7 archivos.
 
-- [ ] **TSK-002-N42** (PENDIENTE — decisión aprobada 23/10/2026): Filtrar `GET /evaluations/my-assignments` y `GET /evaluations/peer-assignments/my-pending` a asignaciones cuyo protocolo está en convocatoria.
+- [x] **TSK-002-N42** (CUMPLIDA — commit `6db2dc4`, rama `fix/dependencias`, 2026-10-27): Filtrar `GET /evaluations/my-assignments` y `GET /evaluations/peer-assignments/my-pending` a asignaciones cuyo protocolo está en convocatoria.
   - **Requisito relacionado:** RF-12.7 — APROBADO (23/10/2026), ver `specs/002-flujo-mvp/spec.md`.
   - **PR:** posterior a TSK-002-N41.
   - **Depende de:** TSK-002-N44 (cumplida).
