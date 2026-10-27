@@ -125,6 +125,11 @@ export abstract class IEvaluationRepository {
     versionIds: number[],
   ): Promise<number[]>;
 
+  // Legacy convocatoria filter [TSK-002-N42] — peerRiskRepository lacks version_id; filters by protocolo_id
+  abstract filterProtocolIdsInActiveConvocatoria(
+    protocolIds: number[],
+  ): Promise<number[]>;
+
   // Active assignments [RF-12.4]
   // Deuda: toda la asignación (assign-evaluators.use-case.ts:127-143,
   // evaluations.service.ts:856-858, EvaluatorAssignmentAdapterService) está fijada

@@ -257,6 +257,7 @@ describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vige
   let service: EvaluationsService;
   let mockFindAsg: jest.Mock;
   let mockFilterVersionIds: jest.Mock;
+  let mockFilterProtocolIds: jest.Mock;
   let mockEvalAssignmentRepo: { find: jest.Mock };
   let mockRiskProposalRepo: { findOne: jest.Mock };
   let mockPeerRiskRepo: { find: jest.Mock };
@@ -266,6 +267,7 @@ describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vige
   beforeAll(async () => {
     mockFindAsg = jest.fn();
     mockFilterVersionIds = jest.fn();
+    mockFilterProtocolIds = jest.fn();
     mockEvalAssignmentRepo = { find: jest.fn() };
     mockRiskProposalRepo = { findOne: jest.fn() };
     mockPeerRiskRepo = { find: jest.fn() };
@@ -278,6 +280,7 @@ describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vige
           useValue: {
             findAssignmentsByEvaluatorId: mockFindAsg,
             filterVersionIdsInActiveConvocatoria: mockFilterVersionIds,
+            filterProtocolIdsInActiveConvocatoria: mockFilterProtocolIds,
           },
         },
         { provide: IProtocolRepository, useValue: {} },
@@ -331,6 +334,7 @@ describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vige
     jest.setSystemTime(NOW);
     mockFindAsg.mockReset();
     mockFilterVersionIds.mockReset();
+    mockFilterProtocolIds.mockReset().mockResolvedValue([]);
     mockEvalAssignmentRepo.find.mockReset();
     mockRiskProposalRepo.findOne.mockReset();
     mockPeerRiskRepo.find.mockReset().mockResolvedValue([]);
@@ -409,5 +413,29 @@ describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vige
     const result = await service.getMyPendingPeerAssignments(1);
     expect(result).toHaveLength(1);
     expect(mockFilterVersionIds).toHaveBeenCalledWith([20]);
+  });
+
+  it('N42-U-05: peer-pending excluye asignación legacy cuyo protocolo NO está en convocatoria vigente', async () => {
+    mockEvalAssignmentRepo.find.mockResolvedValue([]); // sin canónicas
+    mockPeerRiskRepo.find.mockResolvedValue([
+      { id: 77, protocolId: 9, evaluatorId: 1, assignedAt: new Date() },
+    ]);
+    // mockFilterProtocolIds devuelve [] por defecto (beforeEach)
+
+    const result = await service.getMyPendingPeerAssignments(1);
+    expect(result).toHaveLength(0);
+    expect(mockFilterProtocolIds).toHaveBeenCalledWith([9]);
+  });
+
+  it('N42-U-06: peer-pending incluye asignación legacy cuyo protocolo SÍ está en convocatoria vigente', async () => {
+    mockEvalAssignmentRepo.find.mockResolvedValue([]); // sin canónicas
+    mockPeerRiskRepo.find.mockResolvedValue([
+      { id: 77, protocolId: 9, evaluatorId: 1, assignedAt: new Date() },
+    ]);
+    mockFilterProtocolIds.mockResolvedValue([9]); // protocolo 9 activo
+
+    const result = await service.getMyPendingPeerAssignments(1);
+    expect(result).toHaveLength(1);
+    expect(mockFilterProtocolIds).toHaveBeenCalledWith([9]);
   });
 });

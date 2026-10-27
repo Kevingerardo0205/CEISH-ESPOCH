@@ -789,86 +789,99 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const newAsgId = newAsgRows[0].id;
 
       // Convocatoria PROGRAMADA para version 999 — requerida por N42 para peer-pending [TSK-002-N42]
-      const convN421gRows: { id: string }[] = await dataSource.query(
-        `INSERT INTO evaluacion.convocatorias (numero_convocatoria, estado)
-         VALUES ('TEST-N42-1G', 'PROGRAMADA') RETURNING id`,
-      );
-      await dataSource.query(
-        `INSERT INTO evaluacion.convocatoria_protocolos
-           (convocatoria_id, protocolo_id, version_id, orden, fecha_plazo_normativo)
-         VALUES ($1, 999, 999, 1, NOW() + INTERVAL '30 days')`,
-        [convN421gRows[0].id],
-      );
+      // try/finally garantiza limpieza aunque fallen las aserciones; el patrón TEST-N42-% del
+      // beforeAll/afterAll global es el segundo nivel de seguridad para fallos antes del finally.
+      let convN421gId: string | undefined;
+      try {
+        const convN421gRows: { id: string }[] = await dataSource.query(
+          `INSERT INTO evaluacion.convocatorias (numero_convocatoria, estado)
+           VALUES ('TEST-N42-1G', 'PROGRAMADA') RETURNING id`,
+        );
+        convN421gId = convN421gRows[0].id;
+        await dataSource.query(
+          `INSERT INTO evaluacion.convocatoria_protocolos
+             (convocatoria_id, protocolo_id, version_id, orden, fecha_plazo_normativo)
+           VALUES ($1, 999, 999, 1, NOW() + INTERVAL '30 days')`,
+          [convN421gId],
+        );
 
-      // 4. GET /api/evaluations/peer-assignments/my-pending para saliente (901) -> excluye asignación saliente
-      const resPendingSaliente = await request(app.getHttpServer())
-        .get('/api/evaluations/peer-assignments/my-pending')
-        .set('x-user-id', '901');
-      expect(resPendingSaliente.status).toBe(200);
-      const pendingSaliente999 = (resPendingSaliente.body || []).filter(
-        (a: any) => a.protocolId === 999 || a.id === 9991,
-      );
-      expect(pendingSaliente999.length).toBe(0);
+        // 4. GET /api/evaluations/peer-assignments/my-pending para saliente (901) -> excluye asignación saliente
+        const resPendingSaliente = await request(app.getHttpServer())
+          .get('/api/evaluations/peer-assignments/my-pending')
+          .set('x-user-id', '901');
+        expect(resPendingSaliente.status).toBe(200);
+        const pendingSaliente999 = (resPendingSaliente.body || []).filter(
+          (a: any) => a.protocolId === 999 || a.id === 9991,
+        );
+        expect(pendingSaliente999.length).toBe(0);
 
-      // 5. GET /api/evaluations/peer-assignments/my-pending para entrante (905) -> recibe la asignación
-      const resPendingEntrante = await request(app.getHttpServer())
-        .get('/api/evaluations/peer-assignments/my-pending')
-        .set('x-user-id', '905');
-      expect(resPendingEntrante.status).toBe(200);
-      const pendingEntrante999 = (resPendingEntrante.body || []).filter(
-        (a: any) => a.protocolId === 999 || a.id === newAsgId,
-      );
-      expect(pendingEntrante999.length).toBe(1);
-      expect(pendingEntrante999[0].id).toBe(newAsgId);
+        // 5. GET /api/evaluations/peer-assignments/my-pending para entrante (905) -> recibe la asignación
+        const resPendingEntrante = await request(app.getHttpServer())
+          .get('/api/evaluations/peer-assignments/my-pending')
+          .set('x-user-id', '905');
+        expect(resPendingEntrante.status).toBe(200);
+        const pendingEntrante999 = (resPendingEntrante.body || []).filter(
+          (a: any) => a.protocolId === 999 || a.id === newAsgId,
+        );
+        expect(pendingEntrante999.length).toBe(1);
+        expect(pendingEntrante999[0].id).toBe(newAsgId);
 
-      // 6. POST /api/evaluations/peer-assignments/9991/submit-risk para saliente -> 400 Bad Request
-      const resSubmitSaliente = await request(app.getHttpServer())
-        .post('/api/evaluations/peer-assignments/9991/submit-risk')
-        .set('x-user-id', '901')
-        .send({
-          riskLevelId: expeditaRiskId,
-          observations: 'Intento de envío sobre asignación reasignada',
-        });
-      expect(resSubmitSaliente.status).toBe(400);
+        // 6. POST /api/evaluations/peer-assignments/9991/submit-risk para saliente -> 400 Bad Request
+        const resSubmitSaliente = await request(app.getHttpServer())
+          .post('/api/evaluations/peer-assignments/9991/submit-risk')
+          .set('x-user-id', '901')
+          .send({
+            riskLevelId: expeditaRiskId,
+            observations: 'Intento de envío sobre asignación reasignada',
+          });
+        expect(resSubmitSaliente.status).toBe(400);
 
-      // 7. Enviar propuesta por evaluador entrante 905
-      const resSubmitEntrante = await request(app.getHttpServer())
-        .post(`/api/evaluations/peer-assignments/${newAsgId}/submit-risk`)
-        .set('x-user-id', '905')
-        .send({
-          riskLevelId: expeditaRiskId,
-          observations: 'Propuesta de riesgo por evaluador reemplazo 905',
-        });
-      expect(resSubmitEntrante.status).toBe(201);
+        // 7. Enviar propuesta por evaluador entrante 905
+        const resSubmitEntrante = await request(app.getHttpServer())
+          .post(`/api/evaluations/peer-assignments/${newAsgId}/submit-risk`)
+          .set('x-user-id', '905')
+          .send({
+            riskLevelId: expeditaRiskId,
+            observations: 'Propuesta de riesgo por evaluador reemplazo 905',
+          });
+        expect(resSubmitEntrante.status).toBe(201);
 
-      // Protocolo aún no debe consolidar a 13 (falta evaluador 902)
-      const protoPartial = await dataSource.query(`
-        SELECT estado_id FROM public.protocolos WHERE id = 999;
-      `);
-      expect(protoPartial[0].estado_id).toBe(10);
+        // Protocolo aún no debe consolidar a 13 (falta evaluador 902)
+        const protoPartial = await dataSource.query(`
+          SELECT estado_id FROM public.protocolos WHERE id = 999;
+        `);
+        expect(protoPartial[0].estado_id).toBe(10);
 
-      // 8. Enviar propuesta por evaluador par 902
-      const resSubmit902 = await request(app.getHttpServer())
-        .post('/api/evaluations/peer-assignments/9992/submit-risk')
-        .set('x-user-id', '902')
-        .send({
-          riskLevelId: expeditaRiskId,
-          observations: 'Propuesta de riesgo por evaluador par 902',
-        });
-      expect(resSubmit902.status).toBe(201);
+        // 8. Enviar propuesta por evaluador par 902
+        const resSubmit902 = await request(app.getHttpServer())
+          .post('/api/evaluations/peer-assignments/9992/submit-risk')
+          .set('x-user-id', '902')
+          .send({
+            riskLevelId: expeditaRiskId,
+            observations: 'Propuesta de riesgo por evaluador par 902',
+          });
+        expect(resSubmit902.status).toBe(201);
 
-      // 9. Consolidación a estado 13 (EN EVALUACION) y verificación de conteo de asignaciones Anexo 10
-      const protoFinal = await dataSource.query(`
-        SELECT estado_id, nivel_riesgo_id FROM public.protocolos WHERE id = 999;
-      `);
-      expect(protoFinal[0].estado_id).toBe(13);
-      expect(protoFinal[0].nivel_riesgo_id).toBe(expeditaRiskId);
+        // 9. Consolidación a estado 13 (EN EVALUACION) y verificación de conteo de asignaciones Anexo 10
+        const protoFinal = await dataSource.query(`
+          SELECT estado_id, nivel_riesgo_id FROM public.protocolos WHERE id = 999;
+        `);
+        expect(protoFinal[0].estado_id).toBe(13);
+        expect(protoFinal[0].nivel_riesgo_id).toBe(expeditaRiskId);
 
-      const activeAnnex10Rows = await dataSource.query(`
-        SELECT id, evaluador_id, estado_id FROM evaluacion.asignaciones_evaluacion 
-        WHERE version_id = 999 AND es_asignado_anexo_10 = true AND estado_id IN (${AssignmentStatus.ASSIGNED}, ${AssignmentStatus.SUGGESTED});
-      `);
-      expect(activeAnnex10Rows.length).toBe(2);
+        const activeAnnex10Rows = await dataSource.query(`
+          SELECT id, evaluador_id, estado_id FROM evaluacion.asignaciones_evaluacion
+          WHERE version_id = 999 AND es_asignado_anexo_10 = true AND estado_id IN (${AssignmentStatus.ASSIGNED}, ${AssignmentStatus.SUGGESTED});
+        `);
+        expect(activeAnnex10Rows.length).toBe(2);
+      } finally {
+        if (convN421gId) {
+          await dataSource.query(
+            `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+            [convN421gId],
+          );
+        }
+      }
     });
   });
 
@@ -3225,6 +3238,16 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     let convN42Id: string | undefined;
 
     beforeAll(async () => {
+      // Confirmar que los IDs fijos no pre-existen (el ON CONFLICT no debe ocultar colisiones reales)
+      const preExisting: Array<{ id: number }> = await dataSource.query(
+        `SELECT id FROM evaluacion.asignaciones_evaluacion WHERE id IN (${ASG_NORMAL}, ${ASG_PEER})`,
+      );
+      if (preExisting.length > 0) {
+        throw new Error(
+          `Pre-condición N42 fallida: IDs ${preExisting.map((r) => r.id).join(', ')} ya existen antes del describe 14`,
+        );
+      }
+
       await dataSource.query(`
         INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id)
         VALUES (${PROTO_N42}, 'Protocolo N42 E2E', 901, 10)

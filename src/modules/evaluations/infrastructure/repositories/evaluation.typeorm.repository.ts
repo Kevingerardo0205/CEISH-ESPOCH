@@ -94,6 +94,21 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     return rows.map((r) => Number(r.version_id));
   }
 
+  async filterProtocolIdsInActiveConvocatoria(
+    protocolIds: number[],
+  ): Promise<number[]> {
+    if (protocolIds.length === 0) return [];
+    const rows: Array<{ protocolo_id: number }> = await this.dataSource.query(
+      `SELECT DISTINCT cp.protocolo_id
+       FROM evaluacion.convocatoria_protocolos cp
+       JOIN evaluacion.convocatorias c ON c.id = cp.convocatoria_id
+       WHERE cp.protocolo_id = ANY($1::int[])
+         AND c.estado IN ($2, $3)`,
+      [protocolIds, ConvocatoriaStatus.PROGRAMADA, ConvocatoriaStatus.EN_CURSO],
+    );
+    return rows.map((r) => Number(r.protocolo_id));
+  }
+
   async findActiveConvocatoriaDeadline(
     versionId: number,
   ): Promise<Date | null> {

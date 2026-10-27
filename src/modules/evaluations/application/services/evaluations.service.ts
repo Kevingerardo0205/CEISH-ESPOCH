@@ -1101,8 +1101,23 @@ export class EvaluationsService {
         .map((c) => c.protocolId)
         .filter((id): id is number => typeof id === 'number'),
     );
+
+    // N42: filtrar asignaciones legacy a protocolos en convocatoria vigente
+    const legacyProtocolIds = [
+      ...new Set(legacyAssignments.map((l) => l.protocolId)),
+    ];
+    const activeLegacyProtocolIds =
+      legacyProtocolIds.length > 0
+        ? await this.evaluationRepository.filterProtocolIdsInActiveConvocatoria(
+            legacyProtocolIds,
+          )
+        : [];
+    const activeLegacySet = new Set(activeLegacyProtocolIds);
+
     const filteredLegacy = legacyAssignments.filter(
-      (l) => !canonicalProtocolIds.has(l.protocolId),
+      (l) =>
+        !canonicalProtocolIds.has(l.protocolId) &&
+        activeLegacySet.has(l.protocolId),
     );
 
     return [...canonicalMapped, ...filteredLegacy];
