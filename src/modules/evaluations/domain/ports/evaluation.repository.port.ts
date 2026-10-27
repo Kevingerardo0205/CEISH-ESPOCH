@@ -120,6 +120,11 @@ export abstract class IEvaluationRepository {
     versionId: number,
   ): Promise<Date | null>;
 
+  // Convocatoria filter [TSK-002-N42] — reusable by N43 for single-id guard
+  abstract filterVersionIdsInActiveConvocatoria(
+    versionIds: number[],
+  ): Promise<number[]>;
+
   // Active assignments [RF-12.4]
   // Deuda: toda la asignación (assign-evaluators.use-case.ts:127-143,
   // evaluations.service.ts:856-858, EvaluatorAssignmentAdapterService) está fijada

@@ -79,6 +79,21 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
     });
   }
 
+  async filterVersionIdsInActiveConvocatoria(
+    versionIds: number[],
+  ): Promise<number[]> {
+    if (versionIds.length === 0) return [];
+    const rows: Array<{ version_id: number }> = await this.dataSource.query(
+      `SELECT DISTINCT cp.version_id
+       FROM evaluacion.convocatoria_protocolos cp
+       JOIN evaluacion.convocatorias c ON c.id = cp.convocatoria_id
+       WHERE cp.version_id = ANY($1::int[])
+         AND c.estado IN ($2, $3)`,
+      [versionIds, ConvocatoriaStatus.PROGRAMADA, ConvocatoriaStatus.EN_CURSO],
+    );
+    return rows.map((r) => Number(r.version_id));
+  }
+
   async findActiveConvocatoriaDeadline(
     versionId: number,
   ): Promise<Date | null> {
