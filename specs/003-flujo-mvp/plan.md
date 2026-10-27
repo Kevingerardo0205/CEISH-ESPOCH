@@ -450,7 +450,7 @@ graph TD
 | PR-B3 | `fix/documental-subsanation-30d` | RF-07.1, RF-13, RF-09.1 | Cambiar plazo de subsanación documental de 15 a 30 días hábiles. Umbral `EVALUADOR_URGENTE_UMBRAL_DIAS` aplica solo cuando existe `fecha_limite` definida. Actualizar tests E2E afectados. | ✅ Mergeado |
 | TSK-002-N44 | — | RF-12.7(b) | Propagar `fecha_limite_ts` al agendar (ruta canónica `meeting-typeorm.repository.ts:186-196`). Ver `specs/002-flujo-mvp/tasks.md`. | ✅ Mergeado |
 | TSK-002-N41 | — | RF-12.7 | Correo individual al evaluador cuando el protocolo entra en convocatoria. Ver `specs/002-flujo-mvp/tasks.md`. | ✅ Mergeado |
-| TSK-002-N42 | `fix/dependencias` | RF-12.7 | Filtrar `my-assignments`/`peer-assignments` a asignaciones en convocatoria. Ver `specs/002-flujo-mvp/tasks.md`. | ✅ Commit `6db2dc4` |
+| TSK-002-N42 | `feat/n42-filtrar-asignaciones-por-convocatoria` | RF-12.7 | Filtrar `my-assignments`/`peer-assignments` a asignaciones en convocatoria. Ver `specs/002-flujo-mvp/tasks.md`. | ✅ Mergeado |
 | TSK-002-N43 | — | RF-12.7 | Guard 403 en endpoints del evaluador fuera de convocatoria. Ver `specs/002-flujo-mvp/tasks.md`. | 🔲 Pendiente |
 | TSK-002-N46 | — | RF-09.1 | Retiro de protocolo de convocatoria → asignaciones vuelven a "Pendiente de convocatoria". Ver `specs/002-flujo-mvp/tasks.md`. | 🔲 Pendiente |
 | TSK-002-N45 | — | RF-12.7(e) | Lectores de plazo usan `fecha_limite_ts`; hora en correo de VENCIMIENTO. Ver `specs/002-flujo-mvp/tasks.md`. | 🔲 Pendiente |
