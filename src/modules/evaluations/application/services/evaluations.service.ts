@@ -219,10 +219,31 @@ export class EvaluationsService {
   async getMyAssignments(evaluatorId: number) {
     const assignments =
       await this.evaluationRepository.findAssignmentsByEvaluatorId(evaluatorId);
+
+    // N42: solo versiones en convocatoria vigente (PROGRAMADA o EN_CURSO)
+    const versionIds = [
+      ...new Set(
+        assignments
+          .map((a) => a.versionId)
+          .filter((id): id is number => typeof id === 'number'),
+      ),
+    ];
+    const activeVersionIds =
+      versionIds.length > 0
+        ? await this.evaluationRepository.filterVersionIdsInActiveConvocatoria(
+            versionIds,
+          )
+        : [];
+    const activeSet = new Set(activeVersionIds);
+
     const now = new Date();
 
     return assignments
-      .filter((a) => a.statusId === +AssignmentStatus.ASSIGNED)
+      .filter(
+        (a) =>
+          a.statusId === +AssignmentStatus.ASSIGNED &&
+          activeSet.has(a.versionId),
+      )
       .map((a) => {
         // end-of-day ECT prevents the deadline day from appearing expired before
         // midnight Ecuador time (new Date('YYYY-MM-DD') = midnight UTC = 19:00 ECT prev day).
@@ -1023,8 +1044,23 @@ export class EvaluationsService {
       order: { assignedAt: 'DESC' },
     });
 
+    // N42: filtrar a versiones en convocatoria vigente (PROGRAMADA o EN_CURSO)
+    const canonicalVersionIds = [
+      ...new Set(canonicalAssignments.map((a) => a.versionId)),
+    ];
+    const activeCanonicalVersionIds =
+      canonicalVersionIds.length > 0
+        ? await this.evaluationRepository.filterVersionIdsInActiveConvocatoria(
+            canonicalVersionIds,
+          )
+        : [];
+    const activeCanonicalSet = new Set(activeCanonicalVersionIds);
+    const filteredCanonical = canonicalAssignments.filter((a) =>
+      activeCanonicalSet.has(a.versionId),
+    );
+
     const canonicalMapped: PendingPeerRiskAssignmentItem[] = [];
-    for (const a of canonicalAssignments) {
+    for (const a of filteredCanonical) {
       const activeProposal = await this.riskProposalRepo.findOne({
         where: { assignmentId: a.id, isCurrent: true },
       });
@@ -1065,8 +1101,23 @@ export class EvaluationsService {
         .map((c) => c.protocolId)
         .filter((id): id is number => typeof id === 'number'),
     );
+
+    // N42: filtrar asignaciones legacy a protocolos en convocatoria vigente
+    const legacyProtocolIds = [
+      ...new Set(legacyAssignments.map((l) => l.protocolId)),
+    ];
+    const activeLegacyProtocolIds =
+      legacyProtocolIds.length > 0
+        ? await this.evaluationRepository.filterProtocolIdsInActiveConvocatoria(
+            legacyProtocolIds,
+          )
+        : [];
+    const activeLegacySet = new Set(activeLegacyProtocolIds);
+
     const filteredLegacy = legacyAssignments.filter(
-      (l) => !canonicalProtocolIds.has(l.protocolId),
+      (l) =>
+        !canonicalProtocolIds.has(l.protocolId) &&
+        activeLegacySet.has(l.protocolId),
     );
 
     return [...canonicalMapped, ...filteredLegacy];

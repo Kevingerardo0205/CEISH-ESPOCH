@@ -885,21 +885,23 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - Mutation checks: (a) quitar `if (!isInConvocatoria) continue` en `assign-evaluators.use-case.ts` → fallan N41-U-01 y 12a; (b1) mover `void this.notifyAssignedEvaluatorsAsync(...)` antes de `await saveMeetingWithAtomicNumber` → falla N41-U-05 (único detector del orden; 12c no lo detecta); (b2) eliminar la llamada → fallan N41-U-03, U-04, U-05, U-06 y 12c.
     - Tests: `npm test` 420/420 (corrida 1), 420/420 (corrida 2); `npm run test:e2e` 155/155 (corrida 1), 155/155 (corrida 2). `npx tsc --noEmit` limpio. `npx eslint` limpio sobre los 7 archivos.
 
-- [ ] **TSK-002-N42** (PENDIENTE — decisión aprobada 23/10/2026): Filtrar `GET /evaluations/my-assignments` y `GET /evaluations/peer-assignments/my-pending` a asignaciones cuyo protocolo está en convocatoria.
+- [x] **TSK-002-N42** (CUMPLIDA — 27/10/2026): Filtrar `GET /evaluations/my-assignments` y `GET /evaluations/peer-assignments/my-pending` a asignaciones cuyo protocolo está en convocatoria.
   - **Requisito relacionado:** RF-12.7 — APROBADO (23/10/2026), ver `specs/002-flujo-mvp/spec.md`.
   - **PR:** posterior a TSK-002-N41.
   - **Depende de:** TSK-002-N44 (cumplida).
   - **Descripción:** Hoy `getMyAssignments` (`evaluations.service.ts:219`) llama a `findAssignmentsByEvaluatorId` (repo), filtra por `statusId === ASSIGNED`, y no hace JOIN con `evaluacion.convocatoria_protocolos`. `getMyPendingPeerAssignments` (`evaluations.service.ts:1005`) usa `TypeORM.find` con `evaluatorId`, `isAssignedForAnnex10: true`, `statusId: In([ASSIGNED, SUGGESTED])`, sin join con convocatorias. La propuesta añade a ambas consultas un JOIN (o subquery) con `evaluacion.convocatoria_protocolos` filtrando `version_id = asignacion.version_id`. La Secretaría usa `GET /evaluations/protocol/:protocolId/active-assignments` (`GetActiveAssignmentsUseCase`) para ver todas las asignaciones — ese endpoint **no se modifica**. (d) DECISIÓN POR DEFECTO 23/10/2026: predicado canónico 'versión en convocatoria vigente' = fila en `evaluacion.convocatoria_protocolos` con estado `PROGRAMADA` o `EN_CURSO` (no `CONCLUIDA` ni `CANCELADA`), el mismo de `findActiveConvocatoriaDeadline` (ver spec.md sección 10 (vi)(d)); (e) N43 implementa `403 Forbidden` como decisión por defecto (ver spec.md sección 10 (vi)(e)). Usar el mismo predicado que `findActiveConvocatoriaDeadline` (`PROGRAMADA`/`EN_CURSO`).
-  - **Pruebas afectadas:**
-    - `src/modules/evaluations/application/services/evaluations-urgency.service.spec.ts` líneas 109, 122, 134, 148, 234 (unit — `getMyAssignments`): los mocks del repositorio necesitarán incluir el join de convocatoria.
-    - `test/real-db-evaluations.e2e-spec.ts` líneas 764, 776 (E2E — `GET /api/evaluations/peer-assignments/my-pending`): los protocolos sembrados en esos tests deberán estar en una convocatoria para que aparezcan, o los tests deben adaptarse.
-    - `test/evaluations-contract.e2e-spec.ts` líneas 837–845 (E2E — `peer-assignments/my-pending`, solo comprueba autenticación; probablemente no se ve afectado).
-  - **Archivos afectados:**
-    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR: `findAssignmentsByEvaluatorId` para añadir JOIN con `convocatoria_protocolos`.
-    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR: `getMyPendingPeerAssignments` para añadir filtro de convocatoria.
-    - `src/modules/evaluations/application/services/evaluations-urgency.service.spec.ts` — MODIFICAR: actualizar mocks.
-    - `test/real-db-evaluations.e2e-spec.ts` — MODIFICAR: adaptar tests de `peer-assignments/my-pending`.
-  - **Hecho cuando:** `my-assignments` y `peer-assignments/my-pending` solo devuelven asignaciones cuyo protocolo-versión está en convocatoria (estado PROGRAMADA o EN_CURSO, mismo predicado que `findActiveConvocatoriaDeadline`); `active-assignments` no se ve afectado; tsc limpio; tests verdes; eslint limpio.
+  - **Archivos tocados:**
+    - `src/modules/evaluations/domain/ports/evaluation.repository.port.ts` — MODIFICAR: añadidos `filterVersionIdsInActiveConvocatoria(versionIds)` y `filterProtocolIdsInActiveConvocatoria(protocolIds)`.
+    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR: implementación SQL de ambos métodos con `ANY($1::int[])` + JOIN a `convocatorias` filtrando `estado IN (PROGRAMADA, EN_CURSO)`.
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR: `getMyAssignments` y camino canónico de `getMyPendingPeerAssignments` filtran por `filterVersionIdsInActiveConvocatoria`; camino legacy filtra por `filterProtocolIdsInActiveConvocatoria`.
+    - `src/modules/evaluations/application/services/evaluations-urgency.service.spec.ts` — MODIFICAR: mocks actualizados; tests N42-U-01..U-06 añadidos.
+    - `test/real-db-evaluations.e2e-spec.ts` — MODIFICAR: test 1g con try/finally para convocatoria TEST-N42-1G; describe 14 con N42-E2E-01..03 y verificación de pre-existencia de IDs 9901/9902.
+  - **Camino legacy (`asignaciones_pares_riesgo`):** `PeerRiskAssignmentOrmEntity` no tiene `version_id`; el predicado se aplica por `protocolo_id` vía `filterProtocolIdsInActiveConvocatoria`. Sin E2E dedicado al legacy porque esa tabla tiene 0 registros activos en ceish_test_db (fase de retiro, ver TODO LEGACY-RETIREMENT en el servicio).
+  - **Mutation checks:**
+    - (a) Quitar filtro en `getMyAssignments` → falla N42-U-01 (unit) y N42-E2E-01 (E2E).
+    - (b) Quitar filtro en camino canónico de `getMyPendingPeerAssignments` → falla N42-U-03 (unit) y N42-E2E-01 (E2E).
+    - (c) Quitar `AND c.estado IN ($2, $3)` de `filterVersionIdsInActiveConvocatoria` → falla N42-E2E-03 (convocatoria CONCLUIDA deja de filtrarse).
+  - **Hecho cuando:** `my-assignments` y `peer-assignments/my-pending` solo devuelven asignaciones cuyo protocolo-versión (o protocolo, para legacy) está en convocatoria con estado `PROGRAMADA` o `EN_CURSO`; `active-assignments` (Secretaría) no se ve afectado; `filterVersionIdsInActiveConvocatoria` reutilizable por N43 para guardia single-id; `filterProtocolIdsInActiveConvocatoria` cubre el camino legacy; tsc limpio; `eslint` limpio sobre los 5 archivos tocados; unit: 426/426 (56 suites) × 2 corridas; E2E: 158/158 (13 suites) × 2 corridas consecutivas.
 
 - [ ] **TSK-002-N43** (PENDIENTE — decisión aprobada 23/10/2026): Comprobar que el protocolo de la asignación está en convocatoria en los endpoints donde el evaluador abre, evalúa o entrega.
   - **Requisito relacionado:** RF-12.7 — APROBADO (23/10/2026), ver `specs/002-flujo-mvp/spec.md`.

@@ -43,7 +43,13 @@ describe('EvaluationsService.getMyAssignments — isUrgent (TSK-002-N06, RF-09.1
         EvaluationsService,
         {
           provide: IEvaluationRepository,
-          useValue: { findAssignmentsByEvaluatorId: mockFindAssignments },
+          useValue: {
+            findAssignmentsByEvaluatorId: mockFindAssignments,
+            // N42: todas las versiones son activas por defecto en estos tests de urgencia
+            filterVersionIdsInActiveConvocatoria: jest
+              .fn()
+              .mockResolvedValue([1]),
+          },
         },
         { provide: IProtocolRepository, useValue: {} },
         { provide: ProtocolDeadlineService, useValue: {} },
@@ -100,6 +106,7 @@ describe('EvaluationsService.getMyAssignments — isUrgent (TSK-002-N06, RF-09.1
 
   const baseAssignment = {
     statusId: AssignmentStatus.ASSIGNED,
+    versionId: 1,
     version: null,
     deadline: null,
   };
@@ -164,7 +171,13 @@ describe('EvaluationsService.getMyAssignments — isUrgent con umbral=5 (TSK-015
         EvaluationsService,
         {
           provide: IEvaluationRepository,
-          useValue: { findAssignmentsByEvaluatorId: mockFindAssignments5 },
+          useValue: {
+            findAssignmentsByEvaluatorId: mockFindAssignments5,
+            // N42: todas las versiones son activas por defecto en este test de umbral
+            filterVersionIdsInActiveConvocatoria: jest
+              .fn()
+              .mockResolvedValue([1]),
+          },
         },
         { provide: IProtocolRepository, useValue: {} },
         { provide: ProtocolDeadlineService, useValue: {} },
@@ -227,6 +240,7 @@ describe('EvaluationsService.getMyAssignments — isUrgent con umbral=5 (TSK-015
     mockFindAssignments5.mockResolvedValue([
       {
         statusId: AssignmentStatus.ASSIGNED,
+        versionId: 1,
         version: null,
         deadline: '2026-10-20',
       },
@@ -235,5 +249,193 @@ describe('EvaluationsService.getMyAssignments — isUrgent con umbral=5 (TSK-015
     expect(result).toHaveLength(1);
     expect(result[0].isUrgent).toBe(true);
     expect(result[0].isExpired).toBe(false);
+  });
+});
+
+// ── TSK-002-N42 ────────────────────────────────────────────────────────────
+describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vigente', () => {
+  let service: EvaluationsService;
+  let mockFindAsg: jest.Mock;
+  let mockFilterVersionIds: jest.Mock;
+  let mockFilterProtocolIds: jest.Mock;
+  let mockEvalAssignmentRepo: { find: jest.Mock };
+  let mockRiskProposalRepo: { findOne: jest.Mock };
+  let mockPeerRiskRepo: { find: jest.Mock };
+
+  const NOW = new Date('2026-10-15T17:00:00.000Z');
+
+  beforeAll(async () => {
+    mockFindAsg = jest.fn();
+    mockFilterVersionIds = jest.fn();
+    mockFilterProtocolIds = jest.fn();
+    mockEvalAssignmentRepo = { find: jest.fn() };
+    mockRiskProposalRepo = { findOne: jest.fn() };
+    mockPeerRiskRepo = { find: jest.fn() };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EvaluationsService,
+        {
+          provide: IEvaluationRepository,
+          useValue: {
+            findAssignmentsByEvaluatorId: mockFindAsg,
+            filterVersionIdsInActiveConvocatoria: mockFilterVersionIds,
+            filterProtocolIdsInActiveConvocatoria: mockFilterProtocolIds,
+          },
+        },
+        { provide: IProtocolRepository, useValue: {} },
+        { provide: ProtocolDeadlineService, useValue: {} },
+        { provide: IEmailServicePort, useValue: {} },
+        { provide: ConflictOfInterestService, useValue: {} },
+        {
+          provide: getRepositoryToken(EvaluationAssignmentOrmEntity),
+          useValue: mockEvalAssignmentRepo,
+        },
+        {
+          provide: getRepositoryToken(RiskProposalOrmEntity),
+          useValue: mockRiskProposalRepo,
+        },
+        {
+          provide: getRepositoryToken(PeerRiskAssignmentOrmEntity),
+          useValue: mockPeerRiskRepo,
+        },
+        { provide: getRepositoryToken(RiskLevelOrmEntity), useValue: {} },
+        { provide: getRepositoryToken(ProtocolOrmEntity), useValue: {} },
+        { provide: getRepositoryToken(UserOrmEntity), useValue: {} },
+        {
+          provide: getRepositoryToken(InvestigatorProfileOrmEntity),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(EvaluatorProfileUserOrmEntity),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(ConvocatoriaProtocoloOrmEntity),
+          useValue: { findOne: jest.fn() },
+        },
+        { provide: PdfGeneratorService, useValue: {} },
+        { provide: DocxGeneratorService, useValue: {} },
+        { provide: IStorageService, useValue: {} },
+        { provide: DataSource, useValue: {} },
+        {
+          provide: SystemParamsService,
+          useValue: {
+            get: (clave: SystemParamKey) => SYSTEM_PARAM_FALLBACKS[clave],
+          },
+        },
+      ],
+    }).compile();
+    service = module.get<EvaluationsService>(EvaluationsService);
+  });
+
+  beforeEach(() => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    jest.setSystemTime(NOW);
+    mockFindAsg.mockReset();
+    mockFilterVersionIds.mockReset();
+    mockFilterProtocolIds.mockReset().mockResolvedValue([]);
+    mockEvalAssignmentRepo.find.mockReset();
+    mockRiskProposalRepo.findOne.mockReset();
+    mockPeerRiskRepo.find.mockReset().mockResolvedValue([]);
+  });
+
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
+  it('N42-U-01: my-assignments excluye asignación cuya versión NO está en convocatoria vigente', async () => {
+    mockFindAsg.mockResolvedValue([
+      {
+        statusId: AssignmentStatus.ASSIGNED,
+        versionId: 10,
+        version: null,
+        deadline: null,
+      },
+    ]);
+    mockFilterVersionIds.mockResolvedValue([]); // versión 10 NO activa
+
+    const result = await service.getMyAssignments(1);
+    expect(result).toHaveLength(0);
+    expect(mockFilterVersionIds).toHaveBeenCalledWith([10]);
+  });
+
+  it('N42-U-02: my-assignments incluye asignación cuya versión SÍ está en convocatoria vigente', async () => {
+    mockFindAsg.mockResolvedValue([
+      {
+        statusId: AssignmentStatus.ASSIGNED,
+        versionId: 10,
+        version: null,
+        deadline: null,
+      },
+    ]);
+    mockFilterVersionIds.mockResolvedValue([10]); // versión 10 activa
+
+    const result = await service.getMyAssignments(1);
+    expect(result).toHaveLength(1);
+    expect(mockFilterVersionIds).toHaveBeenCalledWith([10]);
+  });
+
+  it('N42-U-03: peer-pending excluye asignación cuya versión NO está en convocatoria vigente', async () => {
+    mockEvalAssignmentRepo.find.mockResolvedValue([
+      {
+        id: 55,
+        versionId: 20,
+        evaluatorId: 1,
+        isAssignedForAnnex10: true,
+        statusId: AssignmentStatus.ASSIGNED,
+        assignedAt: new Date(),
+        version: { protocolId: 5, protocol: { id: 5 } },
+      },
+    ]);
+    mockFilterVersionIds.mockResolvedValue([]); // versión 20 NO activa
+
+    const result = await service.getMyPendingPeerAssignments(1);
+    expect(result).toHaveLength(0);
+    expect(mockFilterVersionIds).toHaveBeenCalledWith([20]);
+  });
+
+  it('N42-U-04: peer-pending incluye asignación cuya versión SÍ está en convocatoria vigente', async () => {
+    mockEvalAssignmentRepo.find.mockResolvedValue([
+      {
+        id: 55,
+        versionId: 20,
+        evaluatorId: 1,
+        isAssignedForAnnex10: true,
+        statusId: AssignmentStatus.ASSIGNED,
+        assignedAt: new Date(),
+        version: { protocolId: 5, protocol: { id: 5 } },
+      },
+    ]);
+    mockFilterVersionIds.mockResolvedValue([20]); // versión 20 activa
+    mockRiskProposalRepo.findOne.mockResolvedValue(null); // sin propuesta activa → aparece
+
+    const result = await service.getMyPendingPeerAssignments(1);
+    expect(result).toHaveLength(1);
+    expect(mockFilterVersionIds).toHaveBeenCalledWith([20]);
+  });
+
+  it('N42-U-05: peer-pending excluye asignación legacy cuyo protocolo NO está en convocatoria vigente', async () => {
+    mockEvalAssignmentRepo.find.mockResolvedValue([]); // sin canónicas
+    mockPeerRiskRepo.find.mockResolvedValue([
+      { id: 77, protocolId: 9, evaluatorId: 1, assignedAt: new Date() },
+    ]);
+    // mockFilterProtocolIds devuelve [] por defecto (beforeEach)
+
+    const result = await service.getMyPendingPeerAssignments(1);
+    expect(result).toHaveLength(0);
+    expect(mockFilterProtocolIds).toHaveBeenCalledWith([9]);
+  });
+
+  it('N42-U-06: peer-pending incluye asignación legacy cuyo protocolo SÍ está en convocatoria vigente', async () => {
+    mockEvalAssignmentRepo.find.mockResolvedValue([]); // sin canónicas
+    mockPeerRiskRepo.find.mockResolvedValue([
+      { id: 77, protocolId: 9, evaluatorId: 1, assignedAt: new Date() },
+    ]);
+    mockFilterProtocolIds.mockResolvedValue([9]); // protocolo 9 activo
+
+    const result = await service.getMyPendingPeerAssignments(1);
+    expect(result).toHaveLength(1);
+    expect(mockFilterProtocolIds).toHaveBeenCalledWith([9]);
   });
 });
