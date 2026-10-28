@@ -451,7 +451,7 @@ graph TD
 | TSK-002-N44 | — | RF-12.7(b) | Propagar `fecha_limite_ts` al agendar (ruta canónica `meeting-typeorm.repository.ts:186-196`). Ver `specs/002-flujo-mvp/tasks.md`. | ✅ Mergeado |
 | TSK-002-N41 | — | RF-12.7 | Correo individual al evaluador cuando el protocolo entra en convocatoria. Ver `specs/002-flujo-mvp/tasks.md`. | ✅ Mergeado |
 | TSK-002-N42 | `feat/n42-filtrar-asignaciones-por-convocatoria` | RF-12.7 | Filtrar `my-assignments`/`peer-assignments` a asignaciones en convocatoria. Ver `specs/002-flujo-mvp/tasks.md`. | ✅ Mergeado |
-| TSK-002-N43 | — | RF-12.7 | Guard 403 en endpoints del evaluador fuera de convocatoria. Ver `specs/002-flujo-mvp/tasks.md`. | 🔲 Pendiente |
+| TSK-002-N43 | `feat/n43-guard-convocatoria-evaluador` | RF-12.7 | Guard 403 en endpoints del evaluador fuera de convocatoria. Ver `specs/002-flujo-mvp/tasks.md`. | ✅ Mergeado |
 | TSK-002-N46 | — | RF-09.1 | Retiro de protocolo de convocatoria → asignaciones vuelven a "Pendiente de convocatoria". Ver `specs/002-flujo-mvp/tasks.md`. | 🔲 Pendiente |
 | TSK-002-N45 | — | RF-12.7(e) | Lectores de plazo usan `fecha_limite_ts`; hora en correo de VENCIMIENTO. Ver `specs/002-flujo-mvp/tasks.md`. | 🔲 Pendiente |
 | PR-C1 | `feat/system-params` | RF-CAL | Tabla `sistema.parametros_sistema` (TSK-015-N03) y lectura de constantes de `deadline-rules.ts` desde BD con fallback al valor hardcodeado. | ✅ Mergeado |
