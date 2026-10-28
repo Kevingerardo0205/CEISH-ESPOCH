@@ -1207,6 +1207,11 @@ export class EvaluationsService {
             'No tiene permisos para responder esta asignación.',
           );
         }
+        // N48: guard de convocatoria (existencia -> propiedad -> guard -> validaciones de estado)
+        await this.assertAssignmentInActiveConvocatoria(
+          canonicalAssignment.versionId,
+        );
+
         if (
           canonicalAssignment.statusId === +AssignmentStatus.REASIGNED_COI ||
           canonicalAssignment.statusId ===
@@ -1499,6 +1504,21 @@ export class EvaluationsService {
           'No tiene permisos para responder esta asignación.',
         );
       }
+
+      // N48: guard de convocatoria camino legacy (por protocolo_id, mismo patrón que N42)
+      const activeLegacyProtocolIds =
+        await this.evaluationRepository.filterProtocolIdsInActiveConvocatoria([
+          assignment.protocolId,
+        ]);
+      if (
+        !activeLegacyProtocolIds ||
+        !activeLegacyProtocolIds.includes(assignment.protocolId)
+      ) {
+        throw new ForbiddenException(
+          'el protocolo aún no está en una convocatoria',
+        );
+      }
+
       if (assignment.submittedAt) {
         throw new BadRequestException(
           'Esta asignación ya ha sido evaluada y enviada.',
