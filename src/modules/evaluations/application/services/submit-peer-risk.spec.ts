@@ -865,7 +865,9 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       await expect(
         service.submitPeerRiskLevel(302, 901, { riskLevelId: 2 }),
       ).rejects.toThrow(
-        new NotFoundException('Nivel de riesgo con ID 2 no encontrado o inactivo.'),
+        new NotFoundException(
+          'Nivel de riesgo con ID 2 no encontrado o inactivo.',
+        ),
       );
     });
 

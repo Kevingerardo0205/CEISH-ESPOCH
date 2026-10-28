@@ -3738,8 +3738,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(Number(residuosConvProt[0].count)).toBe(0);
     });
 
-    it('16a. Sin convocatoria activa → submit-risk 403 con mensaje exacto; no-dueño 400', async () => {
-      // Evaluador dueño 901 -> 403
+    it('16a1. Sin convocatoria activa, dueño → submit-risk 403 con mensaje exacto', async () => {
       const resOwner = await request(app.getHttpServer())
         .post(`/api/evaluations/peer-assignments/${ASG_N48_A}/submit-risk`)
         .set('x-user-id', '901')
@@ -3751,8 +3750,10 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(resOwner.body.message).toBe(
         'el protocolo aún no está en una convocatoria',
       );
+    });
 
-      // No-dueño (902 intenta sobre ASG_N48_A de 901) -> 400 por propiedad antes del guard
+    it('16a2. Sin convocatoria activa, no-dueño → 400 propiedad antes del guard', async () => {
+      // 902 intenta sobre ASG_N48_A (asignado a 901) → 400 por propiedad antes del guard
       const resNonOwner = await request(app.getHttpServer())
         .post(`/api/evaluations/peer-assignments/${ASG_N48_A}/submit-risk`)
         .set('x-user-id', '902')
@@ -3791,10 +3792,16 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     });
 
     it('16c. Con convocatoria CANCELADA → submit-risk 403 con mensaje exacto', async () => {
+      expect(convN48Id).toBeDefined();
       await dataSource.query(
         `UPDATE evaluacion.convocatorias SET estado = 'CANCELADA' WHERE id = $1`,
         [convN48Id],
       );
+      const canceledCheck: Array<{ count: string }> = await dataSource.query(
+        `SELECT COUNT(*) AS count FROM evaluacion.convocatorias WHERE id = $1 AND estado = 'CANCELADA'`,
+        [convN48Id],
+      );
+      expect(Number(canceledCheck[0].count)).toBe(1);
 
       const res = await request(app.getHttpServer())
         .post(`/api/evaluations/peer-assignments/${ASG_N48_B}/submit-risk`)
