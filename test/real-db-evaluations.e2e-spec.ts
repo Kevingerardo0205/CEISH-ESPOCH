@@ -68,6 +68,41 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
   let globalConvocatoriaBaseline: number;
   let sendHtmlMock: jest.Mock;
 
+  const seedConvocatoriaForVersion = async (
+    protocoloId: number,
+    versionId: number,
+    numeroConvocatoria: string,
+    estado: string = 'PROGRAMADA',
+  ): Promise<string> => {
+    const convRows: Array<{ id: string }> = await dataSource.query(
+      `INSERT INTO evaluacion.convocatorias (numero_convocatoria, estado)
+       VALUES ($1, $2) RETURNING id`,
+      [numeroConvocatoria, estado],
+    );
+    const convId = convRows[0].id;
+    await dataSource.query(
+      `INSERT INTO evaluacion.convocatoria_protocolos
+         (convocatoria_id, protocolo_id, version_id, orden, fecha_plazo_normativo)
+       VALUES ($1, $2, $3, 1, NOW() + INTERVAL '30 days')`,
+      [convId, protocoloId, versionId],
+    );
+    return convId;
+  };
+
+  const cleanupConvocatoria = async (
+    convId: string | undefined,
+  ): Promise<void> => {
+    if (!convId) return;
+    await dataSource.query(
+      `DELETE FROM evaluacion.convocatoria_protocolos WHERE convocatoria_id = $1`,
+      [convId],
+    );
+    await dataSource.query(
+      `DELETE FROM evaluacion.convocatorias WHERE id = $1`,
+      [convId],
+    );
+  };
+
   beforeAll(async () => {
     sendHtmlMock = jest.fn().mockResolvedValue(undefined);
     // 1. Guard de seguridad de Base de Datos
@@ -135,6 +170,9 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         getFileUrl: jest
           .fn()
           .mockResolvedValue('https://storage.test.com/file.pdf'),
+        getDownloadUrl: jest
+          .fn()
+          .mockResolvedValue('https://storage.test.com/file.pdf'),
         deleteFile: jest.fn().mockResolvedValue(undefined),
       })
       .overrideProvider(PdfGeneratorService)
@@ -194,18 +232,18 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
     // Limpiar datos previos de prueba de forma acotada
     await dataSource.query(`
-      UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+      UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
       -- convocatorias primero: la FK convocatoria_protocolos→convocatorias es ON DELETE CASCADE
-      DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR numero_convocatoria LIKE 'TEST-N42-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR protocolo_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
-      DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999)));
-      DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-      DELETE FROM recepcion.recepciones WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-      DELETE FROM public.versiones_protocolo WHERE id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-      DELETE FROM public.protocolos WHERE id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR numero_convocatoria LIKE 'TEST-N42-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR protocolo_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+      DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)));
+      DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM recepcion.recepciones WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM public.versiones_protocolo WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM public.protocolos WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
       DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
       DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
       DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%';
@@ -340,18 +378,18 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     try {
       if (dataSource && dataSource.isInitialized) {
         await dataSource.query(`
-          UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+          UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
           -- convocatorias primero: la FK convocatoria_protocolos→convocatorias es ON DELETE CASCADE
-          DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR numero_convocatoria LIKE 'TEST-N42-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR protocolo_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
-          DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999)));
-          DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-          DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-          DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-          DELETE FROM recepcion.recepciones WHERE version_id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-          DELETE FROM public.versiones_protocolo WHERE id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-          DELETE FROM public.protocolos WHERE id IN (990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR numero_convocatoria LIKE 'TEST-N42-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR protocolo_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+          DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)));
+          DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM recepcion.recepciones WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM public.versiones_protocolo WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM public.protocolos WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
           DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
           DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
           DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%' OR nombre LIKE 'TEST-N08-%';
@@ -359,11 +397,11 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
         // Verificar residuos en rangos de test (version_id 990–999)
         const residuosAsign: Array<{ count: string }> = await dataSource.query(
-          `SELECT COUNT(*) AS count FROM evaluacion.asignaciones_evaluacion WHERE version_id BETWEEN 990 AND 999`,
+          `SELECT COUNT(*) AS count FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)`,
         );
         const residuosConvProt: Array<{ count: string }> =
           await dataSource.query(
-            `SELECT COUNT(*) AS count FROM evaluacion.convocatoria_protocolos WHERE version_id BETWEEN 990 AND 999`,
+            `SELECT COUNT(*) AS count FROM evaluacion.convocatoria_protocolos WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)`,
           );
         expect(Number(residuosAsign[0].count)).toBe(0);
         expect(Number(residuosConvProt[0].count)).toBe(0);
@@ -440,102 +478,115 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
   describe('2. Ciclo de Entregables Separados por Endpoint Real', () => {
     it('1b. submit-risk por endpoint real actualiza propuestas_riesgo y mantiene completion-status en false', async () => {
-      // Obtener asignación de Anexo 10 para 991
-      const annex10Rows = await dataSource.query(`
+      let conv1bId: string | undefined;
+      try {
+        conv1bId = await seedConvocatoriaForVersion(
+          991,
+          991,
+          'TEST-N43-991',
+          'PROGRAMADA',
+        );
+        // Obtener asignación de Anexo 10 para 991
+        const annex10Rows = await dataSource.query(`
         SELECT id, evaluador_id FROM evaluacion.asignaciones_evaluacion 
         WHERE version_id = 991 AND es_asignado_anexo_10 = true
         ORDER BY id ASC LIMIT 1;
       `);
-      const targetAsg = annex10Rows[0];
+        const targetAsg = annex10Rows[0];
 
-      // Enviar propuesta de riesgo por el endpoint real
-      const resRisk = await request(app.getHttpServer())
-        .post(`/api/evaluations/peer-assignments/${targetAsg.id}/submit-risk`)
-        .set('x-user-id', String(targetAsg.evaluador_id))
-        .send({
-          riskLevelId: expeditaRiskId,
-          observations: 'Evaluación preliminar de riesgo mínimo',
-        });
-      expect(resRisk.status).toBe(201);
+        // Enviar propuesta de riesgo por el endpoint real
+        const resRisk = await request(app.getHttpServer())
+          .post(`/api/evaluations/peer-assignments/${targetAsg.id}/submit-risk`)
+          .set('x-user-id', String(targetAsg.evaluador_id))
+          .send({
+            riskLevelId: expeditaRiskId,
+            observations: 'Evaluación preliminar de riesgo mínimo',
+          });
+        expect(resRisk.status).toBe(201);
 
-      // Verificar completion-status
-      const resStatus = await request(app.getHttpServer())
-        .get('/api/evaluations/completion-status/991')
-        .set('x-user-id', '901');
-      expect(resStatus.status).toBe(200);
-      expect(resStatus.body.isCompletion100Percent).toBe(false);
+        // Verificar completion-status
+        const resStatus = await request(app.getHttpServer())
+          .get('/api/evaluations/completion-status/991')
+          .set('x-user-id', '901');
+        expect(resStatus.status).toBe(200);
+        expect(resStatus.body.isCompletion100Percent).toBe(false);
 
-      // Verificación SQL: fecha_entrega_real e informe_evaluacion deben ser nulos
-      const asgBefore = await dataSource.query(`
+        // Verificación SQL: fecha_entrega_real e informe_evaluacion deben ser nulos
+        const asgBefore = await dataSource.query(`
         SELECT fecha_entrega_real, informe_evaluacion, estado_id 
         FROM evaluacion.asignaciones_evaluacion 
         WHERE id = ${targetAsg.id};
       `);
-      expect(asgBefore[0].fecha_entrega_real).toBeNull();
-      expect(asgBefore[0].informe_evaluacion).toBeNull();
+        expect(asgBefore[0].fecha_entrega_real).toBeNull();
+        expect(asgBefore[0].informe_evaluacion).toBeNull();
 
-      // Enviar informe ético completo por endpoint de producción
-      const resSubmit = await request(app.getHttpServer())
-        .post('/api/evaluations/submit')
-        .set('x-user-id', String(targetAsg.evaluador_id))
-        .send({
-          assignmentId: targetAsg.id,
-          result: 1, // EvaluatorDictamen.APROBADO
-          observations: 'Informe ético completo aprobado',
-          reportPath: '/storage/evaluaciones/informe.pdf',
-          annex9: {
-            etica: {
-              resultado: 'APROBADO',
-              items: [
-                {
-                  itemCodigo: 'ET-1',
-                  estado: 'C',
-                  observaciones: 'Cumple estándares éticos',
-                },
-              ],
+        // Enviar informe ético completo por endpoint de producción
+        const resSubmit = await request(app.getHttpServer())
+          .post('/api/evaluations/submit')
+          .set('x-user-id', String(targetAsg.evaluador_id))
+          .send({
+            assignmentId: targetAsg.id,
+            result: 1, // EvaluatorDictamen.APROBADO
+            observations: 'Informe ético completo aprobado',
+            reportPath: '/storage/evaluaciones/informe.pdf',
+            annex9: {
+              etica: {
+                resultado: 'APROBADO',
+                items: [
+                  {
+                    itemCodigo: 'ET-1',
+                    estado: 'C',
+                    observaciones: 'Cumple estándares éticos',
+                  },
+                ],
+              },
+              metodologia: {
+                resultado: 'APROBADO',
+                items: [
+                  {
+                    itemCodigo: 'MET-1',
+                    estado: 'C',
+                    observaciones: 'Metodología clara',
+                  },
+                ],
+              },
+              juridica: {
+                resultado: 'APROBADO',
+                items: [
+                  {
+                    itemCodigo: 'JUR-1',
+                    estado: 'C',
+                    observaciones: 'Marco legal conforme',
+                  },
+                ],
+              },
             },
-            metodologia: {
-              resultado: 'APROBADO',
-              items: [
-                {
-                  itemCodigo: 'MET-1',
-                  estado: 'C',
-                  observaciones: 'Metodología clara',
-                },
-              ],
-            },
-            juridica: {
-              resultado: 'APROBADO',
-              items: [
-                {
-                  itemCodigo: 'JUR-1',
-                  estado: 'C',
-                  observaciones: 'Marco legal conforme',
-                },
-              ],
-            },
-          },
-        });
-      expect(resSubmit.status).toBe(201);
+          });
+        expect(resSubmit.status).toBe(201);
 
-      // Verificación SQL: informe completo guardado y propuesta de riesgo intacta
-      const asgAfter = await dataSource.query(`
+        // Verificación SQL: informe completo guardado y propuesta de riesgo intacta
+        const asgAfter = await dataSource.query(`
         SELECT fecha_entrega_real, informe_evaluacion, estado_id 
         FROM evaluacion.asignaciones_evaluacion 
         WHERE id = ${targetAsg.id};
       `);
-      expect(asgAfter[0].informe_evaluacion).toBe(
-        'Informe ético completo aprobado',
-      );
-      expect(asgAfter[0].fecha_entrega_real).not.toBeNull();
+        expect(asgAfter[0].informe_evaluacion).toBe(
+          'Informe ético completo aprobado',
+        );
+        expect(asgAfter[0].fecha_entrega_real).not.toBeNull();
 
-      const proposals = await dataSource.query(`
+        const proposals = await dataSource.query(`
         SELECT * FROM evaluacion.propuestas_riesgo WHERE asignacion_id = ${targetAsg.id} AND es_vigente = true;
       `);
-      expect(proposals.length).toBe(1);
-      expect(proposals[0].observaciones).toBe(
-        'Evaluación preliminar de riesgo mínimo',
-      );
+        expect(proposals.length).toBe(1);
+        expect(proposals[0].observaciones).toBe(
+          'Evaluación preliminar de riesgo mínimo',
+        );
+      } finally {
+        if (conv1bId) {
+          await cleanupConvocatoria(conv1bId);
+        }
+      }
     });
   });
 
@@ -3363,4 +3414,246 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(resActive.body.assignments.length).toBeGreaterThanOrEqual(2);
     });
   }); // end describe('14. N42')
+
+  describe('15. N43 — Guard de convocatoria activa en acciones de evaluador (TSK-002-N43)', () => {
+    const PROTO_N43 = 980;
+    const VER_N43 = 980;
+    const ASG_N43_A = 9801;
+    const ASG_N43_B = 9802;
+    let convN43Id: string | undefined;
+
+    beforeAll(async () => {
+      // Confirmar que los IDs fijos no pre-existen
+      const preExisting: Array<{ id: number }> = await dataSource.query(
+        `SELECT id FROM evaluacion.asignaciones_evaluacion WHERE id IN (${ASG_N43_A}, ${ASG_N43_B})`,
+      );
+      if (preExisting.length > 0) {
+        throw new Error(
+          `Pre-condición N43 fallida: IDs ${preExisting.map((r) => r.id).join(', ')} ya existen antes del describe 15`,
+        );
+      }
+
+      await dataSource.query(`
+        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, nivel_riesgo_id, estado_id, tipo_revision)
+        VALUES (${PROTO_N43}, 'Protocolo N43 E2E', 901, ${expeditaRiskId}, 10, 'EXPEDITA')
+        ON CONFLICT (id) DO UPDATE SET tipo_revision = 'EXPEDITA', nivel_riesgo_id = ${expeditaRiskId};
+        INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+        VALUES (${VER_N43}, ${PROTO_N43}, 1, 10)
+        ON CONFLICT (id) DO NOTHING;
+        UPDATE public.protocolos SET version_actual_id = ${VER_N43} WHERE id = ${PROTO_N43};
+        INSERT INTO evaluacion.asignaciones_evaluacion (
+          id, version_id, evaluador_id, perfil_id, estado_id, es_asignado_anexo_10, fecha_asignacion, fecha_limite
+        ) VALUES
+          (${ASG_N43_A}, ${VER_N43}, 901, ${saludProfileId}, ${AssignmentStatus.ASSIGNED}, false, NOW(), '2099-12-31'),
+          (${ASG_N43_B}, ${VER_N43}, 902, ${metodolProfileId}, ${AssignmentStatus.ASSIGNED}, true,  NOW(), '2099-12-31')
+        ON CONFLICT (id) DO NOTHING;
+      `);
+    });
+
+    afterAll(async () => {
+      if (convN43Id) {
+        await cleanupConvocatoria(convN43Id);
+      }
+      await dataSource.query(`
+        DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (${ASG_N43_A}, ${ASG_N43_B}));
+        DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (${ASG_N43_A}, ${ASG_N43_B});
+        DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (${ASG_N43_A}, ${ASG_N43_B});
+        DELETE FROM evaluacion.asignaciones_evaluacion WHERE id IN (${ASG_N43_A}, ${ASG_N43_B});
+        UPDATE public.protocolos SET version_actual_id = NULL WHERE id = ${PROTO_N43};
+        DELETE FROM public.versiones_protocolo WHERE id = ${PROTO_N43};
+        DELETE FROM public.protocolos WHERE id = ${PROTO_N43};
+      `);
+    });
+
+    it('15a. Sin convocatoria activa → 4 endpoints devuelven 403 con mensaje exacto; no-dueño devuelve 400; Secretaría 200', async () => {
+      // 1. submitEvaluation (POST /evaluations/submit)
+      const resSubmit = await request(app.getHttpServer())
+        .post('/api/evaluations/submit')
+        .set('x-user-id', '901')
+        .send({
+          assignmentId: ASG_N43_A,
+          result: 1,
+          observations: 'Observaciones de prueba',
+        });
+      expect(resSubmit.status).toBe(403);
+      expect(resSubmit.body.message).toBe(
+        'el protocolo aún no está en una convocatoria',
+      );
+
+      // No-dueño (user 903 no es el evaluador asignado a ASG_N43_A) -> debe dar 400 Bad Request por propiedad antes que 403
+      const resNonOwner = await request(app.getHttpServer())
+        .post('/api/evaluations/submit')
+        .set('x-user-id', '903')
+        .send({
+          assignmentId: ASG_N43_A,
+          result: 1,
+          observations: 'Intento no dueño',
+        });
+      expect(resNonOwner.status).toBe(400);
+      expect(resNonOwner.body.message).toBe(
+        'No tiene permisos para evaluar esta asignación.',
+      );
+
+      // 2. getEvaluationChecklistDetails (GET /evaluations/:id/checklist-details)
+      const resChecklist = await request(app.getHttpServer())
+        .get(`/api/evaluations/${ASG_N43_A}/checklist-details`)
+        .set('x-user-id', '901');
+      expect(resChecklist.status).toBe(403);
+      expect(resChecklist.body.message).toBe(
+        'el protocolo aún no está en una convocatoria',
+      );
+
+      // 3. getEvaluationDocumentUrl (GET /evaluations/:id/document)
+      const resDoc = await request(app.getHttpServer())
+        .get(`/api/evaluations/${ASG_N43_A}/document`)
+        .set('x-user-id', '901');
+      expect(resDoc.status).toBe(403);
+      expect(resDoc.body.message).toBe(
+        'el protocolo aún no está en una convocatoria',
+      );
+
+      // 4. getEvaluationDocxUrl (GET /evaluations/:id/document/docx)
+      const resDocx = await request(app.getHttpServer())
+        .get(`/api/evaluations/${ASG_N43_A}/document/docx`)
+        .set('x-user-id', '901');
+      expect(resDocx.status).toBe(403);
+      expect(resDocx.body.message).toBe(
+        'el protocolo aún no está en una convocatoria',
+      );
+
+      // Secretaría sigue viendo la asignación activa (sin filtro de convocatoria)
+      const resActive = await request(app.getHttpServer())
+        .get(`/api/evaluations/protocol/${PROTO_N43}/active-assignments`)
+        .set('x-user-id', '901');
+      expect(resActive.status).toBe(200);
+      expect(Array.isArray(resActive.body.assignments)).toBe(true);
+      expect(resActive.body.assignments.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('15b. Con convocatoria PROGRAMADA → pasan el guard (esperando status existente); Secretaría 200', async () => {
+      convN43Id = await seedConvocatoriaForVersion(
+        PROTO_N43,
+        VER_N43,
+        'TEST-N43-980',
+        'PROGRAMADA',
+      );
+
+      // 1. submitEvaluation -> pasa el guard (status 201 con datos completos)
+      const resSubmit = await request(app.getHttpServer())
+        .post('/api/evaluations/submit')
+        .set('x-user-id', '901')
+        .send({
+          assignmentId: ASG_N43_A,
+          result: 1,
+          observations: 'Informe ético aprobado en convocatoria PROGRAMADA',
+          reportPath: '/storage/evaluaciones/informe-980.pdf',
+          annex9: {
+            etica: {
+              resultado: 'APROBADO',
+              items: [{ itemCodigo: 'ET-1', estado: 'C', observaciones: 'OK' }],
+            },
+            metodologia: {
+              resultado: 'APROBADO',
+              items: [
+                { itemCodigo: 'MET-1', estado: 'C', observaciones: 'OK' },
+              ],
+            },
+            juridica: {
+              resultado: 'APROBADO',
+              items: [
+                { itemCodigo: 'JUR-1', estado: 'C', observaciones: 'OK' },
+              ],
+            },
+          },
+        });
+      expect(resSubmit.status).toBe(201);
+
+      // 2. getEvaluationChecklistDetails -> pasa el guard (status 200)
+      const resChecklist = await request(app.getHttpServer())
+        .get(`/api/evaluations/${ASG_N43_A}/checklist-details`)
+        .set('x-user-id', '901');
+      expect(resChecklist.status).toBe(200);
+      expect(resChecklist.body).toBeDefined();
+
+      // 3. getEvaluationDocumentUrl -> pasa el guard (status 200 con downloadUrl)
+      const resDoc = await request(app.getHttpServer())
+        .get(`/api/evaluations/${ASG_N43_A}/document`)
+        .set('x-user-id', '901');
+      expect(resDoc.status).toBe(200);
+      expect(resDoc.body.downloadUrl).toBeDefined();
+
+      // 4. getEvaluationDocxUrl -> pasa el guard (404 porque no hay docx físico generado, no 403)
+      const resDocx = await request(app.getHttpServer())
+        .get(`/api/evaluations/${ASG_N43_A}/document/docx`)
+        .set('x-user-id', '901');
+      expect(resDocx.status).toBe(200);
+      expect(resDocx.body.downloadUrl).toBeDefined();
+
+      // Secretaría sigue viendo la asignación
+      const resActive = await request(app.getHttpServer())
+        .get(`/api/evaluations/protocol/${PROTO_N43}/active-assignments`)
+        .set('x-user-id', '901');
+      expect(resActive.status).toBe(200);
+      expect(Array.isArray(resActive.body.assignments)).toBe(true);
+      expect(resActive.body.assignments.length).toBeGreaterThanOrEqual(2);
+    });
+
+    it('15c. Con convocatoria CANCELADA → los 4 endpoints vuelven a responder 403; Secretaría 200', async () => {
+      // Cambiar estado a CANCELADA
+      await dataSource.query(
+        `UPDATE evaluacion.convocatorias SET estado = 'CANCELADA' WHERE id = $1`,
+        [convN43Id],
+      );
+
+      // Para evaluar sin interferencia del estado COMPLETED de ASG_N43_A, usamos ASG_N43_B (evaluador 902, ASSIGNED)
+      // 1. submitEvaluation -> 403
+      const resSubmit = await request(app.getHttpServer())
+        .post('/api/evaluations/submit')
+        .set('x-user-id', '902')
+        .send({
+          assignmentId: ASG_N43_B,
+          result: 1,
+          observations: 'Intento sobre convocatoria cancelada',
+        });
+      expect(resSubmit.status).toBe(403);
+      expect(resSubmit.body.message).toBe(
+        'el protocolo aún no está en una convocatoria',
+      );
+
+      // 2. getEvaluationChecklistDetails -> 403
+      const resChecklist = await request(app.getHttpServer())
+        .get(`/api/evaluations/${ASG_N43_B}/checklist-details`)
+        .set('x-user-id', '902');
+      expect(resChecklist.status).toBe(403);
+      expect(resChecklist.body.message).toBe(
+        'el protocolo aún no está en una convocatoria',
+      );
+
+      // 3. getEvaluationDocumentUrl -> 403
+      const resDoc = await request(app.getHttpServer())
+        .get(`/api/evaluations/${ASG_N43_B}/document`)
+        .set('x-user-id', '902');
+      expect(resDoc.status).toBe(403);
+      expect(resDoc.body.message).toBe(
+        'el protocolo aún no está en una convocatoria',
+      );
+
+      // 4. getEvaluationDocxUrl -> 403
+      const resDocx = await request(app.getHttpServer())
+        .get(`/api/evaluations/${ASG_N43_B}/document/docx`)
+        .set('x-user-id', '902');
+      expect(resDocx.status).toBe(403);
+      expect(resDocx.body.message).toBe(
+        'el protocolo aún no está en una convocatoria',
+      );
+
+      // Secretaría sigue viendo la asignación incluso con convocatoria cancelada
+      const resActive = await request(app.getHttpServer())
+        .get(`/api/evaluations/protocol/${PROTO_N43}/active-assignments`)
+        .set('x-user-id', '901');
+      expect(resActive.status).toBe(200);
+      expect(Array.isArray(resActive.body.assignments)).toBe(true);
+      expect(resActive.body.assignments.length).toBeGreaterThanOrEqual(2);
+    });
+  });
 });

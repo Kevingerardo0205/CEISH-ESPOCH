@@ -77,6 +77,7 @@ import {
 } from '../dtos/evaluator-profile-crud.dto';
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
+import { EvaluationOrmEntity } from '../../infrastructure/database/evaluation.entity.orm';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { ConflictOfInterestService } from './conflict-of-interest.service';
@@ -287,6 +288,54 @@ export class EvaluationsService {
    * HU-005: Registrar evaluación con DTO estructurado (Anexos 9, 10, 11)
    * Aplica la Fase 5: Digitalización de Anexos
    */
+  /**
+   * Helper privado TSK-002-N43: verificar que la versión esté en convocatoria vigente
+   * (PROGRAMADA o EN_CURSO) antes de permitir acciones operativas al evaluador.
+   */
+  private async assertAssignmentInActiveConvocatoria(
+    versionId: number,
+  ): Promise<void> {
+    const activeVersionIds =
+      await this.evaluationRepository.filterVersionIdsInActiveConvocatoria([
+        versionId,
+      ]);
+    if (!activeVersionIds || !activeVersionIds.includes(versionId)) {
+      throw new ForbiddenException(
+        'el protocolo aún no está en una convocatoria',
+      );
+    }
+  }
+
+  /**
+   * Helper privado TSK-002-N43: resolver evaluación y/o asignación a partir de un ID
+   * que puede ser identificador de evaluación o identificador de asignación.
+   */
+  private async resolveEvaluationAndAssignment(id: number): Promise<{
+    evaluation: EvaluationOrmEntity | null;
+    assignment: EvaluationAssignmentOrmEntity | null;
+  }> {
+    let evaluation = await this.evaluationRepository.findEvaluationById(id);
+    let assignment: EvaluationAssignmentOrmEntity | null = null;
+
+    if (evaluation) {
+      assignment = await this.evaluationRepository.findAssignmentById(
+        evaluation.assignmentId,
+      );
+    } else {
+      evaluation =
+        await this.evaluationRepository.findEvaluationByAssignmentId(id);
+      if (evaluation) {
+        assignment = await this.evaluationRepository.findAssignmentById(
+          evaluation.assignmentId,
+        );
+      } else {
+        assignment = await this.evaluationRepository.findAssignmentById(id);
+      }
+    }
+
+    return { evaluation, assignment };
+  }
+
   async submitEvaluation(dto: SubmitEvaluationDto, evaluatorId: number) {
     const assignment = await this.evaluationRepository.findAssignmentById(
       dto.assignmentId,
@@ -298,6 +347,9 @@ export class EvaluationsService {
         'No tiene permisos para evaluar esta asignación.',
       );
     }
+
+    // N43: guard de convocatoria (orden: existencia -> propiedad -> guard convocatoria -> validaciones de estado)
+    await this.assertAssignmentInActiveConvocatoria(assignment.versionId);
     if (assignment.statusId === +AssignmentStatus.COMPLETED) {
       throw new BadRequestException(
         'Esta evaluación ya ha sido enviada anteriormente.',
@@ -1757,13 +1809,11 @@ export class EvaluationsService {
    * estadísticas de cumplimiento por criterio técnico.
    */
   async getEvaluationChecklistDetails(id: number) {
-    // Intentar buscar por ID de evaluación primero
-    let evaluation = await this.evaluationRepository.findEvaluationById(id);
+    const { evaluation, assignment } =
+      await this.resolveEvaluationAndAssignment(id);
 
-    // Si no se encuentra, intentar buscar por ID de asignación
-    if (!evaluation) {
-      evaluation =
-        await this.evaluationRepository.findEvaluationByAssignmentId(id);
+    if (assignment) {
+      await this.assertAssignmentInActiveConvocatoria(assignment.versionId);
     }
 
     // Si no se encuentra evaluación o detalles (formulario nuevo sin borrador), retornar objeto estructurado con hasDraft: false
@@ -1845,13 +1895,17 @@ export class EvaluationsService {
     expiresInSeconds: number;
     r2Key: string;
   }> {
-    // Intentar buscar por ID de evaluación primero
-    let evaluation = await this.evaluationRepository.findEvaluationById(id);
+    const { evaluation, assignment } =
+      await this.resolveEvaluationAndAssignment(id);
 
-    // Si no se encuentra, intentar buscar por ID de asignación
-    if (!evaluation) {
-      evaluation =
-        await this.evaluationRepository.findEvaluationByAssignmentId(id);
+    if (!evaluation && !assignment) {
+      throw new NotFoundException(
+        `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
+      );
+    }
+
+    if (assignment) {
+      await this.assertAssignmentInActiveConvocatoria(assignment.versionId);
     }
 
     if (!evaluation) {
@@ -1893,13 +1947,17 @@ export class EvaluationsService {
     r2Key: string;
     filename: string;
   }> {
-    // Intentar buscar por ID de evaluación primero
-    let evaluation = await this.evaluationRepository.findEvaluationById(id);
+    const { evaluation, assignment } =
+      await this.resolveEvaluationAndAssignment(id);
 
-    // Si no se encuentra, intentar buscar por ID de asignación
-    if (!evaluation) {
-      evaluation =
-        await this.evaluationRepository.findEvaluationByAssignmentId(id);
+    if (!evaluation && !assignment) {
+      throw new NotFoundException(
+        `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
+      );
+    }
+
+    if (assignment) {
+      await this.assertAssignmentInActiveConvocatoria(assignment.versionId);
     }
 
     if (!evaluation) {

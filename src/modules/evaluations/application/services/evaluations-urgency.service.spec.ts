@@ -1,3 +1,9 @@
+/* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
+import {
+  ForbiddenException,
+  BadRequestException,
+  NotFoundException,
+} from '@nestjs/common';
 /**
  * Pruebas unitarias TSK-002-N06: isUrgent solo cuando existe fecha_limite (RF-09.1).
  */
@@ -437,5 +443,234 @@ describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vige
     const result = await service.getMyPendingPeerAssignments(1);
     expect(result).toHaveLength(1);
     expect(mockFilterProtocolIds).toHaveBeenCalledWith([9]);
+  });
+});
+
+describe('TSK-002-N43: Guard de convocatoria activa en acciones de evaluador', () => {
+  let service: EvaluationsService;
+  let mockEvalRepo: any;
+  let mockStorageService: any;
+
+  beforeEach(async () => {
+    mockEvalRepo = {
+      findAssignmentById: jest.fn(),
+      findEvaluationById: jest.fn(),
+      findEvaluationByAssignmentId: jest.fn(),
+      findEvaluationDetailsByEvaluationId: jest.fn(),
+      filterVersionIdsInActiveConvocatoria: jest.fn(),
+    };
+    mockStorageService = {
+      getDownloadUrl: jest
+        .fn()
+        .mockResolvedValue('https://storage.example.com/signed-url'),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        EvaluationsService,
+        { provide: IEvaluationRepository, useValue: mockEvalRepo },
+        { provide: IProtocolRepository, useValue: { findById: jest.fn() } },
+        { provide: ProtocolDeadlineService, useValue: {} },
+        { provide: IEmailServicePort, useValue: {} },
+        { provide: ConflictOfInterestService, useValue: {} },
+        {
+          provide: getRepositoryToken(EvaluationAssignmentOrmEntity),
+          useValue: {},
+        },
+        { provide: getRepositoryToken(RiskProposalOrmEntity), useValue: {} },
+        {
+          provide: getRepositoryToken(PeerRiskAssignmentOrmEntity),
+          useValue: {},
+        },
+        { provide: getRepositoryToken(RiskLevelOrmEntity), useValue: {} },
+        { provide: getRepositoryToken(ProtocolOrmEntity), useValue: {} },
+        { provide: getRepositoryToken(UserOrmEntity), useValue: {} },
+        {
+          provide: getRepositoryToken(InvestigatorProfileOrmEntity),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(EvaluatorProfileUserOrmEntity),
+          useValue: {},
+        },
+        {
+          provide: getRepositoryToken(ConvocatoriaProtocoloOrmEntity),
+          useValue: { findOne: jest.fn() },
+        },
+        { provide: PdfGeneratorService, useValue: {} },
+        { provide: DocxGeneratorService, useValue: {} },
+        { provide: IStorageService, useValue: mockStorageService },
+        { provide: DataSource, useValue: {} },
+        {
+          provide: SystemParamsService,
+          useValue: {
+            get: (clave: SystemParamKey) => SYSTEM_PARAM_FALLBACKS[clave],
+          },
+        },
+      ],
+    }).compile();
+
+    service = module.get<EvaluationsService>(EvaluationsService);
+  });
+
+  const sampleAssignment = {
+    id: 1001,
+    versionId: 50,
+    evaluatorId: 901,
+    statusId: AssignmentStatus.ASSIGNED,
+    version: { protocolId: 10, protocol: { reviewType: 'PLENO' } },
+  };
+
+  describe('submitEvaluation (POST /evaluations/submit)', () => {
+    const validDto: any = {
+      assignmentId: 1001,
+      result: 1,
+      observations: 'Dictamen de prueba',
+    };
+
+    it('N43-U-01: sin convocatoria activa -> lanza ForbiddenException con mensaje exacto', async () => {
+      mockEvalRepo.findAssignmentById.mockResolvedValue({
+        ...sampleAssignment,
+      });
+      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([]); // sin convocatoria activa
+
+      await expect(service.submitEvaluation(validDto, 901)).rejects.toThrow(
+        new ForbiddenException('el protocolo aún no está en una convocatoria'),
+      );
+      expect(
+        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
+      ).toHaveBeenCalledWith([50]);
+    });
+
+    it('N43-U-02: con convocatoria activa -> pasa el guard de convocatoria', async () => {
+      mockEvalRepo.findAssignmentById.mockResolvedValue({
+        ...sampleAssignment,
+        statusId: AssignmentStatus.COMPLETED, // ya completada para detener el flujo inmediatamente tras el guard
+      });
+      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([50]); // activa
+
+      // Pasa el guard de convocatoria y falla en validación de estado COMPLETED (400)
+      await expect(service.submitEvaluation(validDto, 901)).rejects.toThrow(
+        new BadRequestException(
+          'Esta evaluación ya ha sido enviada anteriormente.',
+        ),
+      );
+    });
+
+    it('N43-U-03: no-dueño -> lanza BadRequestException de propiedad antes del guard de convocatoria', async () => {
+      mockEvalRepo.findAssignmentById.mockResolvedValue({
+        ...sampleAssignment,
+      }); // dueño = 901
+      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([]); // sin convocatoria
+
+      // Evaluador 999 intenta evaluar -> falla en propiedad (400), no en convocatoria (403)
+      await expect(service.submitEvaluation(validDto, 999)).rejects.toThrow(
+        new BadRequestException(
+          'No tiene permisos para evaluar esta asignación.',
+        ),
+      );
+      expect(
+        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
+      ).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('getEvaluationChecklistDetails (GET /evaluations/:id/checklist-details)', () => {
+    it('N43-U-04: sin convocatoria activa -> lanza ForbiddenException con mensaje exacto', async () => {
+      mockEvalRepo.findEvaluationById.mockResolvedValue(null);
+      mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
+      mockEvalRepo.findAssignmentById.mockResolvedValue({
+        ...sampleAssignment,
+      });
+      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([]); // sin convocatoria activa
+
+      await expect(service.getEvaluationChecklistDetails(1001)).rejects.toThrow(
+        new ForbiddenException('el protocolo aún no está en una convocatoria'),
+      );
+      expect(
+        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
+      ).toHaveBeenCalledWith([50]);
+    });
+
+    it('N43-U-05: con convocatoria activa -> pasa el guard y retorna estructura con hasDraft: false si no hay evaluación', async () => {
+      mockEvalRepo.findEvaluationById.mockResolvedValue(null);
+      mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
+      mockEvalRepo.findAssignmentById.mockResolvedValue({
+        ...sampleAssignment,
+      });
+      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([50]); // activa
+
+      const result = await service.getEvaluationChecklistDetails(1001);
+      expect(result).toEqual({
+        hasDraft: false,
+        evaluacionId: null,
+        items: [],
+        stats: {},
+      });
+    });
+  });
+
+  describe('getEvaluationDocumentUrl (GET /evaluations/:id/document)', () => {
+    it('N43-U-06: sin convocatoria activa -> lanza ForbiddenException con mensaje exacto', async () => {
+      mockEvalRepo.findEvaluationById.mockResolvedValue(null);
+      mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
+      mockEvalRepo.findAssignmentById.mockResolvedValue({
+        ...sampleAssignment,
+      });
+      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([]); // sin convocatoria activa
+
+      await expect(service.getEvaluationDocumentUrl(1001)).rejects.toThrow(
+        new ForbiddenException('el protocolo aún no está en una convocatoria'),
+      );
+      expect(
+        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
+      ).toHaveBeenCalledWith([50]);
+    });
+
+    it('N43-U-07: con convocatoria activa -> pasa el guard (lanza NotFoundException si no existe evaluación o pdf)', async () => {
+      mockEvalRepo.findEvaluationById.mockResolvedValue(null);
+      mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
+      mockEvalRepo.findAssignmentById.mockResolvedValue({
+        ...sampleAssignment,
+      });
+      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([50]); // activa
+
+      // Pasa el guard de convocatoria y luego no encuentra evaluación (404)
+      await expect(service.getEvaluationDocumentUrl(1001)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
+  });
+
+  describe('getEvaluationDocxUrl (GET /evaluations/:id/document/docx)', () => {
+    it('N43-U-08: sin convocatoria activa -> lanza ForbiddenException con mensaje exacto', async () => {
+      mockEvalRepo.findEvaluationById.mockResolvedValue(null);
+      mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
+      mockEvalRepo.findAssignmentById.mockResolvedValue({
+        ...sampleAssignment,
+      });
+      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([]); // sin convocatoria activa
+
+      await expect(service.getEvaluationDocxUrl(1001)).rejects.toThrow(
+        new ForbiddenException('el protocolo aún no está en una convocatoria'),
+      );
+      expect(
+        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
+      ).toHaveBeenCalledWith([50]);
+    });
+
+    it('N43-U-09: con convocatoria activa -> pasa el guard (lanza NotFoundException si no existe evaluación o docx)', async () => {
+      mockEvalRepo.findEvaluationById.mockResolvedValue(null);
+      mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
+      mockEvalRepo.findAssignmentById.mockResolvedValue({
+        ...sampleAssignment,
+      });
+      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([50]); // activa
+
+      // Pasa el guard de convocatoria y luego no encuentra evaluación (404)
+      await expect(service.getEvaluationDocxUrl(1001)).rejects.toThrow(
+        NotFoundException,
+      );
+    });
   });
 });
