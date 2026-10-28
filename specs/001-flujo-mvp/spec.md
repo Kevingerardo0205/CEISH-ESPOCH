@@ -2,10 +2,11 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.3.1  
+**Versión:** 3.4.0  
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
-**Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`
+**Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
+**Historial:** 2026-10-27 — v3.4.0: CS-01 etapas (7) del protocolo en catálogo estados; CS-10 precisión de recepción; CS-12 renovación como etapa propia; CS-14 parámetros del sistema; CS-16 enmiendas fuera de alcance — rediseño 27/10/2026
 
 ---
 
@@ -241,20 +242,20 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 
 ---
 
-### HU-012: Gestión de Enmiendas, Renovaciones y Eventos Adversos
+### HU-012: Renovaciones y Eventos Adversos
 #### 1. Información General de la Historia de Usuario
 | Campo | Valor |
 |---|---|
-| **Título** | Gestión de Enmiendas al Protocolo, Renovaciones y Reporte de Eventos Adversos |
+| **Título** | Renovación del Aval Ético como Etapa Propia y Reporte de Eventos Adversos |
 | **ID** | HU-012 |
-| **Descripción** | Permite gestionar cambios metodológicos al protocolo aprobado (Enmiendas), solicitudes de prórroga/renovación del aval ético y el reporte urgente de Eventos Adversos Graves (EAG) en participantes. |
+| **Descripción** | Permite tramitar la renovación del aval ético (etapa 7 del protocolo, ver RF-EST.1) y reportar Eventos Adversos Graves (EAG). Enmiendas: fuera de alcance en esta versión (ver Sección 7). — CS-12, CS-16, rediseño 27/10/2026 |
 | **Estimación** | 18 horas |
 | **Prioridad** | ALTA (Seguridad del Paciente/Participante) |
 | **Dependencias** | HU-006 |
 | **Requisitos origen** | RF-016 |
 
 #### 2. Pruebas de Aceptación (EARS)
-1. **Solicitud de Enmienda**: **Cuando** el Investigador requiera modificar el diseño, tamaño de muestra o equipo de investigación de un protocolo aprobado, **el sistema debe** crear un trámite de Enmienda (`SEGUIMIENTO_ENMIENDAS`) adjuntando el documento de cambios justificados.
+1. **Apertura de la etapa de renovación**: **Cuando** se aproxime el vencimiento del aval ético a `apertura_renovacion_dias` días (inicial 60), **el sistema debe** abrir la etapa 7 (Renovación) y enviar los avisos según `alerta_renovacion_offsets_dias` [90, 60, 15]. — CS-12, rediseño 27/10/2026
 2. **Reporte Urgencia Evento Adverso**: **Si** ocurre un Evento Adverso Grave (EAG), **el sistema debe** permitir al Investigador enviar un reporte de emergencia en un plazo no mayor a 24-48 horas, notificando inmediatamente con alerta roja al Presidente y Secretaría.
 3. **Suspensión / Revocatoria**: **Si** el Comité detecta incumplimientos éticos o riesgos no tolerables en el seguimiento, **el Pleno debe** poder cambiar el estado del protocolo a Suspendido o Revocado (`SEGUIMIENTO_SUSPENSION`).
 
@@ -283,6 +284,7 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 ### RF-05: Validación Técnica y Auditoría Focalizada
 - **RF-05.1**: La Secretaria auditará los documentos y clasificará la recepción como `Completa` o `Incompleta / Requiere Subsanación`.
 - **Criterio EARS (RF-05.1)**: **Cuando** la Secretaria revise una subsanación, **el sistema debe** mostrar inhabilitados los ítems aprobados y destacar únicamente los corregidos.
+- **RF-05.2 (Checklist de recepción con barra de progreso)**: La vista de recepción muestra, por cada requisito según el tipo de estudio (IO, EI, EC): el documento, las páginas declaradas frente a las contadas (resaltadas si difieren), una marca ✓/✗ y una observación obligatoria al marcar ✗. Una barra indica el progreso de la validación ("5 de 6"). El botón principal es **"Aprobar recepción"** si todos los ítems están bien (emite código CEISH y carta de recepción) o **"Enviar observaciones"** si hay ítems en ✗ (el investigador tiene 30 días). El botón está deshabilitado mientras haya requisitos sin revisar. Tras la recepción, la aceptación explícita de tiempos sigue siendo obligatoria antes de asignar evaluadores. — CS-10, rediseño 27/10/2026
 
 ### RF-06: Asignación del Código Único Oficial
 - **RF-06.1**: Formato atómico: `CEISH-ESPOCH-[SIGLA]-[SECUENCIAL_3_DIGITOS]-[AÑO]`.
@@ -312,7 +314,29 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 - **Criterio EARS (RF-11.1)**: **Cuando** la Secretaria o un Evaluador realicen una consulta en el chat del asistente, **el sistema debe** recuperar fragmentos del PET 2023 mediante RAG y retornar la orientación correspondiente respetando el control de acceso RBAC.
 
 ### RF-12: Matriz de Asignación de Evaluadores Pares
-- **RF-12.1**: Reemplazado por `specs/002-flujo-mvp` RF-12.1 (exactamente 4 evaluadores pares, uno por perfil). Se eliminan los topes 1/1/2 de esta versión.
+- **RF-12.1**: Reemplazado por `specs/002-flujo-mvp` RF-12.1 (mínimo configurable de evaluadores, Metodológico y Salud obligatorios; Jurídico y Sociedad Civil opcionales). Se eliminan los topes 1/1/2 de esta versión. — Reemplaza a: composición exacta de 4 evaluadores (1 por perfil) — rediseño 27/10/2026
+
+---
+
+### RF-EST: Catálogo de Estados y Etapas del Protocolo
+
+> CS-01 — Reemplaza a: barra de "Validación" como etapa aparte — rediseño 27/10/2026
+
+- **RF-EST.1 (Siete etapas canónicas)**: El catálogo `catalogos.estados` expone dos campos adicionales en cada estado: `etapa` (una de las 7 etapas) y `orden` (entero para la barra de progreso). La etapa del protocolo se deduce de su `estado_id`; no se almacena como campo independiente en el protocolo. El valor `EXENTO` no forma parte de este alcance.
+
+  | Orden | Etapa | Descripción |
+  |---|---|---|
+  | 1 | Recepción | Validación documental, código CEISH, carta de recepción y aceptación de tiempos del investigador. |
+  | 2 | Asignación | Asignación de evaluadores y envío del oficio firmado por la Presidenta. |
+  | 3 | Evaluación | Entrega de dictámenes éticos y metodológicos. |
+  | 4 | Riesgo | Propuesta y designación del nivel de riesgo. |
+  | 5 | Resolución | Dictamen del pleno y emisión de la resolución. |
+  | 6 | Seguimiento | Informes de inicio, avance y final. |
+  | 7 | Renovación | Tramitación del aval renovado (ver RF-16.1). |
+
+  > Nota: "Validación" deja de ser una etapa aparte; queda dentro de Recepción.
+
+- **RF-EST.2 (Exposición en API)**: Todos los endpoints que devuelvan datos de un protocolo deben incluir la etapa actual con uno de los 7 valores anteriores. Todas las pantallas muestran la misma barra de 7 etapas calculada a partir de ese valor.
 
 ---
 
@@ -339,10 +363,26 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 - **RF-15.1**: El sistema debe controlar el calendario de entregables periódicos e informe final de los protocolos aprobados (`SEGUIMIENTO_AVANCE`, `SEGUIMIENTO_FINAL`).
 - **Criterio EARS (RF-15.1)**: **Cuando** una investigación sea aprobada, **el sistema debe** calcular las fechas de vencimiento de sus informes periódicos y final, enviando notificaciones automáticas por correo recordando la obligación de entrega.
 
-### RF-16: Gestión de Enmiendas, Renovaciones y Eventos Adversos
-- **RF-16.1**: El sistema debe permitir la tramitación de Enmiendas al protocolo, Renovaciones del certificado ético y Alertas tempranas de Eventos Adversos Graves (`SEGUIMIENTO_EVENTOS`).
-- **Criterio EARS (RF-16.1)**: **Cuando** el Investigador Principal reporte un Evento Adverso Grave (EAG), **el sistema debe** registrar la notificación de urgencia en un plazo no mayor a 24-48 horas e informar inmediatamente con alerta roja al Presidente y Secretaría.
-- **Criterio EARS (RF-16.1 — Renovaciones)**: **Cuando** se aproxime el vencimiento del aval ético, **el sistema debe** enviar avisos al Investigador a 90, 60 y 15 días antes del vencimiento según `alerta_renovacion_offsets_dias` (RF-ALR). El aviso a 90 días equivale al anterior aviso de "3 meses antes". La ventana para presentar la solicitud de renovación se mantiene en 60 días antes del vencimiento; la vigencia del aval renovado es de 1 año.
+### RF-16: Renovaciones, Eventos Adversos y Suspensión
+
+> CS-12 — Reemplaza a: renovación dentro de seguimiento — rediseño 27/10/2026
+
+- **RF-16.1 (Renovación como etapa propia)**: El sistema debe tramitar la renovación del aval ético como la etapa 7 del protocolo (ver RF-EST.1). Aplica únicamente a estudios cuya duración supere 1 año.
+
+  - **Apertura**: la etapa se abre `apertura_renovacion_dias` días (inicial 60) antes del vencimiento.
+  - **Avisos al investigador**: según `alerta_renovacion_offsets_dias` [90, 60, 15] días antes del vencimiento (RF-ALR en specs/003). El aviso a 90 días equivale al anterior "3 meses antes".
+  - **Pasos de la etapa de renovación:**
+
+    | Paso | Estado | Acción principal |
+    |---|---|---|
+    | 1 | Solicitud recibida | La Secretaría envía los documentos (solicitud firmada, informe del año, cronograma actualizado) a los mismos pares evaluadores. |
+    | 2 | Revisión de pares | Plazo de 8 días laborables. La Secretaría agenda en la próxima sesión. |
+    | 3 | Decisión del pleno | El pleno emite la resolución de renovación. |
+    | 4 | Renovado | La vigencia se extiende `vigencia_aprobacion_meses` meses (inicial 12); el calendario de informes se recalcula; el protocolo vuelve a Seguimiento. |
+
+  > Por confirmar: (a) si la renovación la revisan los mismos pares que evaluaron el protocolo; (b) qué ocurre si la vigencia vence sin que se haya presentado la solicitud.
+
+- **Criterio EARS (RF-16.1 — EAG)**: **Cuando** el Investigador Principal reporte un Evento Adverso Grave (EAG), **el sistema debe** registrar la notificación de urgencia en un plazo no mayor a 24-48 horas e informar inmediatamente con alerta roja al Presidente y Secretaría.
 
 ### RF-17: Suspensión y Revocatoria del Aval Ético
 - **RF-17.1**: El sistema debe permitir al Pleno del CEISH suspender o revocar resoluciones vigentes ante violaciones éticas o riesgos no tolerables (`SEGUIMIENTO_SUSPENSION`).
@@ -364,6 +404,31 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 
 ---
 
+### RF-PAR: Configuración de Parámetros del Sistema
+
+> CS-14 — rediseño 27/10/2026
+
+- **RF-PAR.1**: Ningún plazo se codifica directamente en el código fuente; todos se leen de `sistema.parametros_sistema`. La Secretaría puede editarlos; los cambios aplican a los plazos que se calculen desde ese momento. Los plazos que ya están corriendo no cambian. Cada cambio queda en historial: valor anterior, valor nuevo, usuario, fecha. Si falta la Secretaría, otro directivo puede editar los parámetros.
+- **RF-PAR.2 (Parámetros canónicos)**:
+
+  | Grupo | Clave | Tipo | Valor inicial |
+  |---|---|---|---|
+  | Recepción | `plazo_subsanacion_documental_dias` | INTEGER | 30 |
+  | Evaluación | `minimo_evaluadores` | INTEGER | 3 |
+  | Evaluación | `plazo_revision_oficio_dias` | INTEGER | 8 |
+  | Evaluación | `entrega_dictamen_horas_tras_sesion` | INTEGER | 48 |
+  | Evaluación | `plazo_reemplazo_horas` | INTEGER | 24 |
+  | Aprobación | `vigencia_aprobacion_meses` | INTEGER | 12 |
+  | Seguimiento | `plazo_informe_inicio_dias` | INTEGER | 30 |
+  | Seguimiento | `plazo_condicion_dias` | INTEGER | 30 |
+  | Renovación | `apertura_renovacion_dias` | INTEGER | 60 |
+  | Avisos | `aviso_previo_plazo_dias` | INTEGER | 7 |
+  | Avisos | `alerta_renovacion_offsets_dias` | TEXT | 90,60,15 |
+
+  > `alerta_renovacion_offsets_dias` usa `tipo_dato = TEXT` con valores separados por coma. El parámetro `entrega_evaluacion_dias_habiles_tras_reunion` queda **retirado** (reemplazado por `entrega_dictamen_horas_tras_sesion`). — Reemplaza a: `entrega_evaluacion_dias_habiles_tras_reunion` — rediseño 27/10/2026
+
+---
+
 ## 5. Requisitos No Funcionales
 
 1. **Usabilidad**: Interfaces adaptadas a perfiles administrativos, académicos y externos, con mensajes de validación explicativos 100% en idioma **Español**.
@@ -378,7 +443,7 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 
 - **Fallo de Envíos de Correo / SMTP**: El sistema registrará la falla en bitácora sin revertir las transacciones de cambio de estado o generación de convocatorias.
 - **Expiración de Código OTP**: Si un usuario ingresa un token OTP después de los 15 minutos, el sistema rechazará la autenticación e invitará a solicitar un nuevo código.
-- **Superación de Cuotas de Evaluadores**: Las reglas de cuota aplican según `specs/002-flujo-mvp` RF-12.1 (exactamente 4 evaluadores pares, 1 por perfil). El sistema rechazará asignaciones que incumplan esa composición.
+- **Superación de Cuotas de Evaluadores**: Las reglas de cuota aplican según `specs/002-flujo-mvp` RF-12.1 (mínimo configurable, Metodológico y Salud obligatorios). El sistema rechazará asignaciones que incumplan esa composición. — Reemplaza a: exactamente 4, 1 por perfil — rediseño 27/10/2026
 - **Indisponibilidad del Asistente de IA**: Si falta la API Key o falla el proveedor de IA (Gemini), el módulo responderá con una excepción 553 / Service Unavailable sin interrumpir el funcionamiento de la plataforma.
 - **Concurrencia en Convocatorias y Código Único**: Las secuencias correlativas de código CEISH (`001-2026`) y Convocatorias (`001-2026`) se aislarán mediante transacciones atómicas en PostgreSQL para evitar duplicaciones.
 
@@ -390,6 +455,7 @@ Quedan diferidos para iteraciones posteriores:
 1. Formularios de Evaluación Ética avanzada para Ensayos Clínicos complejos (Fase I/II).
 2. Firma Electrónica con certificado digital en la emisión de resoluciones definitivas.
 3. Integración mediante API directa hacia sistemas externos del Ministerio de Salud Pública (MSP) o ARCSA.
+4. **Enmiendas al protocolo**: no se implementan en esta versión. Deben retirarse de las pantallas de esta versión cualquier botón o fila que las mencione. — CS-16, rediseño 27/10/2026
 
 ---
 
@@ -399,7 +465,7 @@ Un requerimiento se considerará **Finalizado** cuando:
 1. Todos los criterios de aceptación EARS asociados sean verificables funcionalmente.
 2. Se permita la autenticación politécnica y externa vía OTP de 6 dígitos.
 3. Se generen códigos atómicos y Convocatorias al Pleno con notificaciones PDF sin duplicados.
-4. Se aplique la composición exacta de 4 evaluadores pares (1 por perfil) según `specs/002-flujo-mvp` RF-12.1.
+4. Se aplique la composición de evaluadores según `specs/002-flujo-mvp` RF-12.1 (mínimo configurable, Metodológico y Salud obligatorios). — Reemplaza a: composición exacta de 4 — rediseño 27/10/2026
 5. Se registre atómicamente la Aceptación Explícita de plazos con fecha e IP por el Investigador.
 6. Todos los mensajes al usuario, errores, correos y PDFs estén 100% en idioma Español y el código interno en Inglés.
 
