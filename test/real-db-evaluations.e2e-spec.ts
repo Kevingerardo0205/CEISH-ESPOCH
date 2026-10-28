@@ -232,18 +232,18 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
     // Limpiar datos previos de prueba de forma acotada
     await dataSource.query(`
-      UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+      UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
       -- convocatorias primero: la FK convocatoria_protocolos→convocatorias es ON DELETE CASCADE
-      DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR numero_convocatoria LIKE 'TEST-N42-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR protocolo_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
-      DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)));
-      DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-      DELETE FROM recepcion.recepciones WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-      DELETE FROM public.versiones_protocolo WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-      DELETE FROM public.protocolos WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR numero_convocatoria LIKE 'TEST-N42-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR protocolo_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+      DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)));
+      DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+      DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM recepcion.recepciones WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM public.versiones_protocolo WHERE id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+      DELETE FROM public.protocolos WHERE id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
       DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
       DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
       DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%';
@@ -378,18 +378,18 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     try {
       if (dataSource && dataSource.isInitialized) {
         await dataSource.query(`
-          UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+          UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
           -- convocatorias primero: la FK convocatoria_protocolos→convocatorias es ON DELETE CASCADE
-          DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR numero_convocatoria LIKE 'TEST-N42-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR protocolo_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
-          DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)));
-          DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-          DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-          DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
-          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-          DELETE FROM recepcion.recepciones WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-          DELETE FROM public.versiones_protocolo WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
-          DELETE FROM public.protocolos WHERE id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM evaluacion.convocatorias WHERE numero_convocatoria LIKE 'TEST-E2E-%' OR numero_convocatoria LIKE 'TEST-N42-%' OR lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%') OR id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.convocatoria_protocolos WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR protocolo_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999) OR convocatoria_id IN (SELECT id FROM evaluacion.convocatorias WHERE lugar_id IN (SELECT id FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%'));
+          DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)));
+          DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999));
+          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM recepcion.recepciones WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM public.versiones_protocolo WHERE id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
+          DELETE FROM public.protocolos WHERE id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999);
           DELETE FROM catalogos.evaluadores_perfil WHERE usuario_id IN (901, 902, 903, 904, 905);
           DELETE FROM catalogos.usuarios WHERE id IN (901, 902, 903, 904, 905);
           DELETE FROM evaluacion.lugares WHERE nombre LIKE 'TEST-E2E-%' OR nombre LIKE '%Sala de Consejo%' OR nombre LIKE 'TEST-N08-%';
@@ -397,11 +397,11 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
         // Verificar residuos en rangos de test (version_id 990–999)
         const residuosAsign: Array<{ count: string }> = await dataSource.query(
-          `SELECT COUNT(*) AS count FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)`,
+          `SELECT COUNT(*) AS count FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)`,
         );
         const residuosConvProt: Array<{ count: string }> =
           await dataSource.query(
-            `SELECT COUNT(*) AS count FROM evaluacion.convocatoria_protocolos WHERE version_id IN (980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)`,
+            `SELECT COUNT(*) AS count FROM evaluacion.convocatoria_protocolos WHERE version_id IN (970, 971, 980, 990, 991, 992, 993, 994, 995, 996, 997, 998, 999)`,
           );
         expect(Number(residuosAsign[0].count)).toBe(0);
         expect(Number(residuosConvProt[0].count)).toBe(0);
@@ -593,7 +593,9 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
   describe('3. Concurrencia por Endpoints Reales con Promise.all', () => {
     it('1c. Dos evaluadores envían propuesta de riesgo simultáneamente a través del endpoint real', async () => {
       // Protocolo 998 para concurrencia
-      await dataSource.query(`
+      let conv1cId: string | undefined;
+      try {
+        await dataSource.query(`
         INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id)
         VALUES (998, 'Protocolo Concurrencia E2E', 901, 10)
         ON CONFLICT (id) DO NOTHING;
@@ -609,74 +611,92 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         ON CONFLICT (id) DO NOTHING;
       `);
 
-      const origManagerSave = EntityManager.prototype.save;
-      const saveSpy = jest
-        .spyOn(EntityManager.prototype, 'save')
-        .mockImplementation(async function (
-          this: any,
-          targetOrEntity: any,
-          maybeEntityOrOptions?: any,
-          maybeOptions?: any,
-        ) {
-          const result = await origManagerSave.call(
-            this,
-            targetOrEntity,
-            maybeEntityOrOptions,
-            maybeOptions,
-          );
-          const entity = maybeEntityOrOptions
-            ? maybeEntityOrOptions
-            : targetOrEntity;
-          const isRiskProposal =
-            entity?.constructor?.name === 'RiskProposalOrmEntity' ||
-            entity instanceof RiskProposalOrmEntity ||
-            targetOrEntity === RiskProposalOrmEntity;
-          if (isRiskProposal) {
-            await new Promise((resolve) => setTimeout(resolve, 300));
-          }
-          return result;
-        });
+        // Convocatoria PROGRAMADA para version 998 — guard de convocatoria (N48/N42)
+        const conv1cRows: { id: string }[] = await dataSource.query(
+          `INSERT INTO evaluacion.convocatorias (numero_convocatoria, estado)
+           VALUES ('TEST-N42-1C', 'PROGRAMADA') RETURNING id`,
+        );
+        conv1cId = conv1cRows[0].id;
+        await dataSource.query(
+          `INSERT INTO evaluacion.convocatoria_protocolos
+             (convocatoria_id, protocolo_id, version_id, orden, fecha_plazo_normativo)
+           VALUES ($1, 998, 998, 1, NOW() + INTERVAL '30 days')`,
+          [conv1cId],
+        );
 
-      try {
-        // Ejecutar ambos envíos en paralelo real vía HTTP supertest
-        const [res1, res2] = await Promise.all([
-          request(app.getHttpServer())
-            .post('/api/evaluations/peer-assignments/9911/submit-risk')
-            .set('x-user-id', '901')
-            .send({
-              riskLevelId: expeditaRiskId,
-              observations: 'Propuesta Par 1',
-            }),
-          request(app.getHttpServer())
-            .post('/api/evaluations/peer-assignments/9912/submit-risk')
-            .set('x-user-id', '902')
-            .send({
-              riskLevelId: expeditaRiskId,
-              observations: 'Propuesta Par 2',
-            }),
-        ]);
+        const origManagerSave = EntityManager.prototype.save;
+        const saveSpy = jest
+          .spyOn(EntityManager.prototype, 'save')
+          .mockImplementation(async function (
+            this: any,
+            targetOrEntity: any,
+            maybeEntityOrOptions?: any,
+            maybeOptions?: any,
+          ) {
+            const result = await origManagerSave.call(
+              this,
+              targetOrEntity,
+              maybeEntityOrOptions,
+              maybeOptions,
+            );
+            const entity = maybeEntityOrOptions
+              ? maybeEntityOrOptions
+              : targetOrEntity;
+            const isRiskProposal =
+              entity?.constructor?.name === 'RiskProposalOrmEntity' ||
+              entity instanceof RiskProposalOrmEntity ||
+              targetOrEntity === RiskProposalOrmEntity;
+            if (isRiskProposal) {
+              await new Promise((resolve) => setTimeout(resolve, 300));
+            }
+            return result;
+          });
 
-        expect(res1.status).toBe(201);
-        expect(res2.status).toBe(201);
+        try {
+          // Ejecutar ambos envíos en paralelo real vía HTTP supertest
+          const [res1, res2] = await Promise.all([
+            request(app.getHttpServer())
+              .post('/api/evaluations/peer-assignments/9911/submit-risk')
+              .set('x-user-id', '901')
+              .send({
+                riskLevelId: expeditaRiskId,
+                observations: 'Propuesta Par 1',
+              }),
+            request(app.getHttpServer())
+              .post('/api/evaluations/peer-assignments/9912/submit-risk')
+              .set('x-user-id', '902')
+              .send({
+                riskLevelId: expeditaRiskId,
+                observations: 'Propuesta Par 2',
+              }),
+          ]);
 
-        // Verificaciones SQL
-        const proposals9911 = await dataSource.query(`
+          expect(res1.status).toBe(201);
+          expect(res2.status).toBe(201);
+
+          // Verificaciones SQL
+          const proposals9911 = await dataSource.query(`
           SELECT * FROM evaluacion.propuestas_riesgo WHERE asignacion_id = 9911 AND es_vigente = true;
         `);
-        const proposals9912 = await dataSource.query(`
+          const proposals9912 = await dataSource.query(`
           SELECT * FROM evaluacion.propuestas_riesgo WHERE asignacion_id = 9912 AND es_vigente = true;
         `);
-        expect(proposals9911.length).toBe(1);
-        expect(proposals9912.length).toBe(1);
+          expect(proposals9911.length).toBe(1);
+          expect(proposals9912.length).toBe(1);
 
-        // Consolidación de estado del protocolo a 13 (EN EVALUACION)
-        const protocol = await dataSource.query(`
+          // Consolidación de estado del protocolo a 13 (EN EVALUACION)
+          const protocol = await dataSource.query(`
           SELECT id, estado_id, nivel_riesgo_id FROM public.protocolos WHERE id = 998;
         `);
-        expect(protocol[0].estado_id).toBe(13);
-        expect(protocol[0].nivel_riesgo_id).toBe(expeditaRiskId);
+          expect(protocol[0].estado_id).toBe(13);
+          expect(protocol[0].nivel_riesgo_id).toBe(expeditaRiskId);
+        } finally {
+          saveSpy.mockRestore();
+        }
       } finally {
-        saveSpy.mockRestore();
+        if (conv1cId) {
+          await cleanupConvocatoria(conv1cId);
+        }
       }
     });
   });
@@ -3654,6 +3674,146 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(resActive.status).toBe(200);
       expect(Array.isArray(resActive.body.assignments)).toBe(true);
       expect(resActive.body.assignments.length).toBeGreaterThanOrEqual(2);
+    });
+  });
+
+  describe('16. N48 — Guard de convocatoria activa en submit-risk (TSK-002-N48)', () => {
+    const PROTO_N48 = 970;
+    const VER_N48 = 971;
+    const ASG_N48_A = 9701; // evaluador 901, Anexo 10
+    const ASG_N48_B = 9702; // evaluador 902, Anexo 10
+    let convN48Id: string | undefined;
+
+    beforeAll(async () => {
+      // Limpiar residuos previos del rango (idempotente)
+      await dataSource.query(`
+        DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (${ASG_N48_A}, ${ASG_N48_B});
+        DELETE FROM evaluacion.asignaciones_evaluacion WHERE id IN (${ASG_N48_A}, ${ASG_N48_B});
+        UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (${PROTO_N48});
+        DELETE FROM public.versiones_protocolo WHERE id IN (${VER_N48});
+        DELETE FROM public.protocolos WHERE id IN (${PROTO_N48});
+      `);
+
+      // Pre-condición: los IDs fijos no deben existir
+      const preExisting: Array<{ id: number }> = await dataSource.query(
+        `SELECT id FROM evaluacion.asignaciones_evaluacion WHERE id IN (${ASG_N48_A}, ${ASG_N48_B})`,
+      );
+      expect(preExisting.length).toBe(0);
+
+      await dataSource.query(`
+        INSERT INTO public.protocolos (id, titulo, investigador_principal_id, nivel_riesgo_id, estado_id, tipo_revision)
+        VALUES (${PROTO_N48}, 'Protocolo N48 E2E', 901, ${expeditaRiskId}, 10, 'EXPEDITA')
+        ON CONFLICT (id) DO UPDATE SET tipo_revision = 'EXPEDITA', nivel_riesgo_id = ${expeditaRiskId};
+        INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+        VALUES (${VER_N48}, ${PROTO_N48}, 1, 10)
+        ON CONFLICT (id) DO NOTHING;
+        UPDATE public.protocolos SET version_actual_id = ${VER_N48} WHERE id = ${PROTO_N48};
+        INSERT INTO evaluacion.asignaciones_evaluacion (
+          id, version_id, evaluador_id, estado_id, es_asignado_anexo_10, fecha_asignacion
+        ) VALUES
+          (${ASG_N48_A}, ${VER_N48}, 901, ${AssignmentStatus.ASSIGNED}, true, NOW()),
+          (${ASG_N48_B}, ${VER_N48}, 902, ${AssignmentStatus.ASSIGNED}, true, NOW())
+        ON CONFLICT (id) DO NOTHING;
+      `);
+    });
+
+    afterAll(async () => {
+      if (convN48Id) await cleanupConvocatoria(convN48Id);
+      await dataSource.query(`
+        DELETE FROM evaluacion.evaluacion_criterio WHERE evaluacion_id IN (SELECT id FROM evaluacion.evaluaciones WHERE asignacion_id IN (${ASG_N48_A}, ${ASG_N48_B}));
+        DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (${ASG_N48_A}, ${ASG_N48_B});
+        DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (${ASG_N48_A}, ${ASG_N48_B});
+        DELETE FROM evaluacion.asignaciones_evaluacion WHERE id IN (${ASG_N48_A}, ${ASG_N48_B});
+        UPDATE public.protocolos SET version_actual_id = NULL WHERE id = ${PROTO_N48};
+        DELETE FROM public.versiones_protocolo WHERE id = ${VER_N48};
+        DELETE FROM public.protocolos WHERE id = ${PROTO_N48};
+      `);
+      const residuosAsign: Array<{ count: string }> = await dataSource.query(
+        `SELECT COUNT(*) AS count FROM evaluacion.asignaciones_evaluacion WHERE id IN (${ASG_N48_A}, ${ASG_N48_B}) OR version_id IN (${VER_N48})`,
+      );
+      const residuosConvProt: Array<{ count: string }> = await dataSource.query(
+        `SELECT COUNT(*) AS count FROM evaluacion.convocatoria_protocolos WHERE version_id IN (${VER_N48}) OR protocolo_id IN (${PROTO_N48})`,
+      );
+      expect(Number(residuosAsign[0].count)).toBe(0);
+      expect(Number(residuosConvProt[0].count)).toBe(0);
+    });
+
+    it('16a1. Sin convocatoria activa, dueño → submit-risk 403 con mensaje exacto', async () => {
+      const resOwner = await request(app.getHttpServer())
+        .post(`/api/evaluations/peer-assignments/${ASG_N48_A}/submit-risk`)
+        .set('x-user-id', '901')
+        .send({
+          riskLevelId: expeditaRiskId,
+          observations: 'Intento sin convocatoria',
+        });
+      expect(resOwner.status).toBe(403);
+      expect(resOwner.body.message).toBe(
+        'el protocolo aún no está en una convocatoria',
+      );
+    });
+
+    it('16a2. Sin convocatoria activa, no-dueño → 400 propiedad antes del guard', async () => {
+      // 902 intenta sobre ASG_N48_A (asignado a 901) → 400 por propiedad antes del guard
+      const resNonOwner = await request(app.getHttpServer())
+        .post(`/api/evaluations/peer-assignments/${ASG_N48_A}/submit-risk`)
+        .set('x-user-id', '902')
+        .send({
+          riskLevelId: expeditaRiskId,
+          observations: 'Intento no dueño',
+        });
+      expect(resNonOwner.status).toBe(400);
+      expect(resNonOwner.body.message).toBe(
+        'No tiene permisos para responder esta asignación.',
+      );
+    });
+
+    it('16b. Con convocatoria PROGRAMADA → submit-risk pasa el guard (201) y persiste la propuesta', async () => {
+      convN48Id = await seedConvocatoriaForVersion(
+        PROTO_N48,
+        VER_N48,
+        'TEST-N48-970',
+        'PROGRAMADA',
+      );
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/evaluations/peer-assignments/${ASG_N48_A}/submit-risk`)
+        .set('x-user-id', '901')
+        .send({
+          riskLevelId: expeditaRiskId,
+          observations: 'Propuesta riesgoPROGRAMADA N48',
+        });
+      expect(res.status).toBe(201);
+
+      const proposals: Array<{ asignacion_id: string }> =
+        await dataSource.query(
+          `SELECT asignacion_id::text FROM evaluacion.propuestas_riesgo WHERE asignacion_id = ${ASG_N48_A} AND es_vigente = true`,
+        );
+      expect(proposals.length).toBe(1);
+    });
+
+    it('16c. Con convocatoria CANCELADA → submit-risk 403 con mensaje exacto', async () => {
+      expect(convN48Id).toBeDefined();
+      await dataSource.query(
+        `UPDATE evaluacion.convocatorias SET estado = 'CANCELADA' WHERE id = $1`,
+        [convN48Id],
+      );
+      const canceledCheck: Array<{ count: string }> = await dataSource.query(
+        `SELECT COUNT(*) AS count FROM evaluacion.convocatorias WHERE id = $1 AND estado = 'CANCELADA'`,
+        [convN48Id],
+      );
+      expect(Number(canceledCheck[0].count)).toBe(1);
+
+      const res = await request(app.getHttpServer())
+        .post(`/api/evaluations/peer-assignments/${ASG_N48_B}/submit-risk`)
+        .set('x-user-id', '902')
+        .send({
+          riskLevelId: expeditaRiskId,
+          observations: 'Intento con convocatoria cancelada',
+        });
+      expect(res.status).toBe(403);
+      expect(res.body.message).toBe(
+        'el protocolo aún no está en una convocatoria',
+      );
     });
   });
 });
