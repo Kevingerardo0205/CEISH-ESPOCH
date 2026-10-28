@@ -2,11 +2,12 @@
 
 **Código de Especificación:** `specs/003-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 1.5.0  
+**Versión:** 1.5.1  
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v1.4.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v1.4.1: RF-ALR renovación cambia a `alerta_renovacion_offsets_dias` [90, 60, 15]; HU-015 EARS 3 usa el parámetro  
 **Historial:** 2026-10-27 — v1.5.0: CS-06 plazo dictamen 48 h corridas; CS-07 4 resultados del pleno; CS-08 corrección de decisión; CS-09 asistencia y quórum; CS-11 seguimiento precisión; CS-13 endpoint pendientes — rediseño 27/10/2026
+**Historial:** 2026-10-28 — v1.5.1: sección Pendientes de confirmar con el comité añadida
 
 ---
 
@@ -249,3 +250,16 @@ Especificar las reglas operativas, funcionales y de integridad para:
 - Prórroga de hasta 30 días del plazo normativo (PET): ¿se modela?
 - Informe de inicio: ¿desde la aprobación (Secretaría) o desde el inicio de la ejecución (PET y carta)?
 - Situación de un protocolo "No aprobado" (qué pasa después).
+- `submit-risk` (`peer-assignments/:id/submit-risk`) con convocatoria vigente: ¿el endpoint exige que el protocolo esté en convocatoria (`403` si no la hay)? — RF-12.7(4b) en specs/002, DECISIÓN POR DEFECTO 28/10/2026, pendiente de confirmar con Secretaría.
+
+---
+
+## 9. Pendientes de confirmar con el comité
+
+| # | Pendiente | RF | Estado |
+|---|---|---|---|
+| 1 | ¿El PET fija una regla de quórum diferente a "más de la mitad de los miembros con voto"? | RF-09.5 | PENDIENTE |
+| 2 | Documentos faltantes: ¿el plazo de 30 días es laborable o de calendario? | RF-ALR / RF-07.1 en specs/001 | PENDIENTE |
+| 3 | Tiempo mínimo del oficio: ¿8 días para expedita y pleno o 15 (SRS v3.2)? | RF-12.7(c) en specs/002 | PENDIENTE |
+| 4 | ¿Cuál es el valor correcto de `dias_max_sin_convocatoria` y `dias_alerta_normativo_sin_convocatoria`? | RF-12.7(d) en specs/002 | PENDIENTE |
+| 5 | ¿La propuesta de riesgo de pares (`submit-risk`) exige convocatoria vigente (`403` si no hay)? Confirmar con Secretaría. | RF-12.7(4b) en specs/002 | PENDIENTE |
