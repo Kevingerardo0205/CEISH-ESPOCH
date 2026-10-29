@@ -11,7 +11,8 @@
 
 ### Módulo: Autenticación y RBAC (`auth`)
 
-- [ ] **TSK-001.1**: Matriz de roles fija (FixedRolesMatrix).
+- [ ] **TSK-001.1**: Matriz de roles fija (FixedRolesMatrix). *(subdividida en 1a/1b/1c — ver plan.md §1b)*
+  - **Subtareas:** [x] 1a Migración + enum + sesión + guards + E2E · [ ] 1b Segregación INVESTIGADOR y unicidad SECRETARIA · [ ] 1c Retirar RolesController/PermissionsController + limpiar ADMIN_TI
   - **Requisitos cubiertos:** `HU-001` (puntos a–j), `RF-001`
   - **Hecho cuando:**
     - La migración, aplicada por el agente solo en `ceish_test_db`, siembra la matriz de permisos canónica (`USUARIOS_GESTIONAR` y todos los permisos de HU-001 c), retira con `eliminado_en` los permisos `PERMISOS_GESTIONAR`, `SEGUIMIENTO_ENMIENDAS`, `TRADUCCION_ANCESTRAL`, `DASHBOARD_SLA` y `CONFIG_INTEGRACIONES`, aplica las reglas de datos existentes del punto h) (revocación de `ADMIN_TI`, unicidad de `SECRETARIA`, segregación `INVESTIGADOR`+`SECRETARIA`, rol inactivo provisional).
