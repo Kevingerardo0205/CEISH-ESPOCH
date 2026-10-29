@@ -2,12 +2,13 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.4.1  
+**Versión:** 3.5.0  
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
 **Historial:** 2026-10-27 — v3.4.0: CS-01 etapas (7) del protocolo en catálogo estados; CS-10 precisión de recepción; CS-12 renovación como etapa propia; CS-14 parámetros del sistema; CS-16 enmiendas fuera de alcance — rediseño 27/10/2026
 **Historial:** 2026-10-28 — v3.4.1: HU-001 roles fijos y gestión de usuarios del comité; RF-16.1 mismos pares resuelto; RF-EST.1/RF-EST.2/RF-EST.3 transición a 6 etapas canónicas (Riesgo integrado dentro de Evaluación, columnas de riesgo y dictámenes, filtros por riesgo y dictámenes, Evaluación concluye con nivel de riesgo fijado y todos los dictámenes entregados, Renovación etapa 6); sección Pendientes de confirmar con el comité
+**Historial:** 2026-10-28 — v3.5.0: HU-001 roles fijos completo: ADMIN_TI absorbido, segregación INVESTIGADOR excluyente, una sola SECRETARIA, matriz de permisos fija, permisos retirados, asistente IA, reglas de migración de datos
 
 ---
 
@@ -38,22 +39,100 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 #### 1. Información General de la Historia de Usuario
 | Campo | Valor |
 |---|---|
-| **Título** | Autenticación y Gestión de Perfiles de Usuario |
+| **Título** | Autenticación, Roles Fijos, Matriz de Permisos y Segregación de Funciones |
 | **ID** | HU-001 |
-| **Descripción** | Permite el acceso seguro de usuarios al sistema mediante credenciales validadas, con roles fijos y gestión de usuarios del comité por la Secretaría. — Reemplaza a: gestión dinámica de roles y permisos — decisión 28/10/2026 |
+| **Descripción** | Gestiona el acceso al sistema con roles fijos (`SECRETARIA`, `PRESIDENTE`, `EVALUADOR`, `INVESTIGADOR`), matriz de permisos sembrada por migración y no editable desde la aplicación, segregación de funciones (`INVESTIGADOR` excluyente de roles del comité) y regla de Secretaría única. `ADMIN_TI` queda absorbido por `SECRETARIA`; los identificadores `ADMIN` y `PRESIDENTA` no son roles. — Reemplaza a: gestión dinámica de roles y permisos — decisión 28/10/2026 |
 | **Estimación** | 12 horas |
 | **Prioridad** | ALTA (1) |
 | **Dependencias** | Ninguna |
 | **Requisitos origen** | RF-001 |
 
 #### 2. Pruebas de Aceptación
-1. **Acceso por Rol**: Si el usuario ingresa credenciales válidas, el sistema concede acceso al dashboard según su rol (`INVESTIGADOR`, `SECRETARIA`, `EVALUADOR`, `PRESIDENTE`). Una persona puede tener más de un rol.
+1. **Acceso por Rol**: Si el usuario ingresa credenciales válidas, el sistema concede acceso al dashboard según su rol (`INVESTIGADOR`, `SECRETARIA`, `EVALUADOR`, `PRESIDENTE`). Una persona puede tener varios roles del comité simultáneamente (ver punto b).
 2. **Control de Sesión**: La sesión se mantiene con tokens JWT y refresh tokens con expiración configurada.
 3. **Auditabilidad**: Se registran los logs de inicio de sesión y acciones de perfil.
-4. **Roles fijos (decisión 28/10/2026)**: Los roles y permisos son fijos; no existe pantalla ni endpoint para crearlos ni editarlos. Roles disponibles: `SECRETARIA` (incluye la administración del sistema), `PRESIDENTE`, `EVALUADOR` (con perfil `METODOLOGICO`, `SALUD`, `JURIDICO` o `SOCIEDAD_CIVIL`) e `INVESTIGADOR`. — Reemplaza a: cualquier requisito de gestión dinámica de roles — decisión 28/10/2026
-5. **Gestión de usuarios del comité (Configuración → Usuarios)**: La Secretaría puede invitar a un usuario del comité con correo OTP, reenviar la invitación, desactivarlo y reactivarlo. No hay borrado físico: el historial se conserva íntegro. — decisión 28/10/2026
+4. **Roles fijos — ADMIN_TI absorbido (decisión 28/10/2026)**: Los roles disponibles son `SECRETARIA` (incluye la administración del sistema; absorbe todas las funciones que antes tenía `ADMIN_TI`), `PRESIDENTE`, `EVALUADOR` (con perfil `METODOLOGICO`, `SALUD`, `JURIDICO` o `SOCIEDAD_CIVIL`) e `INVESTIGADOR`. Los identificadores `ADMIN` y `PRESIDENTA` no son roles del sistema. No existen en la base de datos; solo aparecen como texto en el código y en pruebas, y se retiran de ahí. — Reemplaza a: ADMIN_TI como rol propio — decisión 28/10/2026
+5. **Gestión de usuarios del comité (Configuración → Usuarios)**: La Secretaría (permiso `USUARIOS_GESTIONAR`) puede invitar a un usuario del comité con correo OTP, reenviar la invitación, asignarle un rol del comité, desactivarlo y reactivarlo. No hay borrado físico: el historial se conserva íntegro. — decisión 28/10/2026
 6. **Gestión de investigadores**: Los investigadores se registran solos. La Secretaría solo puede verlos y desactivarlos. — decisión 28/10/2026
-7. **PENDIENTE**: ¿Se mantienen las suplencias temporales de rol (extender o suspender un rol por un periodo)? — decisión 28/10/2026
+
+#### 3. Requisitos de Roles, Permisos y Segregación de Funciones
+
+**a) Roles fijos (decisión 28/10/2026)**
+
+Los cuatro roles del sistema son fijos y no se crean ni editan desde la aplicación. — Reemplaza a: roles dinámicos — decisión 28/10/2026
+
+| Rol | Descripción |
+|---|---|
+| `SECRETARIA` | Gestión operativa y administrativa del CEISH. Absorbe las funciones que antes tenía `ADMIN_TI`. — Reemplaza a: ADMIN_TI como rol separado — decisión 28/10/2026 |
+| `PRESIDENTE` | Autoridad supervisora del comité. |
+| `EVALUADOR` | Miembro del comité; lleva uno de los cuatro perfiles: `METODOLOGICO`, `SALUD`, `JURIDICO` o `SOCIEDAD_CIVIL`. |
+| `INVESTIGADOR` | Docente, estudiante o externo que somete protocolos. |
+
+Los identificadores `ADMIN` y `PRESIDENTA` no son roles del sistema. No existen en la base de datos; solo aparecen como texto en el código y en pruebas, y se retiran de ahí.
+
+**b) Combinación de roles (decisión 28/10/2026)**
+
+- Un usuario puede tener varios roles del comité simultáneamente: `SECRETARIA`, `PRESIDENTE` y/o `EVALUADOR`.
+- `INVESTIGADOR` es **excluyente** con todos los roles del comité:
+  - Un usuario con cualquier rol del comité no puede registrarse como investigador ni recibir el rol INVESTIGADOR.
+  - A un usuario con rol `INVESTIGADOR` no se le puede asignar ningún rol del comité.
+  - En ambos casos el backend rechaza la operación con un mensaje en español. — Reemplaza a: sin restricción de combinación — decisión 28/10/2026
+
+**b2) Una sola Secretaría vigente (decisión 28/10/2026)**
+
+Solo puede haber un usuario con el rol `SECRETARIA` activo a la vez. Si se intenta asignar `SECRETARIA` a un segundo usuario mientras haya uno vigente, el backend rechaza la operación con un mensaje claro. — Reemplaza a: sin restricción de unicidad — decisión 28/10/2026
+
+**c) Matriz de permisos fija (decisión 28/10/2026)**
+
+La matriz se siembra por migración y **no se edita desde la aplicación**. Los endpoints que escriben en tablas de roles, módulos, permisos y `rol_permisos` se cierran. — Reemplaza a: gestión dinámica de permisos — decisión 28/10/2026
+
+| Permiso | SECRETARIA | PRESIDENTE | EVALUADOR | INVESTIGADOR |
+|---|---|---|---|---|
+| `DASHBOARD_RESUMEN`, `DASHBOARD_NOTIF` | ✓ | ✓ | ✓ | ✓ |
+| `DASHBOARD_VENCIMIENTOS` | ✓ | ✓ | — | — |
+| `RECEPCION_LISTA`, `RECEPCION_VALIDAR`, `RECEPCION_BUSCAR`, `RECEPCION_CONSTANCIAS` | ✓ | — | — | — |
+| `RECEPCION_NUEVO` | ✓ | — | — | ✓ |
+| `EVALUACION_ASIGNAR`, `EVALUACION_INFORMES` | ✓ | — | — | — |
+| `EVALUACION_RIESGO`, `EVALUACION_EXPEDITA`, `EVALUACION_PLENO` | ✓ | ✓ | ✓ | — |
+| `EVALUACION_SUBSANACIONES` | ✓ | — | — | ✓ |
+| `RESOLUCION_CREAR`, `RESOLUCION_NOTIF`, `RESOLUCION_HISTORIAL`, `RESOLUCION_CONVOCATORIAS` | ✓ | ✓ | — | — |
+| `RESOLUCION_FIRMAR` | — | ✓ | — | — |
+| `SEGUIMIENTO_AVANCE`, `SEGUIMIENTO_FINAL`, `SEGUIMIENTO_EVENTOS`, `SEGUIMIENTO_RENOVACIONES` | ✓ | ✓ | ✓ | ✓ |
+| `SEGUIMIENTO_SUSPENSION` | ✓ | ✓ | — | — |
+| `USUARIOS_VER`, `USUARIOS_GESTIONAR`, `USUARIOS_CONFLICTOS`, `EVALUADORES_PERFILES` | ✓ | — | — | — |
+| `REPORTES_CARGA`, `REPORTES_EXPORTAR`, `REPORTES_AUDITORIA`, `AUDITORIA_ACCESOS` | ✓ | ✓ | — | — |
+| `CONFIG_PARAMETROS`, `CONFIG_PLANTILLAS`, `CONFIG_CATALOGOS`, `CONFIG_NOTIF` | ✓ | — | — | — |
+
+> - En `EVALUADOR` e `INVESTIGADOR`, el alcance se limita a sus propios recursos: los protocolos asignados al evaluador y los protocolos propios del investigador. Eso lo valida el servicio, no la matriz.
+> - `RESOLUCION_URGENCIAS`, `REPORTES_KPIS` y `REPORTES_TIEMPOS` quedan **PENDIENTES**, según los reportes que confirme el comité (RF-12.8 en specs/002).
+> - La validación final de la matriz con la Secretaría queda **PENDIENTE**.
+
+**d) Asignación de roles (decisión 28/10/2026)**
+
+- La asignación de roles la hace la Secretaría con el permiso `USUARIOS_GESTIONAR` (módulo `MOD_USUARIOS`).
+- `Permission.ROLES_ASSIGN` pasa a apuntar a `USUARIOS_GESTIONAR`. — Reemplaza a: ROLES_ASSIGN como permiso propio — decisión 28/10/2026
+- El permiso `PERMISOS_GESTIONAR` queda retirado (ver punto e).
+
+**e) Permisos retirados (decisión 28/10/2026)**
+
+Los siguientes permisos se retiran con `eliminado_en` (sin borrado físico): `PERMISOS_GESTIONAR`, `SEGUIMIENTO_ENMIENDAS`, `TRADUCCION_ANCESTRAL`, `DASHBOARD_SLA` y `CONFIG_INTEGRACIONES`. — Reemplaza a: permisos activos — decisión 28/10/2026
+
+**f) Asistente IA — `allowed_roles` (decisión 28/10/2026)**
+
+La administración del módulo de IA pasa a `SECRETARIA`. `ADMIN_TI` se elimina de `allowed_roles`. — Reemplaza a: ADMIN_TI en allowed_roles — decisión 28/10/2026
+
+**g) Suplencias de rol**
+
+Sin cambios en esta versión. Siguen pendientes de confirmar (ver Sección 11, pendiente 2).
+
+**h) Datos existentes — reglas para la migración (decisión 28/10/2026)**
+
+Todas las cuentas existentes son de prueba. La migración resuelve la situación sin borrado físico:
+- Las cuentas con el rol `ADMIN_TI` se desactivan (`activo = false`) y se les revoca ese rol con `fecha_fin`.
+- El rol `SECRETARIA` queda asignado a una sola cuenta de prueba; las demás cuentas que lo tengan lo pierden con `fecha_fin`, conservando su otro rol si lo tienen.
+- La cuenta que tenga simultáneamente `INVESTIGADOR` y `SECRETARIA` queda únicamente con `INVESTIGADOR`.
+- El rol inactivo creado por error desde la antigua pantalla de roles dinámicos se marca con `eliminado_en`.
+> Los identificadores concretos (IDs de cuentas) no van en el spec; van en la tarea de migración (ver tasks.md). — decisión 28/10/2026
 
 ---
 
@@ -520,3 +599,7 @@ Un requerimiento se considerará **Finalizado** cuando:
 |---|---|---|---|
 | 1 | ¿Qué ocurre si la vigencia del aval vence sin que se haya presentado la solicitud de renovación? | RF-16.1 | PENDIENTE |
 | 2 | ¿Se mantienen las suplencias temporales de rol (extender o suspender un rol por un periodo)? | HU-001 | PENDIENTE |
+| 3 | ¿Cómo encaja la regla de una sola Secretaría vigente (HU-001 b2) con las suplencias temporales? Por ejemplo: ¿cómo reemplazar a la Secretaría durante una ausencia sin violar la unicidad? | HU-001 b2 | PENDIENTE |
+| 4 | Los endpoints que solo piden JWT (protocolos, almacenamiento, entre otros — aprox. 55) necesitan una auditoría aparte para confirmar que el servicio valida que el recurso pertenece al usuario antes de devolver datos. | RF-001 | PENDIENTE |
+| 5 | Validación final de la matriz de permisos (HU-001 c) con la Secretaría. | HU-001 c | PENDIENTE |
+| 6 | ¿Cuáles de los permisos `RESOLUCION_URGENCIAS`, `REPORTES_KPIS` y `REPORTES_TIEMPOS` quedan confirmados? (depende de RF-12.8 en specs/002) | HU-001 c | PENDIENTE |

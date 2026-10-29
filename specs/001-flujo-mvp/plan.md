@@ -60,6 +60,29 @@ src/
 
 ---
 
+## 1b. Tarea pendiente de implementación: Matriz de roles fija (TSK-001.1)
+
+**Estado:** 🔲 Pendiente  
+**Requisitos:** HU-001 (puntos a–h), RF-001  
+**Módulo:** `auth` — `src/modules/auth/`
+
+### Alcance técnico
+
+| Área | Cambio |
+|---|---|
+| Migración (`auth`) | Sembrar permisos canónicos, retirar permisos obsoletos con `eliminado_en`, aplicar reglas de datos del punto h) |
+| `Permission` enum | Añadir USUARIOS_GESTIONAR; ROLES_ASSIGN → USUARIOS_GESTIONAR; eliminar PERMISOS_GESTIONAR después de retirar los controladores de RBAC |
+| Controladores de RBAC | Se retiran RolesController (/auth/roles) y PermissionsController (/auth/modules, /auth/permissions) COMPLETOS, lectura incluida, porque la pantalla de seguridad sale del alcance |
+| Servicio de dominio segregation-of-duties y asignación de roles (UsersService) | Rechazar: (1) INVESTIGADOR junto con un rol del comité, (2) una segunda SECRETARIA vigente. RolesGuard no cambia |
+| Registro de investigador | Rechazar si el correo ya tiene rol de comité |
+| Módulo IA | Eliminar `ADMIN_TI` de `allowed_roles` |
+| Seed / presets | Quitar referencias a `ADMIN_TI` y al identificador `ADMIN` |
+| Pruebas E2E | `PermissionsGuard` REAL (sin `overrideGuard`): al menos 1 permiso ✓ y 1 ✗ por rol; segregación; unicidad Secretaría; mutaciones |
+
+> Los identificadores concretos (IDs de cuentas) no van aquí; van en la descripción de la migración dentro de la tarea TSK-001.1.
+
+---
+
 ## 2. Modelo de Datos (Esquema JSON & Ejemplo)
 
 Representación del modelo de dominio serializado para un Protocolo de Investigación completo con su historial de versión v2.0, Aceptación Explícita con IP, Asignación de Evaluadores con Cuotas, y Referencia Quipux:
