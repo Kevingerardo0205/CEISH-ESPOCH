@@ -2,13 +2,14 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.5.0  
+**Versión:** 3.5.1  
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
 **Historial:** 2026-10-27 — v3.4.0: CS-01 etapas (7) del protocolo en catálogo estados; CS-10 precisión de recepción; CS-12 renovación como etapa propia; CS-14 parámetros del sistema; CS-16 enmiendas fuera de alcance — rediseño 27/10/2026
 **Historial:** 2026-10-28 — v3.4.1: HU-001 roles fijos y gestión de usuarios del comité; RF-16.1 mismos pares resuelto; RF-EST.1/RF-EST.2/RF-EST.3 transición a 6 etapas canónicas (Riesgo integrado dentro de Evaluación, columnas de riesgo y dictámenes, filtros por riesgo y dictámenes, Evaluación concluye con nivel de riesgo fijado y todos los dictámenes entregados, Renovación etapa 6); sección Pendientes de confirmar con el comité
 **Historial:** 2026-10-28 — v3.5.0: HU-001 roles fijos completo: ADMIN_TI absorbido, segregación INVESTIGADOR excluyente, una sola SECRETARIA, matriz de permisos fija, permisos retirados, asistente IA, reglas de migración de datos
+**Historial:** 2026-10-28 — v3.5.1: HU-001 c) Presidente ve la consolidación de dictámenes; i) permiso por endpoint; j) vigencia en sesión y guards
 
 ---
 
@@ -92,7 +93,8 @@ La matriz se siembra por migración y **no se edita desde la aplicación**. Los 
 | `DASHBOARD_VENCIMIENTOS` | ✓ | ✓ | — | — |
 | `RECEPCION_LISTA`, `RECEPCION_VALIDAR`, `RECEPCION_BUSCAR`, `RECEPCION_CONSTANCIAS` | ✓ | — | — | — |
 | `RECEPCION_NUEVO` | ✓ | — | — | ✓ |
-| `EVALUACION_ASIGNAR`, `EVALUACION_INFORMES` | ✓ | — | — | — |
+| `EVALUACION_ASIGNAR` | ✓ | — | — | — |
+| `EVALUACION_INFORMES` | ✓ | ✓ | — | — |
 | `EVALUACION_RIESGO`, `EVALUACION_EXPEDITA`, `EVALUACION_PLENO` | ✓ | ✓ | ✓ | — |
 | `EVALUACION_SUBSANACIONES` | ✓ | — | — | ✓ |
 | `RESOLUCION_CREAR`, `RESOLUCION_NOTIF`, `RESOLUCION_HISTORIAL`, `RESOLUCION_CONVOCATORIAS` | ✓ | ✓ | — | — |
@@ -105,6 +107,8 @@ La matriz se siembra por migración y **no se edita desde la aplicación**. Los 
 
 > - En `EVALUADOR` e `INVESTIGADOR`, el alcance se limita a sus propios recursos: los protocolos asignados al evaluador y los protocolos propios del investigador. Eso lo valida el servicio, no la matriz.
 > - `RESOLUCION_URGENCIAS`, `REPORTES_KPIS` y `REPORTES_TIEMPOS` quedan **PENDIENTES**, según los reportes que confirme el comité (RF-12.8 en specs/002).
+> - El Presidente consulta la consolidación de dictámenes (solo lectura) para preparar el pleno. — decisión 28/10/2026
+> - No existe endpoint de firma: la Secretaría emite la resolución con RESOLUCION_CREAR. RESOLUCION_FIRMAR queda solo para PRESIDENTE. — decisión 28/10/2026
 > - La validación final de la matriz con la Secretaría queda **PENDIENTE**.
 
 **d) Asignación de roles (decisión 28/10/2026)**
@@ -133,6 +137,21 @@ Todas las cuentas existentes son de prueba. La migración resuelve la situación
 - La cuenta que tenga simultáneamente `INVESTIGADOR` y `SECRETARIA` queda únicamente con `INVESTIGADOR`.
 - El rol inactivo creado por error desde la antigua pantalla de roles dinámicos se marca con `eliminado_en`.
 > Los identificadores concretos (IDs de cuentas) no van en el spec; van en la tarea de migración (ver tasks.md). — decisión 28/10/2026
+
+**i) Permiso que exige cada endpoint (decisión 28/10/2026)**
+
+- `/evaluations/profiles` (crear, editar y borrar perfiles de evaluador) → `EVALUADORES_PERFILES`.
+- Crear, editar y activar/desactivar usuarios (`/auth/users`, `/auth/users/:id`, `/auth/users/:id/status`) → `USUARIOS_GESTIONAR`; la consulta `GET /auth/users` sigue con `USUARIOS_VER`.
+- Panel de carga de evaluadores (`/evaluations/evaluators/dashboard`) → `REPORTES_CARGA`; el evaluador ya no lo ve.
+- Asignar, suspender y prorrogar roles → `USUARIOS_GESTIONAR` (ya estaba en d).
+
+**j) Vigencia de roles y permisos (decisión 28/10/2026)**
+
+Un rol vencido o revocado (`fecha_fin` pasada), inactivo o eliminado, y un permiso con `eliminado_en`:
+- no dan acceso en ningún guard (`RolesGuard` ni `PermissionsGuard`);
+- no aparecen en la sesión: respuesta y token de login, `/auth/me` y refresh.
+
+Después de migrar la matriz hay que reiniciar el backend, porque `PermissionsGuard` tiene una caché de 5 minutos.
 
 ---
 

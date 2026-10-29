@@ -12,18 +12,26 @@
 ### Módulo: Autenticación y RBAC (`auth`)
 
 - [ ] **TSK-001.1**: Matriz de roles fija (FixedRolesMatrix).
-  - **Requisitos cubiertos:** `HU-001` (puntos a–h), `RF-001`
+  - **Requisitos cubiertos:** `HU-001` (puntos a–j), `RF-001`
   - **Hecho cuando:**
     - La migración, aplicada por el agente solo en `ceish_test_db`, siembra la matriz de permisos canónica (`USUARIOS_GESTIONAR` y todos los permisos de HU-001 c), retira con `eliminado_en` los permisos `PERMISOS_GESTIONAR`, `SEGUIMIENTO_ENMIENDAS`, `TRADUCCION_ANCESTRAL`, `DASHBOARD_SLA` y `CONFIG_INTEGRACIONES`, aplica las reglas de datos existentes del punto h) (revocación de `ADMIN_TI`, unicidad de `SECRETARIA`, segregación `INVESTIGADOR`+`SECRETARIA`, rol inactivo provisional).
+    - La migración guarda una copia de `rol_permisos` en una tabla de respaldo antes de reemplazarla, y `down()` la restaura.
+    - Si no existe la cuenta de prueba que conserva `SECRETARIA`, la migración falla (no revoca `SECRETARIA` a todos).
+    - Solo se desactivan las cuentas con `ADMIN_TI` vigente.
+    - La migración quita `ADMIN_TI` de `ai_assistant_config.allowed_roles`.
     - Se retiran RolesController y PermissionsController completos.
     - `ADMIN_TI` y el identificador `ADMIN` salen del código, de los presets de seed y de las pruebas.
     - `Permission.ROLES_ASSIGN` apunta a `USUARIOS_GESTIONAR`.
+    - Los alias del enum `Permission` cumplen el punto i).
+    - Login, `/auth/me`, refresh y los dos guards aplican el punto j).
     - La segregación de funciones (`INVESTIGADOR` excluyente de roles del comité) se aplica en el registro y en la asignación de roles.
     - La asignación del rol `SECRETARIA` rechaza a un segundo titular vigente (unicidad b2).
     - `allowed_roles` del módulo de IA queda sin `ADMIN_TI`.
     - Hay pruebas E2E con el `PermissionsGuard` REAL (sin `overrideGuard`) que confirman, por cada rol, al menos un permiso permitido y uno denegado.
     - Hay pruebas E2E de la segregación de funciones y de la regla de una sola Secretaría.
+    - Hay pruebas E2E con login real que confirman que una cuenta a la que se le revocó `SECRETARIA` recibe 403 tanto en un endpoint con `@Permissions` como en uno con `@Roles`.
     - Hay mutaciones que comprueban que esas pruebas fallan si se quita cada regla.
+    - El lint se corre solo sobre los archivos cambiados (`npx eslint <archivos>`, sin `--fix`).
 
 ---
 
