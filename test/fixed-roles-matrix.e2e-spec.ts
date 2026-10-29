@@ -43,6 +43,7 @@ import { AuditService } from '../src/modules/audit/application/services/audit.se
 import { IStorageService } from '../src/shared/storage/domain/ports/storage.service.port';
 import { PdfGeneratorService } from '../src/shared/utils/pdf-generator.service';
 import { DocxGeneratorService } from '../src/shared/utils/docx-generator.service';
+import { FixedRolesMatrix1880000000000 } from '../src/migrations/1880000000000-FixedRolesMatrix';
 
 // ROL IDs en catalogos.roles (ceish_test_db post-migración)
 const ROL = {
@@ -415,6 +416,367 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
         expect(codes).not.toContain(retired);
       }
     });
+  });
+
+  // ─── ALIAS ENUM: cobertura de mutaciones ─────────────────────────────────
+  describe('ALIAS ENUM: cobertura de mutaciones de alias', () => {
+    beforeEach(() => clearGuardCache());
+
+    it('EVALUADOR: GET /evaluations/evaluators/dashboard → 403 (no tiene REPORTES_CARGA)', async () => {
+      const res = await get(
+        '/evaluations/evaluators/dashboard',
+        u.evaluador.token,
+      );
+      expect(res.status).toBe(403);
+    });
+
+    it('SECRETARIA: POST /evaluations/profiles cuerpo inválido → no es 403 (tiene EVALUADORES_PERFILES)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/evaluations/profiles')
+        .set('Authorization', `Bearer ${u.secretaria.token}`)
+        .send({});
+      expect(res.status).not.toBe(403);
+    });
+  });
+
+  // ─── REVOCADO-SEC: SECRETARIA expirada no otorga permisos ────────────────
+  describe('REVOCADO-SEC: SECRETARIA con fecha_fin expirada excluida de guard y sesión', () => {
+    let revSecId = 0;
+    let revSecToken = '';
+    let revSecLoginBody: any;
+
+    beforeAll(async () => {
+      await ds.query(
+        `DELETE FROM catalogos.usuarios_roles WHERE usuario_id IN
+         (SELECT id FROM catalogos.usuarios WHERE email_institucional = $1)`,
+        [emailOf('revocado_sec')],
+      );
+      await ds.query(
+        `DELETE FROM catalogos.usuarios WHERE email_institucional = $1`,
+        [emailOf('revocado_sec')],
+      );
+      const hash = await bcrypt.hash(PWD, 10);
+      const rows: Array<{ id: number }> = await ds.query(
+        `INSERT INTO catalogos.usuarios
+           (cedula, nombres_completos, email_institucional, password_hash, activo, email_verificado)
+         VALUES ($1, $2, $3, $4, true, true) RETURNING id`,
+        ['E2EFRMRS01', 'E2E FRM revocado sec', emailOf('revocado_sec'), hash],
+      );
+      revSecId = rows[0].id;
+      await ds.query(
+        `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id) VALUES ($1, $2)`,
+        [revSecId, ROL.EVALUADOR],
+      );
+      await ds.query(
+        `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id, fecha_fin) VALUES ($1, $2, $3)`,
+        [revSecId, ROL.SECRETARIA, new Date(Date.now() - 86_400_000)],
+      );
+      clearGuardCache();
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: emailOf('revocado_sec'), password: PWD });
+      revSecToken = res.body?.access_token ?? '';
+      revSecLoginBody = res.body;
+    }, 30_000);
+
+    afterAll(async () => {
+      if (revSecId) {
+        await ds.query(
+          `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+          [revSecId],
+        );
+        await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+          revSecId,
+        ]);
+      }
+    });
+
+    beforeEach(() => clearGuardCache());
+
+    it('login no incluye SECRETARIA en roles (fecha_fin expirada)', () => {
+      const roles: string[] = (revSecLoginBody?.user?.roles ?? []).map(
+        (r: any) => r.code as string,
+      );
+      expect(roles).not.toContain('SECRETARIA');
+    });
+
+    it('login no incluye RECEPCION_LISTA en permissions (SECRETARIA expirada)', () => {
+      const perms: string[] = (revSecLoginBody?.user?.permissions ?? []).map(
+        (p: any) => p.code as string,
+      );
+      expect(perms).not.toContain('RECEPCION_LISTA');
+    });
+
+    it('GET /reception/protocols → 403 (SECRETARIA expirada; EVALUADOR no tiene RECEPCION_LISTA)', async () => {
+      const res = await get('/reception/protocols', revSecToken);
+      expect(res.status).toBe(403);
+    });
+
+    it('GET /auth/admin-only → 403 (no tiene PRESIDENTE ni ADMIN_TI vigente)', async () => {
+      const res = await get('/auth/admin-only', revSecToken);
+      expect(res.status).toBe(403);
+    });
+  });
+
+  // ─── ROL INACTIVO ────────────────────────────────────────────────────────
+  describe('ROL INACTIVO: activo=false excluye permisos del guard y la sesión', () => {
+    let rolInactivoId = 0;
+    let userInactivoId = 0;
+    let tokenInactivo = '';
+    let loginBodyInactivo: any;
+
+    beforeAll(async () => {
+      await ds.query(
+        `DELETE FROM catalogos.rol_permisos WHERE rol_id IN
+         (SELECT id FROM catalogos.roles WHERE codigo = 'ZZ_TEST_INACTIVO')`,
+      );
+      await ds.query(
+        `DELETE FROM catalogos.usuarios_roles WHERE usuario_id IN
+         (SELECT id FROM catalogos.usuarios WHERE email_institucional = $1)`,
+        [emailOf('zeziactivo')],
+      );
+      await ds.query(
+        `DELETE FROM catalogos.usuarios WHERE email_institucional = $1`,
+        [emailOf('zeziactivo')],
+      );
+      await ds.query(
+        `DELETE FROM catalogos.roles WHERE codigo = 'ZZ_TEST_INACTIVO'`,
+      );
+
+      const rolRows: Array<{ id: number }> = await ds.query(
+        `INSERT INTO catalogos.roles (nombre, codigo, activo)
+         VALUES ($1, $2, false) RETURNING id`,
+        ['ZZ Test Inactivo', 'ZZ_TEST_INACTIVO'],
+      );
+      rolInactivoId = rolRows[0].id;
+
+      const permRows: Array<{ id: number }> = await ds.query(
+        `SELECT id FROM catalogos.permisos WHERE codigo = 'RECEPCION_LISTA' AND eliminado_en IS NULL`,
+      );
+      await ds.query(
+        `INSERT INTO catalogos.rol_permisos (rol_id, permiso_id) VALUES ($1, $2)`,
+        [rolInactivoId, permRows[0].id],
+      );
+
+      const hash = await bcrypt.hash(PWD, 10);
+      const userRows: Array<{ id: number }> = await ds.query(
+        `INSERT INTO catalogos.usuarios
+           (cedula, nombres_completos, email_institucional, password_hash, activo, email_verificado)
+         VALUES ($1, $2, $3, $4, true, true) RETURNING id`,
+        ['E2EFRMZZ01', 'E2E FRM zeziactivo', emailOf('zeziactivo'), hash],
+      );
+      userInactivoId = userRows[0].id;
+      await ds.query(
+        `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id) VALUES ($1, $2)`,
+        [userInactivoId, rolInactivoId],
+      );
+
+      clearGuardCache();
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: emailOf('zeziactivo'), password: PWD });
+      tokenInactivo = res.body?.access_token ?? '';
+      loginBodyInactivo = res.body;
+    }, 30_000);
+
+    afterAll(async () => {
+      if (rolInactivoId) {
+        await ds.query(`DELETE FROM catalogos.rol_permisos WHERE rol_id = $1`, [
+          rolInactivoId,
+        ]);
+      }
+      if (userInactivoId) {
+        await ds.query(
+          `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+          [userInactivoId],
+        );
+        await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+          userInactivoId,
+        ]);
+      }
+      if (rolInactivoId) {
+        await ds.query(`DELETE FROM catalogos.roles WHERE id = $1`, [
+          rolInactivoId,
+        ]);
+      }
+    });
+
+    beforeEach(() => clearGuardCache());
+
+    it('login no incluye RECEPCION_LISTA (rol con activo=false excluido de sesión)', () => {
+      const perms: string[] = (loginBodyInactivo?.user?.permissions ?? []).map(
+        (p: any) => p.code as string,
+      );
+      expect(perms).not.toContain('RECEPCION_LISTA');
+    });
+
+    it('GET /reception/protocols → 403 (rol inactivo excluido del guard)', async () => {
+      const res = await get('/reception/protocols', tokenInactivo);
+      expect(res.status).toBe(403);
+    });
+  });
+
+  // ─── ROL ELIMINADO ────────────────────────────────────────────────────────
+  describe('ROL ELIMINADO: eliminado_en excluye permisos del guard y la sesión', () => {
+    let rolEliminadoId = 0;
+    let userEliminadoId = 0;
+    let tokenEliminado = '';
+    let loginBodyEliminado: any;
+
+    beforeAll(async () => {
+      await ds.query(
+        `DELETE FROM catalogos.rol_permisos WHERE rol_id IN
+         (SELECT id FROM catalogos.roles WHERE codigo = 'ZZ_TEST_ELIMINADO')`,
+      );
+      await ds.query(
+        `DELETE FROM catalogos.usuarios_roles WHERE usuario_id IN
+         (SELECT id FROM catalogos.usuarios WHERE email_institucional = $1)`,
+        [emailOf('zezeliminado')],
+      );
+      await ds.query(
+        `DELETE FROM catalogos.usuarios WHERE email_institucional = $1`,
+        [emailOf('zezeliminado')],
+      );
+      await ds.query(
+        `DELETE FROM catalogos.roles WHERE codigo = 'ZZ_TEST_ELIMINADO'`,
+      );
+
+      const rolRows: Array<{ id: number }> = await ds.query(
+        `INSERT INTO catalogos.roles (nombre, codigo, activo, eliminado_en)
+         VALUES ($1, $2, true, NOW()) RETURNING id`,
+        ['ZZ Test Eliminado', 'ZZ_TEST_ELIMINADO'],
+      );
+      rolEliminadoId = rolRows[0].id;
+
+      const permRows: Array<{ id: number }> = await ds.query(
+        `SELECT id FROM catalogos.permisos WHERE codigo = 'RECEPCION_LISTA' AND eliminado_en IS NULL`,
+      );
+      await ds.query(
+        `INSERT INTO catalogos.rol_permisos (rol_id, permiso_id) VALUES ($1, $2)`,
+        [rolEliminadoId, permRows[0].id],
+      );
+
+      const hash = await bcrypt.hash(PWD, 10);
+      const userRows: Array<{ id: number }> = await ds.query(
+        `INSERT INTO catalogos.usuarios
+           (cedula, nombres_completos, email_institucional, password_hash, activo, email_verificado)
+         VALUES ($1, $2, $3, $4, true, true) RETURNING id`,
+        ['E2EFRMZE01', 'E2E FRM zezeliminado', emailOf('zezeliminado'), hash],
+      );
+      userEliminadoId = userRows[0].id;
+      await ds.query(
+        `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id) VALUES ($1, $2)`,
+        [userEliminadoId, rolEliminadoId],
+      );
+
+      clearGuardCache();
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: emailOf('zezeliminado'), password: PWD });
+      tokenEliminado = res.body?.access_token ?? '';
+      loginBodyEliminado = res.body;
+    }, 30_000);
+
+    afterAll(async () => {
+      if (rolEliminadoId) {
+        await ds.query(`DELETE FROM catalogos.rol_permisos WHERE rol_id = $1`, [
+          rolEliminadoId,
+        ]);
+      }
+      if (userEliminadoId) {
+        await ds.query(
+          `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+          [userEliminadoId],
+        );
+        await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+          userEliminadoId,
+        ]);
+      }
+      if (rolEliminadoId) {
+        await ds.query(`DELETE FROM catalogos.roles WHERE id = $1`, [
+          rolEliminadoId,
+        ]);
+      }
+    });
+
+    beforeEach(() => clearGuardCache());
+
+    it('login no incluye RECEPCION_LISTA (rol con eliminado_en excluido de sesión)', () => {
+      const perms: string[] = (loginBodyEliminado?.user?.permissions ?? []).map(
+        (p: any) => p.code as string,
+      );
+      expect(perms).not.toContain('RECEPCION_LISTA');
+    });
+
+    it('GET /reception/protocols → 403 (rol con eliminado_en excluido del guard)', async () => {
+      const res = await get('/reception/protocols', tokenEliminado);
+      expect(res.status).toBe(403);
+    });
+  });
+
+  // ─── PERMISO RETIRADO (GUARD) ─────────────────────────────────────────────
+  describe('PERMISO RETIRADO guard: eliminado_en excluye del guard y de /auth/me', () => {
+    const PERM_ID_PERMISOS_GESTIONAR = 28;
+    const ROL_ID_SECRETARIA = 7;
+
+    beforeAll(async () => {
+      await ds.query(
+        `INSERT INTO catalogos.rol_permisos (rol_id, permiso_id) VALUES ($1, $2) ON CONFLICT DO NOTHING`,
+        [ROL_ID_SECRETARIA, PERM_ID_PERMISOS_GESTIONAR],
+      );
+    });
+
+    afterAll(async () => {
+      await ds.query(
+        `DELETE FROM catalogos.rol_permisos WHERE rol_id = $1 AND permiso_id = $2`,
+        [ROL_ID_SECRETARIA, PERM_ID_PERMISOS_GESTIONAR],
+      );
+    });
+
+    beforeEach(() => clearGuardCache());
+
+    it('GET /auth/me no incluye PERMISOS_GESTIONAR (eliminado_en filtra en sesión)', async () => {
+      const res = await get('/auth/me', u.secretaria.token);
+      expect(res.status).toBe(200);
+      const codes: string[] = (res.body?.permissions ?? []).map(
+        (p: any) => p.code as string,
+      );
+      expect(codes).not.toContain('PERMISOS_GESTIONAR');
+    });
+
+    it('GET /auth/roles → 403 (PERMISOS_GESTIONAR en rol_permisos pero eliminado_en lo excluye del guard)', async () => {
+      const res = await get('/auth/roles', u.secretaria.token);
+      expect(res.status).toBe(403);
+    });
+  });
+
+  // ─── MIGRACIÓN ────────────────────────────────────────────────────────────
+  describe('MIGRACIÓN: up() aborta si falta secretaria@test.com con SECRETARIA vigente', () => {
+    it('lanza [TSK-001.1a] ABORT cuando la cuenta de prueba no tiene SECRETARIA vigente', async () => {
+      const qr = ds.createQueryRunner();
+      await qr.connect();
+      await qr.startTransaction();
+      try {
+        await qr.query(`
+          UPDATE catalogos.usuarios_roles
+          SET fecha_fin = NOW() - INTERVAL '1 second'
+          WHERE usuario_id = (
+            SELECT u.id FROM catalogos.usuarios u
+            WHERE u.email_institucional = 'secretaria@test.com' LIMIT 1
+          )
+          AND rol_id = (
+            SELECT r.id FROM catalogos.roles r
+            WHERE r.codigo = 'SECRETARIA' LIMIT 1
+          )
+          AND (fecha_fin IS NULL OR fecha_fin >= NOW())
+        `);
+        const migration = new FixedRolesMatrix1880000000000();
+        await expect(migration.up(qr)).rejects.toThrow('[TSK-001.1a] ABORT');
+      } finally {
+        await qr.rollbackTransaction();
+        await qr.release();
+      }
+    }, 15_000);
   });
 
   // ─── MUTACIONES ──────────────────────────────────────────────────────────────
