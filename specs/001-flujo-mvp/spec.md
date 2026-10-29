@@ -51,7 +51,7 @@ Proporcionar una plataforma digital integral que automatice el flujo operativo d
 1. **Acceso por Rol**: Si el usuario ingresa credenciales válidas, el sistema concede acceso al dashboard según su rol (`INVESTIGADOR`, `SECRETARIA`, `EVALUADOR`, `PRESIDENTE`). Una persona puede tener varios roles del comité simultáneamente (ver punto b).
 2. **Control de Sesión**: La sesión se mantiene con tokens JWT y refresh tokens con expiración configurada.
 3. **Auditabilidad**: Se registran los logs de inicio de sesión y acciones de perfil.
-4. **Roles fijos — ADMIN_TI absorbido (decisión 28/10/2026)**: Los roles disponibles son `SECRETARIA` (incluye la administración del sistema; absorbe todas las funciones que antes tenía `ADMIN_TI`), `PRESIDENTE`, `EVALUADOR` (con perfil `METODOLOGICO`, `SALUD`, `JURIDICO` o `SOCIEDAD_CIVIL`) e `INVESTIGADOR`. Los identificadores `ADMIN` y `PRESIDENTA` no son roles; si existen en BD, la migración los marca inactivos. — Reemplaza a: ADMIN_TI como rol propio — decisión 28/10/2026
+4. **Roles fijos — ADMIN_TI absorbido (decisión 28/10/2026)**: Los roles disponibles son `SECRETARIA` (incluye la administración del sistema; absorbe todas las funciones que antes tenía `ADMIN_TI`), `PRESIDENTE`, `EVALUADOR` (con perfil `METODOLOGICO`, `SALUD`, `JURIDICO` o `SOCIEDAD_CIVIL`) e `INVESTIGADOR`. Los identificadores `ADMIN` y `PRESIDENTA` no son roles del sistema. No existen en la base de datos; solo aparecen como texto en el código y en pruebas, y se retiran de ahí. — Reemplaza a: ADMIN_TI como rol propio — decisión 28/10/2026
 5. **Gestión de usuarios del comité (Configuración → Usuarios)**: La Secretaría (permiso `USUARIOS_GESTIONAR`) puede invitar a un usuario del comité con correo OTP, reenviar la invitación, asignarle un rol del comité, desactivarlo y reactivarlo. No hay borrado físico: el historial se conserva íntegro. — decisión 28/10/2026
 6. **Gestión de investigadores**: Los investigadores se registran solos. La Secretaría solo puede verlos y desactivarlos. — decisión 28/10/2026
 
@@ -68,13 +68,13 @@ Los cuatro roles del sistema son fijos y no se crean ni editan desde la aplicaci
 | `EVALUADOR` | Miembro del comité; lleva uno de los cuatro perfiles: `METODOLOGICO`, `SALUD`, `JURIDICO` o `SOCIEDAD_CIVIL`. |
 | `INVESTIGADOR` | Docente, estudiante o externo que somete protocolos. |
 
-Los identificadores `ADMIN` y `PRESIDENTA` no son roles del sistema; si existen en la base de datos, la migración los marca con `eliminado_en`.
+Los identificadores `ADMIN` y `PRESIDENTA` no son roles del sistema. No existen en la base de datos; solo aparecen como texto en el código y en pruebas, y se retiran de ahí.
 
 **b) Combinación de roles (decisión 28/10/2026)**
 
 - Un usuario puede tener varios roles del comité simultáneamente: `SECRETARIA`, `PRESIDENTE` y/o `EVALUADOR`.
 - `INVESTIGADOR` es **excluyente** con todos los roles del comité:
-  - Un usuario con cualquier rol del comité no puede ser registrado ni asignado como investigador principal de un protocolo.
+  - Un usuario con cualquier rol del comité no puede registrarse como investigador ni recibir el rol INVESTIGADOR.
   - A un usuario con rol `INVESTIGADOR` no se le puede asignar ningún rol del comité.
   - En ambos casos el backend rechaza la operación con un mensaje en español. — Reemplaza a: sin restricción de combinación — decisión 28/10/2026
 
@@ -131,7 +131,7 @@ Todas las cuentas existentes son de prueba. La migración resuelve la situación
 - Las cuentas con el rol `ADMIN_TI` se desactivan (`activo = false`) y se les revoca ese rol con `fecha_fin`.
 - El rol `SECRETARIA` queda asignado a una sola cuenta de prueba; las demás cuentas que lo tengan lo pierden con `fecha_fin`, conservando su otro rol si lo tienen.
 - La cuenta que tenga simultáneamente `INVESTIGADOR` y `SECRETARIA` queda únicamente con `INVESTIGADOR`.
-- El rol inactivo cuyo código es el provisional usado para administración se marca con `eliminado_en`.
+- El rol inactivo creado por error desde la antigua pantalla de roles dinámicos se marca con `eliminado_en`.
 > Los identificadores concretos (IDs de cuentas) no van en el spec; van en la tarea de migración (ver tasks.md). — decisión 28/10/2026
 
 ---
