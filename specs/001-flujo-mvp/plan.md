@@ -68,7 +68,7 @@ src/
 
 | Sub | Estado | Alcance |
 |---|---|---|
-| 1a | ✅ Completado | Migración de la matriz fija y los datos; permiso por endpoint (HU-001 i); vigencia en sesión y guards (HU-001 j); pruebas E2E con el `PermissionsGuard` real |
+| 1a | ✅ Hecho (pendiente de PR) | Migración de la matriz fija y los datos; permiso por endpoint (HU-001 i); vigencia en sesión y guards (HU-001 j); pruebas E2E con el `PermissionsGuard` real; 12 mutaciones detectadas (MUT-1 a MUT-10 + MUT-2b + MUT-4b) |
 | 1b | 🔲 Pendiente | Segregación (INVESTIGADOR excluyente) y una sola SECRETARIA vigente, en el registro y en la asignación de roles |
 | 1c | 🔲 Pendiente | Retirar `RolesController` y `PermissionsController` completos; quitar `ADMIN_TI` y `'ADMIN'` del código, los presets y las pruebas; administración del asistente IA para SECRETARIA; eliminar `PERMISOS_GESTIONAR` del enum |
 
