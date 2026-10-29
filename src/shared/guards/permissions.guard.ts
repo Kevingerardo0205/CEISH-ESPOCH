@@ -59,18 +59,23 @@ export class PermissionsGuard implements CanActivate {
     if (cached && cached.expiry > now) {
       activePermissions = cached.permissions;
     } else {
-      const dbPermissionsRaw = await this.dataSource.query(
-        `
+      const dbPermissionsRaw: Array<{ code: string }> =
+        await this.dataSource.query(
+          `
         SELECT DISTINCT p.codigo as code
-        FROM catalogos.rol_permisos rp
-        INNER JOIN catalogos.permisos p ON rp.permiso_id = p.id
-        INNER JOIN catalogos.usuarios_roles ur ON rp.rol_id = ur.rol_id
+        FROM catalogos.usuarios_roles ur
+        INNER JOIN catalogos.roles r ON r.id = ur.rol_id
+          AND r.activo = true
+          AND r.eliminado_en IS NULL
+        INNER JOIN catalogos.rol_permisos rp ON rp.rol_id = r.id
+        INNER JOIN catalogos.permisos p ON p.id = rp.permiso_id
+          AND p.eliminado_en IS NULL
         WHERE ur.usuario_id = $1
           AND (ur.fecha_inicio IS NULL OR ur.fecha_inicio <= NOW())
           AND (ur.fecha_fin IS NULL OR ur.fecha_fin >= NOW())
       `,
-        [user.id],
-      );
+          [user.id],
+        );
 
       activePermissions = dbPermissionsRaw.map((row) => row.code);
       PermissionsGuard.cache.set(user.id, {

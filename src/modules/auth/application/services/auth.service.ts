@@ -137,7 +137,8 @@ export class AuthService {
       });
     }
 
-    const { passwordHash, ...result } = user;
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    const { passwordHash: _pwHash, ...result } = user;
     return result;
   }
 
@@ -152,9 +153,55 @@ export class AuthService {
     await this.userRepository.update(user.id, updateData);
   }
 
-  async login(user: unknown) {
-    const u = user as UserOrmEntity;
-    const permissionsMap = new Map<
+  /**
+   * HU-001 j) Vigencia: construye roles y permisos de la sesión filtrando
+   * solo usuarios_roles vigentes (fecha_inicio/fecha_fin), roles activos y
+   * sin eliminado_en, y permisos sin eliminado_en.
+   * Usada por login(), getMe() y refreshTokens().
+   */
+  private async buildActiveSessionData(userId: number): Promise<{
+    roles: string[];
+    permissions: Array<{
+      code: string;
+      module: {
+        code: string;
+        name: string;
+        icon?: string;
+        order: number;
+      } | null;
+    }>;
+  }> {
+    const rows: Array<{
+      role_code: string;
+      perm_code: string;
+      mod_code: string | null;
+      mod_name: string | null;
+      mod_icon: string | null;
+      mod_order: number | null;
+    }> = await this.dataSource.query(
+      `SELECT DISTINCT
+         r.codigo   AS role_code,
+         p.codigo   AS perm_code,
+         m.codigo   AS mod_code,
+         m.nombre   AS mod_name,
+         m.icono    AS mod_icon,
+         m.orden    AS mod_order
+       FROM catalogos.usuarios_roles ur
+       JOIN catalogos.roles r ON r.id = ur.rol_id
+         AND r.activo = true
+         AND r.eliminado_en IS NULL
+       JOIN catalogos.rol_permisos rp ON rp.rol_id = r.id
+       JOIN catalogos.permisos p ON p.id = rp.permiso_id
+         AND p.eliminado_en IS NULL
+       LEFT JOIN catalogos.modulos m ON m.id = p.modulo_id
+       WHERE ur.usuario_id = $1
+         AND (ur.fecha_inicio IS NULL OR ur.fecha_inicio <= NOW())
+         AND (ur.fecha_fin IS NULL OR ur.fecha_fin >= NOW())`,
+      [userId],
+    );
+
+    const roleSet = new Set<string>();
+    const permMap = new Map<
       string,
       {
         code: string;
@@ -167,27 +214,41 @@ export class AuthService {
       }
     >();
 
-    u.roles?.forEach((role: any) => {
-      role.permissions?.forEach((p: any) => {
-        if (!permissionsMap.has(p.code)) {
-          permissionsMap.set(p.code, {
-            code: p.code,
-            module: p.module
-              ? {
-                  code: p.module.code,
-                  name: p.module.name,
-                  icon: p.module.icon,
-                  order: p.module.order,
-                }
-              : null,
-          });
-        }
-      });
-    });
+    for (const row of rows) {
+      roleSet.add(row.role_code);
+      if (!permMap.has(row.perm_code)) {
+        permMap.set(row.perm_code, {
+          code: row.perm_code,
+          module: row.mod_code
+            ? {
+                code: row.mod_code,
+                name: row.mod_name!,
+                icon: row.mod_icon ?? undefined,
+                order: row.mod_order!,
+              }
+            : null,
+        });
+      }
+    }
 
-    const permissionArray = Array.from(permissionsMap.values());
+    return {
+      roles: Array.from(roleSet),
+      permissions: Array.from(permMap.values()),
+    };
+  }
 
-    const temporalRolesRaw = await this.dataSource.query(
+  async login(user: unknown) {
+    const u = user as UserOrmEntity;
+
+    const { roles, permissions: permissionArray } =
+      await this.buildActiveSessionData(u.id);
+
+    const temporalRolesRaw: Array<{
+      code: string;
+      valid_from: Date | null;
+      valid_until: Date | null;
+      is_expired: boolean;
+    }> = await this.dataSource.query(
       `SELECT r.codigo as code, ur.fecha_inicio as valid_from, ur.fecha_fin as valid_until,
               (CASE WHEN ur.fecha_fin IS NOT NULL AND ur.fecha_fin < NOW() THEN true ELSE false END) as is_expired
        FROM catalogos.usuarios_roles ur
@@ -199,9 +260,9 @@ export class AuthService {
     const payload = {
       email: u.institutionalEmail,
       sub: u.id,
-      roles: u.roles.map((r: any) => r.code),
+      roles,
       permissions: permissionArray.map((p) => p.code),
-      temporalRoles: temporalRolesRaw.map((tr: any) => ({
+      temporalRoles: temporalRolesRaw.map((tr) => ({
         code: tr.code,
         validFrom: tr.valid_from,
         validUntil: tr.valid_until,
@@ -219,7 +280,7 @@ export class AuthService {
         id: u.id,
         fullName: u.fullName,
         email: u.institutionalEmail,
-        roles: payload.roles,
+        roles,
         permissions: permissionArray,
         isEmailVerified: u.isEmailVerified,
         investigatorProfile: u.investigatorProfile
@@ -242,38 +303,9 @@ export class AuthService {
     const user = await this.userRepository.findById(userId);
     if (!user) throw new NotFoundException('Usuario no encontrado');
     const u = user;
-    const permissionsMap = new Map<
-      string,
-      {
-        code: string;
-        module: {
-          code: string;
-          name: string;
-          icon?: string;
-          order: number;
-        } | null;
-      }
-    >();
 
-    u.roles?.forEach((role: any) => {
-      role.permissions?.forEach((p: any) => {
-        if (!permissionsMap.has(p.code)) {
-          permissionsMap.set(p.code, {
-            code: p.code,
-            module: p.module
-              ? {
-                  code: p.module.code,
-                  name: p.module.name,
-                  icon: p.module.icon,
-                  order: p.module.order,
-                }
-              : null,
-          });
-        }
-      });
-    });
-
-    const permissionArray = Array.from(permissionsMap.values());
+    const { roles, permissions: permissionArray } =
+      await this.buildActiveSessionData(userId);
 
     return {
       id: u.id,
@@ -282,7 +314,7 @@ export class AuthService {
       email: u.institutionalEmail,
       isEmailVerified: u.isEmailVerified,
       isActive: u.isActive,
-      roles: u.roles.map((r: any) => r.code),
+      roles,
       permissions: permissionArray,
       investigatorProfile: u.investigatorProfile
         ? {
@@ -304,9 +336,6 @@ export class AuthService {
       .getRepository(UserOrmEntity)
       .createQueryBuilder('user')
       .addSelect('user.refreshTokenHash')
-      .leftJoinAndSelect('user.roles', 'roles')
-      .leftJoinAndSelect('roles.permissions', 'permissions')
-      .leftJoinAndSelect('permissions.module', 'module')
       .where('user.id = :userId', { userId })
       .getOne();
 
@@ -317,47 +346,17 @@ export class AuthService {
     const isMatch = await bcrypt.compare(refreshToken, user.refreshTokenHash);
     if (!isMatch) throw new UnauthorizedException('Access Denied');
 
-    const u = user;
-    const permissionsMap = new Map<
-      string,
-      {
-        code: string;
-        module: {
-          code: string;
-          name: string;
-          icon?: string;
-          order: number;
-        } | null;
-      }
-    >();
+    const { roles, permissions: permissionArray } =
+      await this.buildActiveSessionData(userId);
 
-    u.roles?.forEach((role: any) => {
-      role.permissions?.forEach((p: any) => {
-        if (!permissionsMap.has(p.code)) {
-          permissionsMap.set(p.code, {
-            code: p.code,
-            module: p.module
-              ? {
-                  code: p.module.code,
-                  name: p.module.name,
-                  icon: p.module.icon,
-                  order: p.module.order,
-                }
-              : null,
-          });
-        }
-      });
-    });
-
-    const permissionArray = Array.from(permissionsMap.values());
     const payload = {
-      email: u.institutionalEmail,
-      sub: u.id,
-      roles: u.roles.map((r: any) => r.code),
+      email: user.institutionalEmail,
+      sub: user.id,
+      roles,
       permissions: permissionArray.map((p) => p.code),
     };
     const tokens = await this.generateTokens(payload);
-    await this.updateRefreshToken(u.id, tokens.refresh_token);
+    await this.updateRefreshToken(user.id, tokens.refresh_token);
 
     return tokens;
   }

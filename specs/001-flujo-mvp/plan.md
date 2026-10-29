@@ -60,26 +60,31 @@ src/
 
 ---
 
-## 1b. Tarea pendiente de implementación: Matriz de roles fija (TSK-001.1)
+## 1b. Matriz de roles fija (TSK-001.1)
 
-**Estado:** 🔲 Pendiente  
-**Requisitos:** HU-001 (puntos a–h), RF-001  
-**Módulo:** `auth` — `src/modules/auth/`
+**Requisitos:** HU-001 (puntos a–j) del spec v3.5.1, RF-001
+**Módulo:** `auth` — `src/modules/auth/` (más `PermissionsGuard` en `src/shared`)
+**División:** tres subtareas, un PR cada una, en este orden:
 
-### Alcance técnico
+| Sub | Estado | Alcance |
+|---|---|---|
+| 1a | ✅ Hecho (pendiente de PR) | Migración de la matriz fija y los datos; permiso por endpoint (HU-001 i); vigencia en sesión y guards (HU-001 j); pruebas E2E con el `PermissionsGuard` real; 12 mutaciones detectadas (MUT-1 a MUT-10 + MUT-2b + MUT-4b) |
+| 1b | 🔲 Pendiente | Segregación (INVESTIGADOR excluyente) y una sola SECRETARIA vigente, en el registro y en la asignación de roles |
+| 1c | 🔲 Pendiente | Retirar `RolesController` y `PermissionsController` completos; quitar `ADMIN_TI` y `'ADMIN'` del código, los presets y las pruebas; administración del asistente IA para SECRETARIA; eliminar `PERMISOS_GESTIONAR` del enum |
+
+### 1a — Alcance técnico
 
 | Área | Cambio |
 |---|---|
-| Migración (`auth`) | Sembrar permisos canónicos, retirar permisos obsoletos con `eliminado_en`, aplicar reglas de datos del punto h) |
-| `Permission` enum | Añadir USUARIOS_GESTIONAR; ROLES_ASSIGN → USUARIOS_GESTIONAR; eliminar PERMISOS_GESTIONAR después de retirar los controladores de RBAC |
-| Controladores de RBAC | Se retiran RolesController (/auth/roles) y PermissionsController (/auth/modules, /auth/permissions) COMPLETOS, lectura incluida, porque la pantalla de seguridad sale del alcance |
-| Servicio de dominio segregation-of-duties y asignación de roles (UsersService) | Rechazar: (1) INVESTIGADOR junto con un rol del comité, (2) una segunda SECRETARIA vigente. RolesGuard no cambia |
-| Registro de investigador | Rechazar si el correo ya tiene rol de comité |
-| Módulo IA | Eliminar `ADMIN_TI` de `allowed_roles` |
-| Seed / presets | Quitar referencias a `ADMIN_TI` y al identificador `ADMIN` |
-| Pruebas E2E | `PermissionsGuard` REAL (sin `overrideGuard`): al menos 1 permiso ✓ y 1 ✗ por rol; segregación; unicidad Secretaría; mutaciones |
+| Migración | Trabaja por códigos, nunca por ids. Aborta si no existe la cuenta de prueba que conserva SECRETARIA. Respalda `rol_permisos` en `catalogos.rol_permisos_bk_tsk001_1a`. Crea `USUARIOS_GESTIONAR`. Retira 5 permisos con `eliminado_en`. Siembra la matriz: SECRETARIA 35, PRESIDENTE 21, EVALUADOR 9, INVESTIGADOR 8; total 73. Desactiva solo las cuentas con ADMIN_TI vigente y después lo revoca. Deja SECRETARIA vigente en una sola cuenta. Marca ADMIN_TI y el rol basura. Quita ADMIN_TI de `allowed_roles`. Es idempotente. |
+| `down()` | Restaura `rol_permisos` desde el respaldo, los 5 permisos, ADMIN_TI y el rol basura, y `allowed_roles`. No revierte `fecha_fin` ni `activo` de las cuentas (queda documentado). |
+| Enum `Permission` | Agrega `USUARIOS_GESTIONAR`. `ROLES_ASSIGN`, `USERS_CREATE`, `USERS_EDIT` y `USERS_STATUS_TOGGLE` → `USUARIOS_GESTIONAR`. `PERMISSIONS_MANAGE` → `EVALUADORES_PERFILES`. `EVALUATORS_WORKLOAD_VIEW` → `REPORTES_CARGA`. `PERMISOS_GESTIONAR` se queda hasta 1c. |
+| Sesión (login, `/auth/me`, refresh) | Una sola función arma los roles y permisos solo con lo vigente: `usuarios_roles` vigentes, roles activos y sin `eliminado_en`, permisos sin `eliminado_en`. |
+| `PermissionsGuard` | La consulta filtra `p.eliminado_en IS NULL` y los roles activos sin `eliminado_en`. La caché de 5 minutos no cambia: después de migrar hay que reiniciar el backend. |
+| `RolesGuard` | Sin cambios. Límite conocido: un token emitido antes de una revocación sigue valiendo hasta que vence; el refresh ya sale filtrado. |
+| Pruebas | Unitarias: alias y función de vigencia. Migración: conteos, idempotencia, `down()` y aborto, con transacción y rollback. E2E con login real y el guard real, por rol, más los casos revocado, permiso retirado y cuenta desactivada. Mutaciones. |
 
-> Los identificadores concretos (IDs de cuentas) no van aquí; van en la descripción de la migración dentro de la tarea TSK-001.1.
+> Los identificadores concretos (ids de cuentas) no van aquí.
 
 ---
 

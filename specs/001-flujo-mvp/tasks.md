@@ -11,7 +11,24 @@
 
 ### Módulo: Autenticación y RBAC (`auth`)
 
-- [ ] **TSK-001.1**: Matriz de roles fija (FixedRolesMatrix).
+- [x] **TSK-001.1a**: Matriz de roles fija — migración + enum + sesión + guards + E2E + mutaciones *(subdividida en 1a/1b/1c — ver plan.md §1b)*
+  - **Subtareas:** [x] 1a · [ ] 1b Segregación INVESTIGADOR y unicidad SECRETARIA · [ ] 1c Retirar RolesController/PermissionsController + limpiar ADMIN_TI
+  - **Resultados TSK-001.1a:** 202 E2E / 454 unit · 12 mutaciones detectadas (10 nombradas + MUT-2b + MUT-4b)
+
+  | Mutación | Condición eliminada | Prueba que falla |
+  |---|---|---|
+  | MUT-1 sesión | `fecha_fin >= NOW()` en `buildActiveSessionData` | REVOCADO: login devuelve roles=[] y permissions=[] + REVOCADO-SEC: login no incluye RECEPCION_LISTA |
+  | MUT-2 sesión | `r.activo = true` en `buildActiveSessionData` | ROL INACTIVO: login no incluye RECEPCION_LISTA |
+  | MUT-2b sesión | `r.eliminado_en IS NULL` en `buildActiveSessionData` | ROL ELIMINADO: login no incluye RECEPCION_LISTA |
+  | MUT-3 sesión | `p.eliminado_en IS NULL` en `buildActiveSessionData` | PERMISO RETIRADO: GET /auth/me no incluye PERMISOS_GESTIONAR |
+  | MUT-4 guard | `r.activo = true` en `PermissionsGuard` | ROL INACTIVO: GET /reception/protocols → 403 |
+  | MUT-4b guard | `r.eliminado_en IS NULL` en `PermissionsGuard` | ROL ELIMINADO: GET /reception/protocols → 403 |
+  | MUT-5 guard | `p.eliminado_en IS NULL` en `PermissionsGuard` | PERMISO RETIRADO: GET /auth/roles → 403 |
+  | MUT-6 guard | `fecha_fin >= NOW()` en `PermissionsGuard` | REVOCADO-SEC: GET /reception/protocols → 403 |
+  | MUT-7 enum | `EVALUATORS_WORKLOAD_VIEW = 'EVALUACION_RIESGO'` | EVALUADOR: GET /evaluations/evaluators/dashboard → 403 |
+  | MUT-8 enum | `ROLES_ASSIGN = 'PERMISOS_GESTIONAR'` | SECRETARIA: PATCH /auth/users/:id/roles → no 403 |
+  | MUT-9 enum | `PERMISSIONS_MANAGE = 'PERMISOS_GESTIONAR'` | SECRETARIA: POST /evaluations/profiles → no 403 |
+  | MUT-10 migración | Quitar aborto por falta de secretaria@test.com | MIGRACIÓN: up() lanza [TSK-001.1a] ABORT |
   - **Requisitos cubiertos:** `HU-001` (puntos a–j), `RF-001`
   - **Hecho cuando:**
     - La migración, aplicada por el agente solo en `ceish_test_db`, siembra la matriz de permisos canónica (`USUARIOS_GESTIONAR` y todos los permisos de HU-001 c), retira con `eliminado_en` los permisos `PERMISOS_GESTIONAR`, `SEGUIMIENTO_ENMIENDAS`, `TRADUCCION_ANCESTRAL`, `DASHBOARD_SLA` y `CONFIG_INTEGRACIONES`, aplica las reglas de datos existentes del punto h) (revocación de `ADMIN_TI`, unicidad de `SECRETARIA`, segregación `INVESTIGADOR`+`SECRETARIA`, rol inactivo provisional).
