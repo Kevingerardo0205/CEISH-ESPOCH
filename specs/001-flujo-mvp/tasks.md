@@ -9,6 +9,24 @@
 
 ## 📋 Lista de Tareas por Módulo y Orden de Dependencia
 
+### Módulo: Autenticación y RBAC (`auth`)
+
+- 🔲 **TSK-001.1**: Matriz de roles fija (FixedRolesMatrix).
+  - **Requisitos cubiertos:** `HU-001` (puntos a–h), `RF-001`
+  - **Hecho cuando:**
+    - La migración, aplicada por el agente solo en `ceish_test_db`, siembra la matriz de permisos canónica (`USUARIOS_GESTIONAR` y todos los permisos de HU-001 c), retira con `eliminado_en` los permisos `PERMISOS_GESTIONAR`, `SEGUIMIENTO_ENMIENDAS`, `TRADUCCION_ANCESTRAL`, `DASHBOARD_SLA` y `CONFIG_INTEGRACIONES`, aplica las reglas de datos existentes del punto h) (revocación de `ADMIN_TI`, unicidad de `SECRETARIA`, segregación `INVESTIGADOR`+`SECRETARIA`, rol inactivo provisional).
+    - Se cierran los endpoints que escriben en tablas de roles, módulos, permisos y `rol_permisos`.
+    - `ADMIN_TI` y el identificador `ADMIN` salen del código, de los presets de seed y de las pruebas.
+    - `Permission.ROLES_ASSIGN` apunta a `USUARIOS_GESTIONAR`.
+    - La segregación de funciones (`INVESTIGADOR` excluyente de roles del comité) se aplica en el registro y en la asignación de roles.
+    - La asignación del rol `SECRETARIA` rechaza a un segundo titular vigente (unicidad b2).
+    - `allowed_roles` del módulo de IA queda sin `ADMIN_TI`.
+    - Hay pruebas E2E con el `PermissionsGuard` REAL (sin `overrideGuard`) que confirman, por cada rol, al menos un permiso permitido y uno denegado.
+    - Hay pruebas E2E de la segregación de funciones y de la regla de una sola Secretaría.
+    - Hay mutaciones que comprueban que esas pruebas fallan si se quita cada regla.
+
+---
+
 ### Módulo: Evaluaciones y Cuotas por Perfil (`evaluations`)
 
 - [ ] **TSK-12.1**: Implementar la entidad y DTO para asignación de evaluadores con su rol/perfil profesional (`ETICA_METODOLOGICO_SALUD`, `JURIDICO`, `SOCIEDAD_CIVIL`).
