@@ -117,7 +117,7 @@ describe('GET /api/evaluations/meetings/:id/pdf — ResponseInterceptor (TSK-009
           req.user = {
             id: 1,
             email: 'secretaria@ceish.com',
-            roles: ['SECRETARIA', 'ADMIN'],
+            roles: ['SECRETARIA'],
             temporalRoles: [],
           };
           return true;

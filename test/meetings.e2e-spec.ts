@@ -184,7 +184,7 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
           req.user = {
             id: 1,
             email: 'secretaria@ceish.com',
-            roles: ['SECRETARIA', 'ADMIN'],
+            roles: ['SECRETARIA'],
             temporalRoles: [],
           };
           return true;

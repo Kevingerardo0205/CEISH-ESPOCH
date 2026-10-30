@@ -111,7 +111,7 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
               ? parseInt(req.headers['x-test-evaluator-id'], 10)
               : 10,
             email: 'evaluador@ceish.com',
-            roles: ['EVALUADOR', 'SECRETARIA', 'ADMIN'],
+            roles: ['EVALUADOR', 'SECRETARIA'],
             permissions: ['evaluators:assign', 'evaluation:view_mine'],
             temporalRoles: [],
           };

@@ -218,7 +218,7 @@ export class AuthController {
   }
 
   @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
-  @Roles(RoleCode.ADMIN_TI, RoleCode.PRESIDENTE)
+  @Roles(RoleCode.PRESIDENTE)
   @Get('admin-only')
   getAdminData() {
     return { message: 'This is admin only data' };

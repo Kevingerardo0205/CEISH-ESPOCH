@@ -8,8 +8,6 @@ import { PermissionsController } from './infrastructure/controllers/permissions.
 import { RolesController } from './infrastructure/controllers/roles.controller';
 import { AuthService } from './application/services/auth.service';
 import { UsersService } from './application/services/users.service';
-import { PermissionsService } from './application/services/permissions.service';
-import { RolesService } from './application/services/roles.service';
 import { UserOrmEntity } from './infrastructure/database/user.entity.orm';
 import { RoleOrmEntity } from './infrastructure/database/role.entity.orm';
 import { PermissionOrmEntity } from './infrastructure/database/permission.entity.orm';
@@ -50,8 +48,6 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
   providers: [
     AuthService,
     UsersService,
-    PermissionsService,
-    RolesService,
     LocalStrategy,
     JwtStrategy,
     {

@@ -326,7 +326,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(res.status).toBe(200);
     });
 
-    it('GET /auth/admin-only → 403 (no tiene rol ADMIN_TI ni PRESIDENTE)', async () => {
+    it('GET /auth/admin-only → 403 (no tiene rol PRESIDENTE)', async () => {
       const res = await get('/auth/admin-only', u.secretaria.token);
       expect(res.status).toBe(403);
     });
@@ -370,7 +370,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(res.status).toBe(403);
     });
 
-    it('GET /auth/admin-only → 403 (no tiene PRESIDENTE ni ADMIN_TI)', async () => {
+    it('GET /auth/admin-only → 403 (no tiene rol PRESIDENTE)', async () => {
       const res = await get('/auth/admin-only', u.evaluador.token);
       expect(res.status).toBe(403);
     });
@@ -393,7 +393,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(res.status).toBe(403);
     });
 
-    it('GET /auth/admin-only → 403 (no tiene PRESIDENTE ni ADMIN_TI)', async () => {
+    it('GET /auth/admin-only → 403 (no tiene rol PRESIDENTE)', async () => {
       const res = await get('/auth/admin-only', u.investigador.token);
       expect(res.status).toBe(403);
     });
@@ -520,7 +520,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(res.status).toBe(403);
     });
 
-    it('GET /auth/admin-only → 403 (no tiene PRESIDENTE ni ADMIN_TI vigente)', async () => {
+    it('GET /auth/admin-only → 403 (no tiene rol PRESIDENTE vigente)', async () => {
       const res = await get('/auth/admin-only', revSecToken);
       expect(res.status).toBe(403);
     });
@@ -752,9 +752,11 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(codes).not.toContain('PERMISOS_GESTIONAR');
     });
 
-    it('GET /auth/roles → 403 (PERMISOS_GESTIONAR en rol_permisos pero eliminado_en lo excluye del guard)', async () => {
+    // TSK-001.1c: GET /auth/roles ahora usa @Permissions(USUARIOS_VER), no PERMISOS_GESTIONAR.
+    // SECRETARIA tiene USUARIOS_VER activo → recibe 200 aunque PERMISOS_GESTIONAR esté retirado.
+    it('GET /auth/roles → 200 (TSK-001.1c: usa USUARIOS_VER; PERMISOS_GESTIONAR retirado no afecta)', async () => {
       const res = await get('/auth/roles', u.secretaria.token);
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
     });
   });
 
@@ -1436,6 +1438,71 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
           }
         }
       }, 30_000);
+    });
+  });
+
+  // ─── TSK-001.1c: RETIRO DE ROLES/PERMISSIONS CONTROLLERS + LIMPIEZA ADMIN_TI ─
+  describe('TSK-001.1c — GET /auth/roles read-only con USUARIOS_VER; rutas retiradas; asistente IA', () => {
+    // MUT-D: restaurar guard PERMISOS_GESTIONAR en GET /auth/roles → SECRETARIA obtendría 403;
+    //        este test espera 200 → falla al mutar.
+    it('GET /auth/roles → 200 con SECRETARIA (tiene USUARIOS_VER)', async () => {
+      const res = await get('/auth/roles', u.secretaria.token);
+      expect(res.status).toBe(200);
+    });
+
+    // MUT-A: quitar filtro activo=true del getRoles() → respuesta incluiría roles inactivos → length > 4
+    it('GET /auth/roles → devuelve exactamente 4 roles activos (SECRETARIA, PRESIDENTE, EVALUADOR, INVESTIGADOR)', async () => {
+      const res = await get('/auth/roles', u.secretaria.token);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body).toHaveLength(4);
+      const codes: string[] = res.body.map((r: any) => r.code as string);
+      expect(codes).toContain('SECRETARIA');
+      expect(codes).toContain('PRESIDENTE');
+      expect(codes).toContain('EVALUADOR');
+      expect(codes).toContain('INVESTIGADOR');
+      expect(codes).not.toContain('ADMIN_TI');
+    });
+
+    it('GET /auth/roles → 403 con EVALUADOR (no tiene USUARIOS_VER)', async () => {
+      const res = await get('/auth/roles', u.evaluador.token);
+      expect(res.status).toBe(403);
+    });
+
+    it('POST /auth/roles → 404 (endpoint retirado en TSK-001.1c)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/roles')
+        .set('Authorization', `Bearer ${u.secretaria.token}`)
+        .send({ code: 'TEST', name: 'Test', description: 'Test' });
+      expect(res.status).toBe(404);
+    });
+
+    it('GET /auth/modules → 404 (PermissionsController retirado en TSK-001.1c)', async () => {
+      const res = await get('/auth/modules', u.secretaria.token);
+      expect(res.status).toBe(404);
+    });
+
+    it('GET /auth/permissions → 404 (PermissionsController retirado en TSK-001.1c)', async () => {
+      const res = await get('/auth/permissions', u.secretaria.token);
+      expect(res.status).toBe(404);
+    });
+
+    // MUT-B: restaurar @Roles(PRESIDENTE) en AI admin → PRESIDENTE obtendría 200;
+    //        este test espera 403 con PRESIDENTE → falla al mutar.
+    it('PUT /admin/ai-assistant/roles → 403 con PRESIDENTE (solo SECRETARIA tiene acceso)', async () => {
+      const res = await request(app.getHttpServer())
+        .put('/api/admin/ai-assistant/roles')
+        .set('Authorization', `Bearer ${u.presidente.token}`)
+        .send({ allowedRoles: ['SECRETARIA', 'EVALUADOR'] });
+      expect(res.status).toBe(403);
+    });
+
+    it('PUT /admin/ai-assistant/roles → no 403 con SECRETARIA', async () => {
+      const res = await request(app.getHttpServer())
+        .put('/api/admin/ai-assistant/roles')
+        .set('Authorization', `Bearer ${u.secretaria.token}`)
+        .send({ allowedRoles: ['SECRETARIA', 'EVALUADOR'] });
+      expect(res.status).not.toBe(403);
     });
   });
 });

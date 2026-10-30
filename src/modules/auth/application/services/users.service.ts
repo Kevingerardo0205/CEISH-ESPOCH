@@ -376,12 +376,9 @@ export class UsersService {
         RoleCode.INVESTIGADOR,
       );
       const requestedHasCommittee = upperRoleCodes.some((rc) =>
-        [
-          RoleCode.SECRETARIA,
-          RoleCode.PRESIDENTE,
-          RoleCode.EVALUADOR,
-          RoleCode.ADMIN_TI,
-        ].includes(rc as RoleCode),
+        [RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR].includes(
+          rc as RoleCode,
+        ),
       );
 
       if (currentHasInvestigator && requestedHasCommittee) {

@@ -140,7 +140,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           req.user = {
             id: userId,
             email: `user${userId}@test.com`,
-            roles: ['SECRETARIA', 'PRESIDENTE', 'EVALUADOR', 'ADMIN_TI'],
+            roles: ['SECRETARIA', 'PRESIDENTE', 'EVALUADOR'],
             permissions: Object.values(Permission),
           };
           return true;

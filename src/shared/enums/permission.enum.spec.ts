@@ -34,8 +34,8 @@ describe('Permission enum (TSK-001.1a)', () => {
       expect(Permission.USERS_VIEW).toBe('USUARIOS_VER');
     });
 
-    it('PERMISOS_GESTIONAR sigue con su propio código (se elimina en 1c)', () => {
-      expect(Permission.PERMISOS_GESTIONAR).toBe('PERMISOS_GESTIONAR');
+    it('USUARIOS_VER tiene su propio código (TSK-001.1c: PERMISOS_GESTIONAR retirado)', () => {
+      expect(Permission.USUARIOS_VER).toBe('USUARIOS_VER');
     });
   });
 });

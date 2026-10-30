@@ -6,7 +6,7 @@ export class CreateRoleDto {
   @MaxLength(20)
   @Matches(/^[A-Z0-9_]+$/, {
     message:
-      'El código del rol debe contener solo letras mayúsculas, números y guiones bajos (ej: ADMIN_TI).',
+      'El código del rol debe contener solo letras mayúsculas, números y guiones bajos (ej: EVALUADOR).',
   })
   code!: string;
 

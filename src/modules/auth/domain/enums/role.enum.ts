@@ -3,5 +3,4 @@ export enum RoleCode {
   SECRETARIA = 'SECRETARIA',
   PRESIDENTE = 'PRESIDENTE',
   EVALUADOR = 'EVALUADOR',
-  ADMIN_TI = 'ADMIN_TI',
 }

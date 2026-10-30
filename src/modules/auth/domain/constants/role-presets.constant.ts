@@ -2,8 +2,6 @@ import { RoleCode } from '../enums/role.enum';
 import { Permission } from '../../../../shared/enums/permission.enum';
 
 export const OFFICIAL_ROLE_PRESETS: Record<RoleCode, Permission[]> = {
-  [RoleCode.ADMIN_TI]: Object.values(Permission),
-
   [RoleCode.PRESIDENTE]: [
     Permission.DASHBOARD_RESUMEN,
     Permission.DASHBOARD_NOTIF,
