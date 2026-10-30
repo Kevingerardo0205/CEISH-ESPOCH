@@ -16,7 +16,7 @@
   - **Resultados TSK-001.1a:** 202 E2E / 454 unit · 12 mutaciones detectadas (10 nombradas + MUT-2b + MUT-4b)
   - **Resultados TSK-001.1a.1:** 207 E2E / 454 unit · 3 nuevas mutaciones detectadas
   - **Resultados TSK-001.1b:** 221 E2E / 467 unit · 10 mutaciones detectadas (M1 a M10)
-  - **Resultados TSK-001.1c:** 229 E2E / 467 unit · 3 mutaciones detectadas (MUT-A, MUT-B, MUT-D)
+  - **Resultados TSK-001.1c:** 229 E2E / 467 unit · 6 mutaciones detectadas (MUT-A, MUT-B, MUT-D, MUT-E, MUT-F, MUT-G) · E2E con MUT-E/F/G pendiente de re-ejecutar
 
   | Mutación | Condición eliminada | Prueba que falla |
   |---|---|---|
@@ -40,6 +40,17 @@
   | MUT-1a.1-1 temporalRoles | `r.activo = true AND r.eliminado_en IS NULL` en `temporalRolesRaw` | ROL INACTIVO con @Roles: el token decodificado no debe contener el código en roles ni en temporalRoles con isExpired = false |
   | MUT-1a.1-2 temporalRoles | `(ur.fecha_inicio IS NOT NULL AND ur.fecha_inicio > NOW())` en `is_expired` | ROL PROGRAMADO: en temporalRoles aparece con isExpired = true |
   | MUT-1a.1-3 migración down | `activo = true` en `UPDATE catalogos.roles WHERE codigo = '43'` en `down()` | down() del rol 43: dentro de transacción con ROLLBACK, 43 queda con activo=false y eliminado_en=NULL, y ADMIN_TI con activo=true |
+
+  ##### Mutaciones TSK-001.1c (Retirar RolesController/PermissionsController + validación de códigos de rol)
+
+  | Mutación | Condición eliminada | Prueba que falla |
+  |---|---|---|
+  | MUT-A getRoles | `activo = true AND eliminado_en IS NULL` en `getRoles` | `GET /auth/roles devuelve solo roles activos y no eliminados` |
+  | MUT-B IA | Validación de código SECRETARIA exclusivo en `ai-assistant-admin` | `PATCH /auth/ai-assistant/config rechaza PRESIDENTE` |
+  | MUT-D guard | `@Permissions(Permission.USERS_VIEW)` en `GET /auth/roles` | `SECRETARIA: GET /auth/roles → 200 (antes requería permiso que Secretaría no tenía)` |
+  | MUT-E rol eliminado | `eliminado_en IS NULL` implícito en `find({ where: { code, isActive: true } })` | `PATCH /auth/users/:id/roles con ADMIN_TI (eliminado) → 400 "Rol no válido"` |
+  | MUT-F código inexistente | `throw BadRequestException` cuando `invalidCodes.length > 0` en `updateUserRoles` | `PATCH /auth/users/:id/roles con ["FOO","EVALUADOR"] → 400; usuario sin cambios en BD` |
+  | MUT-G rol inactivo | `isActive: true` en `find()` de `updateUserRoles` | `PATCH /auth/users/:id/roles con ZZ_TEST_INV_CODES (activo=false) → 400 "Rol no válido"` |
 
   ##### Mutaciones TSK-001.1b (Segregación INVESTIGADOR y unicidad SECRETARIA)
 
