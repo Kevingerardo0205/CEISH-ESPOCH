@@ -404,6 +404,16 @@ export class AuthService {
           'Este correo electrónico ya está registrado',
         );
 
+      const existingByNationalId = await queryRunner.manager.findOne(
+        UserOrmEntity,
+        {
+          where: { nationalId: dto.nationalId },
+        },
+      );
+      if (existingByNationalId) {
+        throw new BadRequestException('Esta cédula ya está registrada');
+      }
+
       // 2. Buscar el Rol de Investigador por CÓDIGO (Dinámico)
       const investigatorRole = await queryRunner.manager.findOne(
         RoleOrmEntity,

@@ -45,6 +45,7 @@ import { PdfGeneratorService } from '../src/shared/utils/pdf-generator.service';
 import { DocxGeneratorService } from '../src/shared/utils/docx-generator.service';
 import { JwtService } from '@nestjs/jwt';
 import { FixedRolesMatrix1880000000000 } from '../src/migrations/1880000000000-FixedRolesMatrix';
+import { UsersService } from '../src/modules/auth/application/services/users.service';
 
 // ROL IDs en catalogos.roles (ceish_test_db post-migración)
 const ROL = {
@@ -65,6 +66,13 @@ const RETIRED_PERMS = [
 describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () => {
   let app: INestApplication;
   let ds: DataSource;
+  let usersService: UsersService;
+  let insertUser: (key: string, activo?: boolean) => Promise<number>;
+  let assignRole: (
+    userId: number,
+    rolId: number,
+    fechaFin?: Date,
+  ) => Promise<void>;
 
   const EMAIL_SUFFIX = '@e2e-frm.test';
   const PWD = 'E2eFrm_001!';
@@ -160,6 +168,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
     await app.init();
 
     ds = app.get(DataSource);
+    usersService = app.get(UsersService);
 
     const dbCheck: Array<{ current_database: string }> = await ds.query(
       'SELECT current_database()',
@@ -183,9 +192,11 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
 
     const hash = await bcrypt.hash(PWD, 10);
 
-    const insertUser = async (key: string, activo = true): Promise<number> => {
+    let userSeq = 100;
+    insertUser = async (key: string, activo = true): Promise<number> => {
+      userSeq++;
       const email = emailOf(key);
-      const cedula = `E2EFRM${key.substring(0, 4).toUpperCase()}01`;
+      const cedula = `E2E${userSeq.toString().padStart(7, '0')}`;
       const rows: Array<{ id: number }> = await ds.query(
         `INSERT INTO catalogos.usuarios
            (cedula, nombres_completos, email_institucional, password_hash, activo, email_verificado)
@@ -195,11 +206,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       return rows[0].id;
     };
 
-    const assignRole = async (
-      userId: number,
-      rolId: number,
-      fechaFin?: Date,
-    ) => {
+    assignRole = async (userId: number, rolId: number, fechaFin?: Date) => {
       await ds.query(
         `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id${fechaFin ? ', fecha_fin' : ''})
          VALUES ($1, $2${fechaFin ? ', $3' : ''})`,
@@ -1046,6 +1053,389 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
 
       res = await get('/auth/users', u.secretaria.token);
       expect(res.status).toBe(200); // restaurado: vuelve a permitir
+    });
+  });
+
+  // ─── TSK-001.1b: SEGREGACIÓN Y SECRETARÍA ÚNICA ──────────────────────────────
+  describe('TSK-001.1b — Segregación de funciones y secretaría única (HU-001 b y b2)', () => {
+    describe('updateUserRoles', () => {
+      it('rechaza [INVESTIGADOR, EVALUADOR] en el mismo conjunto con 400', async () => {
+        const testUserId = await insertUser('sod_comb');
+        const res = await patch(
+          `/auth/users/${testUserId}/roles`,
+          u.secretaria.token,
+          {
+            roles: ['INVESTIGADOR', 'EVALUADOR'],
+          },
+        );
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain(
+          'Violación de Segregación de Funciones: El rol INVESTIGADOR es incompatible con los roles del comité (EVALUADOR).',
+        );
+      });
+
+      it('rechaza cambio de INVESTIGADOR a EVALUADOR si es co-investigador de protocolo en curso (con cantidad en mensaje)', async () => {
+        const invId = await insertUser('inv_co_proto');
+        await assignRole(invId, ROL.INVESTIGADOR);
+
+        const pRows: Array<{ id: number }> = await ds.query(
+          `INSERT INTO public.protocolos (titulo, investigador_principal_id, estado_id)
+           VALUES ('PROTO TEST COINV SOD', $1, 13) RETURNING id`,
+          [u.investigador.id],
+        );
+        const protoId = pRows[0].id;
+
+        const piRows: Array<{ id: number }> = await ds.query(
+          `INSERT INTO public.protocolo_investigadores
+           (nombre_completo, identificacion, cargo, institucion, email, telefono, formacion_academica, rol, protocolo_id, usuario_id)
+           VALUES ('CoInv Test', '0601234560', 'Docente', 'ESPOCH', 'coinv_sod@test.com', '0999999999', 'PhD', 'CO_INVESTIGADOR', $1, $2)
+           RETURNING id`,
+          [protoId, invId],
+        );
+        const piId = piRows[0].id;
+
+        try {
+          const res = await patch(
+            `/auth/users/${invId}/roles`,
+            u.secretaria.token,
+            {
+              roles: ['EVALUADOR'],
+            },
+          );
+          expect(res.status).toBe(400);
+          expect(res.body.message).toBe(
+            'No se puede cambiar el rol de INVESTIGADOR a miembro del comité porque tiene 1 protocolo(s) en curso.',
+          );
+        } finally {
+          await ds.query(
+            `DELETE FROM public.protocolo_investigadores WHERE id = $1`,
+            [piId],
+          );
+          await ds.query(`DELETE FROM public.protocolos WHERE id = $1`, [
+            protoId,
+          ]);
+        }
+      });
+
+      it('permite cambio de INVESTIGADOR a EVALUADOR si no tiene protocolos en curso (o solo RECHAZADO)', async () => {
+        const invId = await insertUser('inv_rech_proto');
+        await assignRole(invId, ROL.INVESTIGADOR);
+
+        const pRows: Array<{ id: number }> = await ds.query(
+          `INSERT INTO public.protocolos (titulo, investigador_principal_id, estado_id)
+           VALUES ('PROTO RECHAZADO TEST SOD', $1, 18) RETURNING id`,
+          [invId],
+        );
+        const protoId = pRows[0].id;
+
+        try {
+          const res = await patch(
+            `/auth/users/${invId}/roles`,
+            u.secretaria.token,
+            {
+              roles: ['EVALUADOR'],
+            },
+          );
+          expect(res.status).toBe(200);
+
+          const rolesInDb: Array<{
+            rol_id: number;
+            fecha_fin: Date | null;
+            motivo: string;
+          }> = await ds.query(
+            `SELECT rol_id, fecha_fin, motivo_delegacion as motivo FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+            [invId],
+          );
+          const invRole = rolesInDb.find((r) => r.rol_id === ROL.INVESTIGADOR);
+          const evalRole = rolesInDb.find((r) => r.rol_id === ROL.EVALUADOR);
+
+          expect(invRole).toBeDefined();
+          expect(invRole?.fecha_fin).not.toBeNull();
+          expect(invRole?.motivo).toContain('[REVOCADO]');
+          expect(evalRole).toBeDefined();
+          expect(evalRole?.fecha_fin).toBeNull();
+        } finally {
+          await ds.query(`DELETE FROM public.protocolos WHERE id = $1`, [
+            protoId,
+          ]);
+        }
+      });
+
+      it('rechaza cambio inverso de EVALUADOR a INVESTIGADOR con 400', async () => {
+        const evalId = await insertUser('eval_to_inv');
+        await assignRole(evalId, ROL.EVALUADOR);
+
+        const res = await patch(
+          `/auth/users/${evalId}/roles`,
+          u.secretaria.token,
+          {
+            roles: ['INVESTIGADOR'],
+          },
+        );
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe(
+          'Violación de Segregación de Funciones: No se puede asignar el rol INVESTIGADOR a un usuario con rol del comité vigente.',
+        );
+      });
+
+      it('permite combinar roles del comité entre sí (EVALUADOR + PRESIDENTE)', async () => {
+        const userComiteId = await insertUser('comite_multi');
+        const res = await patch(
+          `/auth/users/${userComiteId}/roles`,
+          u.secretaria.token,
+          {
+            roles: ['EVALUADOR', 'PRESIDENTE'],
+          },
+        );
+        expect(res.status).toBe(200);
+      });
+
+      it('rechaza asignar SECRETARIA a un segundo usuario si ya existe titular', async () => {
+        const secondUserId = await insertUser('sec_segundo');
+        const res = await patch(
+          `/auth/users/${secondUserId}/roles`,
+          u.secretaria.token,
+          {
+            roles: ['SECRETARIA'],
+          },
+        );
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe(
+          'Solo puede existir una titular con el rol SECRETARIA vigente en el sistema.',
+        );
+      });
+
+      it('permite reasignar SECRETARIA a la misma titular', async () => {
+        // Suspendemos temporalmente la cuenta pre-sembrada (id: 30) para que u.secretaria sea la única titular
+        await ds.query(
+          `UPDATE catalogos.usuarios_roles SET fecha_fin = NOW() - INTERVAL '1 minute' WHERE usuario_id = 30 AND rol_id = $1`,
+          [ROL.SECRETARIA],
+        );
+
+        try {
+          const res = await patch(
+            `/auth/users/${u.secretaria.id}/roles`,
+            u.secretaria.token,
+            {
+              roles: ['SECRETARIA'],
+            },
+          );
+          expect(res.status).toBe(200);
+        } finally {
+          await ds.query(
+            `UPDATE catalogos.usuarios_roles SET fecha_fin = NULL WHERE usuario_id = 30 AND rol_id = $1`,
+            [ROL.SECRETARIA],
+          );
+        }
+      });
+    });
+
+    describe('createUser', () => {
+      it('rechaza roles [INVESTIGADOR, EVALUADOR] y no incrementa el conteo de usuarios', async () => {
+        const countBefore = await ds.query(
+          `SELECT count(*)::int as c FROM catalogos.usuarios`,
+        );
+        const res = await request(app.getHttpServer())
+          .post('/api/auth/users')
+          .set('Authorization', `Bearer ${u.secretaria.token}`)
+          .send({
+            nationalId: '0601234571',
+            fullName: 'Usuario Creacion Fallida SoD',
+            email: emailOf('cr_fail_sod'),
+            roles: ['INVESTIGADOR', 'EVALUADOR'],
+          });
+        expect(res.status).toBe(400);
+        const countAfter = await ds.query(
+          `SELECT count(*)::int as c FROM catalogos.usuarios`,
+        );
+        expect(countAfter[0].c).toBe(countBefore[0].c);
+      });
+
+      it('rechaza rol SECRETARIA si ya existe titular y no incrementa el conteo de usuarios', async () => {
+        const countBefore = await ds.query(
+          `SELECT count(*)::int as c FROM catalogos.usuarios`,
+        );
+        const res = await request(app.getHttpServer())
+          .post('/api/auth/users')
+          .set('Authorization', `Bearer ${u.secretaria.token}`)
+          .send({
+            nationalId: '0601234572',
+            fullName: 'Usuario Creacion Fallida Sec',
+            email: emailOf('cr_fail_sec'),
+            roles: ['SECRETARIA'],
+          });
+        expect(res.status).toBe(400);
+        const countAfter = await ds.query(
+          `SELECT count(*)::int as c FROM catalogos.usuarios`,
+        );
+        expect(countAfter[0].c).toBe(countBefore[0].c);
+      });
+    });
+
+    describe('updateUser', () => {
+      it('rechaza roles incompatibles o segunda SECRETARIA en PATCH /auth/users/:id', async () => {
+        const testUserId = await insertUser('upd_usr_sod');
+        await assignRole(testUserId, ROL.EVALUADOR);
+
+        const resSod = await patch(
+          `/auth/users/${testUserId}`,
+          u.secretaria.token,
+          {
+            roles: ['INVESTIGADOR'],
+          },
+        );
+        expect(resSod.status).toBe(400);
+
+        const resSec = await patch(
+          `/auth/users/${testUserId}`,
+          u.secretaria.token,
+          {
+            roles: ['SECRETARIA'],
+          },
+        );
+        expect(resSec.status).toBe(400);
+      });
+    });
+
+    describe('extendTemporaryRole', () => {
+      it('rechaza extender SECRETARIA vencida a otro usuario si ya hay titular', async () => {
+        const secOldId = await insertUser('sec_old_ext');
+        await assignRole(
+          secOldId,
+          ROL.SECRETARIA,
+          new Date(Date.now() - 3_600_000),
+        );
+
+        const res = await patch(
+          `/auth/users/${secOldId}/roles/SECRETARIA/extend`,
+          u.secretaria.token,
+          {
+            validUntil: new Date(Date.now() + 86_400_000).toISOString(),
+            reason: 'Intento de suplencia duplicada',
+          },
+        );
+        expect(res.status).toBe(400);
+        expect(res.body.message).toBe(
+          'Solo puede existir una titular con el rol SECRETARIA vigente en el sistema.',
+        );
+      });
+
+      it('rechaza extender EVALUADOR vencido si el usuario tiene INVESTIGADOR activo', async () => {
+        const invEvalId = await insertUser('inv_eval_ext');
+        await assignRole(invEvalId, ROL.INVESTIGADOR);
+        await assignRole(
+          invEvalId,
+          ROL.EVALUADOR,
+          new Date(Date.now() - 3_600_000),
+        );
+
+        const res = await patch(
+          `/auth/users/${invEvalId}/roles/EVALUADOR/extend`,
+          u.secretaria.token,
+          {
+            validUntil: new Date(Date.now() + 86_400_000).toISOString(),
+            reason: 'Intento extender evaluador con investigador activo',
+          },
+        );
+        expect(res.status).toBe(400);
+        expect(res.body.message).toContain(
+          'Violación de Segregación de Funciones: No se puede extender un rol del comité a un usuario que tiene el rol INVESTIGADOR activo.',
+        );
+      });
+    });
+
+    describe('register', () => {
+      it('rechaza registro con cédula ya registrada (400) y con correo ya registrado (400)', async () => {
+        const invRow: Array<{ cedula: string }> = await ds.query(
+          `SELECT cedula FROM catalogos.usuarios WHERE id = $1`,
+          [u.investigador.id],
+        );
+        const invCedula = invRow[0].cedula;
+
+        const resCed = await request(app.getHttpServer())
+          .post('/api/auth/register')
+          .send({
+            documentType: 'CEDULA',
+            nationalId: invCedula,
+            firstName: 'Prueba',
+            firstLastName: 'CedulaDup',
+            email: emailOf('reg_ced_dup'),
+            password: 'Password123!',
+            nationality: 'ECUATORIANA',
+            phone: '0999999999',
+            acceptsTerms: true,
+            acceptsRegulations: true,
+          });
+        expect(resCed.status).toBe(400);
+        expect(resCed.body.message).toBe('Esta cédula ya está registrada');
+
+        const resEmail = await request(app.getHttpServer())
+          .post('/api/auth/register')
+          .send({
+            documentType: 'CEDULA',
+            nationalId: '0609998881',
+            firstName: 'Prueba',
+            firstLastName: 'EmailDup',
+            email: u.investigador.email,
+            password: 'Password123!',
+            nationality: 'ECUATORIANA',
+            phone: '0999999999',
+            acceptsTerms: true,
+            acceptsRegulations: true,
+          });
+        expect(resEmail.status).toBe(400);
+        expect(resEmail.body.message).toContain(
+          'Este correo electrónico ya está registrado',
+        );
+      });
+    });
+
+    describe('Concurrencia UsersService', () => {
+      it('exactamente 1 pasa y 1 falla al asignar SECRETARIA en paralelo (3 iteraciones)', async () => {
+        const userAId = await insertUser('conc_a');
+        const userBId = await insertUser('conc_b');
+
+        const activeSecs: Array<{
+          usuario_id: number;
+          fecha_inicio: Date;
+          fecha_fin: Date | null;
+        }> = await ds.query(
+          `SELECT usuario_id, fecha_inicio, fecha_fin FROM catalogos.usuarios_roles WHERE rol_id = $1 AND (fecha_fin IS NULL OR fecha_fin >= NOW())`,
+          [ROL.SECRETARIA],
+        );
+
+        try {
+          await ds.query(
+            `UPDATE catalogos.usuarios_roles SET fecha_fin = NOW() - INTERVAL '1 minute' WHERE rol_id = $1 AND (fecha_fin IS NULL OR fecha_fin >= NOW())`,
+            [ROL.SECRETARIA],
+          );
+
+          for (let i = 0; i < 3; i++) {
+            await ds.query(
+              `DELETE FROM catalogos.usuarios_roles WHERE usuario_id IN ($1, $2)`,
+              [userAId, userBId],
+            );
+
+            const results = await Promise.allSettled([
+              usersService.updateUserRoles(userAId, ['SECRETARIA']),
+              usersService.updateUserRoles(userBId, ['SECRETARIA']),
+            ]);
+
+            const fulfilled = results.filter((r) => r.status === 'fulfilled');
+            const rejected = results.filter((r) => r.status === 'rejected');
+
+            expect(fulfilled).toHaveLength(1);
+            expect(rejected).toHaveLength(1);
+          }
+        } finally {
+          for (const sec of activeSecs) {
+            await ds.query(
+              `UPDATE catalogos.usuarios_roles SET fecha_fin = $1 WHERE usuario_id = $2 AND rol_id = $3`,
+              [sec.fecha_fin, sec.usuario_id, ROL.SECRETARIA],
+            );
+          }
+        }
+      }, 30_000);
     });
   });
 });
