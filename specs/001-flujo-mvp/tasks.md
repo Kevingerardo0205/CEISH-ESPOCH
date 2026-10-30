@@ -12,10 +12,11 @@
 ### Módulo: Autenticación y RBAC (`auth`)
 
 - [x] **TSK-001.1a**: Matriz de roles fija — migración + enum + sesión + guards + E2E + mutaciones *(subdividida en 1a/1b/1c — ver plan.md §1b)*
-  - **Subtareas:** [x] 1a · [x] 1a.1 · [x] 1b Segregación INVESTIGADOR y unicidad SECRETARIA · [ ] 1c Retirar RolesController/PermissionsController + limpiar ADMIN_TI
+  - **Subtareas:** [x] 1a · [x] 1a.1 · [x] 1b Segregación INVESTIGADOR y unicidad SECRETARIA · [x] 1c Retirar RolesController/PermissionsController + limpiar ADMIN_TI
   - **Resultados TSK-001.1a:** 202 E2E / 454 unit · 12 mutaciones detectadas (10 nombradas + MUT-2b + MUT-4b)
   - **Resultados TSK-001.1a.1:** 207 E2E / 454 unit · 3 nuevas mutaciones detectadas
   - **Resultados TSK-001.1b:** 221 E2E / 467 unit · 10 mutaciones detectadas (M1 a M10)
+  - **Resultados TSK-001.1c:** 229 E2E / 467 unit · 3 mutaciones detectadas (MUT-A, MUT-B, MUT-D)
 
   | Mutación | Condición eliminada | Prueba que falla |
   |---|---|---|
