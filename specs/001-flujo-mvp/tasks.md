@@ -12,8 +12,9 @@
 ### Módulo: Autenticación y RBAC (`auth`)
 
 - [x] **TSK-001.1a**: Matriz de roles fija — migración + enum + sesión + guards + E2E + mutaciones *(subdividida en 1a/1b/1c — ver plan.md §1b)*
-  - **Subtareas:** [x] 1a · [ ] 1b Segregación INVESTIGADOR y unicidad SECRETARIA · [ ] 1c Retirar RolesController/PermissionsController + limpiar ADMIN_TI
+  - **Subtareas:** [x] 1a · [x] 1a.1 · [ ] 1b Segregación INVESTIGADOR y unicidad SECRETARIA · [ ] 1c Retirar RolesController/PermissionsController + limpiar ADMIN_TI
   - **Resultados TSK-001.1a:** 202 E2E / 454 unit · 12 mutaciones detectadas (10 nombradas + MUT-2b + MUT-4b)
+  - **Resultados TSK-001.1a.1:** 207 E2E / 454 unit · 3 nuevas mutaciones detectadas
 
   | Mutación | Condición eliminada | Prueba que falla |
   |---|---|---|
@@ -29,6 +30,14 @@
   | MUT-8 enum | `ROLES_ASSIGN = 'PERMISOS_GESTIONAR'` | SECRETARIA: PATCH /auth/users/:id/roles → no 403 |
   | MUT-9 enum | `PERMISSIONS_MANAGE = 'PERMISOS_GESTIONAR'` | SECRETARIA: POST /evaluations/profiles → no 403 |
   | MUT-10 migración | Quitar aborto por falta de secretaria@test.com | MIGRACIÓN: up() lanza [TSK-001.1a] ABORT |
+
+  ##### Mutaciones TSK-001.1a.1 (Vigencia temporalRoles y down() rol 43)
+
+  | Mutación | Condición eliminada | Prueba que falla |
+  |---|---|---|
+  | MUT-1a.1-1 temporalRoles | `r.activo = true AND r.eliminado_en IS NULL` en `temporalRolesRaw` | ROL INACTIVO con @Roles: el token decodificado no debe contener el código en roles ni en temporalRoles con isExpired = false |
+  | MUT-1a.1-2 temporalRoles | `(ur.fecha_inicio IS NOT NULL AND ur.fecha_inicio > NOW())` en `is_expired` | ROL PROGRAMADO: en temporalRoles aparece con isExpired = true |
+  | MUT-1a.1-3 migración down | `activo = true` en `UPDATE catalogos.roles WHERE codigo = '43'` en `down()` | down() del rol 43: dentro de transacción con ROLLBACK, 43 queda con activo=false y eliminado_en=NULL, y ADMIN_TI con activo=true |
   - **Requisitos cubiertos:** `HU-001` (puntos a–j), `RF-001`
   - **Hecho cuando:**
     - La migración, aplicada por el agente solo en `ceish_test_db`, siembra la matriz de permisos canónica (`USUARIOS_GESTIONAR` y todos los permisos de HU-001 c), retira con `eliminado_en` los permisos `PERMISOS_GESTIONAR`, `SEGUIMIENTO_ENMIENDAS`, `TRADUCCION_ANCESTRAL`, `DASHBOARD_SLA` y `CONFIG_INTEGRACIONES`, aplica las reglas de datos existentes del punto h) (revocación de `ADMIN_TI`, unicidad de `SECRETARIA`, segregación `INVESTIGADOR`+`SECRETARIA`, rol inactivo provisional).
