@@ -189,6 +189,15 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       `DELETE FROM catalogos.usuarios WHERE email_institucional LIKE $1`,
       [`%${EMAIL_SUFFIX}`],
     );
+    // Limpiar roles ZZ_TEST_% residuales (sin usuarios asignados)
+    await ds.query(
+      `DELETE FROM catalogos.rol_permisos WHERE rol_id IN
+       (SELECT id FROM catalogos.roles WHERE codigo LIKE 'ZZ_TEST_%')`,
+    );
+    await ds.query(
+      `DELETE FROM catalogos.roles WHERE codigo LIKE 'ZZ_TEST_%'
+       AND NOT EXISTS (SELECT 1 FROM catalogos.usuarios_roles ur WHERE ur.rol_id = catalogos.roles.id)`,
+    );
 
     const hash = await bcrypt.hash(PWD, 10);
 
@@ -1535,7 +1544,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(rolesAfter).toHaveLength(rolesBefore.length);
     });
 
-    // MUT-G: si updateUserRoles busca por name, podría aceptar un código ZZ_TEST_INACTIVE
+    // MUT-E: si updateUserRoles no filtra activo=false, aceptaría este rol inactivo
     describe('TSK-001.1c — rol inactivo creado en prueba rechazado por updateUserRoles', () => {
       const INACTIVE_CODE = 'ZZ_TEST_INV_CODES';
       let inactiveRolId = 0;
@@ -1576,6 +1585,53 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
           `/auth/users/${testUserId}/roles`,
           u.secretaria.token,
           { roles: [INACTIVE_CODE] },
+        );
+        expect(res.status).toBe(400);
+        expect(res.body.message).toMatch(/Rol no válido/);
+      });
+    });
+
+    // MUT-E2: si TypeORM @DeleteDateColumn no filtra eliminado_en, updateUserRoles aceptaría el rol
+    describe('TSK-001.1c — rol activo+eliminado rechazado por updateUserRoles', () => {
+      const DELETED_CODE = 'ZZ_TEST_DEL';
+      let deletedRolId = 0;
+      let testUserId = 0;
+
+      beforeAll(async () => {
+        await ds.query(`DELETE FROM catalogos.roles WHERE codigo = $1`, [
+          DELETED_CODE,
+        ]);
+        const rows: Array<{ id: number }> = await ds.query(
+          `INSERT INTO catalogos.roles (nombre, codigo, activo, eliminado_en)
+           VALUES ($1, $2, true, NOW()) RETURNING id`,
+          ['ZZ Test Del', DELETED_CODE],
+        );
+        deletedRolId = rows[0].id;
+        testUserId = await insertUser('inv_rol_deleted');
+      }, 15_000);
+
+      afterAll(async () => {
+        if (testUserId) {
+          await ds.query(
+            `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+            [testUserId],
+          );
+          await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+            testUserId,
+          ]);
+        }
+        if (deletedRolId) {
+          await ds.query(`DELETE FROM catalogos.roles WHERE id = $1`, [
+            deletedRolId,
+          ]);
+        }
+      });
+
+      it('PATCH /auth/users/:id/roles con ZZ_TEST_DEL (activo=true, eliminado_en=NOW) → 400', async () => {
+        const res = await patch(
+          `/auth/users/${testUserId}/roles`,
+          u.secretaria.token,
+          { roles: [DELETED_CODE] },
         );
         expect(res.status).toBe(400);
         expect(res.body.message).toMatch(/Rol no válido/);
