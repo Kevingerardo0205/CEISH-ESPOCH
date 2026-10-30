@@ -4,7 +4,6 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { JwtModule } from '@nestjs/jwt';
 import { PassportModule } from '@nestjs/passport';
 import { AuthController } from './infrastructure/controllers/auth.controller';
-import { PermissionsController } from './infrastructure/controllers/permissions.controller';
 import { RolesController } from './infrastructure/controllers/roles.controller';
 import { AuthService } from './application/services/auth.service';
 import { UsersService } from './application/services/users.service';
@@ -18,10 +17,6 @@ import { IUserRepository } from './domain/ports/user.repository.port';
 import { UserTypeOrmRepository } from './infrastructure/repositories/user.typeorm.repository';
 import { IInvestigatorProfileRepository } from './domain/ports/investigator-profile.repository.port';
 import { InvestigatorProfileTypeOrmRepository } from './infrastructure/repositories/investigator-profile.typeorm.repository';
-import { IPermissionsRepository } from './domain/ports/permissions.repository.port';
-import { PermissionsTypeOrmRepository } from './infrastructure/repositories/permissions.typeorm.repository';
-import { IModulesRepository } from './domain/ports/modules.repository.port';
-import { ModulesTypeOrmRepository } from './infrastructure/repositories/modules.typeorm.repository';
 import { LocalStrategy } from './infrastructure/strategies/local.strategy';
 import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
 
@@ -44,7 +39,7 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
       }),
     }),
   ],
-  controllers: [AuthController, PermissionsController, RolesController],
+  controllers: [AuthController, RolesController],
   providers: [
     AuthService,
     UsersService,
@@ -57,14 +52,6 @@ import { JwtStrategy } from './infrastructure/strategies/jwt.strategy';
     {
       provide: IInvestigatorProfileRepository,
       useClass: InvestigatorProfileTypeOrmRepository,
-    },
-    {
-      provide: IPermissionsRepository,
-      useClass: PermissionsTypeOrmRepository,
-    },
-    {
-      provide: IModulesRepository,
-      useClass: ModulesTypeOrmRepository,
     },
   ],
   exports: [AuthService, UsersService, IUserRepository],

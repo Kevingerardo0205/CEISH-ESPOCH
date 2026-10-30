@@ -258,19 +258,16 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
   }, 60_000);
 
   afterAll(async () => {
-    const ids = Object.values(u)
-      .map((x) => x.id)
-      .filter(Boolean);
-    if (ids.length > 0) {
-      await ds.query(
-        `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = ANY($1::int[])`,
-        [ids],
-      );
-      await ds.query(
-        `DELETE FROM catalogos.usuarios WHERE id = ANY($1::int[])`,
-        [ids],
-      );
-    }
+    // Limpieza global: elimina TODOS los usuarios de prueba (incluidos los creados ad-hoc en describe blocks)
+    await ds.query(
+      `DELETE FROM catalogos.usuarios_roles WHERE usuario_id IN
+       (SELECT id FROM catalogos.usuarios WHERE email_institucional LIKE $1)`,
+      [`%${EMAIL_SUFFIX}`],
+    );
+    await ds.query(
+      `DELETE FROM catalogos.usuarios WHERE email_institucional LIKE $1`,
+      [`%${EMAIL_SUFFIX}`],
+    );
     await app.close();
   });
 
@@ -1503,6 +1500,86 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
         .set('Authorization', `Bearer ${u.secretaria.token}`)
         .send({ allowedRoles: ['SECRETARIA', 'EVALUADOR'] });
       expect(res.status).not.toBe(403);
+    });
+
+    // MUT-E: si updateUserRoles acepta roles inactivos/inexistentes, este test falla
+    it('PATCH /auth/users/:id/roles con ["ADMIN_TI"] → 400 (código inexistente en roles activos)', async () => {
+      const testUserId = await insertUser('inv_rol_admti');
+      const res = await patch(
+        `/auth/users/${testUserId}/roles`,
+        u.secretaria.token,
+        { roles: ['ADMIN_TI'] },
+      );
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/Rol no válido/);
+    });
+
+    // MUT-F: si updateUserRoles ignora códigos inexistentes, asigna solo EVALUADOR sin error
+    it('PATCH /auth/users/:id/roles con ["FOO","EVALUADOR"] → 400 y usuario sin cambios', async () => {
+      const testUserId = await insertUser('inv_rol_foo');
+      const rolesBefore: Array<{ rol_id: number }> = await ds.query(
+        `SELECT rol_id FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+        [testUserId],
+      );
+      const res = await patch(
+        `/auth/users/${testUserId}/roles`,
+        u.secretaria.token,
+        { roles: ['FOO', 'EVALUADOR'] },
+      );
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/Rol no válido/);
+      const rolesAfter: Array<{ rol_id: number }> = await ds.query(
+        `SELECT rol_id FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+        [testUserId],
+      );
+      expect(rolesAfter).toHaveLength(rolesBefore.length);
+    });
+
+    // MUT-G: si updateUserRoles busca por name, podría aceptar un código ZZ_TEST_INACTIVE
+    describe('TSK-001.1c — rol inactivo creado en prueba rechazado por updateUserRoles', () => {
+      const INACTIVE_CODE = 'ZZ_TEST_INV_CODES';
+      let inactiveRolId = 0;
+      let testUserId = 0;
+
+      beforeAll(async () => {
+        await ds.query(`DELETE FROM catalogos.roles WHERE codigo = $1`, [
+          INACTIVE_CODE,
+        ]);
+        const rows: Array<{ id: number }> = await ds.query(
+          `INSERT INTO catalogos.roles (nombre, codigo, activo)
+           VALUES ($1, $2, false) RETURNING id`,
+          ['ZZ Test Inv Codes', INACTIVE_CODE],
+        );
+        inactiveRolId = rows[0].id;
+        testUserId = await insertUser('inv_rol_inactive');
+      }, 15_000);
+
+      afterAll(async () => {
+        if (testUserId) {
+          await ds.query(
+            `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+            [testUserId],
+          );
+          await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+            testUserId,
+          ]);
+        }
+        if (inactiveRolId) {
+          await ds.query(`DELETE FROM catalogos.roles WHERE id = $1`, [
+            inactiveRolId,
+          ]);
+        }
+      });
+
+      it('PATCH /auth/users/:id/roles con rol inactivo → 400 (activo=false excluido)', async () => {
+        const res = await patch(
+          `/auth/users/${testUserId}/roles`,
+          u.secretaria.token,
+          { roles: [INACTIVE_CODE] },
+        );
+        expect(res.status).toBe(400);
+        expect(res.body.message).toMatch(/Rol no válido/);
+      });
     });
   });
 });

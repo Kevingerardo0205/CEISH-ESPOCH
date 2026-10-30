@@ -23,6 +23,7 @@ describe('UsersService - Temporal Roles (Phase 1)', () => {
       manager: {
         query: jest.fn().mockResolvedValue([]),
         save: jest.fn().mockResolvedValue({}),
+        findOne: jest.fn().mockResolvedValue(null),
       },
     };
 
@@ -130,6 +131,7 @@ describe('UsersService - Temporal Roles (Phase 1)', () => {
         find: jest
           .fn()
           .mockResolvedValue([{ id: 1, code: 'EVALUADOR', name: 'Evaluador' }]),
+        findOne: jest.fn().mockResolvedValue(null),
       };
 
       (mockUserRepository as any).findByEmail = jest
@@ -142,6 +144,16 @@ describe('UsersService - Temporal Roles (Phase 1)', () => {
       (mockEmailService as any).sendAccountInvitation = jest
         .fn()
         .mockResolvedValue(undefined);
+
+      // findOne: 1.ª llamada = cédula (null → sin conflicto), 2.ª = userId en updateUserRoles
+      const qrMgr = (
+        (dataSource.createQueryRunner as jest.Mock)() as {
+          manager: { findOne: jest.Mock };
+        }
+      ).manager;
+      qrMgr.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(mockSavedUser);
 
       const result = await service.createUser({
         nationalId: '0601234567',
