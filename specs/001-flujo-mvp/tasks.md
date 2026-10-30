@@ -12,9 +12,10 @@
 ### Módulo: Autenticación y RBAC (`auth`)
 
 - [x] **TSK-001.1a**: Matriz de roles fija — migración + enum + sesión + guards + E2E + mutaciones *(subdividida en 1a/1b/1c — ver plan.md §1b)*
-  - **Subtareas:** [x] 1a · [x] 1a.1 · [ ] 1b Segregación INVESTIGADOR y unicidad SECRETARIA · [ ] 1c Retirar RolesController/PermissionsController + limpiar ADMIN_TI
+  - **Subtareas:** [x] 1a · [x] 1a.1 · [x] 1b Segregación INVESTIGADOR y unicidad SECRETARIA · [ ] 1c Retirar RolesController/PermissionsController + limpiar ADMIN_TI
   - **Resultados TSK-001.1a:** 202 E2E / 454 unit · 12 mutaciones detectadas (10 nombradas + MUT-2b + MUT-4b)
   - **Resultados TSK-001.1a.1:** 207 E2E / 454 unit · 3 nuevas mutaciones detectadas
+  - **Resultados TSK-001.1b:** 221 E2E / 467 unit · 10 mutaciones detectadas (M1 a M10)
 
   | Mutación | Condición eliminada | Prueba que falla |
   |---|---|---|
@@ -38,6 +39,21 @@
   | MUT-1a.1-1 temporalRoles | `r.activo = true AND r.eliminado_en IS NULL` en `temporalRolesRaw` | ROL INACTIVO con @Roles: el token decodificado no debe contener el código en roles ni en temporalRoles con isExpired = false |
   | MUT-1a.1-2 temporalRoles | `(ur.fecha_inicio IS NOT NULL AND ur.fecha_inicio > NOW())` en `is_expired` | ROL PROGRAMADO: en temporalRoles aparece con isExpired = true |
   | MUT-1a.1-3 migración down | `activo = true` en `UPDATE catalogos.roles WHERE codigo = '43'` en `down()` | down() del rol 43: dentro de transacción con ROLLBACK, 43 queda con activo=false y eliminado_en=NULL, y ADMIN_TI con activo=true |
+
+  ##### Mutaciones TSK-001.1b (Segregación INVESTIGADOR y unicidad SECRETARIA)
+
+  | Mutación | Condición alterada / eliminada | Prueba que falla |
+  |---|---|---|
+  | M1 SoD | Permitir INVESTIGADOR + Comité en `validateRoleChange` | `debe rechazar mezclar INVESTIGADOR con roles de comité` |
+  | M2 SoD comité a inv | Permitir Comité -> INVESTIGADOR en `validateRoleChange` | `debe rechazar asignar INVESTIGADOR si ya tiene rol de comité` |
+  | M3 SoD protocolos | Permitir cambio de INVESTIGADOR a Comité con protocolos activos (`count > 0`) | `debe rechazar cambio si tiene protocolos en curso como IP` |
+  | M4 Unicidad SECRETARIA | Ignorar superposición de períodos en `validateSingleSecretaria` | `debe rechazar segunda SECRETARIA si los períodos se superponen` |
+  | M5 Co-investigador | Omitir conteo de co-investigadores en `users.service.ts:395` | E2E: `rechaza cambio de INVESTIGADOR a comité si es co-investigador de protocolo en curso` (esperaba 400, recibió 200) |
+  | M6 Transacción createUser | Guardar usuario antes de validar roles fuera de transacción | E2E: `no persiste el usuario si la asignación de roles viola segregación` (conteo aumentó de 39 a 40) |
+  | M7 Unicidad extend | Omitir validación de unicidad de SECRETARIA en `extendTemporaryRole` | E2E: `rechaza prorrogar SECRETARIA si se superpone con otra titular activa` (esperaba 400, recibió 200) |
+  | M8 SoD extend | Omitir validación de segregación en `extendTemporaryRole` | E2E: `rechaza prorrogar SECRETARIA si el usuario tiene rol INVESTIGADOR vigente` (esperaba 400, recibió 200) |
+  | M9 Concurrencia FOR UPDATE | Omitir `FOR UPDATE` sobre SECRETARIA en `updateUserRoles` | E2E: `dos peticiones concurrentes de asignación de SECRETARIA a usuarios distintos` (ambas tuvieron éxito 200 en lugar de 1 rechazo 400) |
+  | M10 Cédula register | Omitir validación previa de cédula única en `register` de `auth.service.ts` | E2E: `rechaza registro con cédula ya registrada (400 con mensaje claro)` (esperaba 400, recibió 500 por error interno de BD) |
   - **Requisitos cubiertos:** `HU-001` (puntos a–j), `RF-001`
   - **Hecho cuando:**
     - La migración, aplicada por el agente solo en `ceish_test_db`, siembra la matriz de permisos canónica (`USUARIOS_GESTIONAR` y todos los permisos de HU-001 c), retira con `eliminado_en` los permisos `PERMISOS_GESTIONAR`, `SEGUIMIENTO_ENMIENDAS`, `TRADUCCION_ANCESTRAL`, `DASHBOARD_SLA` y `CONFIG_INTEGRACIONES`, aplica las reglas de datos existentes del punto h) (revocación de `ADMIN_TI`, unicidad de `SECRETARIA`, segregación `INVESTIGADOR`+`SECRETARIA`, rol inactivo provisional).
