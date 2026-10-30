@@ -160,6 +160,8 @@ Un rol vencido o revocado (`fecha_fin` pasada), inactivo o eliminado, y un permi
 
 Después de migrar la matriz hay que reiniciar el backend, porque `PermissionsGuard` tiene una caché de 5 minutos.
 
+La vigencia se evalúa con el reloj de la base de datos; cuando la asignación no trae fecha de inicio, se usa `NOW()` de la base. — decisión 30/10/2026
+
 ---
 
 ### HU-002: Registro Simplificado de Protocolo
