@@ -259,10 +259,16 @@ export class FixedRolesMatrix1880000000000 implements MigrationInterface {
     `);
 
     // 4. Restaurar rol '43' y ADMIN_TI
+    // ADMIN_TI vuelve activo=true; el rol '43' se queda activo=false como estaba antes
     await queryRunner.query(`
       UPDATE catalogos.roles
       SET activo = true, eliminado_en = NULL
-      WHERE codigo IN ('43', 'ADMIN_TI')
+      WHERE codigo = 'ADMIN_TI'
+    `);
+    await queryRunner.query(`
+      UPDATE catalogos.roles
+      SET eliminado_en = NULL
+      WHERE codigo = '43'
     `);
 
     // 5. Re-agregar ADMIN_TI a allowed_roles si falta

@@ -250,9 +250,16 @@ export class AuthService {
       is_expired: boolean;
     }> = await this.dataSource.query(
       `SELECT r.codigo as code, ur.fecha_inicio as valid_from, ur.fecha_fin as valid_until,
-              (CASE WHEN ur.fecha_fin IS NOT NULL AND ur.fecha_fin < NOW() THEN true ELSE false END) as is_expired
+              (CASE
+                WHEN (ur.fecha_inicio IS NOT NULL AND ur.fecha_inicio > NOW())
+                  OR (ur.fecha_fin IS NOT NULL AND ur.fecha_fin < NOW())
+                THEN true
+                ELSE false
+              END) as is_expired
        FROM catalogos.usuarios_roles ur
        JOIN catalogos.roles r ON ur.rol_id = r.id
+         AND r.activo = true
+         AND r.eliminado_en IS NULL
        WHERE ur.usuario_id = $1`,
       [u.id],
     );
