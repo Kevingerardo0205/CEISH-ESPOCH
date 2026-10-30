@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.5.1  
+**Versión:** 3.5.2
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -10,6 +10,7 @@
 **Historial:** 2026-10-28 — v3.4.1: HU-001 roles fijos y gestión de usuarios del comité; RF-16.1 mismos pares resuelto; RF-EST.1/RF-EST.2/RF-EST.3 transición a 6 etapas canónicas (Riesgo integrado dentro de Evaluación, columnas de riesgo y dictámenes, filtros por riesgo y dictámenes, Evaluación concluye con nivel de riesgo fijado y todos los dictámenes entregados, Renovación etapa 6); sección Pendientes de confirmar con el comité
 **Historial:** 2026-10-28 — v3.5.0: HU-001 roles fijos completo: ADMIN_TI absorbido, segregación INVESTIGADOR excluyente, una sola SECRETARIA, matriz de permisos fija, permisos retirados, asistente IA, reglas de migración de datos
 **Historial:** 2026-10-28 — v3.5.1: HU-001 c) Presidente ve la consolidación de dictámenes; i) permiso por endpoint; j) vigencia en sesión y guards
+**Historial:** 2026-10-29 — v3.5.2: HU-001 b) cambio de investigador a comité sin protocolos en curso; registro con cédula o correo repetidos
 
 ---
 
@@ -71,17 +72,21 @@ Los cuatro roles del sistema son fijos y no se crean ni editan desde la aplicaci
 
 Los identificadores `ADMIN` y `PRESIDENTA` no son roles del sistema. No existen en la base de datos; solo aparecen como texto en el código y en pruebas, y se retiran de ahí.
 
-**b) Combinación de roles (decisión 28/10/2026)**
+**b) Combinación de roles (decisión 28/10/2026, actualizada 29/10/2026)**
 
 - Un usuario puede tener varios roles del comité simultáneamente: `SECRETARIA`, `PRESIDENTE` y/o `EVALUADOR`.
 - `INVESTIGADOR` es **excluyente** con todos los roles del comité:
-  - Un usuario con cualquier rol del comité no puede registrarse como investigador ni recibir el rol INVESTIGADOR.
-  - A un usuario con rol `INVESTIGADOR` no se le puede asignar ningún rol del comité.
-  - En ambos casos el backend rechaza la operación con un mensaje en español. — Reemplaza a: sin restricción de combinación — decisión 28/10/2026
+  - Un usuario con cualquier rol del comité no puede registrarse como investigador ni recibir el rol `INVESTIGADOR`.
+  - A un usuario con rol `INVESTIGADOR` no se le puede asignar ningún rol del comité de forma simultánea.
+  - Cambio de investigador a miembro del comité (decisión 29/10/2026): la Secretaría puede reemplazar `INVESTIGADOR` por uno o más roles del comité en una sola asignación. `INVESTIGADOR` se revoca con `fecha_fin` y nunca coexiste con un rol del comité. Solo se permite si la persona no es investigador principal ni co-investigador de ningún protocolo en curso. Un protocolo está en curso si su estado no es terminal; hoy los estados terminales son `RECHAZADO` y `ARCHIVADO_VENCIMIENTO` (cuando existan estados de cierre o revocación, se agregan). Si tiene protocolos en curso, el backend rechaza la operación e indica cuántos son.
+  - El cambio inverso sigue prohibido: a quien tiene un rol del comité vigente no se le asigna `INVESTIGADOR`.
+  - Todos los caminos que dan o reactivan un rol (crear usuario, editar usuario, asignar roles, prorrogar un rol) aplican las reglas b) y b2).
+  - El registro de investigador rechaza con un mensaje claro (400) un correo o una cédula ya registrados.
+  - En todos los casos el backend rechaza la operación con un mensaje en español. — Reemplaza a: sin restricción de combinación — decisión 28/10/2026
 
-**b2) Una sola Secretaría vigente (decisión 28/10/2026)**
+**b2) Una sola Secretaría vigente (decisión 28/10/2026, actualizada 29/10/2026)**
 
-Solo puede haber un usuario con el rol `SECRETARIA` activo a la vez. Si se intenta asignar `SECRETARIA` a un segundo usuario mientras haya uno vigente, el backend rechaza la operación con un mensaje claro. — Reemplaza a: sin restricción de unicidad — decisión 28/10/2026
+Solo puede haber un usuario con el rol `SECRETARIA` activo a la vez. Si se intenta asignar `SECRETARIA` a un segundo usuario mientras haya uno vigente, el backend rechaza la operación con un mensaje claro. Mientras la suplencia de la Secretaría esté pendiente (sección 11), se rechaza asignar o prorrogar `SECRETARIA` a otra persona si su período se superpone con el de la titular vigente o programada. — Reemplaza a: sin restricción de unicidad — decisión 28/10/2026
 
 **c) Matriz de permisos fija (decisión 28/10/2026)**
 

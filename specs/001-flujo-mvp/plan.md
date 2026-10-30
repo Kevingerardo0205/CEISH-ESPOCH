@@ -70,7 +70,7 @@ src/
 |---|---|---|
 | 1a | ✅ Hecho (PR #60) | Migración de la matriz fija y los datos; permiso por endpoint (HU-001 i); vigencia en sesión y guards (HU-001 j); pruebas E2E con el `PermissionsGuard` real; 12 mutaciones detectadas (MUT-1 a MUT-10 + MUT-2b + MUT-4b) |
 | 1a.1 | ✅ Hecho (pendiente de PR) | Vigencia en temporalRoles (login): exclusión de roles inactivos/eliminados y validación fecha_inicio > NOW() (HU-001 j); corrección down() para rol '43' (activo=false, eliminado_en=NULL) y ADMIN_TI (activo=true); 3 mutaciones detectadas |
-| 1b | 🔲 Pendiente | Segregación (INVESTIGADOR excluyente) y una sola SECRETARIA vigente, en el registro y en la asignación de roles |
+| 1b | 🔲 En curso | Segregación (INVESTIGADOR excluyente) y una sola SECRETARIA vigente, en el registro y en la asignación de roles |
 | 1c | 🔲 Pendiente | Retirar `RolesController` y `PermissionsController` completos; quitar `ADMIN_TI` y `'ADMIN'` del código, los presets y las pruebas; administración del asistente IA para SECRETARIA; eliminar `PERMISOS_GESTIONAR` del enum |
 
 ### 1a — Alcance técnico
@@ -86,6 +86,17 @@ src/
 | Pruebas | Unitarias: alias y función de vigencia. Migración: conteos, idempotencia, `down()` y aborto, con transacción y rollback. E2E con login real y el guard real, por rol, más los casos revocado, permiso retirado y cuenta desactivada. Mutaciones. |
 
 > Los identificadores concretos (ids de cuentas) no van aquí.
+
+### 1b — Alcance técnico
+
+| Área | Cambio |
+|---|---|
+| Dominio | `SegregationOfDutiesDomainService` con funciones puras (`validateRoleChange` y `validateSingleSecretaria`), que reciben los datos ya cargados y validan el cambio de roles y la unicidad de SECRETARIA sin acceso a base de datos. |
+| Aplicación | `updateUserRoles`, `createUser`, `updateUser` y `extendTemporaryRole` cargan los roles vigentes del usuario, los protocolos en curso como investigador (principal o co-investigador) y las asignaciones de SECRETARIA, y validan ANTES de escribir, dentro de la transacción. |
+| Creación de usuario | `createUser` guarda el usuario y sus roles en la misma transacción; si falla la validación, no queda el usuario persistido. |
+| Concurrencia | Asignar o prorrogar SECRETARIA bloquea la fila del rol SECRETARIA (`SELECT ... FOR UPDATE`) antes de revisar la unicidad para evitar condiciones de carrera. |
+| Registro | `register` revisa cédula y correo antes de insertar, con 400 y mensaje claro ("Esta cédula ya está registrada" / "Este correo electrónico ya está registrado") evitando errores 500 por la restricción de cédula. |
+| Pruebas y mutaciones | Pruebas unitarias de dominio para cada regla y superposición de períodos (sin fin, con fin anterior, programada a futuro); pruebas E2E con login real de Secretaría cubriendo todos los caminos y concurrencia con `Promise.all`; detección de al menos 10 mutaciones planeadas. |
 
 ---
 
