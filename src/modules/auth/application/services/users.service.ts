@@ -470,9 +470,7 @@ export class UsersService {
         );
 
         if (roleEntity) {
-          const validFrom = item.validFrom
-            ? new Date(item.validFrom)
-            : new Date();
+          const validFrom = item.validFrom ? new Date(item.validFrom) : null;
           const validUntil = item.validUntil ? new Date(item.validUntil) : null;
           const reason = item.reason || null;
 
@@ -486,7 +484,7 @@ export class UsersService {
           if (existing.length > 0) {
             await queryRunner.manager.query(
               `UPDATE catalogos.usuarios_roles
-               SET fecha_inicio = $1, fecha_fin = $2, motivo_delegacion = $3, asignado_por = $4
+               SET fecha_inicio = COALESCE($1, NOW()), fecha_fin = $2, motivo_delegacion = $3, asignado_por = $4
                WHERE usuario_id = $5 AND rol_id = $6`,
               [
                 validFrom,
@@ -500,7 +498,7 @@ export class UsersService {
           } else {
             await queryRunner.manager.query(
               `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id, fecha_inicio, fecha_fin, motivo_delegacion, asignado_por)
-               VALUES ($1, $2, $3, $4, $5, $6)`,
+               VALUES ($1, $2, COALESCE($3, NOW()), $4, $5, $6)`,
               [
                 userId,
                 roleEntity.id,

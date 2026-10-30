@@ -172,4 +172,81 @@ describe('UsersService - Temporal Roles (Phase 1)', () => {
       expect(result).toBeDefined();
     });
   });
+
+  describe('updateUserRoles vigencia', () => {
+    it('updateUserRoles sin validFrom envía null y deja que la BD ponga NOW()', async () => {
+      const writeQueries: Array<{ sql: string; params: unknown[] }> = [];
+
+      const mockRepo = {
+        find: jest
+          .fn()
+          .mockResolvedValue([{ id: 9, code: 'EVALUADOR', name: 'Evaluador' }]),
+      };
+      (dataSource.getRepository as jest.Mock).mockReturnValue(mockRepo);
+
+      const qrMgr = (
+        (dataSource.createQueryRunner as jest.Mock)() as {
+          manager: { findOne: jest.Mock; query: jest.Mock };
+        }
+      ).manager;
+      qrMgr.findOne.mockResolvedValue({ id: 77 });
+      qrMgr.query.mockImplementation((sql: string, params?: unknown[]) => {
+        if (
+          sql.includes('INSERT INTO catalogos.usuarios_roles') ||
+          sql.includes('SET fecha_inicio = COALESCE')
+        ) {
+          writeQueries.push({ sql, params: params ?? [] });
+        }
+        return Promise.resolve([]);
+      });
+
+      await service.updateUserRoles(77, ['EVALUADOR']);
+
+      const insert = writeQueries.find((q) =>
+        q.sql.includes('INSERT INTO catalogos.usuarios_roles'),
+      );
+      expect(insert).toBeDefined();
+      expect(insert!.sql).toContain('COALESCE(');
+      expect(insert!.sql).toContain('NOW()');
+      expect(insert!.params[2]).toBeNull();
+    });
+
+    it('updateUserRoles sin validFrom usa COALESCE en UPDATE cuando el rol ya existe', async () => {
+      const writeQueries: Array<{ sql: string; params: unknown[] }> = [];
+
+      const mockRepo = {
+        find: jest
+          .fn()
+          .mockResolvedValue([{ id: 9, code: 'EVALUADOR', name: 'Evaluador' }]),
+      };
+      (dataSource.getRepository as jest.Mock).mockReturnValue(mockRepo);
+
+      const qrMgr = (
+        (dataSource.createQueryRunner as jest.Mock)() as {
+          manager: { findOne: jest.Mock; query: jest.Mock };
+        }
+      ).manager;
+      qrMgr.findOne.mockResolvedValue({ id: 77 });
+      qrMgr.query.mockImplementation((sql: string, params?: unknown[]) => {
+        if (sql.includes('SET fecha_inicio = COALESCE')) {
+          writeQueries.push({ sql, params: params ?? [] });
+        }
+        // Simular fila existente para la SELECT previa al UPDATE
+        if (sql.includes('SELECT usuario_id FROM catalogos.usuarios_roles')) {
+          return Promise.resolve([{ usuario_id: 77 }]);
+        }
+        return Promise.resolve([]);
+      });
+
+      await service.updateUserRoles(77, ['EVALUADOR']);
+
+      const update = writeQueries.find((q) =>
+        q.sql.includes('SET fecha_inicio = COALESCE'),
+      );
+      expect(update).toBeDefined();
+      expect(update!.sql).toContain('COALESCE(');
+      expect(update!.sql).toContain('NOW()');
+      expect(update!.params[0]).toBeNull();
+    });
+  });
 });

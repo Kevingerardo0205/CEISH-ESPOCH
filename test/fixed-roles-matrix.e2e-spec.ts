@@ -1637,5 +1637,77 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
         expect(res.body.message).toMatch(/Rol no válido/);
       });
     });
+
+    // MUT-H: si updateUserRoles vuelve a new Date() en vez de null + COALESCE($1, NOW()),
+    // con el reloj de la API adelantado 120 s la fecha_inicio queda en el futuro,
+    // Postgres la considera no vigente y el guard devuelve 403.
+    describe('TSK-001.1c — MUT-H: fecha_inicio usa el reloj de Postgres con la API adelantada 120 s', () => {
+      let muthUserId = 0;
+      let muthUserEmail = '';
+
+      afterAll(async () => {
+        if (muthUserId) {
+          await ds.query(
+            `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+            [muthUserId],
+          );
+          await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+            muthUserId,
+          ]);
+        }
+      });
+
+      it('sin validFrom: fecha_inicio ≤ NOW() y el guard acepta EVALUADOR (200, no 403)', async () => {
+        muthUserId = await insertUser('muth_reloj');
+        muthUserEmail = emailOf('muth_reloj');
+
+        try {
+          jest.useFakeTimers({
+            now: Date.now() + 120_000,
+            doNotFake: [
+              'nextTick',
+              'setImmediate',
+              'setTimeout',
+              'setInterval',
+              'clearTimeout',
+              'clearInterval',
+              'queueMicrotask',
+              'hrtime',
+              'performance',
+            ],
+          });
+
+          const res = await patch(
+            `/auth/users/${muthUserId}/roles`,
+            u.secretaria.token,
+            { roles: ['EVALUADOR'] },
+          );
+          expect(res.status).toBe(200);
+        } finally {
+          jest.useRealTimers();
+        }
+
+        const rows: Array<{ vigente: boolean }> = await ds.query(
+          `SELECT (ur.fecha_inicio <= NOW()) AS vigente
+           FROM catalogos.usuarios_roles ur
+           JOIN catalogos.roles r ON r.id = ur.rol_id
+           WHERE ur.usuario_id = $1 AND r.codigo = 'EVALUADOR'`,
+          [muthUserId],
+        );
+        expect(rows).toHaveLength(1);
+        expect(rows[0].vigente).toBe(true);
+
+        clearGuardCache();
+        const login = await request(app.getHttpServer())
+          .post('/api/auth/login')
+          .send({ email: muthUserEmail, password: PWD });
+        const token = login.body?.access_token ?? '';
+        expect(token).toBeTruthy();
+        expect(login.body?.user?.roles ?? []).toContain('EVALUADOR');
+
+        const guardRes = await get('/evaluations/my-assignments', token);
+        expect(guardRes.status).toBe(200);
+      }, 30_000);
+    });
   });
 });
