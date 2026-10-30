@@ -43,6 +43,7 @@ import { AuditService } from '../src/modules/audit/application/services/audit.se
 import { IStorageService } from '../src/shared/storage/domain/ports/storage.service.port';
 import { PdfGeneratorService } from '../src/shared/utils/pdf-generator.service';
 import { DocxGeneratorService } from '../src/shared/utils/docx-generator.service';
+import { JwtService } from '@nestjs/jwt';
 import { FixedRolesMatrix1880000000000 } from '../src/migrations/1880000000000-FixedRolesMatrix';
 
 // ROL IDs en catalogos.roles (ceish_test_db post-migración)
@@ -750,6 +751,180 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
     });
   });
 
+  // ─── ROL INACTIVO con @Roles (TSK-001.1a.1) ───────────────────────────────
+  describe('ROL INACTIVO con @Roles: ZZ_TEST_INACTIVO_R excluido de roles y temporalRoles activos', () => {
+    const ROLE_CODE = 'ZZ_TEST_INACTIVO_R';
+    const USER_KEY = 'inactivo_roles';
+    let rolId = 0;
+    let userId = 0;
+    let decodedToken: any;
+
+    beforeAll(async () => {
+      await ds.query(
+        `DELETE FROM catalogos.usuarios_roles WHERE rol_id IN
+         (SELECT id FROM catalogos.roles WHERE codigo = $1)`,
+        [ROLE_CODE],
+      );
+      await ds.query(
+        `DELETE FROM catalogos.usuarios_roles WHERE usuario_id IN
+         (SELECT id FROM catalogos.usuarios WHERE email_institucional = $1)`,
+        [emailOf(USER_KEY)],
+      );
+      await ds.query(
+        `DELETE FROM catalogos.usuarios WHERE email_institucional = $1`,
+        [emailOf(USER_KEY)],
+      );
+      await ds.query(`DELETE FROM catalogos.roles WHERE codigo = $1`, [
+        ROLE_CODE,
+      ]);
+
+      const rolRows: Array<{ id: number }> = await ds.query(
+        `INSERT INTO catalogos.roles (nombre, codigo, activo)
+         VALUES ($1, $2, false) RETURNING id`,
+        ['ZZ Test Inactivo Roles', ROLE_CODE],
+      );
+      rolId = rolRows[0].id;
+
+      const hash = await bcrypt.hash(PWD, 10);
+      const userRows: Array<{ id: number }> = await ds.query(
+        `INSERT INTO catalogos.usuarios
+           (cedula, nombres_completos, email_institucional, password_hash, activo, email_verificado)
+         VALUES ($1, $2, $3, $4, true, true) RETURNING id`,
+        ['E2EFRMZZR1', 'E2E FRM Inactivo Roles', emailOf(USER_KEY), hash],
+      );
+      userId = userRows[0].id;
+
+      await ds.query(
+        `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id, fecha_inicio, fecha_fin)
+         VALUES ($1, $2, NOW() - INTERVAL '1 day', NOW() + INTERVAL '30 days')`,
+        [userId, rolId],
+      );
+
+      clearGuardCache();
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: emailOf(USER_KEY), password: PWD });
+
+      const token = res.body?.access_token ?? '';
+      const jwtService = app.get(JwtService);
+      decodedToken = jwtService.decode(token);
+    }, 30_000);
+
+    afterAll(async () => {
+      if (userId) {
+        await ds.query(
+          `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+          [userId],
+        );
+        await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+          userId,
+        ]);
+      }
+      if (rolId) {
+        await ds.query(`DELETE FROM catalogos.roles WHERE id = $1`, [rolId]);
+      }
+    });
+
+    beforeEach(() => clearGuardCache());
+
+    it('el token decodificado no debe contener el código en roles ni en temporalRoles con isExpired = false', () => {
+      const roles: string[] = decodedToken?.roles ?? [];
+      expect(roles).not.toContain(ROLE_CODE);
+
+      const temporalRoles: Array<{ code: string; isExpired: boolean }> =
+        decodedToken?.temporalRoles ?? [];
+      const activeTempRoles = temporalRoles.filter(
+        (tr) => tr.code === ROLE_CODE && tr.isExpired === false,
+      );
+      expect(activeTempRoles).toHaveLength(0);
+    });
+  });
+
+  // ─── ROL PROGRAMADO (TSK-001.1a.1) ────────────────────────────────────────
+  describe('ROL PROGRAMADO: EVALUADOR vigente y SECRETARIA con fecha_inicio = mañana', () => {
+    const USER_KEY = 'programado';
+    let userId = 0;
+    let token = '';
+    let decodedToken: any;
+
+    beforeAll(async () => {
+      await ds.query(
+        `DELETE FROM catalogos.usuarios_roles WHERE usuario_id IN
+         (SELECT id FROM catalogos.usuarios WHERE email_institucional = $1)`,
+        [emailOf(USER_KEY)],
+      );
+      await ds.query(
+        `DELETE FROM catalogos.usuarios WHERE email_institucional = $1`,
+        [emailOf(USER_KEY)],
+      );
+
+      const hash = await bcrypt.hash(PWD, 10);
+      const userRows: Array<{ id: number }> = await ds.query(
+        `INSERT INTO catalogos.usuarios
+           (cedula, nombres_completos, email_institucional, password_hash, activo, email_verificado)
+         VALUES ($1, $2, $3, $4, true, true) RETURNING id`,
+        ['E2EFRMPROG1', 'E2E FRM Programado', emailOf(USER_KEY), hash],
+      );
+      userId = userRows[0].id;
+
+      // 1. EVALUADOR vigente
+      await ds.query(
+        `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id, fecha_inicio, fecha_fin)
+         VALUES ($1, $2, NOW() - INTERVAL '1 day', NOW() + INTERVAL '30 days')`,
+        [userId, ROL.EVALUADOR],
+      );
+
+      // 2. SECRETARIA con fecha_inicio = mañana
+      await ds.query(
+        `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id, fecha_inicio, fecha_fin)
+         VALUES ($1, $2, NOW() + INTERVAL '1 day', NOW() + INTERVAL '30 days')`,
+        [userId, ROL.SECRETARIA],
+      );
+
+      clearGuardCache();
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/login')
+        .send({ email: emailOf(USER_KEY), password: PWD });
+
+      token = res.body?.access_token ?? '';
+      const jwtService = app.get(JwtService);
+      decodedToken = jwtService.decode(token);
+    }, 30_000);
+
+    afterAll(async () => {
+      if (userId) {
+        await ds.query(
+          `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+          [userId],
+        );
+        await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+          userId,
+        ]);
+      }
+    });
+
+    beforeEach(() => clearGuardCache());
+
+    it('SECRETARIA no aparece en roles', () => {
+      const roles: string[] = decodedToken?.roles ?? [];
+      expect(roles).not.toContain('SECRETARIA');
+      expect(roles).toContain('EVALUADOR');
+    });
+
+    it('en temporalRoles aparece con isExpired = true', () => {
+      const temporalRoles: Array<{ code: string; isExpired: boolean }> =
+        decodedToken?.temporalRoles ?? [];
+      const sec = temporalRoles.find((tr) => tr.code === 'SECRETARIA');
+      expect(sec).toBeDefined();
+      expect(sec?.isExpired).toBe(true);
+    });
+
+    it('un GET de meetings con @Roles(SECRETARIA, …) sin EVALUADOR → 403', async () => {
+      const res = await get('/evaluations/meetings/pending-protocols', token);
+      expect(res.status).toBe(403);
+    });
+  });
+
   // ─── MIGRACIÓN ────────────────────────────────────────────────────────────
   describe('MIGRACIÓN: up() aborta si falta secretaria@test.com con SECRETARIA vigente', () => {
     it('lanza [TSK-001.1a] ABORT cuando la cuenta de prueba no tiene SECRETARIA vigente', async () => {
@@ -772,6 +947,40 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
         `);
         const migration = new FixedRolesMatrix1880000000000();
         await expect(migration.up(qr)).rejects.toThrow('[TSK-001.1a] ABORT');
+      } finally {
+        await qr.rollbackTransaction();
+        await qr.release();
+      }
+    }, 15_000);
+
+    it('down() del rol 43: dentro de transacción con ROLLBACK, 43 queda con activo=false y eliminado_en=NULL, y ADMIN_TI con activo=true', async () => {
+      const qr = ds.createQueryRunner();
+      await qr.connect();
+      await qr.startTransaction();
+      try {
+        const migration = new FixedRolesMatrix1880000000000();
+        await migration.down(qr);
+
+        const roles: Array<{
+          codigo: string;
+          activo: boolean;
+          eliminado_en: Date | null;
+        }> = await qr.query(`
+          SELECT codigo, activo, eliminado_en
+          FROM catalogos.roles
+          WHERE codigo IN ('43', 'ADMIN_TI')
+        `);
+
+        const rol43 = roles.find((r) => r.codigo === '43');
+        const adminTi = roles.find((r) => r.codigo === 'ADMIN_TI');
+
+        expect(rol43).toBeDefined();
+        expect(rol43?.activo).toBe(false);
+        expect(rol43?.eliminado_en).toBeNull();
+
+        expect(adminTi).toBeDefined();
+        expect(adminTi?.activo).toBe(true);
+        expect(adminTi?.eliminado_en).toBeNull();
       } finally {
         await qr.rollbackTransaction();
         await qr.release();
