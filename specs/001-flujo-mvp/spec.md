@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.5.2
+**Versión:** 3.5.3
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -11,6 +11,7 @@
 **Historial:** 2026-10-28 — v3.5.0: HU-001 roles fijos completo: ADMIN_TI absorbido, segregación INVESTIGADOR excluyente, una sola SECRETARIA, matriz de permisos fija, permisos retirados, asistente IA, reglas de migración de datos
 **Historial:** 2026-10-28 — v3.5.1: HU-001 c) Presidente ve la consolidación de dictámenes; i) permiso por endpoint; j) vigencia en sesión y guards
 **Historial:** 2026-10-29 — v3.5.2: HU-001 b) cambio de investigador a comité sin protocolos en curso; registro con cédula o correo repetidos
+**Historial:** 2026-10-30 — v3.5.3: HU-001 GET /auth/roles de solo lectura; administración del asistente IA solo SECRETARIA; asignación rechaza roles inexistentes, inactivos o eliminados
 
 ---
 
@@ -90,7 +91,7 @@ Solo puede haber un usuario con el rol `SECRETARIA` activo a la vez. Si se inten
 
 **c) Matriz de permisos fija (decisión 28/10/2026)**
 
-La matriz se siembra por migración y **no se edita desde la aplicación**. Los endpoints que escriben en tablas de roles, módulos, permisos y `rol_permisos` se cierran. — Reemplaza a: gestión dinámica de permisos — decisión 28/10/2026
+La matriz se siembra por migración y **no se edita desde la aplicación**. Los endpoints que escriben en tablas de roles, módulos, permisos y `rol_permisos` se cierran. Se retiran todos los endpoints de RolesController y PermissionsController, salvo GET /auth/roles: se mantiene solo de lectura, con USUARIOS_VER, y devuelve únicamente los roles activos y sin eliminado_en (los 4 fijos). Lo usa el formulario de usuarios del frontend. — Reemplaza a: gestión dinámica de permisos — decisión 28/10/2026; GET /auth/roles de solo lectura — decisión 30/10/2026
 
 | Permiso | SECRETARIA | PRESIDENTE | EVALUADOR | INVESTIGADOR |
 |---|---|---|---|---|
@@ -121,6 +122,7 @@ La matriz se siembra por migración y **no se edita desde la aplicación**. Los 
 - La asignación de roles la hace la Secretaría con el permiso `USUARIOS_GESTIONAR` (módulo `MOD_USUARIOS`).
 - `Permission.ROLES_ASSIGN` pasa a apuntar a `USUARIOS_GESTIONAR`. — Reemplaza a: ROLES_ASSIGN como permiso propio — decisión 28/10/2026
 - El permiso `PERMISOS_GESTIONAR` queda retirado (ver punto e).
+- La asignación rechaza (400) cualquier código de rol inexistente, inactivo (`activo = false`) o eliminado (`eliminado_en IS NOT NULL`). — decisión 30/10/2026
 
 **e) Permisos retirados (decisión 28/10/2026)**
 
@@ -128,7 +130,7 @@ Los siguientes permisos se retiran con `eliminado_en` (sin borrado físico): `PE
 
 **f) Asistente IA — `allowed_roles` (decisión 28/10/2026)**
 
-La administración del módulo de IA pasa a `SECRETARIA`. `ADMIN_TI` se elimina de `allowed_roles`. — Reemplaza a: ADMIN_TI en allowed_roles — decisión 28/10/2026
+La administración del asistente IA es solo de `SECRETARIA`. — Reemplaza a: ADMIN_TI en allowed_roles — decisión 28/10/2026
 
 **g) Suplencias de rol**
 
