@@ -16,7 +16,7 @@
   - **Resultados TSK-001.1a:** 202 E2E / 454 unit · 12 mutaciones detectadas (10 nombradas + MUT-2b + MUT-4b)
   - **Resultados TSK-001.1a.1:** 207 E2E / 454 unit · 3 nuevas mutaciones detectadas
   - **Resultados TSK-001.1b:** 221 E2E / 467 unit · 10 mutaciones detectadas (M1 a M10)
-  - **Resultados TSK-001.1c:** 69 E2E (×5 estable, spec fixed-roles-matrix) / 469 unit · 8 mutaciones verificadas (MUT-A, MUT-B, MUT-D, MUT-E, MUT-E2, MUT-F, MUT-H; MUT-G no detectable) · fix clock-skew: `COALESCE($1, NOW())` elimina 403 intermitentes por reloj Node > Postgres (~385 ms desfase medido) · Nota: El spec v3.5.3 (5ec6269) se actualizó después del primer commit de código (82193b3).
+  - **Resultados TSK-001.1c (PR #63):** 234 E2E (14 suites; fixed-roles-matrix 69, estable en 4 corridas seguidas) / 469 unit · 7 mutaciones detectadas (MUT-A, MUT-B, MUT-D, MUT-E, MUT-E2, MUT-F, MUT-H) y 1 no detectable (MUT-G) · Incluye la corrección de un fallo intermitente que venía de TSK-001.1b: fecha_inicio se guardaba con el reloj de la API y el guard compara con NOW() de Postgres; causa probable, desfase entre el reloj de Windows y el de Postgres en Docker (medido entre −385 y −484 ms en un momento dado, variable). Se reproduce con una E2E que adelanta el reloj de la API 120 s · El spec v3.5.3 (5ec6269) se actualizó después del primer commit de código (82193b3).
 
   | Mutación | Condición eliminada | Prueba que falla |
   |---|---|---|
@@ -52,7 +52,7 @@
   | MUT-E2 eliminados | añade `withDeleted: true` al `find()` de `updateUserRoles` (evita el `@DeleteDateColumn` de BaseOrmEntity) | `PATCH /auth/users/:id/roles con ZZ_TEST_DEL (activo=true, eliminado_en=NOW) → 400` | 6 failed, 62 passed |
   | MUT-F código inexistente | elimina `throw BadRequestException` cuando `invalidCodes.length > 0` | `PATCH /auth/users/:id/roles con ["ADMIN_TI"] → 400` · `PATCH /auth/users/:id/roles con ["FOO","EVALUADOR"] → 400` | 4 failed, 64 passed |
   | MUT-G búsqueda por name | añade `...map(c => ({ name: c, isActive: true }))` al `where` del `find()` | **MUT-G no detectable**: ningún nombre de rol activo coincide con los códigos de prueba; la condición adicional nunca retorna filas | 0 failed, 68 passed |
-  | MUT-H clock-skew | reemplaza `COALESCE($1, NOW())` por `$1` en UPDATE/INSERT de `updateUserRoles` (vuelve a `new Date()` de Node) | `fecha_inicio asignada sin validFrom es ≤ NOW() según Postgres` · 403 intermitentes cuando reloj de Node adelanta al de Postgres | 1 E2E failed, 68 skipped · 2 unit failed |
+  | MUT-H clock-skew | vuelve a `new Date()` y `fecha_inicio = $n` sin COALESCE en el INSERT y el UPDATE | `sin validFrom: fecha_inicio ≤ NOW() y el guard acepta EVALUADOR (200, no 403)` · 2 unitarias de COALESCE en users.service.spec.ts | 1 E2E failed, 68 skipped · 2 unit failed |
 
   > **MUT-H0**: pasar `null` sin `COALESCE` guarda `fecha_inicio = NULL`; el guard lo acepta (`fecha_inicio IS NULL OR …`), pero eso no representa el código anterior. No cuenta como detección del reloj.
 
