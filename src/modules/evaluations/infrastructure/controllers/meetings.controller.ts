@@ -77,12 +77,7 @@ export class MeetingsController {
   // ==========================================
 
   @Get('places')
-  @Roles(
-    RoleCode.SECRETARIA,
-    RoleCode.PRESIDENTE,
-    RoleCode.ADMIN_TI,
-    RoleCode.EVALUADOR,
-  )
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR)
   @ApiOperation({
     summary: 'Listar lugares de reunión (solo activos por defecto)',
   })
@@ -109,12 +104,7 @@ export class MeetingsController {
   }
 
   @Get('places/:id')
-  @Roles(
-    RoleCode.SECRETARIA,
-    RoleCode.PRESIDENTE,
-    RoleCode.ADMIN_TI,
-    RoleCode.EVALUADOR,
-  )
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR)
   @ApiOperation({ summary: 'Obtener un lugar de reunión por ID' })
   @ApiOkResponse({ type: PlaceSingleResponseDto })
   async findPlaceById(@Param('id', ParseUUIDPipe) id: string): Promise<{
@@ -135,7 +125,7 @@ export class MeetingsController {
 
   @Post('places')
   @HttpCode(HttpStatus.CREATED)
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @Audit('PLACE_CREATED')
   @ApiOperation({
     summary: 'Crear un nuevo lugar de reunión (Secretaría/Presidente)',
@@ -162,7 +152,7 @@ export class MeetingsController {
   }
 
   @Patch('places/:id')
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @Audit('PLACE_UPDATED')
   @ApiOperation({
     summary: 'Actualizar un lugar de reunión (Secretaría/Presidente)',
@@ -191,7 +181,7 @@ export class MeetingsController {
   }
 
   @Delete('places/:id')
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @Audit('PLACE_DELETED')
   @ApiOperation({
     summary: 'Eliminar/desactivar un lugar de reunión (Secretaría/Presidente)',
@@ -211,7 +201,7 @@ export class MeetingsController {
   // ==========================================
 
   @Get('pending-protocols')
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @ApiOperation({
     summary:
       'Obtener listado de protocolos pendientes y priorizados para agendar a Pleno',
@@ -231,13 +221,7 @@ export class MeetingsController {
   // ==========================================
 
   @Get()
-  @Roles(
-    RoleCode.SECRETARIA,
-    RoleCode.PRESIDENTE,
-    RoleCode.ADMIN_TI,
-    'ADMIN',
-    RoleCode.EVALUADOR,
-  )
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR)
   @ApiOperation({
     summary: 'Listar convocatorias con paginación y filtro por estado',
     description:
@@ -270,7 +254,7 @@ export class MeetingsController {
   }
 
   @Post('calculate-eval-date')
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI, 'ADMIN')
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Calcular fecha sugerida de entrega de evaluaciones',
@@ -292,7 +276,7 @@ export class MeetingsController {
   }
 
   @Post()
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI, 'ADMIN')
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @HttpCode(HttpStatus.CREATED)
   @ApiOperation({
     summary: 'Crear y agendar una convocatoria a Pleno con Orden del Día',
@@ -327,13 +311,7 @@ export class MeetingsController {
   }
 
   @Get(':id')
-  @Roles(
-    RoleCode.SECRETARIA,
-    RoleCode.PRESIDENTE,
-    RoleCode.ADMIN_TI,
-    'ADMIN',
-    RoleCode.EVALUADOR,
-  )
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR)
   @HttpCode(HttpStatus.OK)
   @ApiOperation({
     summary: 'Obtener detalle estructurado de una convocatoria por ID',
@@ -353,13 +331,7 @@ export class MeetingsController {
   }
 
   @Get(':id/pdf')
-  @Roles(
-    RoleCode.SECRETARIA,
-    RoleCode.PRESIDENTE,
-    RoleCode.ADMIN_TI,
-    'ADMIN',
-    RoleCode.EVALUADOR,
-  )
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR)
   @ApiOperation({
     summary: 'Descargar el PDF oficial del Orden del Día de la Convocatoria',
   })

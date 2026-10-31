@@ -147,7 +147,7 @@ export class RagService implements OnModuleInit {
           id: 1,
           petText,
           petFileName,
-          allowedRoles: ['SECRETARIA', 'EVALUADOR', 'PRESIDENTE', 'ADMIN_TI'],
+          allowedRoles: ['SECRETARIA', 'EVALUADOR', 'PRESIDENTE'],
         });
 
         config = await this.configRepository.save(config);
@@ -212,7 +212,6 @@ export class RagService implements OnModuleInit {
         'SECRETARIA',
         'EVALUADOR',
         'PRESIDENTE',
-        'ADMIN_TI',
       ],
       updatedAt: config?.updatedAt || new Date(),
     };
@@ -223,14 +222,7 @@ export class RagService implements OnModuleInit {
    */
   async getAllowedRoles(): Promise<string[]> {
     const config = await this.configRepository.findOne({ where: { id: 1 } });
-    return (
-      config?.allowedRoles || [
-        'SECRETARIA',
-        'EVALUADOR',
-        'PRESIDENTE',
-        'ADMIN_TI',
-      ]
-    );
+    return config?.allowedRoles || ['SECRETARIA', 'EVALUADOR', 'PRESIDENTE'];
   }
 
   /**

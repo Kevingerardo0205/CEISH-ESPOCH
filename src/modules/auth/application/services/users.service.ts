@@ -46,14 +46,10 @@ export class UsersService {
 
     try {
       if (dto.nationalId) {
-        const repo = this.dataSource.getRepository(UserOrmEntity);
-        const existingNationalId = queryRunner.manager?.findOne
-          ? await queryRunner.manager.findOne(UserOrmEntity, {
-              where: { nationalId: dto.nationalId },
-            })
-          : typeof repo?.findOne === 'function'
-            ? await repo.findOne({ where: { nationalId: dto.nationalId } })
-            : null;
+        const existingNationalId = await queryRunner.manager.findOne(
+          UserOrmEntity,
+          { where: { nationalId: dto.nationalId } },
+        );
         if (existingNationalId) {
           throw new BadRequestException('Esta cédula ya está registrada');
         }
@@ -254,13 +250,9 @@ export class UsersService {
 
     if (dto.fullName) updatePayload.fullName = dto.fullName;
     if (dto.nationalId && dto.nationalId !== user.nationalId) {
-      const repo = this.dataSource.getRepository(UserOrmEntity);
-      const existingNatId =
-        typeof repo?.findOne === 'function'
-          ? await repo.findOne({
-              where: { nationalId: dto.nationalId },
-            })
-          : null;
+      const existingNatId = await this.dataSource
+        .getRepository(UserOrmEntity)
+        .findOne({ where: { nationalId: dto.nationalId } });
       if (existingNatId) {
         throw new BadRequestException('Esta cédula ya está registrada');
       }
@@ -327,11 +319,9 @@ export class UsersService {
     }
 
     try {
-      const user = queryRunner.manager.findOne
-        ? await queryRunner.manager.findOne(UserOrmEntity, {
-            where: { id: userId },
-          })
-        : await this.userRepository.findById(userId);
+      const user = await queryRunner.manager.findOne(UserOrmEntity, {
+        where: { id: userId },
+      });
 
       if (!user) throw new NotFoundException('Usuario no encontrado');
 
@@ -342,18 +332,24 @@ export class UsersService {
         );
       }
 
-      // Obtener roles solicitados desde la BD
-      const allRoles = await this.dataSource
-        .getRepository(RoleOrmEntity)
-        .find();
-      const roles = allRoles.filter(
-        (r) =>
-          (r.code && upperRoleCodes.includes(r.code.toUpperCase())) ||
-          (r.name && upperRoleCodes.includes(r.name.toUpperCase())),
-      );
+      // Obtener roles solicitados: solo por código, activos y no eliminados
+      const roles =
+        upperRoleCodes.length > 0
+          ? await this.dataSource.getRepository(RoleOrmEntity).find({
+              where: upperRoleCodes.map((c) => ({ code: c, isActive: true })),
+            })
+          : [];
 
-      if (normalizedItems.length > 0 && roles.length === 0) {
-        throw new BadRequestException('Roles no válidos');
+      if (upperRoleCodes.length > 0) {
+        const foundCodes = roles.map((r) => r.code.toUpperCase());
+        const invalidCodes = upperRoleCodes.filter(
+          (c) => !foundCodes.includes(c),
+        );
+        if (invalidCodes.length > 0) {
+          throw new BadRequestException(
+            `Rol no válido: ${invalidCodes.join(', ')}`,
+          );
+        }
       }
 
       // 1. Obtener roles actuales vigentes del usuario
@@ -376,12 +372,9 @@ export class UsersService {
         RoleCode.INVESTIGADOR,
       );
       const requestedHasCommittee = upperRoleCodes.some((rc) =>
-        [
-          RoleCode.SECRETARIA,
-          RoleCode.PRESIDENTE,
-          RoleCode.EVALUADOR,
-          RoleCode.ADMIN_TI,
-        ].includes(rc as RoleCode),
+        [RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR].includes(
+          rc as RoleCode,
+        ),
       );
 
       if (currentHasInvestigator && requestedHasCommittee) {
@@ -477,9 +470,7 @@ export class UsersService {
         );
 
         if (roleEntity) {
-          const validFrom = item.validFrom
-            ? new Date(item.validFrom)
-            : new Date();
+          const validFrom = item.validFrom ? new Date(item.validFrom) : null;
           const validUntil = item.validUntil ? new Date(item.validUntil) : null;
           const reason = item.reason || null;
 
@@ -493,7 +484,7 @@ export class UsersService {
           if (existing.length > 0) {
             await queryRunner.manager.query(
               `UPDATE catalogos.usuarios_roles
-               SET fecha_inicio = $1, fecha_fin = $2, motivo_delegacion = $3, asignado_por = $4
+               SET fecha_inicio = COALESCE($1, NOW()), fecha_fin = $2, motivo_delegacion = $3, asignado_por = $4
                WHERE usuario_id = $5 AND rol_id = $6`,
               [
                 validFrom,
@@ -507,7 +498,7 @@ export class UsersService {
           } else {
             await queryRunner.manager.query(
               `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id, fecha_inicio, fecha_fin, motivo_delegacion, asignado_por)
-               VALUES ($1, $2, $3, $4, $5, $6)`,
+               VALUES ($1, $2, COALESCE($3, NOW()), $4, $5, $6)`,
               [
                 userId,
                 roleEntity.id,

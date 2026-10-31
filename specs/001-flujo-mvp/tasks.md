@@ -12,10 +12,11 @@
 ### Módulo: Autenticación y RBAC (`auth`)
 
 - [x] **TSK-001.1a**: Matriz de roles fija — migración + enum + sesión + guards + E2E + mutaciones *(subdividida en 1a/1b/1c — ver plan.md §1b)*
-  - **Subtareas:** [x] 1a · [x] 1a.1 · [x] 1b Segregación INVESTIGADOR y unicidad SECRETARIA · [ ] 1c Retirar RolesController/PermissionsController + limpiar ADMIN_TI
+  - **Subtareas:** [x] 1a · [x] 1a.1 · [x] 1b Segregación INVESTIGADOR y unicidad SECRETARIA · [x] 1c Retirar RolesController/PermissionsController + limpiar ADMIN_TI
   - **Resultados TSK-001.1a:** 202 E2E / 454 unit · 12 mutaciones detectadas (10 nombradas + MUT-2b + MUT-4b)
   - **Resultados TSK-001.1a.1:** 207 E2E / 454 unit · 3 nuevas mutaciones detectadas
   - **Resultados TSK-001.1b:** 221 E2E / 467 unit · 10 mutaciones detectadas (M1 a M10)
+  - **Resultados TSK-001.1c:** 69 E2E (×5 estable, spec fixed-roles-matrix) / 469 unit · 8 mutaciones verificadas (MUT-A, MUT-B, MUT-D, MUT-E, MUT-E2, MUT-F, MUT-H; MUT-G no detectable) · fix clock-skew: `COALESCE($1, NOW())` elimina 403 intermitentes por reloj Node > Postgres (~385 ms desfase medido) · Nota: El spec v3.5.3 (5ec6269) se actualizó después del primer commit de código (82193b3).
 
   | Mutación | Condición eliminada | Prueba que falla |
   |---|---|---|
@@ -39,6 +40,21 @@
   | MUT-1a.1-1 temporalRoles | `r.activo = true AND r.eliminado_en IS NULL` en `temporalRolesRaw` | ROL INACTIVO con @Roles: el token decodificado no debe contener el código en roles ni en temporalRoles con isExpired = false |
   | MUT-1a.1-2 temporalRoles | `(ur.fecha_inicio IS NOT NULL AND ur.fecha_inicio > NOW())` en `is_expired` | ROL PROGRAMADO: en temporalRoles aparece con isExpired = true |
   | MUT-1a.1-3 migración down | `activo = true` en `UPDATE catalogos.roles WHERE codigo = '43'` en `down()` | down() del rol 43: dentro de transacción con ROLLBACK, 43 queda con activo=false y eliminado_en=NULL, y ADMIN_TI con activo=true |
+
+  ##### Mutaciones TSK-001.1c (Retirar RolesController/PermissionsController + validación de códigos de rol)
+
+  | Mutación | Condición alterada / eliminada | Prueba que falla (nombre exacto) | Tests |
+  |---|---|---|---|
+  | MUT-A getRoles | `activo = true AND eliminado_en IS NULL` en `getRoles` | `GET /auth/roles → devuelve exactamente 4 roles activos (SECRETARIA, PRESIDENTE, EVALUADOR, INVESTIGADOR)` | detectada (sin conteo registrado) |
+  | MUT-B IA | Validación de código SECRETARIA exclusivo en `ai-assistant-admin` | `PUT /admin/ai-assistant/roles → 403 con PRESIDENTE (solo SECRETARIA tiene acceso)` | detectada (sin conteo registrado) |
+  | MUT-D guard | `@Permissions(Permission.USERS_VIEW)` en `GET /auth/roles` | `GET /auth/roles → 200 con SECRETARIA (tiene USUARIOS_VER)` | detectada (sin conteo registrado) |
+  | MUT-E activos | `isActive: true` en `find()` de `updateUserRoles` | `PATCH /auth/users/:id/roles con rol inactivo → 400 (activo=false excluido)` | 1 failed, 67 passed |
+  | MUT-E2 eliminados | añade `withDeleted: true` al `find()` de `updateUserRoles` (evita el `@DeleteDateColumn` de BaseOrmEntity) | `PATCH /auth/users/:id/roles con ZZ_TEST_DEL (activo=true, eliminado_en=NOW) → 400` | 6 failed, 62 passed |
+  | MUT-F código inexistente | elimina `throw BadRequestException` cuando `invalidCodes.length > 0` | `PATCH /auth/users/:id/roles con ["ADMIN_TI"] → 400` · `PATCH /auth/users/:id/roles con ["FOO","EVALUADOR"] → 400` | 4 failed, 64 passed |
+  | MUT-G búsqueda por name | añade `...map(c => ({ name: c, isActive: true }))` al `where` del `find()` | **MUT-G no detectable**: ningún nombre de rol activo coincide con los códigos de prueba; la condición adicional nunca retorna filas | 0 failed, 68 passed |
+  | MUT-H clock-skew | reemplaza `COALESCE($1, NOW())` por `$1` en UPDATE/INSERT de `updateUserRoles` (vuelve a `new Date()` de Node) | `fecha_inicio asignada sin validFrom es ≤ NOW() según Postgres` · 403 intermitentes cuando reloj de Node adelanta al de Postgres | 1 E2E failed, 68 skipped · 2 unit failed |
+
+  > **MUT-H0**: pasar `null` sin `COALESCE` guarda `fecha_inicio = NULL`; el guard lo acepta (`fecha_inicio IS NULL OR …`), pero eso no representa el código anterior. No cuenta como detección del reloj.
 
   ##### Mutaciones TSK-001.1b (Segregación INVESTIGADOR y unicidad SECRETARIA)
 

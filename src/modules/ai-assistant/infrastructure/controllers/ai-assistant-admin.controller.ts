@@ -20,7 +20,7 @@ import { RagService } from '../../application/services/rag.service';
 
 @Controller('admin/ai-assistant')
 @UseGuards(JwtAuthGuard, RolesGuard)
-@Roles(RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+@Roles(RoleCode.SECRETARIA)
 export class AiAssistantAdminController {
   constructor(private readonly ragService: RagService) {}
 

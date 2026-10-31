@@ -103,7 +103,7 @@ describe('Convocatorias Concurrency Stress Tests (e2e) - [TSK-009-009 / EARS 1]'
           req.user = {
             id: 1,
             email: 'secretaria@ceish.com',
-            roles: ['SECRETARIA', 'ADMIN'],
+            roles: ['SECRETARIA'],
             temporalRoles: [],
           };
           return true;

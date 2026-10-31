@@ -42,7 +42,7 @@ export class CallsController {
   // ==========================================
 
   @Post('places')
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @Audit('PLACE_CREATED')
   @ApiOperation({
     summary: 'Crear un nuevo lugar de reunión (Secretaría/Presidente)',
@@ -52,31 +52,21 @@ export class CallsController {
   }
 
   @Get('places')
-  @Roles(
-    RoleCode.SECRETARIA,
-    RoleCode.PRESIDENTE,
-    RoleCode.ADMIN_TI,
-    RoleCode.EVALUADOR,
-  )
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR)
   @ApiOperation({ summary: 'Listar todos los lugares de reunión' })
   async findAllPlaces() {
     return this.callsService.findAllPlaces();
   }
 
   @Get('places/:id')
-  @Roles(
-    RoleCode.SECRETARIA,
-    RoleCode.PRESIDENTE,
-    RoleCode.ADMIN_TI,
-    RoleCode.EVALUADOR,
-  )
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR)
   @ApiOperation({ summary: 'Obtener un lugar de reunión por ID' })
   async findPlaceById(@Param('id', ParseUUIDPipe) id: string) {
     return this.callsService.findPlaceById(id);
   }
 
   @Patch('places/:id')
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @Audit('PLACE_UPDATED')
   @ApiOperation({
     summary: 'Actualizar un lugar de reunión (Secretaría/Presidente)',
@@ -89,7 +79,7 @@ export class CallsController {
   }
 
   @Delete('places/:id')
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @Audit('PLACE_DELETED')
   @ApiOperation({
     summary: 'Eliminar/desactivar un lugar de reunión (Secretaría/Presidente)',
@@ -104,7 +94,7 @@ export class CallsController {
   // ==========================================
 
   @Get('protocols/pending')
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @ApiOperation({
     summary:
       'Obtener listado de protocolos pendientes y priorizados para agendar',
@@ -115,7 +105,7 @@ export class CallsController {
   }
 
   @Post()
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @Audit('CALL_CREATED')
   @ApiOperation({
     summary:
@@ -127,12 +117,7 @@ export class CallsController {
   }
 
   @Get()
-  @Roles(
-    RoleCode.SECRETARIA,
-    RoleCode.PRESIDENTE,
-    RoleCode.ADMIN_TI,
-    RoleCode.EVALUADOR,
-  )
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR)
   @ApiOperation({
     summary: 'Listar todas las convocatorias registradas (DEPRECATED)',
     deprecated: true,
@@ -142,12 +127,7 @@ export class CallsController {
   }
 
   @Get(':id')
-  @Roles(
-    RoleCode.SECRETARIA,
-    RoleCode.PRESIDENTE,
-    RoleCode.ADMIN_TI,
-    RoleCode.EVALUADOR,
-  )
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR)
   @ApiOperation({
     summary:
       'Obtener el detalle de una convocatoria por ID (DEPRECATED - Usar GET /evaluations/meetings/:id)',
@@ -158,12 +138,7 @@ export class CallsController {
   }
 
   @Get(':id/protocols')
-  @Roles(
-    RoleCode.SECRETARIA,
-    RoleCode.PRESIDENTE,
-    RoleCode.ADMIN_TI,
-    RoleCode.EVALUADOR,
-  )
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.EVALUADOR)
   @ApiOperation({
     summary:
       'Listar protocolos agendados en una convocatoria específica (DEPRECATED)',
@@ -178,7 +153,7 @@ export class CallsController {
   // ==========================================
 
   @Post('minutes/:id/sign')
-  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE, RoleCode.ADMIN_TI)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
   @Audit('MINUTES_SIGNED')
   @ApiOperation({
     summary: 'Firma electrónica del acta por parte de Presidente o Secretario',

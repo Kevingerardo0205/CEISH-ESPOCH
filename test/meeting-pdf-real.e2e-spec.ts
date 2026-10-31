@@ -76,7 +76,7 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
           req.user = {
             id: 910,
             email: 'secretaria-m4@test.com',
-            roles: ['SECRETARIA', 'ADMIN_TI', 'PRESIDENTE'],
+            roles: ['SECRETARIA', 'PRESIDENTE'],
             permissions: Object.values(Permission),
           };
           return true;
@@ -405,7 +405,7 @@ describe('TEST-M5: MeetingPdfGeneratorAdapter — datos faltantes — TSK-009-N2
           req.user = {
             id: 920,
             email: 'secretaria-m5@test.com',
-            roles: ['SECRETARIA', 'ADMIN_TI', 'PRESIDENTE'],
+            roles: ['SECRETARIA', 'PRESIDENTE'],
             permissions: Object.values(Permission),
           };
           return true;

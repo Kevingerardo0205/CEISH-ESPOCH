@@ -71,7 +71,7 @@ src/
 | 1a | ✅ Hecho (PR #60) | Migración de la matriz fija y los datos; permiso por endpoint (HU-001 i); vigencia en sesión y guards (HU-001 j); pruebas E2E con el `PermissionsGuard` real; 12 mutaciones detectadas (MUT-1 a MUT-10 + MUT-2b + MUT-4b) |
 | 1a.1 | ✅ Hecho (pendiente de PR) | Vigencia en temporalRoles (login): exclusión de roles inactivos/eliminados y validación fecha_inicio > NOW() (HU-001 j); corrección down() para rol '43' (activo=false, eliminado_en=NULL) y ADMIN_TI (activo=true); 3 mutaciones detectadas |
 | 1b | ✅ Hecho (pendiente de PR) | Segregación (INVESTIGADOR excluyente) y una sola SECRETARIA vigente, en el registro y en la asignación de roles |
-| 1c | 🔲 Pendiente | Retirar `RolesController` y `PermissionsController` completos; quitar `ADMIN_TI` y `'ADMIN'` del código, los presets y las pruebas; administración del asistente IA para SECRETARIA; eliminar `PERMISOS_GESTIONAR` del enum |
+| 1c | ✅ Hecho | Retirar `RolesController` y `PermissionsController`, salvo GET /auth/roles (solo lectura, `USUARIOS_VER`, devuelve los 4 roles activos y sin `eliminado_en`); quitar `ADMIN_TI` y `'ADMIN'` del código, presets y pruebas; asistente IA solo `SECRETARIA`; eliminar `PERMISOS_GESTIONAR` del enum; `updateUserRoles` rechaza (400) códigos inexistentes, inactivos o con `eliminado_en` no nulo; limpieza de código muerto (`PermissionsController`, `RolesService`, `PermissionsService`, presets y DTOs sin importadores) |
 
 ### 1a — Alcance técnico
 

@@ -189,6 +189,15 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       `DELETE FROM catalogos.usuarios WHERE email_institucional LIKE $1`,
       [`%${EMAIL_SUFFIX}`],
     );
+    // Limpiar roles ZZ_TEST_% residuales (sin usuarios asignados)
+    await ds.query(
+      `DELETE FROM catalogos.rol_permisos WHERE rol_id IN
+       (SELECT id FROM catalogos.roles WHERE codigo LIKE 'ZZ_TEST_%')`,
+    );
+    await ds.query(
+      `DELETE FROM catalogos.roles WHERE codigo LIKE 'ZZ_TEST_%'
+       AND NOT EXISTS (SELECT 1 FROM catalogos.usuarios_roles ur WHERE ur.rol_id = catalogos.roles.id)`,
+    );
 
     const hash = await bcrypt.hash(PWD, 10);
 
@@ -258,19 +267,16 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
   }, 60_000);
 
   afterAll(async () => {
-    const ids = Object.values(u)
-      .map((x) => x.id)
-      .filter(Boolean);
-    if (ids.length > 0) {
-      await ds.query(
-        `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = ANY($1::int[])`,
-        [ids],
-      );
-      await ds.query(
-        `DELETE FROM catalogos.usuarios WHERE id = ANY($1::int[])`,
-        [ids],
-      );
-    }
+    // Limpieza global: elimina TODOS los usuarios de prueba (incluidos los creados ad-hoc en describe blocks)
+    await ds.query(
+      `DELETE FROM catalogos.usuarios_roles WHERE usuario_id IN
+       (SELECT id FROM catalogos.usuarios WHERE email_institucional LIKE $1)`,
+      [`%${EMAIL_SUFFIX}`],
+    );
+    await ds.query(
+      `DELETE FROM catalogos.usuarios WHERE email_institucional LIKE $1`,
+      [`%${EMAIL_SUFFIX}`],
+    );
     await app.close();
   });
 
@@ -326,7 +332,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(res.status).toBe(200);
     });
 
-    it('GET /auth/admin-only → 403 (no tiene rol ADMIN_TI ni PRESIDENTE)', async () => {
+    it('GET /auth/admin-only → 403 (no tiene rol PRESIDENTE)', async () => {
       const res = await get('/auth/admin-only', u.secretaria.token);
       expect(res.status).toBe(403);
     });
@@ -370,7 +376,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(res.status).toBe(403);
     });
 
-    it('GET /auth/admin-only → 403 (no tiene PRESIDENTE ni ADMIN_TI)', async () => {
+    it('GET /auth/admin-only → 403 (no tiene rol PRESIDENTE)', async () => {
       const res = await get('/auth/admin-only', u.evaluador.token);
       expect(res.status).toBe(403);
     });
@@ -393,7 +399,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(res.status).toBe(403);
     });
 
-    it('GET /auth/admin-only → 403 (no tiene PRESIDENTE ni ADMIN_TI)', async () => {
+    it('GET /auth/admin-only → 403 (no tiene rol PRESIDENTE)', async () => {
       const res = await get('/auth/admin-only', u.investigador.token);
       expect(res.status).toBe(403);
     });
@@ -520,7 +526,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(res.status).toBe(403);
     });
 
-    it('GET /auth/admin-only → 403 (no tiene PRESIDENTE ni ADMIN_TI vigente)', async () => {
+    it('GET /auth/admin-only → 403 (no tiene rol PRESIDENTE vigente)', async () => {
       const res = await get('/auth/admin-only', revSecToken);
       expect(res.status).toBe(403);
     });
@@ -752,9 +758,11 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(codes).not.toContain('PERMISOS_GESTIONAR');
     });
 
-    it('GET /auth/roles → 403 (PERMISOS_GESTIONAR en rol_permisos pero eliminado_en lo excluye del guard)', async () => {
+    // TSK-001.1c: GET /auth/roles ahora usa @Permissions(USUARIOS_VER), no PERMISOS_GESTIONAR.
+    // SECRETARIA tiene USUARIOS_VER activo → recibe 200 aunque PERMISOS_GESTIONAR esté retirado.
+    it('GET /auth/roles → 200 (TSK-001.1c: usa USUARIOS_VER; PERMISOS_GESTIONAR retirado no afecta)', async () => {
       const res = await get('/auth/roles', u.secretaria.token);
-      expect(res.status).toBe(403);
+      expect(res.status).toBe(200);
     });
   });
 
@@ -1435,6 +1443,270 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
             );
           }
         }
+      }, 30_000);
+    });
+  });
+
+  // ─── TSK-001.1c: RETIRO DE ROLES/PERMISSIONS CONTROLLERS + LIMPIEZA ADMIN_TI ─
+  describe('TSK-001.1c — GET /auth/roles read-only con USUARIOS_VER; rutas retiradas; asistente IA', () => {
+    // MUT-D: restaurar guard PERMISOS_GESTIONAR en GET /auth/roles → SECRETARIA obtendría 403;
+    //        este test espera 200 → falla al mutar.
+    it('GET /auth/roles → 200 con SECRETARIA (tiene USUARIOS_VER)', async () => {
+      const res = await get('/auth/roles', u.secretaria.token);
+      expect(res.status).toBe(200);
+    });
+
+    // MUT-A: quitar filtro activo=true del getRoles() → respuesta incluiría roles inactivos → length > 4
+    it('GET /auth/roles → devuelve exactamente 4 roles activos (SECRETARIA, PRESIDENTE, EVALUADOR, INVESTIGADOR)', async () => {
+      const res = await get('/auth/roles', u.secretaria.token);
+      expect(res.status).toBe(200);
+      expect(Array.isArray(res.body)).toBe(true);
+      expect(res.body).toHaveLength(4);
+      const codes: string[] = res.body.map((r: any) => r.code as string);
+      expect(codes).toContain('SECRETARIA');
+      expect(codes).toContain('PRESIDENTE');
+      expect(codes).toContain('EVALUADOR');
+      expect(codes).toContain('INVESTIGADOR');
+      expect(codes).not.toContain('ADMIN_TI');
+    });
+
+    it('GET /auth/roles → 403 con EVALUADOR (no tiene USUARIOS_VER)', async () => {
+      const res = await get('/auth/roles', u.evaluador.token);
+      expect(res.status).toBe(403);
+    });
+
+    it('POST /auth/roles → 404 (endpoint retirado en TSK-001.1c)', async () => {
+      const res = await request(app.getHttpServer())
+        .post('/api/auth/roles')
+        .set('Authorization', `Bearer ${u.secretaria.token}`)
+        .send({ code: 'TEST', name: 'Test', description: 'Test' });
+      expect(res.status).toBe(404);
+    });
+
+    it('GET /auth/modules → 404 (PermissionsController retirado en TSK-001.1c)', async () => {
+      const res = await get('/auth/modules', u.secretaria.token);
+      expect(res.status).toBe(404);
+    });
+
+    it('GET /auth/permissions → 404 (PermissionsController retirado en TSK-001.1c)', async () => {
+      const res = await get('/auth/permissions', u.secretaria.token);
+      expect(res.status).toBe(404);
+    });
+
+    // MUT-B: restaurar @Roles(PRESIDENTE) en AI admin → PRESIDENTE obtendría 200;
+    //        este test espera 403 con PRESIDENTE → falla al mutar.
+    it('PUT /admin/ai-assistant/roles → 403 con PRESIDENTE (solo SECRETARIA tiene acceso)', async () => {
+      const res = await request(app.getHttpServer())
+        .put('/api/admin/ai-assistant/roles')
+        .set('Authorization', `Bearer ${u.presidente.token}`)
+        .send({ allowedRoles: ['SECRETARIA', 'EVALUADOR'] });
+      expect(res.status).toBe(403);
+    });
+
+    it('PUT /admin/ai-assistant/roles → no 403 con SECRETARIA', async () => {
+      const res = await request(app.getHttpServer())
+        .put('/api/admin/ai-assistant/roles')
+        .set('Authorization', `Bearer ${u.secretaria.token}`)
+        .send({ allowedRoles: ['SECRETARIA', 'EVALUADOR'] });
+      expect(res.status).not.toBe(403);
+    });
+
+    // MUT-E: si updateUserRoles acepta roles inactivos/inexistentes, este test falla
+    it('PATCH /auth/users/:id/roles con ["ADMIN_TI"] → 400 (código inexistente en roles activos)', async () => {
+      const testUserId = await insertUser('inv_rol_admti');
+      const res = await patch(
+        `/auth/users/${testUserId}/roles`,
+        u.secretaria.token,
+        { roles: ['ADMIN_TI'] },
+      );
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/Rol no válido/);
+    });
+
+    // MUT-F: si updateUserRoles ignora códigos inexistentes, asigna solo EVALUADOR sin error
+    it('PATCH /auth/users/:id/roles con ["FOO","EVALUADOR"] → 400 y usuario sin cambios', async () => {
+      const testUserId = await insertUser('inv_rol_foo');
+      const rolesBefore: Array<{ rol_id: number }> = await ds.query(
+        `SELECT rol_id FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+        [testUserId],
+      );
+      const res = await patch(
+        `/auth/users/${testUserId}/roles`,
+        u.secretaria.token,
+        { roles: ['FOO', 'EVALUADOR'] },
+      );
+      expect(res.status).toBe(400);
+      expect(res.body.message).toMatch(/Rol no válido/);
+      const rolesAfter: Array<{ rol_id: number }> = await ds.query(
+        `SELECT rol_id FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+        [testUserId],
+      );
+      expect(rolesAfter).toHaveLength(rolesBefore.length);
+    });
+
+    // MUT-E: si updateUserRoles no filtra activo=false, aceptaría este rol inactivo
+    describe('TSK-001.1c — rol inactivo creado en prueba rechazado por updateUserRoles', () => {
+      const INACTIVE_CODE = 'ZZ_TEST_INV_CODES';
+      let inactiveRolId = 0;
+      let testUserId = 0;
+
+      beforeAll(async () => {
+        await ds.query(`DELETE FROM catalogos.roles WHERE codigo = $1`, [
+          INACTIVE_CODE,
+        ]);
+        const rows: Array<{ id: number }> = await ds.query(
+          `INSERT INTO catalogos.roles (nombre, codigo, activo)
+           VALUES ($1, $2, false) RETURNING id`,
+          ['ZZ Test Inv Codes', INACTIVE_CODE],
+        );
+        inactiveRolId = rows[0].id;
+        testUserId = await insertUser('inv_rol_inactive');
+      }, 15_000);
+
+      afterAll(async () => {
+        if (testUserId) {
+          await ds.query(
+            `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+            [testUserId],
+          );
+          await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+            testUserId,
+          ]);
+        }
+        if (inactiveRolId) {
+          await ds.query(`DELETE FROM catalogos.roles WHERE id = $1`, [
+            inactiveRolId,
+          ]);
+        }
+      });
+
+      it('PATCH /auth/users/:id/roles con rol inactivo → 400 (activo=false excluido)', async () => {
+        const res = await patch(
+          `/auth/users/${testUserId}/roles`,
+          u.secretaria.token,
+          { roles: [INACTIVE_CODE] },
+        );
+        expect(res.status).toBe(400);
+        expect(res.body.message).toMatch(/Rol no válido/);
+      });
+    });
+
+    // MUT-E2: si TypeORM @DeleteDateColumn no filtra eliminado_en, updateUserRoles aceptaría el rol
+    describe('TSK-001.1c — rol activo+eliminado rechazado por updateUserRoles', () => {
+      const DELETED_CODE = 'ZZ_TEST_DEL';
+      let deletedRolId = 0;
+      let testUserId = 0;
+
+      beforeAll(async () => {
+        await ds.query(`DELETE FROM catalogos.roles WHERE codigo = $1`, [
+          DELETED_CODE,
+        ]);
+        const rows: Array<{ id: number }> = await ds.query(
+          `INSERT INTO catalogos.roles (nombre, codigo, activo, eliminado_en)
+           VALUES ($1, $2, true, NOW()) RETURNING id`,
+          ['ZZ Test Del', DELETED_CODE],
+        );
+        deletedRolId = rows[0].id;
+        testUserId = await insertUser('inv_rol_deleted');
+      }, 15_000);
+
+      afterAll(async () => {
+        if (testUserId) {
+          await ds.query(
+            `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+            [testUserId],
+          );
+          await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+            testUserId,
+          ]);
+        }
+        if (deletedRolId) {
+          await ds.query(`DELETE FROM catalogos.roles WHERE id = $1`, [
+            deletedRolId,
+          ]);
+        }
+      });
+
+      it('PATCH /auth/users/:id/roles con ZZ_TEST_DEL (activo=true, eliminado_en=NOW) → 400', async () => {
+        const res = await patch(
+          `/auth/users/${testUserId}/roles`,
+          u.secretaria.token,
+          { roles: [DELETED_CODE] },
+        );
+        expect(res.status).toBe(400);
+        expect(res.body.message).toMatch(/Rol no válido/);
+      });
+    });
+
+    // MUT-H: si updateUserRoles vuelve a new Date() en vez de null + COALESCE($1, NOW()),
+    // con el reloj de la API adelantado 120 s la fecha_inicio queda en el futuro,
+    // Postgres la considera no vigente y el guard devuelve 403.
+    describe('TSK-001.1c — MUT-H: fecha_inicio usa el reloj de Postgres con la API adelantada 120 s', () => {
+      let muthUserId = 0;
+      let muthUserEmail = '';
+
+      afterAll(async () => {
+        if (muthUserId) {
+          await ds.query(
+            `DELETE FROM catalogos.usuarios_roles WHERE usuario_id = $1`,
+            [muthUserId],
+          );
+          await ds.query(`DELETE FROM catalogos.usuarios WHERE id = $1`, [
+            muthUserId,
+          ]);
+        }
+      });
+
+      it('sin validFrom: fecha_inicio ≤ NOW() y el guard acepta EVALUADOR (200, no 403)', async () => {
+        muthUserId = await insertUser('muth_reloj');
+        muthUserEmail = emailOf('muth_reloj');
+
+        try {
+          jest.useFakeTimers({
+            now: Date.now() + 120_000,
+            doNotFake: [
+              'nextTick',
+              'setImmediate',
+              'setTimeout',
+              'setInterval',
+              'clearTimeout',
+              'clearInterval',
+              'queueMicrotask',
+              'hrtime',
+              'performance',
+            ],
+          });
+
+          const res = await patch(
+            `/auth/users/${muthUserId}/roles`,
+            u.secretaria.token,
+            { roles: ['EVALUADOR'] },
+          );
+          expect(res.status).toBe(200);
+        } finally {
+          jest.useRealTimers();
+        }
+
+        const rows: Array<{ vigente: boolean }> = await ds.query(
+          `SELECT (ur.fecha_inicio <= NOW()) AS vigente
+           FROM catalogos.usuarios_roles ur
+           JOIN catalogos.roles r ON r.id = ur.rol_id
+           WHERE ur.usuario_id = $1 AND r.codigo = 'EVALUADOR'`,
+          [muthUserId],
+        );
+        expect(rows).toHaveLength(1);
+        expect(rows[0].vigente).toBe(true);
+
+        clearGuardCache();
+        const login = await request(app.getHttpServer())
+          .post('/api/auth/login')
+          .send({ email: muthUserEmail, password: PWD });
+        const token = login.body?.access_token ?? '';
+        expect(token).toBeTruthy();
+        expect(login.body?.user?.roles ?? []).toContain('EVALUADOR');
+
+        const guardRes = await get('/evaluations/my-assignments', token);
+        expect(guardRes.status).toBe(200);
       }, 30_000);
     });
   });

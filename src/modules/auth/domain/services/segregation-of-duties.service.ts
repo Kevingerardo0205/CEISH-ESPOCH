@@ -28,7 +28,6 @@ const COMMITTEE_ROLES: RoleCode[] = [
   RoleCode.SECRETARIA,
   RoleCode.PRESIDENTE,
   RoleCode.EVALUADOR,
-  RoleCode.ADMIN_TI,
 ];
 
 @Injectable()
