@@ -106,7 +106,7 @@
 
 ### Módulo: Catálogo de Estados y Etapas del Protocolo (`protocols` / `reception`)
 
-- [ ] **TSK-001.2**: Etapa y orden en `catalogos.estados`, y la etapa en los listados de protocolos (RF-EST.1, RF-EST.2 parcial — spec v3.5.5, 04/11/2026)
+- [x] **TSK-001.2**: Etapa y orden en `catalogos.estados`, y la etapa en los listados de protocolos (RF-EST.1, RF-EST.2 parcial — spec v3.5.5, 04/11/2026)
   - **Requisitos cubiertos:** `RF-EST.1`, `RF-EST.2` (parcial)
   - **Archivos:**
     - CREAR `src/migrations/1890000000000-AddEtapaOrdenToEstados.ts` — columnas `etapa` (varchar, NULL, CHECK de las 6 etapas) y `orden` (smallint, NULL, CHECK 1-6) y siembra por id; `down` quita los CHECK y las columnas.
@@ -118,6 +118,21 @@
   - **Cambio:** `GET /protocols` (y `mis-protocolos`, `mis-subsanaciones`, que usan el mismo `findAll`) y `GET /reception/protocols` agregan `etapa` (código) y `etapaOrden` (1-6, o null). La etapa sale de `resolveProtocolStage` con la regla de RF-EST.1 (protocolo → recepción → RECEPCION; APROBADO pasa a SEGUIMIENTO con resolución emitida para la versión activa). Sin otros cambios en esas respuestas. `findById` no se toca, porque sus llamadores guardan la entidad después y una relación `status` cargada podría pisar `estado_id`.
   - **Pruebas:** unitarias de `resolveProtocolStage` (cada fila de la tabla, la precedencia y la excepción APROBADO); E2E `test/protocol-stage.e2e-spec.ts` contra `ceish_test_db` con datos `ZZ_TEST_` (catálogo por id; `GET /protocols` y `GET /reception/protocols` para NULL+COMPLETO → ASIGNACION, EN_EVALUACION → EVALUACION, APROBADO sin resolución → RESOLUCION, APROBADO con resolución → SEGUIMIENTO, NULL+INICIADO → RECEPCION).
   - **Hecho cuando:** la migración corre en `ceish_test_db` (en `ceish_db` la aplica el usuario), las pruebas nuevas y las existentes pasan, y las mutaciones (precedencia invertida, APROBADO siempre SEGUIMIENTO, COMPLETO → RECEPCION en la semilla, sin join del estado de la recepción, orden por estado) hacen fallar al menos una prueba cada una.
+  - **Resultados (04/11/2026):** 509 unit (59 suites; +40 de `resolve-protocol-stage.spec.ts`) · E2E `protocol-stage` 12 + `fixed-roles-matrix` 69 + `login-errors` 8 = 89, estable en 2 corridas seguidas · tsc 0 errores · eslint: 0 errores en los archivos tocados salvo `protocols.service.ts` (10, igual que en `dev`) · migración aplicada en `ceish_test_db` (up, down y up de nuevo); en `ceish_db`: NO EJECUTADO (la aplica el usuario) · convocatorias huérfanas en `ceish_test_db` = 57 · residuos `ZZ_TEST_` y `@e2e-etapas.test` = 0 · suite E2E completa: NO EJECUTADO (la corre el usuario)
+  - **Consultas:** `GET /protocols` = 2 SELECT (ids distintos para paginar + principal, como antes) y `GET /reception/protocols` = 1 SELECT; los estados y las resoluciones van por `LEFT JOIN` (`catalogos.estados` ×2, `resolucion.resoluciones`), sin consultas por fila.
+
+  | Mutación | Qué se rompió | Prueba que falla (nombre exacto) | Tests |
+  |---|---|---|---|
+  | MUT-E1 precedencia invertida | `receptionStatus ?? protocolStatus` | unit: `el estado del protocolo manda sobre el de la recepción` · `APROBADO sin resolución emitida → RESOLUCION (4)` · E2E (en los dos endpoints): `EN_EVALUACION → etapa EVALUACION, etapaOrden 3` · `APROBADO_SIN_RES → etapa RESOLUCION, etapaOrden 4` | unit 2 failed, 38 passed · E2E 4 failed, 8 passed |
+  | MUT-E2 APROBADO siempre SEGUIMIENTO | se ignora `resolutionEmitted` | unit: `estado 17 → etapa RESOLUCION` · `APROBADO sin resolución emitida → RESOLUCION (4)` · E2E (en los dos endpoints): `APROBADO_SIN_RES → etapa RESOLUCION, etapaOrden 4` | unit 2 failed, 38 passed · E2E 2 failed, 10 passed |
+  | MUT-E3 semilla COMPLETO → RECEPCION | migración: id 10 con `RECEPCION`/1 (revert + run en `ceish_test_db`) | `el catálogo tiene la etapa y el orden esperados por id (E3)` · (en los dos endpoints) `NULL_COMPLETO → etapa ASIGNACION, etapaOrden 2` | E2E 3 failed, 9 passed |
+  | MUT-E4 sin join del estado de la recepción | se quita `leftJoinAndSelect('reception.status', …)` en los dos listados | (en los dos endpoints) `NULL_COMPLETO → etapa ASIGNACION, etapaOrden 2` | E2E 2 failed, 10 passed |
+  | MUT-E5 orden por estado | `order` = id del estado en lugar de la posición de la etapa | unit: 25 casos (p. ej. `estado 9 → etapa RECEPCION`, `estado 10 → etapa ASIGNACION`) · E2E: 10 casos (todos los de los dos endpoints salvo `NULL_SIN_RECEPCION`) | unit 25 failed, 15 passed · E2E 10 failed, 2 passed |
+
+  - **Notas:**
+    - `ProtocolMapper.toResponse` no cambia: lo usan también `GET /protocols/:id` y `POST /protocols`, que cargan el protocolo con `findById` sin los joins. Los listados usan `ProtocolMapper.toListResponse` (= `toResponse` + `toStage`) y `GET /reception/protocols` usa `ProtocolMapper.toStage`.
+    - Marca de «resolución emitida» (E4): fila en `resolucion.resoluciones` con `version_id` = versión activa (`fecha_emision` NOT NULL, DEFAULT now()). Hoy `resolutions.service.ts` crea esa fila en la misma transacción en la que pone el protocolo en APROBADO, así que «APROBADO sin resolución» solo aparece con datos cargados fuera de ese flujo.
+    - En `ceish_db` el usuario aplica la migración con `MIGRATION_CONFIRM_DB=ceish_db npm run migration:run`.
 
 - [ ] **TSK-001.3**: `etapa` y `etapaOrden` en el resto de endpoints con datos de protocolo (RF-EST.2, resto)
   - **Requisitos cubiertos:** `RF-EST.2`
