@@ -18,8 +18,33 @@ import { IUserRepository } from '../../domain/ports/user.repository.port';
 import { IInvestigatorProfileRepository } from '../../domain/ports/investigator-profile.repository.port';
 
 import { RoleCode } from '../../domain/enums/role.enum';
+import {
+  LoginErrorCode,
+  LOGIN_ERROR_MESSAGES,
+} from '../../domain/enums/login-error-code.enum';
 
 import { SetupAccountDto } from '../dtos/setup-account.dto';
+
+/**
+ * HU-001 k) Cuerpo de un rechazo del login: conserva la forma por defecto de
+ * Nest (statusCode, message, error) y añade el código estable `code`.
+ */
+function loginErrorBody(
+  code: LoginErrorCode,
+  statusCode: 401 | 403,
+): {
+  statusCode: number;
+  message: string;
+  error: string;
+  code: LoginErrorCode;
+} {
+  return {
+    statusCode,
+    message: LOGIN_ERROR_MESSAGES[code],
+    error: statusCode === 401 ? 'Unauthorized' : 'Forbidden',
+    code,
+  };
+}
 
 @Injectable()
 export class AuthService {
@@ -100,25 +125,27 @@ export class AuthService {
     const user = await this.userRepository.findByEmail(email);
 
     if (!user || !user.passwordHash) {
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        loginErrorBody(LoginErrorCode.INVALID_CREDENTIALS, 401),
+      );
     }
 
     if (!user.isActive) {
       throw new UnauthorizedException(
-        'Su cuenta está desactivada. Contacte al administrador.',
+        loginErrorBody(LoginErrorCode.ACCOUNT_DISABLED, 401),
       );
     }
 
     if (!user.isEmailVerified) {
       throw new ForbiddenException(
-        'Por favor, confirma tu correo electrónico antes de iniciar sesión.',
+        loginErrorBody(LoginErrorCode.EMAIL_NOT_VERIFIED, 403),
       );
     }
 
     // Check lockout
     if (user.blockedUntil && user.blockedUntil > new Date()) {
       throw new ForbiddenException(
-        'Account temporarily locked. Try again later.',
+        loginErrorBody(LoginErrorCode.ACCOUNT_LOCKED, 403),
       );
     }
 
@@ -126,7 +153,9 @@ export class AuthService {
 
     if (!isMatch) {
       await this.handleFailedAttempt(user);
-      throw new UnauthorizedException('Invalid credentials');
+      throw new UnauthorizedException(
+        loginErrorBody(LoginErrorCode.INVALID_CREDENTIALS, 401),
+      );
     }
 
     // Reset failed attempts on success

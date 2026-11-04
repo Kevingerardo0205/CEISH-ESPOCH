@@ -91,6 +91,19 @@
     - Hay mutaciones que comprueban que esas pruebas fallan si se quita cada regla.
     - El lint se corre solo sobre los archivos cambiados (`npx eslint <archivos>`, sin `--fix`).
 
+- [x] **TSK-001.1d**: Rechazos del login con código estable y mensajes en español (HU-001 k, spec v3.5.4 — 04/11/2026)
+  - **Archivos:** CREAR `src/modules/auth/domain/enums/login-error-code.enum.ts` (`LoginErrorCode`, `LOGIN_ERROR_MESSAGES`) · MODIFICAR `src/modules/auth/application/services/auth.service.ts` (`validateUser`) · CREAR `test/login-errors.e2e-spec.ts`
+  - **Cambio:** cada rechazo de `POST /auth/login` devuelve `code` (`INVALID_CREDENTIALS`, `ACCOUNT_DISABLED`, `EMAIL_NOT_VERIFIED`, `ACCOUNT_LOCKED`) en `body.error.code`, con la forma previa (`statusCode`, `message`, `error`). Sin cambios en status, orden de validaciones, lógica de bloqueo ni en `HttpExceptionFilter`.
+  - **Resultados (04/11/2026):** 469 unit (58 suites) · E2E `login-errors` 8 + `fixed-roles-matrix` 69 = 77, estable en 2 corridas seguidas · tsc 0 errores · eslint sin errores en los 3 archivos · residuos `@e2e-login.test` en `ceish_test_db` = 0 · suite E2E completa: NO EJECUTADO (la corre el usuario)
+
+  | Mutación | Qué se rompió | Prueba que falla (nombre exacto) | Tests |
+  |---|---|---|---|
+  | MUT-L1 sin code en bloqueo | `ACCOUNT_LOCKED` lanza `{ statusCode, message, error }` sin `code` | `cuenta bloqueada → 403, ACCOUNT_LOCKED, mensaje en español` · `bloqueo sin cambios: el 3.er fallo responde INVALID_CREDENTIALS y el siguiente ACCOUNT_LOCKED` | 2 failed, 6 passed |
+  | MUT-L2 mensaje de verificación | `EMAIL_NOT_VERIFIED` → "Debe verificar su correo electrónico antes de iniciar sesión." (sin "confirma tu correo") | `correo sin verificar → 403, EMAIL_NOT_VERIFIED, mensaje de verificación sin cambios` | 1 failed, 7 passed |
+  | MUT-L3 distinguir correo inexistente | correo inexistente → mensaje "El correo no está registrado." | `correo inexistente → 401, INVALID_CREDENTIALS, "Correo o contraseña incorrectos."` · `correo inexistente y contraseña incorrecta devuelven el mismo cuerpo de error` | 2 failed, 6 passed |
+
+  - **Nota frontend:** el mensaje de bloqueo ya no contiene "locked"; el frontend debe reconocer ese caso por `code === 'ACCOUNT_LOCKED'`.
+
 ---
 
 ### Módulo: Evaluaciones y Cuotas por Perfil (`evaluations`)
