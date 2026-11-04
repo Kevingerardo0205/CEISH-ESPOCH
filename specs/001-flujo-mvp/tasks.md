@@ -104,6 +104,28 @@
 
   - **Nota frontend:** el mensaje de bloqueo ya no contiene "locked"; el frontend debe reconocer ese caso por `code === 'ACCOUNT_LOCKED'`.
 
+### Módulo: Catálogo de Estados y Etapas del Protocolo (`protocols` / `reception`)
+
+- [ ] **TSK-001.2**: Etapa y orden en `catalogos.estados`, y la etapa en los listados de protocolos (RF-EST.1, RF-EST.2 parcial — spec v3.5.5, 04/11/2026)
+  - **Requisitos cubiertos:** `RF-EST.1`, `RF-EST.2` (parcial)
+  - **Archivos:**
+    - CREAR `src/migrations/1890000000000-AddEtapaOrdenToEstados.ts` — columnas `etapa` (varchar, NULL, CHECK de las 6 etapas) y `orden` (smallint, NULL, CHECK 1-6) y siembra por id; `down` quita los CHECK y las columnas.
+    - CREAR `src/modules/protocols/infrastructure/database/status.entity.orm.ts` (`StatusOrmEntity`, `catalogos.estados`).
+    - CREAR `src/modules/protocols/domain/enums/protocol-stage.enum.ts` (`ProtocolStage`, `PROTOCOL_STAGE_ORDER`).
+    - CREAR `src/modules/protocols/domain/services/resolve-protocol-stage.ts` y su `resolve-protocol-stage.spec.ts` (`resolveProtocolStage`).
+    - CREAR `test/protocol-stage.e2e-spec.ts`.
+    - MODIFICAR `src/modules/protocols/infrastructure/database/protocol.entity.orm.ts` (relación `status`), `src/modules/reception/infrastructure/database/reception.entity.orm.ts` (relación `status`), `src/modules/evaluations/infrastructure/database/protocol-version.entity.orm.ts` (relación `resolutions`, para E4), `src/modules/protocols/protocols.module.ts` (registra `StatusOrmEntity`), `src/modules/protocols/infrastructure/repositories/protocol.typeorm.repository.ts` (joins en `findAll` y `findProtocolsForReception`), `src/modules/protocols/application/mappers/protocol.mapper.ts`, `src/modules/protocols/application/services/protocols.service.ts` (`findAll`), `src/modules/reception/application/services/reception.service.ts` (`getProtocolsForReception`).
+  - **Cambio:** `GET /protocols` (y `mis-protocolos`, `mis-subsanaciones`, que usan el mismo `findAll`) y `GET /reception/protocols` agregan `etapa` (código) y `etapaOrden` (1-6, o null). La etapa sale de `resolveProtocolStage` con la regla de RF-EST.1 (protocolo → recepción → RECEPCION; APROBADO pasa a SEGUIMIENTO con resolución emitida para la versión activa). Sin otros cambios en esas respuestas. `findById` no se toca, porque sus llamadores guardan la entidad después y una relación `status` cargada podría pisar `estado_id`.
+  - **Pruebas:** unitarias de `resolveProtocolStage` (cada fila de la tabla, la precedencia y la excepción APROBADO); E2E `test/protocol-stage.e2e-spec.ts` contra `ceish_test_db` con datos `ZZ_TEST_` (catálogo por id; `GET /protocols` y `GET /reception/protocols` para NULL+COMPLETO → ASIGNACION, EN_EVALUACION → EVALUACION, APROBADO sin resolución → RESOLUCION, APROBADO con resolución → SEGUIMIENTO, NULL+INICIADO → RECEPCION).
+  - **Hecho cuando:** la migración corre en `ceish_test_db` (en `ceish_db` la aplica el usuario), las pruebas nuevas y las existentes pasan, y las mutaciones (precedencia invertida, APROBADO siempre SEGUIMIENTO, COMPLETO → RECEPCION en la semilla, sin join del estado de la recepción, orden por estado) hacen fallar al menos una prueba cada una.
+
+- [ ] **TSK-001.3**: `etapa` y `etapaOrden` en el resto de endpoints con datos de protocolo (RF-EST.2, resto)
+  - **Requisitos cubiertos:** `RF-EST.2`
+  - **Endpoints:** `GET /protocols/:id`, `POST /protocols` (requieren cargar el estado sin arriesgar los `save` que siguen a `findById`), `GET /reception/protocol/:id`, `GET /evaluations/protocols/pending-peer-assignment`, `GET /evaluations/my-assignments`, `GET /evaluations/evaluators/dashboard`, `GET /evaluations/peer-assignments/my-pending`, `GET /evaluations/meetings/pending-protocols`, `GET /evaluations/meetings`, `GET /resolutions/protocol/:protocolId`. `CallsController` queda fuera (legacy).
+  - **Hecho cuando:** cada endpoint devuelve la etapa calculada con `resolveProtocolStage`, con pruebas E2E.
+
+- [ ] **Pendiente aparte (E8):** en `ceish_test_db` faltan las FK hacia `catalogos.estados` que crea `1791000000000-RefactorEstadosDictamenes` (asignaciones_evaluacion, versiones_protocolo, recepciones), aunque la migración figura como aplicada. Revisar en otra tarea.
+
 ---
 
 ### Módulo: Evaluaciones y Cuotas por Perfil (`evaluations`)
