@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.5.3
+**Versión:** 3.5.4
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -12,6 +12,7 @@
 **Historial:** 2026-10-28 — v3.5.1: HU-001 c) Presidente ve la consolidación de dictámenes; i) permiso por endpoint; j) vigencia en sesión y guards
 **Historial:** 2026-10-29 — v3.5.2: HU-001 b) cambio de investigador a comité sin protocolos en curso; registro con cédula o correo repetidos
 **Historial:** 2026-10-30 — v3.5.3: HU-001 GET /auth/roles de solo lectura; administración del asistente IA solo SECRETARIA; asignación rechaza roles inexistentes, inactivos o eliminados
+**Historial:** 2026-11-04 — v3.5.4: HU-001 k) rechazos del login con código estable (`code`) y mensajes en español; credenciales inválidas con un mismo mensaje para correo inexistente y contraseña incorrecta
 
 ---
 
@@ -161,6 +162,20 @@ Un rol vencido o revocado (`fecha_fin` pasada), inactivo o eliminado, y un permi
 Después de migrar la matriz hay que reiniciar el backend, porque `PermissionsGuard` tiene una caché de 5 minutos.
 
 La vigencia se evalúa con el reloj de la base de datos; cuando la asignación no trae fecha de inicio, se usa `NOW()` de la base. — decisión 30/10/2026
+
+**k) Rechazos del login (decisión 04/11/2026)**
+
+Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del mensaje. El frontend reconoce el caso por `code`; el mensaje es en español. Con el filtro global, ambos llegan en `body.error.code` y `body.error.message`.
+
+| Caso | Status | `code` | Mensaje |
+|---|---|---|---|
+| Correo inexistente o contraseña incorrecta | 401 | `INVALID_CREDENTIALS` | Correo o contraseña incorrectos. |
+| Cuenta desactivada | 401 | `ACCOUNT_DISABLED` | Su cuenta está desactivada. Contacte al administrador. |
+| Correo sin verificar | 403 | `EMAIL_NOT_VERIFIED` | Por favor, confirma tu correo electrónico antes de iniciar sesión. |
+| Cuenta bloqueada temporalmente por intentos fallidos | 403 | `ACCOUNT_LOCKED` | Cuenta bloqueada temporalmente por intentos fallidos. Intente más tarde. |
+
+- El mensaje de correo inexistente y el de contraseña incorrecta son idénticos, para no revelar si el correo está registrado.
+- Los status, el orden de las validaciones (correo registrado → desactivada → correo sin verificar → bloqueo → contraseña) y la regla de bloqueo no cambian: el intento fallido que alcanza el máximo responde `INVALID_CREDENTIALS` y fija el bloqueo; los intentos siguientes, mientras dure, responden `ACCOUNT_LOCKED`.
 
 ---
 
