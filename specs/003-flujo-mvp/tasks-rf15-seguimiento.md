@@ -237,3 +237,29 @@
   - Servicios que usen las constantes parametrizables — inyectar `SystemParamsService` donde sea necesario.
 - **Tests**: Prueba unitaria: si `SystemParamsService.get('plazo_subsanacion_documental_dias')` retorna `20`, el servicio usa `20`; si retorna `null`, usa el fallback `30`. Ídem para `plazo_condicion_dias`.
 - **Criterio "Hecho cuando:"**: Al menos las constantes listadas se leen desde BD en runtime; la prueba de fallback pasa en verde; `npx tsc --noEmit` limpio.
+
+### Task TSK-015-N06 - [ ] PENDIENTE (rama feat/rf-alr-f-pendientes)
+- **ID Único**: `TSK-015-N06`
+- **Requisito Relacionado**: `RF-ALR.f` (spec-003 v1.5.2, RF-ALR.f.1 a f.6), `RF-EST.1` (spec-001, `resolveProtocolStage`)
+- **Criterio EARS**: **Cuando** la Secretaría consulte `GET /api/secretaria/pendientes`, **el sistema debe** devolver en una sola consulta sus pendientes VALIDAR, ASIGNAR y REASIGNAR, con `estadoPlazo` calculado en America/Guayaquil, ordenados con los vencidos primero y con los totales por grupo.
+- **Acción**: `CREAR` (módulo nuevo) y `MODIFICAR` (`AppModule`)
+- **Archivos Afectados**:
+  - CREAR `src/modules/secretaria/secretaria.module.ts`
+  - CREAR `src/modules/secretaria/domain/pending-item.ts` — enums `PendingAction`, `DeadlineGroup` y tipos de fila
+  - CREAR `src/modules/secretaria/domain/services/classify-deadline.ts` — clasificación de `estadoPlazo` y domingo de la semana en Ecuador (usa `toCalendarDateString` de `deadline-calculator.service.ts`)
+  - CREAR `src/modules/secretaria/domain/services/classify-deadline.spec.ts`
+  - CREAR `src/modules/secretaria/domain/ports/pending-items.repository.port.ts`
+  - CREAR `src/modules/secretaria/application/services/pending-items.service.ts` — etapa con `resolveProtocolStage`, orden, filtro y totales
+  - CREAR `src/modules/secretaria/application/services/pending-items.service.spec.ts`
+  - CREAR `src/modules/secretaria/application/dtos/pending-items-query.dto.ts` — `filtro` con `@IsOptional` + `@IsIn`
+  - CREAR `src/modules/secretaria/application/dtos/pending-items-response.dto.ts`
+  - CREAR `src/modules/secretaria/infrastructure/repositories/pending-items.typeorm.repository.ts` — una consulta SQL parametrizada con CTEs y `UNION ALL`
+  - CREAR `src/modules/secretaria/infrastructure/controllers/secretaria.controller.ts` — `@Roles(SECRETARIA)` + `@Permissions(DASHBOARD_VENCIMIENTOS)`
+  - CREAR `test/secretaria-pendientes.e2e-spec.ts`
+  - MODIFICAR `src/app.module.ts` — registrar `SecretariaModule`
+- **Dependencias**: TSK-001.2 (`resolveProtocolStage`), TSK-002-N44 (`fecha_limite_ts` al agendar)
+- **Descripción**: Vista unificada de pendientes de la Secretaría según RF-ALR.f.1–f.5. Sin migraciones. Las filas a) y b) llevan `fechaPlazo = null` y `estadoPlazo = SIN_PLAZO`; la fila c) usa el plazo vencido más antiguo del protocolo. No se implementan las filas de RF-ALR.f.6.
+- **Tests**:
+  - Unitarias: clasificación de `estadoPlazo` (plazo que ya pasó hoy, vence hoy más tarde, domingo de la semana, lunes siguiente, sin plazo, 23:30 en Ecuador cuando en UTC ya es el día siguiente); orden, filtro y totales del servicio.
+  - E2E `test/secretaria-pendientes.e2e-spec.ts` con login real (`secretaria@test.com`, `presidente@test.com`; la contraseña se lee de `E2E_TEST_ACCOUNTS_PASSWORD`): filas a/b/c, exclusiones, filtros, totales, 400, 401 y 403 para PRESIDENTE. Datos con prefijo `ZZ_TEST_PEND_`, borrados en `beforeAll` y `afterAll` (residuos = 0).
+- **Criterio "Hecho cuando:"**: tsc, `nest build`, unitarias y E2E (suite nueva 2 veces seguidas y la corrida completa con `--runInBand`) en verde; eslint limpio en los archivos tocados; mutaciones de cada regla detectadas.
