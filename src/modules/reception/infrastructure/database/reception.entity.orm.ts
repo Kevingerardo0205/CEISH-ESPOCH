@@ -9,6 +9,7 @@ import {
 import type { Relation } from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
+import { StatusOrmEntity } from '../../../protocols/infrastructure/database/status.entity.orm';
 
 @Entity({ name: 'recepciones', schema: 'recepcion' })
 export class ReceptionOrmEntity {
@@ -35,6 +36,11 @@ export class ReceptionOrmEntity {
 
   @Column({ name: 'estado_id', nullable: true })
   statusId?: number;
+
+  /** Solo lectura en listados (TSK-001.2): no se asigna al guardar. */
+  @ManyToOne(() => StatusOrmEntity)
+  @JoinColumn({ name: 'estado_id' })
+  status?: StatusOrmEntity | null;
 
   @Column({ name: 'tiene_faltantes', default: false })
   hasMissingItems!: boolean;

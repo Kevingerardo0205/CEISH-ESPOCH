@@ -53,7 +53,7 @@ export class ProtocolsService {
   async findAll(query: QueryProtocolDto) {
     const [data, total] = await this.protocolsRepository.findAll(query);
     return paginate(
-      data.map((p) => ProtocolMapper.toResponse(p)),
+      data.map((p) => ProtocolMapper.toListResponse(p)),
       total,
       query,
     );

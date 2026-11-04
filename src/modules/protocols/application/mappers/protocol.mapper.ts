@@ -2,8 +2,37 @@ import { ProtocolOrmEntity } from '../../infrastructure/database/protocol.entity
 import { InvestigatorMapper } from './investigator.mapper';
 import { InstitutionMapper } from './institution.mapper';
 import { RequirementMapper } from './requirement.mapper';
+import { ProtocolStage } from '../../domain/enums/protocol-stage.enum';
+import { resolveProtocolStage } from '../../domain/services/resolve-protocol-stage';
+
+export interface ProtocolStageFields {
+  etapa: ProtocolStage | null;
+  etapaOrden: number | null;
+}
 
 export class ProtocolMapper {
+  /**
+   * Etapa del protocolo (RF-EST.1/RF-EST.2, TSK-001.2). Requiere que la consulta haya
+   * cargado `status`, `activeVersion.reception.status` y `activeVersion.resolutions`.
+   */
+  static toStage(orm: ProtocolOrmEntity): ProtocolStageFields {
+    const { stage, order } = resolveProtocolStage(
+      orm.status,
+      orm.activeVersion?.reception?.status,
+      (orm.activeVersion?.resolutions?.length ?? 0) > 0,
+    );
+    return { etapa: stage, etapaOrden: order };
+  }
+
+  /** Respuesta de los listados de GET /protocols: toResponse + etapa y etapaOrden. */
+  static toListResponse(orm: ProtocolOrmEntity) {
+    if (!orm) return null;
+    return {
+      ...ProtocolMapper.toResponse(orm),
+      ...ProtocolMapper.toStage(orm),
+    };
+  }
+
   static toResponse(orm: ProtocolOrmEntity) {
     if (!orm) return null;
     return {
