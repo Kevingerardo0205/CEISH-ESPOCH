@@ -2,12 +2,13 @@
 
 **Código de Especificación:** `specs/003-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 1.5.1  
+**Versión:** 1.5.2  
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v1.4.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v1.4.1: RF-ALR renovación cambia a `alerta_renovacion_offsets_dias` [90, 60, 15]; HU-015 EARS 3 usa el parámetro  
 **Historial:** 2026-10-27 — v1.5.0: CS-06 plazo dictamen 48 h corridas; CS-07 4 resultados del pleno; CS-08 corrección de decisión; CS-09 asistencia y quórum; CS-11 seguimiento precisión; CS-13 endpoint pendientes — rediseño 27/10/2026
-**Historial:** 2026-10-28 — v1.5.1: sección Pendientes de confirmar con el comité añadida
+**Historial:** 2026-10-28 — v1.5.1: sección Pendientes de confirmar con el comité añadida  
+**Historial:** 2026-11-04 — v1.5.2: RF-ALR.f contrato de `GET /secretaria/pendientes`, detección de las filas VALIDAR, ASIGNAR y REASIGNAR, grupos de plazo en America/Guayaquil y filas omitidas con su motivo (decisiones pendientes de validar con la Secretaría)
 
 ---
 
@@ -206,6 +207,57 @@ Especificar las reglas operativas, funcionales y de integridad para:
   | Aprobado · sin resolución | Emitir |
   | Informe no entregado | Ver control |
 
+  **RF-ALR.f.1 — Filas implementadas (decisión 04/11/2026, pendiente de validar con la Secretaría)**
+
+  Todas las filas se calculan sobre la versión activa del protocolo (`protocolos.version_actual_id`) y excluyen protocolos con `eliminado_en`.
+
+  | Fila | Se detecta cuando | `estadoActual` | `accion` | `accionTexto` | Plazo |
+  |---|---|---|---|---|---|
+  | a) Validar | La recepción de la versión activa está en `EN_REVISION_SECRETARIA` (15). | Recepción por validar | `VALIDAR` | Validar documentos | Sin plazo |
+  | b) Asignar | Recepción `COMPLETO` (10), `protocolos.estado_id` NULL, `nivel_riesgo_confirmado = false`, `sometimiento_tiempos_aceptado = true` y ninguna asignación activa (`SUGERIDO` 5 o `ASIGNADO` 6) en la versión activa. Se excluyen los que esperan la aceptación de plazos del investigador. | Recepción completa · sin evaluadores | `ASIGNAR` | Asignar evaluadores | Sin plazo |
+  | c) Reasignar | Hay una asignación `ASIGNADO` (6) de la versión activa que pertenece a una convocatoria con plazo (`convocatoria_protocolos` sin `eliminado_en`, convocatoria no `CANCELADA` y con `fecha_entrega_evaluacion`), y su plazo `COALESCE(fecha_limite_ts, fin del día de fecha_limite en America/Guayaquil)` es anterior a `NOW()` de la base. Las asignaciones sin convocatoria no cuentan. | En evaluación · dictamen vencido | `REASIGNAR` | Reasignar evaluador | El plazo vencido más antiguo del protocolo (una sola fila por protocolo) |
+
+  **RF-ALR.f.2 — Grupos de plazo (`estadoPlazo`)**: se calculan con `NOW()` de la base y la fecha de calendario de Ecuador (America/Guayaquil); cada fila está en un solo grupo.
+  - `VENCIDO`: el instante del plazo ya pasó, aunque sea hoy.
+  - `HOY`: vence hoy en Ecuador y todavía no pasa.
+  - `SEMANA`: vence desde mañana hasta el domingo de la semana actual (la semana va de lunes a domingo).
+  - `PROXIMO`: vence después de ese domingo.
+  - `SIN_PLAZO`: la fila no tiene plazo (`fechaPlazo = null`).
+
+  Con las filas de RF-ALR.f.1, una fila con plazo siempre está vencida (fila c); `HOY`, `SEMANA` y `PROXIMO` quedan definidos para filas con plazo futuro que se añadan después.
+
+  **RF-ALR.f.3 — Orden y filtros**: orden `VENCIDO`, `HOY`, `SEMANA`, `PROXIMO`, `SIN_PLAZO`; dentro de cada grupo, por `fechaPlazo` ascendente y luego por `ceishCode`. El parámetro `filtro` acepta `todos` (por defecto, todas las filas), `vencidos`, `hoy` o `semana` (solo ese grupo); cualquier otro valor responde 400. `totales` no depende del filtro: `todos` cuenta todas las filas (incluye `PROXIMO` y `SIN_PLAZO`); `vencidos`, `hoy` y `semana`, las de cada grupo.
+
+  **RF-ALR.f.4 — Acceso**: `@Roles(SECRETARIA)` y `@Permissions(DASHBOARD_VENCIMIENTOS)`. Sin token: 401. `PRESIDENTE` (tiene el permiso, no el rol): 403.
+
+  **RF-ALR.f.5 — Contrato de respuesta** (`GET /api/secretaria/pendientes?filtro=todos|vencidos|hoy|semana`; fechas en ISO 8601):
+
+  ```json
+  {
+    "statusCode": 200,
+    "message": "Pendientes obtenidos exitosamente",
+    "data": {
+      "fechaReferencia": "2026-11-04",
+      "totales": { "todos": 0, "vencidos": 0, "hoy": 0, "semana": 0 },
+      "items": [{
+        "protocolId": 0, "ceishCode": "…", "title": "…",
+        "estadoActual": "En evaluación · dictamen vencido",
+        "etapa": "EVALUACION", "etapaOrden": 3,
+        "fechaPlazo": "2026-10-21T04:59:59.999Z", "estadoPlazo": "VENCIDO",
+        "accion": "REASIGNAR", "accionTexto": "Reasignar evaluador"
+      }]
+    }
+  }
+  ```
+
+  `fechaReferencia` es la fecha de hoy en Ecuador (`YYYY-MM-DD`). `etapa` y `etapaOrden` salen de `resolveProtocolStage` (spec-001 RF-EST.1). La vista se resuelve con una sola consulta a la base.
+
+  **RF-ALR.f.6 — Filas no implementadas en esta versión (decisión 04/11/2026)**
+  - Aprobado con condición → Enviar observaciones: el estado `APROBADO_CON_CONDICION` (25) no se asigna; la carta se envía al crear la resolución y no se registra la notificación (`fecha_notificacion_investigador` no se escribe), así que no hay forma de saber qué falta enviar.
+  - Aprobado · sin resolución → Emitir: no puede ocurrir; el estado `APROBADO` (17) se fija en la misma transacción que crea la resolución.
+  - Informe no entregado → Ver control: no existe el módulo de seguimiento.
+  - Pendientes de agendar: se dejan fuera por ahora.
+
 ---
 
 ## 5. Requisitos No Funcionales
@@ -263,3 +315,4 @@ Especificar las reglas operativas, funcionales y de integridad para:
 | 3 | Tiempo mínimo del oficio: ¿8 días para expedita y pleno o 15 (SRS v3.2)? | RF-12.7(c) en specs/002 | PENDIENTE |
 | 4 | ¿Cuál es el valor correcto de `dias_max_sin_convocatoria` y `dias_alerta_normativo_sin_convocatoria`? | RF-12.7(d) en specs/002 | PENDIENTE |
 | 5 | ¿La propuesta de riesgo de pares (`submit-risk`) exige convocatoria vigente (`403` si no hay)? Confirmar con Secretaría. | RF-12.7(4b) en specs/002 | PENDIENTE |
+| 6 | Vista de pendientes: ¿son correctas las filas implementadas (Validar, Asignar, Reasignar), sin plazo para Validar y Asignar, y la omisión de Aprobado con condición, Aprobado sin resolución, Informe no entregado y Pendientes de agendar? (decisiones del 04/11/2026) | RF-ALR.f.1–f.6 | PENDIENTE de validar con la Secretaría |

@@ -27,6 +27,7 @@ import { DosDefenseMiddleware } from './shared/middleware/dos-defense.middleware
 import { ThrottleExceptionFilter } from './shared/filters/throttle-exception.filter';
 import { StorageModule } from './shared/storage/storage.module';
 import { SistemaModule } from './modules/sistema/sistema.module';
+import { SecretariaModule } from './modules/secretaria/secretaria.module';
 
 @Module({
   imports: [
@@ -71,6 +72,7 @@ import { SistemaModule } from './modules/sistema/sistema.module';
     NotificationsModule,
     AiAssistantModule,
     StorageModule,
+    SecretariaModule,
   ],
   controllers: [],
   providers: [

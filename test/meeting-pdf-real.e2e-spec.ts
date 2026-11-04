@@ -251,7 +251,8 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
     const body = pdfRes.body as Buffer;
     expect(Buffer.isBuffer(body)).toBe(true);
     expect(body.slice(0, 5).toString('ascii')).toBe('%PDF-');
-  }, 30000);
+    // Genera el PDF real; tarda 24–34 s en la corrida E2E completa (medido el 04/11/2026).
+  }, 60000);
 
   it('M4-02: GET pdf de convocatoria sin protocolos en agenda → 200 application/pdf', async () => {
     // La API requiere ≥1 protocolo; se inserta la convocatoria directamente
@@ -335,7 +336,8 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
 
     spy.mockRestore();
     jest.restoreAllMocks();
-  }, 30000);
+    // Genera el PDF real; tarda 24–34 s en la corrida E2E completa (medido el 04/11/2026).
+  }, 60000);
 
   it('M4-03: GET pdf de convocatoria con lugar asignado → 200 application/pdf', async () => {
     const lugarRes: Array<{ id: string }> = await dataSource.query(`
@@ -374,7 +376,8 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
     const body = pdfRes.body as Buffer;
     expect(Buffer.isBuffer(body)).toBe(true);
     expect(body.slice(0, 5).toString('ascii')).toBe('%PDF-');
-  }, 30000);
+    // Genera el PDF real; tarda 24–34 s en la corrida E2E completa (medido el 04/11/2026).
+  }, 60000);
 });
 
 describe('TEST-M5: MeetingPdfGeneratorAdapter — datos faltantes — TSK-009-N26 (ceish_test_db)', () => {
