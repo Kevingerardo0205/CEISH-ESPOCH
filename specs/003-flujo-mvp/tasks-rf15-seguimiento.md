@@ -238,7 +238,7 @@
 - **Tests**: Prueba unitaria: si `SystemParamsService.get('plazo_subsanacion_documental_dias')` retorna `20`, el servicio usa `20`; si retorna `null`, usa el fallback `30`. Ídem para `plazo_condicion_dias`.
 - **Criterio "Hecho cuando:"**: Al menos las constantes listadas se leen desde BD en runtime; la prueba de fallback pasa en verde; `npx tsc --noEmit` limpio.
 
-### Task TSK-015-N06 - [ ] PENDIENTE (rama feat/rf-alr-f-pendientes)
+### Task TSK-015-N06 - [x] COMPLETADO (rama feat/rf-alr-f-pendientes)
 - **ID Único**: `TSK-015-N06`
 - **Requisito Relacionado**: `RF-ALR.f` (spec-003 v1.5.2, RF-ALR.f.1 a f.6), `RF-EST.1` (spec-001, `resolveProtocolStage`)
 - **Criterio EARS**: **Cuando** la Secretaría consulte `GET /api/secretaria/pendientes`, **el sistema debe** devolver en una sola consulta sus pendientes VALIDAR, ASIGNAR y REASIGNAR, con `estadoPlazo` calculado en America/Guayaquil, ordenados con los vencidos primero y con los totales por grupo.
@@ -263,3 +263,27 @@
   - Unitarias: clasificación de `estadoPlazo` (plazo que ya pasó hoy, vence hoy más tarde, domingo de la semana, lunes siguiente, sin plazo, 23:30 en Ecuador cuando en UTC ya es el día siguiente); orden, filtro y totales del servicio.
   - E2E `test/secretaria-pendientes.e2e-spec.ts` con login real (`secretaria@test.com`, `presidente@test.com`; la contraseña se lee de `E2E_TEST_ACCOUNTS_PASSWORD`): filas a/b/c, exclusiones, filtros, totales, 400, 401 y 403 para PRESIDENTE. Datos con prefijo `ZZ_TEST_PEND_`, borrados en `beforeAll` y `afterAll` (residuos = 0).
 - **Criterio "Hecho cuando:"**: tsc, `nest build`, unitarias y E2E (suite nueva 2 veces seguidas y la corrida completa con `--runInBand`) en verde; eslint limpio en los archivos tocados; mutaciones de cada regla detectadas.
+- **Resultados (04/11/2026, commits `e668979` docs, `243cb8e` código, `b1702a0` timeout de PDF real)**:
+  - `npx tsc --noEmit`: sin errores. `npx eslint` sobre los archivos tocados: sin errores. `nest build`: 370 archivos compilados.
+  - Unitarias: 59 suites / 509 pruebas antes → 61 suites / 530 pruebas después, todas en verde (+21 del módulo `secretaria`).
+  - E2E `test/secretaria-pendientes.e2e-spec.ts`: 25/25 en dos corridas seguidas.
+  - E2E completa (`--runInBand`), dos corridas seguidas tras `b1702a0`: 17 suites / 279 pruebas en verde las dos veces.
+  - `ceish_test_db`: residuos de la suite nueva = 0 (protocolos, versiones, convocatorias, usuarios y asignaciones huérfanas); convocatorias huérfanas = 57, sin cambio.
+  - Mutaciones: 12 de 12 detectadas.
+
+    | Mutación | Prueba que falla | Tests |
+    |---|---|---|
+    | M1 a) `IN ($4, 9)` | excluye VAL_INICIADO · totales | 2 failed, 23 passed |
+    | M2 b) sin `sometimiento_tiempos_aceptado` | excluye ASIG_SIN_ACEPTACION · totales | 2 failed, 23 passed |
+    | M3 c) sin `estado_id = 6` | fila REASIGNAR · excluye REAS_COMPLETADA · totales | 3 failed, 22 passed |
+    | M4 c) sin exigir convocatoria | excluye REAS_SIN_CONV · excluye REAS_CANCELADA · totales | 3 failed, 22 passed |
+    | M5 c) sin excluir CANCELADA | excluye REAS_CANCELADA · totales | 2 failed, 23 passed |
+    | M6 c) `MAX` en vez de `MIN` | fila REASIGNAR | 1 failed, 24 passed |
+    | M7 c) fin del día en UTC | fila REASIGNAR | 1 failed, 24 passed |
+    | M8 fecha de calendario en UTC | clasificación HOY/SEMANA y orden/filtro del servicio (unitarias) | 7 failed, 14 passed |
+    | M9 semana de domingo a sábado | `sundayOfWeek` y clasificación (unitarias) | 7 failed, 14 passed |
+    | M10 totales después del filtro | totales no dependen del filtro (unitaria) | 1 failed, 20 passed |
+    | M11 sin prioridad de grupo | orden VENCIDO, HOY, … (unitaria) | 1 failed, 20 passed |
+    | M12 sin `@Roles(SECRETARIA)` | PRESIDENTE → 403 | 1 failed, 24 passed |
+
+  - Nota sobre `test/meeting-pdf-real.e2e-spec.ts`: en la corrida completa, M4-01, M4-03 y M4-04 (generan el PDF real) tardaron entre 24 y 34 s y fallaron por el timeout de 30 s, sin fallos de aserción. Esa suite sola pasó 7/7 en 6 corridas, con y sin `SecretariaModule`. En `b1702a0` se subió a 60 s el timeout de esas tres pruebas (tercer argumento de `it`), sin cambiar aserciones ni la configuración de Jest.
