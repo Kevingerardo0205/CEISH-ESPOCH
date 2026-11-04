@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.5.4
+**Versión:** 3.5.5
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -13,6 +13,7 @@
 **Historial:** 2026-10-29 — v3.5.2: HU-001 b) cambio de investigador a comité sin protocolos en curso; registro con cédula o correo repetidos
 **Historial:** 2026-10-30 — v3.5.3: HU-001 GET /auth/roles de solo lectura; administración del asistente IA solo SECRETARIA; asignación rechaza roles inexistentes, inactivos o eliminados
 **Historial:** 2026-11-04 — v3.5.4: HU-001 k) rechazos del login con código estable (`code`) y mensajes en español; credenciales inválidas con un mismo mensaje para correo inexistente y contraseña incorrecta
+**Historial:** 2026-11-04 — v3.5.5: RF-EST.1 regla de origen de la etapa (protocolo → recepción → RECEPCION), APROBADO según resolución emitida, Renovación sin estados todavía; RF-EST.2 parcial
 
 ---
 
@@ -449,7 +450,23 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 
 > CS-01 — Reemplaza a: barra de "Validación" como etapa aparte — rediseño 27/10/2026
 
-- **RF-EST.1 (Seis etapas canónicas)**: El catálogo `catalogos.estados` expone dos campos adicionales en cada estado: `etapa` (una de las 6 etapas) y `orden` (entero para la barra de progreso). La etapa del protocolo se deduce de su `estado_id`; no se almacena como campo independiente en el protocolo. El valor `EXENTO` no forma parte de este alcance. — Reemplaza a: siete etapas canónicas con Riesgo como etapa aparte — decisión 28/10/2026
+- **RF-EST.1 (Seis etapas canónicas)**: El catálogo `catalogos.estados` expone dos campos adicionales en cada estado: `etapa` (una de las 6 etapas) y `orden` (posición de la etapa, de 1 a 6, para la barra de progreso). La etapa no se almacena como campo independiente en el protocolo. El valor `EXENTO` no forma parte de este alcance. — Reemplaza a: siete etapas canónicas con Riesgo como etapa aparte — decisión 28/10/2026
+
+  **Regla de origen de la etapa**: la etapa sale del estado del protocolo (`protocolos.estado_id`); si es NULL, del estado de la recepción de la versión activa (`recepcion.recepciones.estado_id`); si tampoco hay recepción, es `RECEPCION`. La tabla estado → etapa vive en `catalogos.estados`; la precedencia se aplica en una sola función de dominio (`resolveProtocolStage`). — Reemplaza a: «la etapa del protocolo se deduce de su `estado_id`» — decisión 04/11/2026
+
+  | Etapa (orden) | Estados (id del catálogo) |
+  |---|---|
+  | RECEPCION (1) | INICIADO (9), INCOMPLETO (11), ARCHIVADO_VENCIMIENTO (12), EN_REVISION_SECRETARIA (15), REQUIERE_SUBSANACION_DOC (20), EN_CONTROL_DOCUMENTAL (21; versión nueva después del pleno) |
+  | ASIGNACION (2) | COMPLETO (10) |
+  | EVALUACION (3) | EN_EVALUACION (13), DISCREPANCIA_RIESGO (16) |
+  | RESOLUCION (4) | EVALUADO (14), APROBADO (17, ver excepción), RECHAZADO (18), REQUIERE_SUBSANACION_VERSION (19), APROBADO_CON_CONDICION (25) |
+  | — (NULL) | Estados de DOCUMENTO (1-4), de asignaciones (5-8, 26, 27) y de CONVOCATORIA (22-24): no son estados de protocolo |
+
+  La tabla se aplica por `id`: los códigos `APROBADO` y `RECHAZADO` están duplicados por categoría.
+
+  **Excepción APROBADO (17)**: en el catálogo lleva etapa `RESOLUCION` (orden 4). `resolveProtocolStage` la sube a `SEGUIMIENTO` (orden 5) cuando la versión activa del protocolo tiene una resolución emitida (fila en `resolucion.resoluciones` con `version_id` igual a la versión activa; `fecha_emision` es NOT NULL). — decisión 04/11/2026
+
+  > Nota: la etapa `RENOVACION` (6) todavía no tiene estados que la representen en `catalogos.estados`; ningún protocolo la alcanza hasta que se implementen los estados de RF-16.1. No se calcula por fechas. — decisión 04/11/2026
 
   | Orden | Etapa | Descripción |
   |---|---|---|
@@ -464,6 +481,10 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 
 - **RF-EST.2 (Exposición en API)**: Todos los endpoints que devuelvan datos de un protocolo deben incluir la etapa actual con uno de los 6 valores anteriores. Todas las pantallas muestran la misma barra de 6 etapas calculada a partir de ese valor. — Reemplaza a: 7 valores / barra de 7 etapas — decisión 28/10/2026
 
+  Cada respuesta incluye `etapa` (código de la etapa) y `etapaOrden` (1 a 6, o null).
+
+  > **Alcance parcial (04/11/2026, TSK-001.2)**: implementado en `GET /protocols` y en los demás endpoints que usan `ProtocolMapper` (`GET /protocols/mis-protocolos`, `GET /protocols/mis-subsanaciones`), y en `GET /reception/protocols`. **Falta (TSK-001.3)**: `GET /protocols/:id`, `POST /protocols`, `GET /reception/protocol/:id`, `GET /evaluations/protocols/pending-peer-assignment`, `GET /evaluations/my-assignments`, `GET /evaluations/evaluators/dashboard`, `GET /evaluations/peer-assignments/my-pending`, `GET /evaluations/meetings/pending-protocols`, `GET /evaluations/meetings` y `GET /resolutions/protocol/:protocolId`.
+
 - **RF-EST.3 (Consulta de protocolos por etapa)**: El módulo de Protocolos filtra el listado por etapa. Filtros disponibles: Todos, Recepción, Asignación, Evaluación, Resolución, Seguimiento, Renovación. Cada etapa expone sus columnas propias: — Reemplaza a: listado con etapa Riesgo independiente — decisión 28/10/2026
 
   | Etapa | Columnas de la etapa |
@@ -477,7 +498,7 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 
   Cada etapa acepta sus propios filtros además de la búsqueda por código, título o investigador. La etapa Evaluación incluye filtros específicos por Riesgo y Dictámenes. **No existen módulos separados de "Seguimiento" ni de "Renovaciones"**: son etapas dentro de Protocolos. "Mis pendientes" (RF-ALR.f en specs/003) sigue siendo una vista aparte, para las acciones que hay que hacer.
 
-  > **Falta implementar**: el endpoint de listado no expone aún el campo `etapa` en la respuesta (depende de RF-EST.2), ni los filtros por etapa ni las columnas por etapa. Prerequisito: migración que añada `etapa` y `orden` al catálogo `catalogos.estados` (RF-EST.1).
+  > **Falta implementar**: los filtros por etapa y las columnas por etapa. El listado ya expone `etapa` y `etapaOrden` (RF-EST.2 parcial, TSK-001.2) y el catálogo `catalogos.estados` ya tiene `etapa` y `orden` (RF-EST.1). — actualizado 04/11/2026
 
 ---
 

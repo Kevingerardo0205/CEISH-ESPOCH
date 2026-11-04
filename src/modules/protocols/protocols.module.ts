@@ -6,6 +6,7 @@ import { RequirementsService } from './application/services/requirements.service
 import { ProtocolOrmEntity } from './infrastructure/database/protocol.entity.orm';
 import { StudyTypeOrmEntity } from './infrastructure/database/study-type.entity.orm';
 import { RiskLevelOrmEntity } from './infrastructure/database/risk-level.entity.orm';
+import { StatusOrmEntity } from './infrastructure/database/status.entity.orm';
 import { UserOrmEntity } from '../auth/infrastructure/database/user.entity.orm';
 import { InvestigatorOrmEntity } from './infrastructure/database/investigator.entity.orm';
 import { ParticipatingInstitutionOrmEntity } from './infrastructure/database/participating-institution.entity.orm';
@@ -27,6 +28,7 @@ import { TipoDocumentoEstudioOrmEntity } from './infrastructure/database/tipo-do
       ProtocolOrmEntity,
       StudyTypeOrmEntity,
       RiskLevelOrmEntity,
+      StatusOrmEntity,
       UserOrmEntity,
       InvestigatorOrmEntity,
       ParticipatingInstitutionOrmEntity,

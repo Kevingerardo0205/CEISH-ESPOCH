@@ -5,12 +5,14 @@ import {
   JoinColumn,
   PrimaryGeneratedColumn,
   OneToOne,
+  OneToMany,
 } from 'typeorm';
 import type { Relation } from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { ResolutionTypeOrmEntity } from '../../../resolutions/infrastructure/database/resolution-type.entity.orm';
 import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
+import { ResolutionOrmEntity } from '../../../resolutions/infrastructure/database/resolution.entity.orm';
 
 @Entity({ name: 'versiones_protocolo', schema: 'public' })
 export class ProtocolVersionOrmEntity {
@@ -61,4 +63,8 @@ export class ProtocolVersionOrmEntity {
 
   @OneToOne(() => ReceptionOrmEntity, (reception) => reception.version)
   reception?: Relation<ReceptionOrmEntity>;
+
+  /** Resoluciones de esta versión (TSK-001.2, excepción APROBADO de RF-EST.1). */
+  @OneToMany(() => ResolutionOrmEntity, (resolution) => resolution.version)
+  resolutions?: Relation<ResolutionOrmEntity>[];
 }

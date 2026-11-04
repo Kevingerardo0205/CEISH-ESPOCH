@@ -45,6 +45,10 @@ export class ProtocolTypeOrmRepository
       .leftJoinAndSelect('p.principalInvestigator', 'pi')
       .leftJoinAndSelect('p.activeVersion', 'activeVersion')
       .leftJoinAndSelect('activeVersion.reception', 'reception')
+      .leftJoinAndSelect('p.status', 'protocolStatus')
+      .leftJoinAndSelect('reception.status', 'receptionStatus')
+      .leftJoin('activeVersion.resolutions', 'activeResolutions')
+      .addSelect('activeResolutions.id')
       .where('reception.statusId IS NOT NULL');
 
     if (status) {
@@ -78,6 +82,10 @@ export class ProtocolTypeOrmRepository
       .leftJoinAndSelect('p.checklist', 'checklist')
       .leftJoinAndSelect('p.activeVersion', 'activeVersion')
       .leftJoinAndSelect('activeVersion.reception', 'reception')
+      .leftJoinAndSelect('p.status', 'protocolStatus')
+      .leftJoinAndSelect('reception.status', 'receptionStatus')
+      .leftJoin('activeVersion.resolutions', 'activeResolutions')
+      .addSelect('activeResolutions.id')
       .leftJoinAndSelect('p.versions', 'versions');
 
     if (studyType) qb.andWhere('studyType.code = :studyType', { studyType });

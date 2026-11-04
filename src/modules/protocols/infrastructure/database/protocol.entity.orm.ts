@@ -23,6 +23,7 @@ import {
 } from '../../../../shared/deadlines/deadline-rules';
 import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
 import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
+import { StatusOrmEntity } from './status.entity.orm';
 
 @Entity({ name: 'protocolos', schema: 'public' })
 export class ProtocolOrmEntity extends BaseOrmEntity {
@@ -79,6 +80,11 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
 
   @Column({ name: 'estado_id', nullable: true })
   statusId?: number;
+
+  /** Solo lectura en listados (TSK-001.2): no se asigna al guardar. */
+  @ManyToOne(() => StatusOrmEntity)
+  @JoinColumn({ name: 'estado_id' })
+  status?: StatusOrmEntity | null;
 
   get receptionDate(): Date | undefined {
     return this.reception?.receptionDate;

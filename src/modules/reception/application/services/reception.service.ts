@@ -25,6 +25,7 @@ import { DocumentOrmEntity } from '../../../documents/infrastructure/database/do
 import { ProtocolRequirementOrmEntity } from '../../../protocols/infrastructure/database/protocol-requirement.entity.orm';
 import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 import { RequirementMapper } from '../../../protocols/application/mappers/requirement.mapper';
+import { ProtocolMapper } from '../../../protocols/application/mappers/protocol.mapper';
 
 import { DocumentValidationStatus } from '../../domain/enums/document-validation-status.enum';
 
@@ -188,6 +189,7 @@ export class ReceptionService {
       principalInvestigator: p.principalInvestigator
         ? p.principalInvestigator.fullName
         : null,
+      ...ProtocolMapper.toStage(p),
     }));
   }
 
