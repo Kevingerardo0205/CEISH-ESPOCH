@@ -287,3 +287,25 @@
     | M12 sin `@Roles(SECRETARIA)` | PRESIDENTE → 403 | 1 failed, 24 passed |
 
   - Nota sobre `test/meeting-pdf-real.e2e-spec.ts`: en la corrida completa, M4-01, M4-03 y M4-04 (generan el PDF real) tardaron entre 24 y 34 s y fallaron por el timeout de 30 s, sin fallos de aserción. Esa suite sola pasó 7/7 en 6 corridas, con y sin `SecretariaModule`. En `b1702a0` se subió a 60 s el timeout de esas tres pruebas (tercer argumento de `it`), sin cambiar aserciones ni la configuración de Jest.
+
+### Task TSK-015-N07 - [ ] PENDIENTE (rama feat/proxima-reunion)
+- **ID Único**: `TSK-015-N07`
+- **Requisito Relacionado**: `RF-ALR.f.7` (spec-003 v1.5.3), `RF-09`
+- **Criterio EARS**: **Cuando** la Secretaría o la Presidencia consulten `GET /api/evaluations/meetings/next`, **el sistema debe** devolver la convocatoria `PROGRAMADA` o `EN_CURSO` más cercana desde el inicio del día de hoy en America/Guayaquil, con su lugar y los protocolos distintos a tratar, o `data: null` si no hay ninguna.
+- **Acción**: `CREAR` y `MODIFICAR`
+- **Archivos Afectados**:
+  - CREAR `src/modules/evaluations/application/dtos/response/next-meeting.dto.ts` — `NextMeetingDto`, `NextMeetingPlaceDto` y `NextMeetingResponseDto` (Swagger; documenta `informesATratar: null`)
+  - CREAR `test/meetings-next.e2e-spec.ts`
+  - MODIFICAR `src/modules/evaluations/domain/entities/meeting.entity.ts` — `NextMeetingModel` / `NextMeetingEntity`
+  - MODIFICAR `src/modules/evaluations/domain/ports/meeting-repository.port.ts` — `findNextMeeting()`
+  - MODIFICAR `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` — una consulta SQL parametrizada (sin relaciones nuevas)
+  - MODIFICAR `src/modules/evaluations/application/mappers/meeting.mapper.ts` — `toNextMeeting`
+  - MODIFICAR `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` — solo el handler nuevo `GET next`, antes de `GET :id`, con `@UseGuards(PermissionsGuard)`, `@Roles(SECRETARIA, PRESIDENTE)` y `@Permissions(RESOLUCION_CONVOCATORIAS)`
+  - MODIFICAR `src/modules/evaluations/application/mappers/meeting.mapper.spec.ts`, `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` y `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.spec.ts`
+  - Commit aparte (arranque con SWC): MODIFICAR `src/modules/evaluations/infrastructure/database/entities/{assignment-history,convocatoria,convocatoria-protocolo,risk-proposal}.orm-entity.ts` (`Relation<>` en las 11 relaciones) y `test/swc-entities-boot.e2e-spec.ts` (cubre `*.entity.orm.ts` y `*.orm-entity.ts`)
+- **Dependencias**: TSK-015-N06 (vista Mis pendientes), TSK-009 (convocatorias)
+- **Descripción**: según RF-ALR.f.7. Sin migraciones. No se implementan los pendientes a), b) y c) de RF-ALR.f.7.
+- **Tests**:
+  - Unitarias: `toNextMeeting` (ISO, lugar null y virtual, `informesATratar` null), el handler con `data: null` cuando no hay reunión, y el mapeo y los parámetros de `findNextMeeting`.
+  - E2E `test/meetings-next.e2e-spec.ts` con guards reales y login real (`secretaria@test.com` y `presidente@test.com` con `E2E_TEST_ACCOUNTS_PASSWORD`; EVALUADOR, INVESTIGADOR y un PRESIDENTE con el rol vencido, usuarios `ZZ_TEST_NXT_` con contraseña generada): 401, 200, 403, `next` no cae en `:id`, la más cercana, desempate por número, estados, hoy a una hora pasada, ayer excluida, `DISTINCT` y `eliminado_en`, 0 protocolos, `informesATratar` null, lugar null y virtual, `data: null`. Datos `ZZ_TEST_NXT_` con fechas en 2090, borrados en `beforeAll` y `afterAll`.
+- **Criterio "Hecho cuando:"**: tsc, `nest build`, `node dist/main.js` arranca, unitarias y E2E (suite nueva 2 veces y la completa 2 veces con `--runInBand`) en verde; eslint sin empeorar respecto de `dev`; residuos = 0 y convocatorias huérfanas = 57; al menos 6 mutaciones (rol, permiso, estado, borde de hoy, DISTINCT, `eliminado_en`) y la de SWC detectadas.

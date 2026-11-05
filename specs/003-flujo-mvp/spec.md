@@ -2,13 +2,14 @@
 
 **Código de Especificación:** `specs/003-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 1.5.2  
+**Versión:** 1.5.3  
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v1.4.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v1.4.1: RF-ALR renovación cambia a `alerta_renovacion_offsets_dias` [90, 60, 15]; HU-015 EARS 3 usa el parámetro  
 **Historial:** 2026-10-27 — v1.5.0: CS-06 plazo dictamen 48 h corridas; CS-07 4 resultados del pleno; CS-08 corrección de decisión; CS-09 asistencia y quórum; CS-11 seguimiento precisión; CS-13 endpoint pendientes — rediseño 27/10/2026
 **Historial:** 2026-10-28 — v1.5.1: sección Pendientes de confirmar con el comité añadida  
-**Historial:** 2026-11-04 — v1.5.2: RF-ALR.f contrato de `GET /secretaria/pendientes`, detección de las filas VALIDAR, ASIGNAR y REASIGNAR, grupos de plazo en America/Guayaquil y filas omitidas con su motivo (decisiones pendientes de validar con la Secretaría)
+**Historial:** 2026-11-04 — v1.5.2: RF-ALR.f contrato de `GET /secretaria/pendientes`, detección de las filas VALIDAR, ASIGNAR y REASIGNAR, grupos de plazo en America/Guayaquil y filas omitidas con su motivo (decisiones pendientes de validar con la Secretaría)  
+**Historial:** 2026-11-04 — v1.5.3: RF-ALR.f.7 contrato de `GET /evaluations/meetings/next` (tarjeta «Próxima reunión»): estados, inicio del día en America/Guayaquil, protocolos a tratar e `informesATratar` null; pendientes de RF-09 (cierre de reuniones, informes en el orden del día, `protocolCount`) (decisiones pendientes de validar con la Secretaría)
 
 ---
 
@@ -258,6 +259,38 @@ Especificar las reglas operativas, funcionales y de integridad para:
   - Informe no entregado → Ver control: no existe el módulo de seguimiento.
   - Pendientes de agendar: se dejan fuera por ahora.
 
+  **RF-ALR.f.7 — Tarjeta «Próxima reunión» (decisión 04/11/2026, pendiente de validar con la Secretaría; TSK-015-N07)**
+
+  `GET /api/evaluations/meetings/next` (en `MeetingsController`, declarado antes de `GET :id`) devuelve la próxima reunión del comité. No tiene parámetros y es de solo lectura.
+
+  - **Acceso**: `@Roles(SECRETARIA, PRESIDENTE)` y `@Permissions(RESOLUCION_CONVOCATORIAS)`; el handler añade `PermissionsGuard` (la clase ya aplica `JwtAuthGuard` y `RolesGuard`). Sin token: 401. EVALUADOR, INVESTIGADOR o un usuario sin el permiso vigente: 403.
+  - **Qué reunión es**: la convocatoria en estado `PROGRAMADA` o `EN_CURSO` con `fecha_reunion` mayor o igual al inicio del día de hoy en America/Guayaquil, calculado con `NOW()` de la base. Así la reunión de hoy se sigue mostrando todo el día aunque su hora haya pasado (hoy ningún flujo la pasa a `CONCLUIDA`). Se excluyen `CANCELADA`, `CONCLUIDA` y las convocatorias sin `fecha_reunion`. Si hay varias, la de `fecha_reunion` más cercana y, si empatan, la de `numero_convocatoria` menor.
+  - **Respuesta**: `200` con `data: null` si no hay ninguna.
+
+  ```json
+  {
+    "statusCode": 200,
+    "message": "Próxima reunión obtenida exitosamente",
+    "data": {
+      "id": "uuid", "numeroConvocatoria": "001-2026", "tipoSesion": "ORDINARIA",
+      "fechaReunion": "2026-11-10T14:00:00.000Z",
+      "lugar": { "nombre": "Sala del CEISH", "esVirtual": false, "enlaceReunion": null },
+      "protocolosATratar": 3,
+      "informesATratar": null
+    }
+  }
+  ```
+
+  - `lugar` es `null` si la convocatoria no tiene lugar.
+  - `protocolosATratar` = `COUNT(DISTINCT protocolo_id)` de `convocatoria_protocolos` con `eliminado_en IS NULL` (0 si no hay).
+  - `informesATratar` es siempre `null`: los informes de seguimiento (Sección III, RF-09.2) no se pueden agendar hasta RF-15 (`POST /evaluations/meetings` responde `SEGUIMIENTO_NO_DISPONIBLE`). `null` significa «no disponible», no «cero».
+  - Se resuelve con una sola consulta SQL en el repositorio de meetings, sin relaciones nuevas entre entidades.
+
+  **Pendientes (no implementados en esta versión)**
+  - a) Cierre de reuniones: ningún flujo del `MeetingsController` pasa una convocatoria a `CONCLUIDA` (solo la ruta antigua de `calls`); en `ceish_test_db` hay 63 convocatorias `PROGRAMADA` con fecha pasada.
+  - b) Informes de seguimiento en el orden del día: `tipoPuntoAgenda` e `informeSeguimientoId` de `ConvocatoriaProtocoloOrmEntity` no son columnas, y `protocolo_id`, `version_id` y `fecha_plazo_normativo` son NOT NULL en la base, así que hoy no se puede guardar un punto de informe ni distinguir el tipo de punto.
+  - c) `protocolCount` de `GET /evaluations/meetings` y `GET /evaluations/meetings/:id` cuenta filas (versiones) y no excluye `eliminado_en`; no coincide con `protocolosATratar`.
+
 ---
 
 ## 5. Requisitos No Funcionales
@@ -316,3 +349,7 @@ Especificar las reglas operativas, funcionales y de integridad para:
 | 4 | ¿Cuál es el valor correcto de `dias_max_sin_convocatoria` y `dias_alerta_normativo_sin_convocatoria`? | RF-12.7(d) en specs/002 | PENDIENTE |
 | 5 | ¿La propuesta de riesgo de pares (`submit-risk`) exige convocatoria vigente (`403` si no hay)? Confirmar con Secretaría. | RF-12.7(4b) en specs/002 | PENDIENTE |
 | 6 | Vista de pendientes: ¿son correctas las filas implementadas (Validar, Asignar, Reasignar), sin plazo para Validar y Asignar, y la omisión de Aprobado con condición, Aprobado sin resolución, Informe no entregado y Pendientes de agendar? (decisiones del 04/11/2026) | RF-ALR.f.1–f.6 | PENDIENTE de validar con la Secretaría |
+| 7 | Tarjeta «Próxima reunión»: ¿cuentan `PROGRAMADA` y `EN_CURSO` desde el inicio del día en Ecuador, la más cercana, con `protocolosATratar` por protocolo distinto, `informesATratar` null y acceso de SECRETARIA y PRESIDENTE? (decisiones del 04/11/2026) | RF-ALR.f.7 | PENDIENTE de validar con la Secretaría |
+| 8 | ¿Cómo y cuándo pasa una convocatoria a `CONCLUIDA` (y a `EN_CURSO`)? | RF-09, RF-ALR.f.7 a) | PENDIENTE |
+| 9 | Informes de seguimiento en el orden del día: columnas del tipo de punto y del informe en `convocatoria_protocolos` (hoy `protocolo_id`, `version_id` y `fecha_plazo_normativo` son NOT NULL) | RF-09.2, RF-15, RF-ALR.f.7 b) | PENDIENTE |
+| 10 | ¿`protocolCount` de `GET /evaluations/meetings` debe contar protocolos distintos sin `eliminado_en`, como `protocolosATratar`? | RF-ALR.f.7 c) | PENDIENTE |
