@@ -40,7 +40,7 @@ export class ReceptionOrmEntity {
   /** Solo lectura en listados (TSK-001.2): no se asigna al guardar. */
   @ManyToOne(() => StatusOrmEntity)
   @JoinColumn({ name: 'estado_id' })
-  status?: StatusOrmEntity | null;
+  status?: Relation<StatusOrmEntity> | null;
 
   @Column({ name: 'tiene_faltantes', default: false })
   hasMissingItems!: boolean;
@@ -82,5 +82,5 @@ export class ReceptionOrmEntity {
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'creado_por' })
-  createdBy?: UserOrmEntity;
+  createdBy?: Relation<UserOrmEntity>;
 }

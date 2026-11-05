@@ -45,7 +45,7 @@ export class InvestigatorOrmEntity extends BaseOrmEntity {
 
   @ManyToOne(() => UserOrmEntity, { nullable: true })
   @JoinColumn({ name: 'usuario_id' })
-  user?: UserOrmEntity;
+  user?: Relation<UserOrmEntity>;
 
   @Column({ name: 'usuario_id', nullable: true })
   userId?: number;

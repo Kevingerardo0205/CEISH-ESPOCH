@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { EvaluationOrmEntity } from './evaluation.entity.orm';
 
 export enum EvaluationCriterionType {
@@ -30,7 +31,7 @@ export class EvaluationResponseDetailOrmEntity {
 
   @ManyToOne(() => EvaluationOrmEntity, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'evaluacion_id' })
-  evaluacion!: EvaluationOrmEntity;
+  evaluacion!: Relation<EvaluationOrmEntity>;
 
   @Column({
     name: 'criterio_tipo',

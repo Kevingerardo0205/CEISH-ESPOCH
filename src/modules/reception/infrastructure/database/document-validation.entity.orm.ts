@@ -5,6 +5,7 @@ import {
   JoinColumn,
   PrimaryGeneratedColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { DocumentOrmEntity } from '../../../documents/infrastructure/database/document.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 
@@ -18,7 +19,7 @@ export class DocumentValidationOrmEntity {
 
   @ManyToOne(() => DocumentOrmEntity)
   @JoinColumn({ name: 'documento_id' })
-  document!: DocumentOrmEntity;
+  document!: Relation<DocumentOrmEntity>;
 
   @Column({ name: 'estado_id', nullable: true })
   statusId?: number;
@@ -31,7 +32,7 @@ export class DocumentValidationOrmEntity {
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'validado_por' })
-  validatedBy?: UserOrmEntity;
+  validatedBy?: Relation<UserOrmEntity>;
 
   @Column({
     name: 'fecha_validacion',

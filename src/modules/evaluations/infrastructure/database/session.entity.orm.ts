@@ -5,6 +5,7 @@ import {
   ManyToOne,
   JoinColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { ConvocatoriaOrmEntity } from './entities/convocatoria.orm-entity';
 
@@ -33,12 +34,12 @@ export class SessionOrmEntity {
 
   @ManyToOne(() => ConvocatoriaOrmEntity, { nullable: true })
   @JoinColumn({ name: 'convocatoria_id' })
-  convocatoria?: ConvocatoriaOrmEntity;
+  convocatoria?: Relation<ConvocatoriaOrmEntity>;
 
   @Column({ name: 'creado_por', nullable: true })
   createdByUserId?: number;
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'creado_por' })
-  createdBy?: UserOrmEntity;
+  createdBy?: Relation<UserOrmEntity>;
 }

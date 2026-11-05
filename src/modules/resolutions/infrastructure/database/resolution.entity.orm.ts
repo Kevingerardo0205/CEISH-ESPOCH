@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
@@ -20,14 +21,14 @@ export class ResolutionOrmEntity {
 
   @ManyToOne(() => ProtocolOrmEntity)
   @JoinColumn({ name: 'protocolo_id' })
-  protocol!: ProtocolOrmEntity;
+  protocol!: Relation<ProtocolOrmEntity>;
 
   @Column({ name: 'version_id' })
   versionId!: number;
 
   @ManyToOne(() => ProtocolVersionOrmEntity)
   @JoinColumn({ name: 'version_id' })
-  version!: ProtocolVersionOrmEntity;
+  version!: Relation<ProtocolVersionOrmEntity>;
 
   @Column({ name: 'tipo_resolucion_id', nullable: true })
   resolutionTypeId?: number;
@@ -59,5 +60,5 @@ export class ResolutionOrmEntity {
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'creado_por' })
-  createdBy?: UserOrmEntity;
+  createdBy?: Relation<UserOrmEntity>;
 }

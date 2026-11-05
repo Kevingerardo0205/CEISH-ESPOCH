@@ -1,4 +1,5 @@
 import { Entity, Column, ManyToMany, JoinTable } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
 import { PermissionOrmEntity } from './permission.entity.orm';
 
@@ -23,5 +24,5 @@ export class RoleOrmEntity extends BaseOrmEntity {
     inverseJoinColumn: { name: 'permiso_id', referencedColumnName: 'id' },
     schema: 'catalogos',
   })
-  permissions!: PermissionOrmEntity[];
+  permissions!: Relation<PermissionOrmEntity>[];
 }

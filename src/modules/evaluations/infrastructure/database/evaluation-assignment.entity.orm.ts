@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { ProtocolVersionOrmEntity } from './protocol-version.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { EvaluatorProfileOrmEntity } from './evaluator-profile.entity.orm';
@@ -22,28 +23,28 @@ export class EvaluationAssignmentOrmEntity {
 
   @ManyToOne(() => ProtocolVersionOrmEntity)
   @JoinColumn({ name: 'version_id' })
-  version!: ProtocolVersionOrmEntity;
+  version!: Relation<ProtocolVersionOrmEntity>;
 
   @Column({ name: 'evaluador_id' })
   evaluatorId!: number;
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'evaluador_id' })
-  evaluator!: UserOrmEntity;
+  evaluator!: Relation<UserOrmEntity>;
 
   @Column({ name: 'perfil_id', nullable: true })
   profileId?: number;
 
   @ManyToOne(() => EvaluatorProfileOrmEntity)
   @JoinColumn({ name: 'perfil_id' })
-  profile?: EvaluatorProfileOrmEntity;
+  profile?: Relation<EvaluatorProfileOrmEntity>;
 
   @Column({ name: 'modalidad_id', nullable: true })
   modalityId?: number;
 
   @ManyToOne(() => RevisionModalityOrmEntity)
   @JoinColumn({ name: 'modalidad_id' })
-  modality?: RevisionModalityOrmEntity;
+  modality?: Relation<RevisionModalityOrmEntity>;
 
   @Column({
     name: 'estado_id',
@@ -117,14 +118,14 @@ export class EvaluationAssignmentOrmEntity {
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'sugerido_por' })
-  suggestedBy?: UserOrmEntity;
+  suggestedBy?: Relation<UserOrmEntity>;
 
   @Column({ name: 'confirmado_por', nullable: true })
   confirmedByUserId?: number;
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'confirmado_por' })
-  confirmedBy?: UserOrmEntity;
+  confirmedBy?: Relation<UserOrmEntity>;
 
   // Legacy fields for compatibility if needed during migration
   @Column({ name: 'asignado_por', nullable: true })
@@ -132,12 +133,12 @@ export class EvaluationAssignmentOrmEntity {
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'asignado_por' })
-  assignedBy?: UserOrmEntity;
+  assignedBy?: Relation<UserOrmEntity>;
 
   @Column({ name: 'aprobado_asignacion_por', nullable: true })
   assignmentApprovedByUserId?: number;
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'aprobado_asignacion_por' })
-  assignmentApprovedBy?: UserOrmEntity;
+  assignmentApprovedBy?: Relation<UserOrmEntity>;
 }

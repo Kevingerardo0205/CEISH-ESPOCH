@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { EvaluationAssignmentOrmEntity } from './evaluation-assignment.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 
@@ -19,7 +20,7 @@ export class EvaluationOrmEntity {
 
   @ManyToOne(() => EvaluationAssignmentOrmEntity)
   @JoinColumn({ name: 'asignacion_id' })
-  assignment!: EvaluationAssignmentOrmEntity;
+  assignment!: Relation<EvaluationAssignmentOrmEntity>;
 
   @Column({ name: 'aspectos_eticos', type: 'jsonb', nullable: true })
   ethicalAspects?: Record<string, unknown> | null;
@@ -53,5 +54,5 @@ export class EvaluationOrmEntity {
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'evaluado_por' })
-  evaluatedBy?: UserOrmEntity;
+  evaluatedBy?: Relation<UserOrmEntity>;
 }

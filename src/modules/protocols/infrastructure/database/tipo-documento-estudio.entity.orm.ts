@@ -1,4 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { TipoDocumentoOrmEntity } from './tipo-documento.entity.orm';
 import { StudyTypeOrmEntity } from './study-type.entity.orm';
 
@@ -15,9 +16,9 @@ export class TipoDocumentoEstudioOrmEntity {
 
   @ManyToOne(() => TipoDocumentoOrmEntity, (td) => td.estudiosAplica)
   @JoinColumn({ name: 'tipo_documento_id' })
-  tipoDocumento!: TipoDocumentoOrmEntity;
+  tipoDocumento!: Relation<TipoDocumentoOrmEntity>;
 
   @ManyToOne(() => StudyTypeOrmEntity)
   @JoinColumn({ name: 'tipo_estudio_id' })
-  studyType!: StudyTypeOrmEntity;
+  studyType!: Relation<StudyTypeOrmEntity>;
 }

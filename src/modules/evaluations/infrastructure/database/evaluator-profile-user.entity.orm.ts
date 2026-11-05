@@ -1,4 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn, PrimaryColumn } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { EvaluatorProfileOrmEntity } from './evaluator-profile.entity.orm';
 
@@ -9,14 +10,14 @@ export class EvaluatorProfileUserOrmEntity {
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'usuario_id' })
-  user!: UserOrmEntity;
+  user!: Relation<UserOrmEntity>;
 
   @PrimaryColumn({ name: 'perfil_id' })
   profileId!: number;
 
   @ManyToOne(() => EvaluatorProfileOrmEntity)
   @JoinColumn({ name: 'perfil_id' })
-  profile!: EvaluatorProfileOrmEntity;
+  profile!: Relation<EvaluatorProfileOrmEntity>;
 
   @Column({
     name: 'fecha_asignacion',
