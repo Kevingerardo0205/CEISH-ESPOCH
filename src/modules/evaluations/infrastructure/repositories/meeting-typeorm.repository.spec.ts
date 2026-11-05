@@ -454,4 +454,82 @@ describe('MeetingTypeOrmRepository — tolerancia a fechas string del ORM', () =
       expect(() => result[0].receptionDate!.toISOString()).not.toThrow();
     });
   });
+
+  describe('findNextMeeting (RF-ALR.f.7, TSK-015-N07)', () => {
+    const makeQueryDs = (rows: unknown[]) => {
+      const query = jest.fn().mockResolvedValue(rows);
+      return { ds: { query } as unknown as DataSource, query };
+    };
+
+    it('consulta PROGRAMADA y EN_CURSO con la zona America/Guayaquil', async () => {
+      const { ds, query } = makeQueryDs([]);
+      await new MeetingTypeOrmRepository(ds).findNextMeeting();
+      expect(query).toHaveBeenCalledTimes(1);
+      expect(query.mock.calls[0][1]).toEqual([
+        'PROGRAMADA',
+        'EN_CURSO',
+        'America/Guayaquil',
+      ]);
+    });
+
+    it('sin filas → null', async () => {
+      const { ds } = makeQueryDs([]);
+      await expect(
+        new MeetingTypeOrmRepository(ds).findNextMeeting(),
+      ).resolves.toBeNull();
+    });
+
+    it('mapea la fila: fecha string a Date, conteo string a número y lugar', async () => {
+      const { ds } = makeQueryDs([
+        {
+          id: 'aabbccdd-0000-0000-0000-000000000077',
+          meetingNumber: '077-2090',
+          sessionType: 'ORDINARIA',
+          meetingDate: '2090-01-10T15:30:00.000Z',
+          placeId: 'place-1',
+          placeName: 'Sala virtual',
+          placeAddress: null,
+          placeIsVirtual: true,
+          placeLink: 'https://meet.example.test/ceish',
+          protocolCount: '2',
+        },
+      ]);
+      const result = await new MeetingTypeOrmRepository(ds).findNextMeeting();
+      expect(result).toEqual({
+        id: 'aabbccdd-0000-0000-0000-000000000077',
+        meetingNumber: '077-2090',
+        sessionType: 'ORDINARIA',
+        meetingDate: new Date('2090-01-10T15:30:00.000Z'),
+        place: {
+          id: 'place-1',
+          name: 'Sala virtual',
+          address: null,
+          isVirtual: true,
+          meetingLink: 'https://meet.example.test/ceish',
+        },
+        protocolCount: 2,
+      });
+      expect(result!.meetingDate).toBeInstanceOf(Date);
+    });
+
+    it('sin lugar (placeId null) → place null', async () => {
+      const { ds } = makeQueryDs([
+        {
+          id: 'aabbccdd-0000-0000-0000-000000000078',
+          meetingNumber: '078-2090',
+          sessionType: 'ORDINARIA',
+          meetingDate: new Date('2090-01-11T15:30:00.000Z'),
+          placeId: null,
+          placeName: null,
+          placeAddress: null,
+          placeIsVirtual: null,
+          placeLink: null,
+          protocolCount: 0,
+        },
+      ]);
+      const result = await new MeetingTypeOrmRepository(ds).findNextMeeting();
+      expect(result!.place).toBeNull();
+      expect(result!.protocolCount).toBe(0);
+    });
+  });
 });

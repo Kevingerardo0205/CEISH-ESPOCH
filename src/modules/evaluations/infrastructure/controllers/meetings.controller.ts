@@ -27,6 +27,10 @@ import {
 } from '@nestjs/swagger';
 import { MeetingDetailResponseDto } from '../../application/dtos/response/meeting-detail.dto';
 import { MeetingListResponseDto } from '../../application/dtos/response/meeting-summary.dto';
+import {
+  NextMeetingDto,
+  NextMeetingResponseDto,
+} from '../../application/dtos/response/next-meeting.dto';
 import { PendingProtocolListResponseDto } from '../../application/dtos/response/pending-protocol.dto';
 import {
   MeetingPlaceDto,
@@ -39,6 +43,7 @@ import {
   toDetail,
   toSummary,
   toPendingProtocol,
+  toNextMeeting,
 } from '../../application/mappers/meeting.mapper';
 import * as fs from 'fs';
 import * as path from 'path';
@@ -52,7 +57,10 @@ import {
 } from '../../application/dtos/create-place.dto';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
+import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
 import { Roles } from '../../../../shared/decorators/roles.decorator';
+import { Permissions } from '../../../../shared/decorators/permissions.decorator';
+import { Permission } from '../../../../shared/enums/permission.enum';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
 import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-repository.port';
@@ -250,6 +258,36 @@ export class MeetingsController {
         page: result.page,
         limit: result.limit,
       },
+    };
+  }
+
+  /**
+   * Tarjeta «Próxima reunión» de Mis pendientes (spec-003 RF-ALR.f.7, TSK-015-N07).
+   * Va antes de GET :id para que "next" no llegue a ParseUUIDPipe.
+   */
+  @Get('next')
+  @UseGuards(PermissionsGuard)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
+  @Permissions(Permission.RESOLUCION_CONVOCATORIAS)
+  @ApiOperation({
+    summary: 'Próxima reunión del comité (SECRETARIA y PRESIDENTE)',
+    description:
+      'Convocatoria PROGRAMADA o EN_CURSO más cercana desde el inicio de hoy en America/Guayaquil. ' +
+      'data es null si no hay ninguna; informesATratar es null hasta RF-15.',
+  })
+  @ApiOkResponse({ type: NextMeetingResponseDto })
+  async getNextMeeting(): Promise<{
+    statusCode: number;
+    message: string;
+    data: NextMeetingDto | null;
+  }> {
+    const model = await this.meetingRepository.findNextMeeting();
+    return {
+      statusCode: HttpStatus.OK,
+      message: model
+        ? 'Próxima reunión obtenida exitosamente'
+        : 'No hay reuniones próximas',
+      data: model ? toNextMeeting(model) : null,
     };
   }
 

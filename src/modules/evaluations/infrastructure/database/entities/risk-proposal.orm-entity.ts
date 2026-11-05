@@ -8,6 +8,7 @@ import {
   Unique,
   Index,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { EvaluationAssignmentOrmEntity } from '../evaluation-assignment.entity.orm';
 import { RiskLevelOrmEntity } from '../../../../protocols/infrastructure/database/risk-level.entity.orm';
 
@@ -26,14 +27,14 @@ export class RiskProposalOrmEntity {
 
   @ManyToOne(() => EvaluationAssignmentOrmEntity, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'asignacion_id' })
-  assignment?: EvaluationAssignmentOrmEntity;
+  assignment?: Relation<EvaluationAssignmentOrmEntity>;
 
   @Column({ name: 'nivel_riesgo_id', type: 'integer' })
   riskLevelId!: number;
 
   @ManyToOne(() => RiskLevelOrmEntity, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'nivel_riesgo_id' })
-  riskLevel?: RiskLevelOrmEntity;
+  riskLevel?: Relation<RiskLevelOrmEntity>;
 
   @Column({ name: 'observaciones', type: 'text', nullable: true })
   observations?: string;

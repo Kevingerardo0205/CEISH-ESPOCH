@@ -22,6 +22,7 @@ import {
   MeetingPlaceModel,
   MeetingPlaceFullModel,
   AgendaProtocolModel,
+  NextMeetingEntity,
 } from '../../domain/entities/meeting.entity';
 import {
   ConvocatoriaOrmEntity,
@@ -40,8 +41,55 @@ import { toCalendarDateString } from '../../../../shared/services/deadline-calcu
 import {
   ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION,
   ENTREGA_EVALUACION_HORA_CORTE,
+  ENTREGA_EVALUACION_ZONA_HORARIA,
 } from '../../../../shared/deadlines/deadline-rules';
 import { toSafeDate } from '../../../../shared/utils/to-safe-date.util';
+
+/** Fila cruda de findNextMeeting (RF-ALR.f.7). */
+interface NextMeetingRow {
+  id: string;
+  meetingNumber: string;
+  sessionType: string;
+  meetingDate: Date | string;
+  placeId: string | null;
+  /** Igual que LugarOrmEntity.nombre: varchar nullable tipado como string. */
+  placeName: string;
+  placeAddress: string | null;
+  placeIsVirtual: boolean | null;
+  placeLink: string | null;
+  protocolCount: number | string;
+}
+
+/**
+ * Próxima reunión (RF-ALR.f.7, TSK-015-N07). El inicio del día se calcula en la base:
+ * medianoche de hoy en America/Guayaquil a partir de NOW(). Los protocolos se cuentan por
+ * protocolo distinto y sin las filas con eliminado_en (columna que la entidad no mapea).
+ */
+const NEXT_MEETING_SQL = `
+  SELECT
+    c.id,
+    c.numero_convocatoria AS "meetingNumber",
+    c.tipo_session::text AS "sessionType",
+    c.fecha_reunion AS "meetingDate",
+    l.id AS "placeId",
+    l.nombre AS "placeName",
+    l.direccion AS "placeAddress",
+    l.es_virtual AS "placeIsVirtual",
+    l.enlace_reunion AS "placeLink",
+    (
+      SELECT COUNT(DISTINCT cp.protocolo_id)
+      FROM evaluacion.convocatoria_protocolos cp
+      WHERE cp.convocatoria_id = c.id
+        AND cp.eliminado_en IS NULL
+    )::int AS "protocolCount"
+  FROM evaluacion.convocatorias c
+  LEFT JOIN evaluacion.lugares l ON l.id = c.lugar_id
+  WHERE c.estado IN ($1, $2)
+    AND c.fecha_reunion IS NOT NULL
+    AND c.fecha_reunion >= (date_trunc('day', NOW() AT TIME ZONE $3) AT TIME ZONE $3)
+  ORDER BY c.fecha_reunion ASC, c.numero_convocatoria ASC
+  LIMIT 1
+`;
 
 @Injectable()
 export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
@@ -419,6 +467,35 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       protocolCount: orm.convocatoriaProtocolos?.length ?? 0,
     }));
     return { items, total, page, limit };
+  }
+
+  async findNextMeeting(): Promise<NextMeetingEntity | null> {
+    const rows = await this.dataSource.query<NextMeetingRow[]>(
+      NEXT_MEETING_SQL,
+      [
+        ConvocatoriaStatus.PROGRAMADA,
+        ConvocatoriaStatus.EN_CURSO,
+        ENTREGA_EVALUACION_ZONA_HORARIA,
+      ],
+    );
+    const row = rows[0];
+    if (!row) return null;
+    return {
+      id: row.id,
+      meetingNumber: row.meetingNumber,
+      sessionType: row.sessionType,
+      meetingDate: new Date(row.meetingDate),
+      place: row.placeId
+        ? {
+            id: row.placeId,
+            name: row.placeName,
+            address: row.placeAddress,
+            isVirtual: row.placeIsVirtual === true,
+            meetingLink: row.placeLink,
+          }
+        : null,
+      protocolCount: Number(row.protocolCount),
+    };
   }
 
   async findPendingProtocols(): Promise<PendingProtocolEntity[]> {

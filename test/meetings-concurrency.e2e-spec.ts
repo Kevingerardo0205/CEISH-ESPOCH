@@ -45,6 +45,7 @@ describe('Convocatorias Concurrency Stress Tests (e2e) - [TSK-009-009 / EARS 1]'
     findById: jest.fn(),
     findAll: jest.fn(),
     findPendingProtocols: jest.fn(),
+    findNextMeeting: jest.fn().mockResolvedValue(null),
     findAllPlaces: jest.fn(),
     findPlaceById: jest.fn(),
     getOldestAssignedDates: jest.fn().mockResolvedValue([]),

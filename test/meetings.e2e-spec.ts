@@ -89,6 +89,7 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
       });
     }),
     findPendingProtocols: jest.fn().mockResolvedValue([]),
+    findNextMeeting: jest.fn().mockResolvedValue(null),
     findAllPlaces: jest.fn().mockResolvedValue([]),
     findPlaceById: jest.fn().mockResolvedValue(null),
     createPlace: jest

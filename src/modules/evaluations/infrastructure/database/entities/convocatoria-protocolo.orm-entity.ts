@@ -30,14 +30,14 @@ export class ConvocatoriaProtocoloOrmEntity {
 
   @ManyToOne(() => ProtocolOrmEntity, { nullable: true })
   @JoinColumn({ name: 'protocolo_id' })
-  protocolo?: ProtocolOrmEntity;
+  protocolo?: Relation<ProtocolOrmEntity>;
 
   @Column({ name: 'version_id', type: 'integer', nullable: true })
   versionId?: number | null;
 
   @ManyToOne(() => ProtocolVersionOrmEntity, { nullable: true })
   @JoinColumn({ name: 'version_id' })
-  version?: ProtocolVersionOrmEntity;
+  version?: Relation<ProtocolVersionOrmEntity>;
 
   informeSeguimientoId?: number | null;
 

@@ -287,3 +287,47 @@
     | M12 sin `@Roles(SECRETARIA)` | PRESIDENTE → 403 | 1 failed, 24 passed |
 
   - Nota sobre `test/meeting-pdf-real.e2e-spec.ts`: en la corrida completa, M4-01, M4-03 y M4-04 (generan el PDF real) tardaron entre 24 y 34 s y fallaron por el timeout de 30 s, sin fallos de aserción. Esa suite sola pasó 7/7 en 6 corridas, con y sin `SecretariaModule`. En `b1702a0` se subió a 60 s el timeout de esas tres pruebas (tercer argumento de `it`), sin cambiar aserciones ni la configuración de Jest.
+
+### Task TSK-015-N07 - [x] COMPLETADO (rama feat/proxima-reunion)
+- **ID Único**: `TSK-015-N07`
+- **Requisito Relacionado**: `RF-ALR.f.7` (spec-003 v1.5.3), `RF-09`
+- **Criterio EARS**: **Cuando** la Secretaría o la Presidencia consulten `GET /api/evaluations/meetings/next`, **el sistema debe** devolver la convocatoria `PROGRAMADA` o `EN_CURSO` más cercana desde el inicio del día de hoy en America/Guayaquil, con su lugar y los protocolos distintos a tratar, o `data: null` si no hay ninguna.
+- **Acción**: `CREAR` y `MODIFICAR`
+- **Archivos Afectados**:
+  - CREAR `src/modules/evaluations/application/dtos/response/next-meeting.dto.ts` — `NextMeetingDto`, `NextMeetingPlaceDto` y `NextMeetingResponseDto` (Swagger; documenta `informesATratar: null`)
+  - CREAR `test/meetings-next.e2e-spec.ts`
+  - MODIFICAR `src/modules/evaluations/domain/entities/meeting.entity.ts` — `NextMeetingModel` / `NextMeetingEntity`
+  - MODIFICAR `src/modules/evaluations/domain/ports/meeting-repository.port.ts` — `findNextMeeting()`
+  - MODIFICAR `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` — una consulta SQL parametrizada (sin relaciones nuevas)
+  - MODIFICAR `src/modules/evaluations/application/mappers/meeting.mapper.ts` — `toNextMeeting`
+  - MODIFICAR `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` — solo el handler nuevo `GET next`, antes de `GET :id`, con `@UseGuards(PermissionsGuard)`, `@Roles(SECRETARIA, PRESIDENTE)` y `@Permissions(RESOLUCION_CONVOCATORIAS)`
+  - MODIFICAR `src/modules/evaluations/application/mappers/meeting.mapper.spec.ts`, `src/modules/evaluations/infrastructure/controllers/meetings.controller.spec.ts` y `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.spec.ts`
+  - Commit aparte (arranque con SWC): MODIFICAR `src/modules/evaluations/infrastructure/database/entities/{assignment-history,convocatoria,convocatoria-protocolo,risk-proposal}.orm-entity.ts` (`Relation<>` en las 11 relaciones) y `test/swc-entities-boot.e2e-spec.ts` (cubre `*.entity.orm.ts` y `*.orm-entity.ts`)
+- **Dependencias**: TSK-015-N06 (vista Mis pendientes), TSK-009 (convocatorias)
+- **Descripción**: según RF-ALR.f.7. Sin migraciones. No se implementan los pendientes a), b) y c) de RF-ALR.f.7.
+- **Tests**:
+  - Unitarias: `toNextMeeting` (ISO, lugar null y virtual, `informesATratar` null), el handler con `data: null` cuando no hay reunión, y el mapeo y los parámetros de `findNextMeeting`.
+  - E2E `test/meetings-next.e2e-spec.ts` con guards reales y login real (`secretaria@test.com` y `presidente@test.com` con `E2E_TEST_ACCOUNTS_PASSWORD`; EVALUADOR, INVESTIGADOR y un PRESIDENTE con el rol vencido, usuarios `ZZ_TEST_NXT_` con contraseña generada): 401, 200, 403, `next` no cae en `:id`, la más cercana, desempate por número, estados, hoy a una hora pasada, ayer excluida, `DISTINCT` y `eliminado_en`, 0 protocolos, `informesATratar` null, lugar null y virtual, `data: null`. Datos `ZZ_TEST_NXT_` con fechas en 2090, borrados en `beforeAll` y `afterAll`.
+- **Criterio "Hecho cuando:"**: tsc, `nest build`, `node dist/main.js` arranca, unitarias y E2E (suite nueva 2 veces y la completa 2 veces con `--runInBand`) en verde; eslint sin empeorar respecto de `dev`; residuos = 0 y convocatorias huérfanas = 57; al menos 6 mutaciones (rol, permiso, estado, borde de hoy, DISTINCT, `eliminado_en`) y la de SWC detectadas.
+- **Resultados (05/11/2026, commits `a80935b` docs del spec, `1334e66` código del endpoint, `3e94c4a` `Relation<>` y prueba de SWC)**:
+  - `npx tsc --noEmit`: sin errores. `nest build`: 377 archivos compilados con SWC. `node dist/main.js` (PORT=3099): «Nest application successfully started», luego detenido.
+  - Prettier y eslint solo en los 19 archivos de `dev..HEAD`: prettier sin cambios pendientes; eslint 0 errores y 1 warning (`meetings.controller.spec.ts`, `no-unsafe-argument`), que ya estaba en `dev`. Ningún archivo empeora.
+  - Unitarias: 63 suites / 573 pruebas en verde.
+  - E2E `test/meetings-next.e2e-spec.ts`: 17/17 en cada corrida aislada (`--runInBand`).
+  - E2E completa (`--runInBand`), dos corridas seguidas: 20 suites / 330 pruebas en verde las dos veces (antes 313; +17 de `meetings-next`).
+  - `test/swc-entities-boot.e2e-spec.ts` carga ahora también los `*.orm-entity.ts` (6). Sin los 11 `Relation<>` la prueba ya pasaba (2/2): ninguna de esas relaciones cerraba un ciclo; se agregan para que un ciclo futuro no rompa el arranque.
+  - `ceish_test_db`: residuos `ZZ_TEST_` = 0 (convocatorias, lugares, protocolos, versiones, usuarios; usuarios `@e2e-nxt.test` = 0); convocatorias huérfanas = 57 (total 65), sin cambio; convocatorias ajenas `PROGRAMADA`/`EN_CURSO` desde hoy = 0.
+  - Archivos de mocks no listados en «Archivos afectados» (incluidos y señalados en `1334e66`; solo agregan `findNextMeeting` al mock del puerto): `create-meeting.use-case.spec.ts`, `test/meetings-concurrency.e2e-spec.ts`, `test/meetings-pdf.e2e-spec.ts`, `test/meetings.e2e-spec.ts`.
+  - Mutaciones: 9 de 9 detectadas (E2E con `--runInBand`; cada una revertida editando, `cmp` OK con la copia previa).
+
+    | Mutación | Qué se rompió | Prueba que falla | Resultado |
+    |---|---|---|---|
+    | M1 rol | `@Roles(SECRETARIA)` sin PRESIDENTE | acceso › PRESIDENTE → 200; acceso › PRESIDENTE con el rol vencido en la base (sin RESOLUCION_CONVOCATORIAS vigente) → 403 | 2 failed, 15 passed |
+    | M2a permiso | sin `@Permissions(RESOLUCION_CONVOCATORIAS)` | acceso › PRESIDENTE con el rol vencido en la base (sin RESOLUCION_CONVOCATORIAS vigente) → 403 | 1 failed, 16 passed |
+    | M2b permiso | sin `@UseGuards(PermissionsGuard)` en el handler | acceso › PRESIDENTE con el rol vencido en la base (sin RESOLUCION_CONVOCATORIAS vigente) → 403 | 1 failed, 16 passed |
+    | M3a estado | sin `EN_CURSO` (PROGRAMADA en los dos parámetros) | qué reunión es › incluye EN_CURSO | 1 failed, 16 passed |
+    | M3b estado | `CANCELADA` en lugar de `EN_CURSO` | qué reunión es › excluye CANCELADA y CONCLUIDA aunque sean más cercanas; qué reunión es › incluye EN_CURSO | 2 failed, 15 passed |
+    | M4 borde de hoy | `fecha_reunion >= NOW()` en lugar del inicio del día | qué reunión es › la reunión de hoy (Ecuador) a una hora ya pasada sigue siendo la próxima | 1 failed, 16 passed |
+    | M5 DISTINCT | `COUNT(cp.protocolo_id)` | respuesta › protocolosATratar cuenta protocolos distintos y no las filas con eliminado_en | 1 failed, 16 passed |
+    | M6 `eliminado_en` | sin `AND cp.eliminado_en IS NULL` | respuesta › protocolosATratar cuenta protocolos distintos y no las filas con eliminado_en | 1 failed, 16 passed |
+    | M7 SWC | `convocatoria?: ConvocatoriaOrmEntity` sin `Relation<>` en `convocatoria-protocolo.orm-entity.ts` | Arranque compilado con SWC › cada entidad se carga como primer módulo sin ReferenceError ni otro error (`convocatoria.orm-entity.js`, `minutes.entity.orm.js`, `session.entity.orm.js`: `ReferenceError: Cannot access 'ConvocatoriaOrmEntity' before initialization`) | 1 failed, 1 passed |
