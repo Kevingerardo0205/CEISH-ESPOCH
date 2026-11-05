@@ -7,8 +7,8 @@
  * la otra antes de que exista y el arranque falla con
  * `ReferenceError: Cannot access 'ProtocolOrmEntity' before initialization`.
  * ts-jest no reproduce el fallo, por eso esta prueba compila `src/` con las mismas opciones de
- * SWC que usa `nest build` y carga cada `*.entity.orm.js` como primer módulo de un proceso
- * nuevo (todos los órdenes de carga posibles de los ciclos).
+ * SWC que usa `nest build` y carga cada entidad (`*.entity.orm.js` y `*.orm-entity.js`) como
+ * primer módulo de un proceso nuevo (todos los órdenes de carga posibles de los ciclos).
  *
  * No usa la base de datos ni `.env`: el proceso hijo recibe solo PATH y NODE_PATH.
  */
@@ -22,7 +22,8 @@ import { swcDefaultsFactory } from '@nestjs/cli/lib/compiler/defaults/swc-defaul
 
 const PROJECT_ROOT = path.resolve(__dirname, '..');
 const SRC_DIR = path.join(PROJECT_ROOT, 'src');
-const ENTITY_SUFFIX = '.entity.orm.ts';
+// Las dos convenciones de nombre de entidades del repo (TSK-015-N07).
+const ENTITY_SUFFIXES = ['.entity.orm.ts', '.orm-entity.ts'];
 // spawnSync bloquea el hilo y el timeout de Jest no lo corta: cada carga tiene su propio límite.
 const LOAD_TIMEOUT_MS = 60_000;
 
@@ -68,7 +69,9 @@ describe('Arranque compilado con SWC: entidades sin ReferenceError por ciclos de
       const target = path.join(outDir, rel.replace(/\.ts$/, '.js'));
       fs.mkdirSync(path.dirname(target), { recursive: true });
       fs.writeFileSync(target, transformFileSync(file, options).code);
-      if (rel.endsWith(ENTITY_SUFFIX)) entities.push(target);
+      if (ENTITY_SUFFIXES.some((suffix) => rel.endsWith(suffix))) {
+        entities.push(target);
+      }
     }
     entities = entities.sort();
   }, 120_000);
@@ -77,8 +80,10 @@ describe('Arranque compilado con SWC: entidades sin ReferenceError por ciclos de
     if (outDir) fs.rmSync(outDir, { recursive: true, force: true });
   });
 
-  it('compila todas las entidades ORM (*.entity.orm.ts)', () => {
+  it('compila todas las entidades ORM (*.entity.orm.ts y *.orm-entity.ts)', () => {
     expect(entities.length).toBeGreaterThanOrEqual(30);
+    const ormEntity = entities.filter((e) => e.endsWith('.orm-entity.js'));
+    expect(ormEntity.length).toBeGreaterThanOrEqual(6);
   });
 
   it('cada entidad se carga como primer módulo sin ReferenceError ni otro error', () => {

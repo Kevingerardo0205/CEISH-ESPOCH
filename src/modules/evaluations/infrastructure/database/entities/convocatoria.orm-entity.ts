@@ -79,7 +79,7 @@ export class ConvocatoriaOrmEntity {
 
   @ManyToOne(() => LugarOrmEntity, { nullable: true, onDelete: 'SET NULL' })
   @JoinColumn({ name: 'lugar_id' })
-  lugar?: LugarOrmEntity;
+  lugar?: Relation<LugarOrmEntity>;
 
   @Column({
     name: 'estado',
