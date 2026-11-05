@@ -284,12 +284,12 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
 
   // ─── SESIÓN ─────────────────────────────────────────────────────────────────
   describe('SESIÓN: login devuelve roles y permisos vigentes', () => {
-    it('SECRETARIA: token contiene exactamente 35 permisos', () => {
-      expect(u.secretaria.loginBody?.user?.permissions).toHaveLength(35);
+    it('SECRETARIA: token contiene exactamente 36 permisos', () => {
+      expect(u.secretaria.loginBody?.user?.permissions).toHaveLength(36);
     });
 
-    it('PRESIDENTE: token contiene exactamente 21 permisos', () => {
-      expect(u.presidente.loginBody?.user?.permissions).toHaveLength(21);
+    it('PRESIDENTE: token contiene exactamente 22 permisos', () => {
+      expect(u.presidente.loginBody?.user?.permissions).toHaveLength(22);
     });
 
     it('EVALUADOR: token contiene exactamente 9 permisos', () => {
@@ -298,6 +298,28 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
 
     it('INVESTIGADOR: token contiene exactamente 8 permisos', () => {
       expect(u.investigador.loginBody?.user?.permissions).toHaveLength(8);
+    });
+
+    it('matriz fija: 75 filas vigentes en rol_permisos para los 4 roles (TSK-001.4)', async () => {
+      const [{ c }] = await ds.query(
+        `SELECT count(*)::int AS c
+         FROM catalogos.rol_permisos rp
+         JOIN catalogos.roles r ON r.id = rp.rol_id
+         JOIN catalogos.permisos p ON p.id = rp.permiso_id AND p.eliminado_en IS NULL
+         WHERE r.codigo IN ('SECRETARIA', 'PRESIDENTE', 'EVALUADOR', 'INVESTIGADOR')`,
+      );
+      expect(c).toBe(75);
+    });
+
+    it('SECRETARIA y PRESIDENTE: token incluye PROTOCOLOS_LISTAR; EVALUADOR e INVESTIGADOR no (TSK-001.4)', () => {
+      const codesOf = (key: string): string[] =>
+        (u[key].loginBody?.user?.permissions ?? []).map(
+          (p: any) => p.code as string,
+        );
+      expect(codesOf('secretaria')).toContain('PROTOCOLOS_LISTAR');
+      expect(codesOf('presidente')).toContain('PROTOCOLOS_LISTAR');
+      expect(codesOf('evaluador')).not.toContain('PROTOCOLOS_LISTAR');
+      expect(codesOf('investigador')).not.toContain('PROTOCOLOS_LISTAR');
     });
 
     it('SECRETARIA: token no incluye ningún permiso retirado', () => {
@@ -326,7 +348,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
   });
 
   // ─── SECRETARIA ─────────────────────────────────────────────────────────────
-  describe('SECRETARIA (35 permisos)', () => {
+  describe('SECRETARIA (36 permisos)', () => {
     it('GET /auth/users → 200 (tiene USUARIOS_VER)', async () => {
       const res = await get('/auth/users', u.secretaria.token);
       expect(res.status).toBe(200);
@@ -348,7 +370,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
   });
 
   // ─── PRESIDENTE ──────────────────────────────────────────────────────────────
-  describe('PRESIDENTE (21 permisos)', () => {
+  describe('PRESIDENTE (22 permisos)', () => {
     it('GET /auth/admin-only → 200 (tiene rol PRESIDENTE)', async () => {
       const res = await get('/auth/admin-only', u.presidente.token);
       expect(res.status).toBe(200);

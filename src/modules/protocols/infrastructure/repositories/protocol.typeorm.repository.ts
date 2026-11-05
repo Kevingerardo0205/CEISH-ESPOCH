@@ -3,10 +3,18 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
 import { IProtocolRepository } from '../../domain/ports/protocol.repository.port';
 import { ProtocolOrmEntity } from '../database/protocol.entity.orm';
-import { QueryProtocolDto } from '../../application/dtos/query-protocol.dto';
+import { ListProtocolsQueryDto } from '../../application/dtos/list-protocols-query.dto';
 import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
 import { getPaginationParams } from '../../../../shared/db/pagination.helper';
 import { ReceptionStatus } from '../../domain/enums/reception-status.enum';
+import { protocolStageSql } from '../../domain/services/protocol-stage.sql';
+import {
+  escapeLikePattern,
+  LIKE_ESCAPE_CHAR,
+} from '../../../../shared/db/like-pattern';
+
+/** Zona horaria del filtro `year` de GET /protocols (RF-EST.3). */
+const PROTOCOL_LIST_TIME_ZONE = 'America/Guayaquil';
 
 @Injectable()
 export class ProtocolTypeOrmRepository
@@ -67,7 +75,7 @@ export class ProtocolTypeOrmRepository
   }
 
   async findAll(
-    query: QueryProtocolDto,
+    query: ListProtocolsQueryDto,
   ): Promise<[ProtocolOrmEntity[], number]> {
     const { limit, skip } = getPaginationParams(query);
     const { studyType, receptionStatus, reviewType } = query;
@@ -130,6 +138,44 @@ export class ProtocolTypeOrmRepository
       qb.andWhere(
         '(p.principalInvestigatorId = :invId OR investigators.userId = :invId)',
         { invId: query.investigatorId },
+      );
+    }
+
+    // RF-EST.3 (TSK-001.4): búsqueda, año y etapa; se combinan con AND y se aplican antes de paginar.
+    if (query.search) {
+      qb.andWhere(
+        `(p.ceishCode ILIKE :searchPattern ESCAPE '${LIKE_ESCAPE_CHAR}'
+          OR p.title ILIKE :searchPattern ESCAPE '${LIKE_ESCAPE_CHAR}'
+          OR EXISTS (
+            SELECT 1 FROM "public"."protocolo_investigadores" "searchCoInv"
+            WHERE "searchCoInv"."protocolo_id" = "p"."id"
+              AND "searchCoInv"."eliminado_en" IS NULL
+              AND "searchCoInv"."nombre_completo" ILIKE :searchPattern ESCAPE '${LIKE_ESCAPE_CHAR}'
+          )
+          OR EXISTS (
+            SELECT 1 FROM "catalogos"."usuarios" "searchPi"
+            WHERE "searchPi"."id" = "p"."investigador_principal_id"
+              AND "searchPi"."eliminado_en" IS NULL
+              AND "searchPi"."nombres_completos" ILIKE :searchPattern ESCAPE '${LIKE_ESCAPE_CHAR}'
+          ))`,
+        { searchPattern: `%${escapeLikePattern(query.search)}%` },
+      );
+    }
+    if (query.year) {
+      // Las dos columnas son timestamp sin zona en UTC (spec-001 v3.5.6, pendiente 10).
+      qb.andWhere(
+        `EXTRACT(YEAR FROM ((COALESCE("reception"."fecha_recepcion", "p"."creado_en") AT TIME ZONE 'UTC') AT TIME ZONE :yearTimeZone))::int = :year`,
+        { year: query.year, yearTimeZone: PROTOCOL_LIST_TIME_ZONE },
+      );
+    }
+    if (query.etapa) {
+      qb.andWhere(
+        `${protocolStageSql({
+          protocolStatus: 'protocolStatus',
+          receptionStatus: 'receptionStatus',
+          activeVersion: 'activeVersion',
+        })} = :etapa`,
+        { etapa: query.etapa },
       );
     }
 

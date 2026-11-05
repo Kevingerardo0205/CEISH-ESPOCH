@@ -21,6 +21,9 @@ export interface ProtocolStageResult {
  *   si tampoco hay recepción, RECEPCION.
  * - Excepción: APROBADO (17) pasa a SEGUIMIENTO cuando la versión activa tiene resolución emitida.
  * - El orden es la posición de la etapa (1 a 6).
+ *
+ * La misma regla está en SQL en `protocolStageSql` (./protocol-stage.sql.ts), que filtra
+ * GET /protocols por etapa (RF-EST.3, TSK-001.4); si cambia una, cambia la otra.
  */
 export function resolveProtocolStage(
   protocolStatus: StageSourceStatus | null | undefined,

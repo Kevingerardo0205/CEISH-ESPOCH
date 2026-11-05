@@ -13,7 +13,7 @@ import { ProtocolOrmEntity } from '../../infrastructure/database/protocol.entity
 import { StudyTypeOrmEntity } from '../../infrastructure/database/study-type.entity.orm';
 import { RiskLevelOrmEntity } from '../../infrastructure/database/risk-level.entity.orm';
 import { CreateProtocolDto } from '../dtos/create-protocol.dto';
-import { QueryProtocolDto } from '../dtos/query-protocol.dto';
+import { ListProtocolsQueryDto } from '../dtos/list-protocols-query.dto';
 import { InvestigatorOrmEntity } from '../../infrastructure/database/investigator.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { InvestigatorRole } from '../../domain/enums/investigator-role.enum';
@@ -50,7 +50,7 @@ export class ProtocolsService {
     private readonly receptionService: ReceptionService,
   ) {}
 
-  async findAll(query: QueryProtocolDto) {
+  async findAll(query: ListProtocolsQueryDto) {
     const [data, total] = await this.protocolsRepository.findAll(query);
     return paginate(
       data.map((p) => ProtocolMapper.toListResponse(p)),
