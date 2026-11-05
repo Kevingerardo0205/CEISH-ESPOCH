@@ -14,7 +14,7 @@
 **Historial:** 2026-10-30 — v3.5.3: HU-001 GET /auth/roles de solo lectura; administración del asistente IA solo SECRETARIA; asignación rechaza roles inexistentes, inactivos o eliminados
 **Historial:** 2026-11-04 — v3.5.4: HU-001 k) rechazos del login con código estable (`code`) y mensajes en español; credenciales inválidas con un mismo mensaje para correo inexistente y contraseña incorrecta
 **Historial:** 2026-11-04 — v3.5.5: RF-EST.1 regla de origen de la etapa (protocolo → recepción → RECEPCION), APROBADO según resolución emitida, Renovación sin estados todavía; RF-EST.2 parcial
-**Historial:** 2026-11-05 — v3.5.6: RF-EST.3 contrato de GET /protocols (acceso SECRETARIA y PRESIDENTE con `PROTOCOLOS_LISTAR`, filtros `search`, `year` y `etapa`, `limit` máximo 100, `principalInvestigator` en la respuesta); HU-001 c) `PROTOCOLOS_LISTAR` en la matriz; pendientes de búsqueda sin tildes, datos personales del listado, regla del año y escritura de `fecha_recepcion`
+**Historial:** 2026-11-04 — v3.5.6: RF-EST.3 contrato de GET /protocols (acceso SECRETARIA y PRESIDENTE con `PROTOCOLOS_LISTAR`, filtros `search`, `year` y `etapa`, `limit` máximo 100, `principalInvestigator` en la respuesta); HU-001 c) `PROTOCOLOS_LISTAR` en la matriz; pendientes de búsqueda sin tildes, datos personales del listado, regla del año y escritura de `fecha_recepcion`
 
 ---
 
@@ -500,7 +500,7 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 
   Cada etapa acepta sus propios filtros además de la búsqueda por código, título o investigador. La etapa Evaluación incluye filtros específicos por Riesgo y Dictámenes. **No existen módulos separados de "Seguimiento" ni de "Renovaciones"**: son etapas dentro de Protocolos. "Mis pendientes" (RF-ALR.f en specs/003) sigue siendo una vista aparte, para las acciones que hay que hacer.
 
-  **Contrato de `GET /api/protocols` (TSK-001.4, decisión 05/11/2026)**:
+  **Contrato de `GET /api/protocols` (TSK-001.4, decisión 04/11/2026)**:
 
   1. **Acceso**: solo SECRETARIA y PRESIDENTE, con el permiso `PROTOCOLOS_LISTAR` («Listar protocolos», módulo `MOD_RECEPCION`, creado por migración). El handler aplica `RolesGuard` y `PermissionsGuard` con `@Roles(SECRETARIA, PRESIDENTE)` y `@Permissions(PROTOCOLOS_LISTAR)`, además del `JwtAuthGuard` de la clase. Sin token → 401; otro rol o sin el permiso → 403. Los demás handlers del controlador (`mis-protocolos`, `mis-subsanaciones`, catálogos y checklist) no cambian.
   2. **Filtros** (se combinan con AND entre sí y con los existentes: `studyType`, `receptionStatus`, `reviewType`, `investigatorId`, `statusId`, `subsanar`):
@@ -511,7 +511,7 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
   3. **Orden**: `updatedAt` DESC, sin cambios.
   4. **Respuesta**: la misma de antes (`data`, `total`, `page`, `limit`, `totalPages`; cada item con `etapa` y `etapaOrden`) más `principalInvestigator: { id, fullName } | null`. No se quita ni se renombra ningún campo.
 
-  > **Falta implementar**: las columnas por etapa y los filtros propios de cada etapa (Riesgo y Dictámenes en Evaluación). El listado ya filtra por etapa (TSK-001.4), expone `etapa` y `etapaOrden` (RF-EST.2 parcial, TSK-001.2) y el catálogo `catalogos.estados` ya tiene `etapa` y `orden` (RF-EST.1). — actualizado 05/11/2026
+  > **Falta implementar**: las columnas por etapa y los filtros propios de cada etapa (Riesgo y Dictámenes en Evaluación). El listado ya filtra por etapa (TSK-001.4), expone `etapa` y `etapaOrden` (RF-EST.2 parcial, TSK-001.2) y el catálogo `catalogos.estados` ya tiene `etapa` y `orden` (RF-EST.1). — actualizado 04/11/2026
 
 ---
 

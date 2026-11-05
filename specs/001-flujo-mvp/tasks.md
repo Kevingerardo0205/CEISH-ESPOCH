@@ -139,7 +139,7 @@
   - **Endpoints:** `GET /protocols/:id`, `POST /protocols` (requieren cargar el estado sin arriesgar los `save` que siguen a `findById`), `GET /reception/protocol/:id`, `GET /evaluations/protocols/pending-peer-assignment`, `GET /evaluations/my-assignments`, `GET /evaluations/evaluators/dashboard`, `GET /evaluations/peer-assignments/my-pending`, `GET /evaluations/meetings/pending-protocols`, `GET /evaluations/meetings`, `GET /resolutions/protocol/:protocolId`. `CallsController` queda fuera (legacy).
   - **Hecho cuando:** cada endpoint devuelve la etapa calculada con `resolveProtocolStage`, con pruebas E2E.
 
-- [x] **TSK-001.4**: Filtros y acceso de `GET /api/protocols` (RF-EST.3 — spec v3.5.6, 05/11/2026)
+- [x] **TSK-001.4**: Filtros y acceso de `GET /api/protocols` (RF-EST.3 — spec v3.5.6, 04/11/2026)
   - **Requisitos cubiertos:** `RF-EST.3` (búsqueda, año, etapa), HU-001 c (`PROTOCOLOS_LISTAR`)
   - **Archivos:**
     - CREAR `src/migrations/1900000000000-AddProtocolosListarPermission.ts`: inserta `PROTOCOLOS_LISTAR` («Listar protocolos», `MOD_RECEPCION`) y lo asigna a SECRETARIA y PRESIDENTE (patrón de `FixedRolesMatrix1880000000000`); `down` borra esas 2 filas de `rol_permisos` y el permiso.
