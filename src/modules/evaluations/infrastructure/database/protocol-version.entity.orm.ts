@@ -43,7 +43,7 @@ export class ProtocolVersionOrmEntity {
 
   @ManyToOne(() => ResolutionTypeOrmEntity)
   @JoinColumn({ name: 'tipo_resolucion_id' })
-  resolutionType?: ResolutionTypeOrmEntity;
+  resolutionType?: Relation<ResolutionTypeOrmEntity>;
 
   @Column({ name: 'observaciones', type: 'text', nullable: true })
   observations?: string;
@@ -59,7 +59,7 @@ export class ProtocolVersionOrmEntity {
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'validado_por' })
-  validatedBy?: UserOrmEntity;
+  validatedBy?: Relation<UserOrmEntity>;
 
   @OneToOne(() => ReceptionOrmEntity, (reception) => reception.version)
   reception?: Relation<ReceptionOrmEntity>;

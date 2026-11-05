@@ -75,5 +75,5 @@ export class UserOrmEntity extends BaseOrmEntity {
     joinColumn: { name: 'usuario_id', referencedColumnName: 'id' },
     inverseJoinColumn: { name: 'rol_id', referencedColumnName: 'id' },
   })
-  roles!: RoleOrmEntity[];
+  roles!: Relation<RoleOrmEntity>[];
 }

@@ -53,14 +53,14 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
 
   @ManyToOne(() => StudyTypeOrmEntity)
   @JoinColumn({ name: 'tipo_estudio_id' })
-  studyType?: StudyTypeOrmEntity;
+  studyType?: Relation<StudyTypeOrmEntity>;
 
   @Column({ name: 'tipo_estudio_id', nullable: true })
   studyTypeId?: number;
 
   @ManyToOne(() => RiskLevelOrmEntity)
   @JoinColumn({ name: 'nivel_riesgo_id' })
-  riskLevel?: RiskLevelOrmEntity;
+  riskLevel?: Relation<RiskLevelOrmEntity>;
 
   @Column({ name: 'nivel_riesgo_id', nullable: true })
   riskLevelId?: number;
@@ -70,7 +70,7 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
    */
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'investigador_principal_id' })
-  principalInvestigator!: UserOrmEntity;
+  principalInvestigator!: Relation<UserOrmEntity>;
 
   /**
    * @deprecated Usar investigadorPrincipalInvId para la fuente de verdad.
@@ -84,7 +84,7 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   /** Solo lectura en listados (TSK-001.2): no se asigna al guardar. */
   @ManyToOne(() => StatusOrmEntity)
   @JoinColumn({ name: 'estado_id' })
-  status?: StatusOrmEntity | null;
+  status?: Relation<StatusOrmEntity> | null;
 
   get receptionDate(): Date | undefined {
     return this.reception?.receptionDate;

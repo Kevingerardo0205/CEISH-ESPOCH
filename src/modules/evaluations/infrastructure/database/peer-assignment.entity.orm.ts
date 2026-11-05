@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { RiskLevelOrmEntity } from '../../../protocols/infrastructure/database/risk-level.entity.orm';
@@ -20,21 +21,21 @@ export class PeerRiskAssignmentOrmEntity {
 
   @ManyToOne(() => ProtocolOrmEntity)
   @JoinColumn({ name: 'protocolo_id' })
-  protocol!: ProtocolOrmEntity;
+  protocol!: Relation<ProtocolOrmEntity>;
 
   @Column({ name: 'evaluador_id' })
   evaluatorId!: number;
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'evaluador_id' })
-  evaluator!: UserOrmEntity;
+  evaluator!: Relation<UserOrmEntity>;
 
   @Column({ name: 'nivel_riesgo_propuesto_id', nullable: true })
   proposedRiskLevelId?: number;
 
   @ManyToOne(() => RiskLevelOrmEntity)
   @JoinColumn({ name: 'nivel_riesgo_propuesto_id' })
-  proposedRiskLevel?: RiskLevelOrmEntity;
+  proposedRiskLevel?: Relation<RiskLevelOrmEntity>;
 
   @Column({ name: 'observaciones', type: 'text', nullable: true })
   observations?: string;

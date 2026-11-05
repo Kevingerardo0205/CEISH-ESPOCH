@@ -6,6 +6,7 @@ import {
   PrimaryGeneratedColumn,
   CreateDateColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 import { TipoDocumentoOrmEntity } from '../../../protocols/infrastructure/database/tipo-documento.entity.orm';
@@ -22,28 +23,28 @@ export class DocumentOrmEntity {
 
   @ManyToOne(() => ProtocolOrmEntity)
   @JoinColumn({ name: 'protocolo_id' })
-  protocol!: ProtocolOrmEntity;
+  protocol!: Relation<ProtocolOrmEntity>;
 
   @Column({ name: 'version_id', nullable: true })
   versionId?: number;
 
   @ManyToOne(() => ProtocolVersionOrmEntity)
   @JoinColumn({ name: 'version_id' })
-  version?: ProtocolVersionOrmEntity;
+  version?: Relation<ProtocolVersionOrmEntity>;
 
   @Column({ name: 'requisito_id', nullable: true })
   requirementId?: number;
 
   @ManyToOne(() => ProtocolRequirementOrmEntity)
   @JoinColumn({ name: 'requisito_id' })
-  requirement?: ProtocolRequirementOrmEntity;
+  requirement?: Relation<ProtocolRequirementOrmEntity>;
 
   @Column({ name: 'tipo_documento_id', nullable: true })
   tipoDocumentoId?: number;
 
   @ManyToOne(() => TipoDocumentoOrmEntity)
   @JoinColumn({ name: 'tipo_documento_id' })
-  tipoDocumento?: TipoDocumentoOrmEntity;
+  tipoDocumento?: Relation<TipoDocumentoOrmEntity>;
 
   @Column({ name: 'nombre_archivo', length: 200 })
   fileName!: string;
@@ -71,7 +72,7 @@ export class DocumentOrmEntity {
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'subido_por' })
-  uploadedBy?: UserOrmEntity;
+  uploadedBy?: Relation<UserOrmEntity>;
 
   @CreateDateColumn({ name: 'creado_en', type: 'timestamp' })
   createdAt!: Date;

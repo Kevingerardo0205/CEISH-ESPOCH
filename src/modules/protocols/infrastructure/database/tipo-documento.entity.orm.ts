@@ -1,4 +1,5 @@
 import { Entity, Column, OneToMany } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
 import { TipoDocumentoEstudioOrmEntity } from './tipo-documento-estudio.entity.orm';
 
@@ -23,5 +24,5 @@ export class TipoDocumentoOrmEntity extends BaseOrmEntity {
   tipoEstudioAplica?: string[];
 
   @OneToMany(() => TipoDocumentoEstudioOrmEntity, (tde) => tde.tipoDocumento)
-  estudiosAplica!: TipoDocumentoEstudioOrmEntity[];
+  estudiosAplica!: Relation<TipoDocumentoEstudioOrmEntity>[];
 }

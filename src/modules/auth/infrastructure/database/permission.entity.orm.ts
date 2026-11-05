@@ -1,4 +1,5 @@
 import { Entity, Column, ManyToOne, JoinColumn } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
 import { ModuleOrmEntity } from './module.entity.orm';
 
@@ -15,5 +16,5 @@ export class PermissionOrmEntity extends BaseOrmEntity {
 
   @ManyToOne(() => ModuleOrmEntity, (module) => module.permissions)
   @JoinColumn({ name: 'modulo_id' })
-  module?: ModuleOrmEntity;
+  module?: Relation<ModuleOrmEntity>;
 }

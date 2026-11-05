@@ -1,4 +1,5 @@
 import { Entity, Column, OneToMany } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { BaseOrmEntity } from '../../../../shared/db/base.entity.orm';
 import { PermissionOrmEntity } from './permission.entity.orm';
 
@@ -20,5 +21,5 @@ export class ModuleOrmEntity extends BaseOrmEntity {
   isActive!: boolean;
 
   @OneToMany(() => PermissionOrmEntity, (permission) => permission.module)
-  permissions!: PermissionOrmEntity[];
+  permissions!: Relation<PermissionOrmEntity>[];
 }

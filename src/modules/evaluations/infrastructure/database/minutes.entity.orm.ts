@@ -6,6 +6,7 @@ import {
   JoinColumn,
   CreateDateColumn,
 } from 'typeorm';
+import type { Relation } from 'typeorm';
 import { SessionOrmEntity } from './session.entity.orm';
 import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity.orm';
 
@@ -19,7 +20,7 @@ export class MinutesOrmEntity {
 
   @ManyToOne(() => SessionOrmEntity)
   @JoinColumn({ name: 'sesion_id' })
-  session!: SessionOrmEntity;
+  session!: Relation<SessionOrmEntity>;
 
   @Column({ name: 'numero_acta', nullable: true })
   minutesNumber?: number;
@@ -69,5 +70,5 @@ export class MinutesOrmEntity {
 
   @ManyToOne(() => UserOrmEntity)
   @JoinColumn({ name: 'creado_por' })
-  createdBy?: UserOrmEntity;
+  createdBy?: Relation<UserOrmEntity>;
 }
