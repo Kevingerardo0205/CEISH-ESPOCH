@@ -1,8 +1,14 @@
-import { toSummary, toDetail, toPendingProtocol } from './meeting.mapper';
+import {
+  toSummary,
+  toDetail,
+  toPendingProtocol,
+  toNextMeeting,
+} from './meeting.mapper';
 import type {
   MeetingSummaryModel,
   MeetingDetailModel,
   PendingProtocolModel,
+  NextMeetingModel,
 } from '../../domain/entities/meeting.entity';
 
 const MEETING_DATE = new Date('2026-10-15T09:00:00.000Z');
@@ -308,6 +314,72 @@ describe('meeting.mapper', () => {
     it('el JSON serializado no contiene la cadena "email"', () => {
       const json = JSON.stringify(toPendingProtocol(model));
       expect(json).not.toContain('email');
+    });
+  });
+
+  describe('toNextMeeting (RF-ALR.f.7, TSK-015-N07)', () => {
+    const baseNext: NextMeetingModel = {
+      id: 'f47ac10b-0000-0000-0000-000000000099',
+      meetingNumber: '099-2090',
+      sessionType: 'ORDINARIA',
+      meetingDate: new Date('2090-03-05T14:00:00.000Z'),
+      place: {
+        id: 'place-001',
+        name: 'Sala de Sesiones CEISH',
+        address: 'Edificio Central, piso 3',
+        isVirtual: false,
+        meetingLink: null,
+      },
+      protocolCount: 2,
+    };
+
+    it('devuelve exactamente los campos del contrato, con la fecha en ISO 8601', () => {
+      const dto = toNextMeeting(baseNext);
+      expect(dto).toEqual({
+        id: baseNext.id,
+        numeroConvocatoria: '099-2090',
+        tipoSesion: 'ORDINARIA',
+        fechaReunion: '2090-03-05T14:00:00.000Z',
+        lugar: {
+          nombre: 'Sala de Sesiones CEISH',
+          esVirtual: false,
+          enlaceReunion: null,
+        },
+        protocolosATratar: 2,
+        informesATratar: null,
+      });
+    });
+
+    it('informesATratar es null (no disponible hasta RF-15), no 0', () => {
+      expect(toNextMeeting(baseNext).informesATratar).toBeNull();
+    });
+
+    it('lugar null cuando la convocatoria no tiene lugar', () => {
+      expect(toNextMeeting({ ...baseNext, place: null }).lugar).toBeNull();
+    });
+
+    it('lugar virtual con enlace', () => {
+      const dto = toNextMeeting({
+        ...baseNext,
+        place: {
+          id: 'place-002',
+          name: 'Sala virtual',
+          address: null,
+          isVirtual: true,
+          meetingLink: 'https://meet.example.test/ceish',
+        },
+      });
+      expect(dto.lugar).toEqual({
+        nombre: 'Sala virtual',
+        esVirtual: true,
+        enlaceReunion: 'https://meet.example.test/ceish',
+      });
+    });
+
+    it('protocolosATratar 0 se mantiene en 0', () => {
+      expect(
+        toNextMeeting({ ...baseNext, protocolCount: 0 }).protocolosATratar,
+      ).toBe(0);
     });
   });
 });

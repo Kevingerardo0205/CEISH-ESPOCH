@@ -4,6 +4,7 @@ import {
   MeetingSummaryModel,
   PendingProtocolModel,
   AgendaProtocolModel,
+  NextMeetingModel,
 } from '../../domain/entities/meeting.entity';
 import {
   MeetingDetailDto,
@@ -11,6 +12,7 @@ import {
 } from '../dtos/response/meeting-detail.dto';
 import { MeetingSummaryDto } from '../dtos/response/meeting-summary.dto';
 import { PendingProtocolDto } from '../dtos/response/pending-protocol.dto';
+import { NextMeetingDto } from '../dtos/response/next-meeting.dto';
 
 function toAgendaItem(item: AgendaProtocolModel): AgendaProtocolDto {
   return {
@@ -38,6 +40,28 @@ export function toSummary(model: MeetingSummaryModel): MeetingSummaryDto {
     place: model.place,
     agendaPdfUrl: meetingPdfUrl(model.id),
     protocolCount: model.protocolCount,
+  };
+}
+
+/**
+ * Tarjeta «Próxima reunión» (RF-ALR.f.7). informesATratar es siempre null hasta RF-15:
+ * los informes de seguimiento no se pueden agendar (SEGUIMIENTO_NO_DISPONIBLE).
+ */
+export function toNextMeeting(model: NextMeetingModel): NextMeetingDto {
+  return {
+    id: model.id,
+    numeroConvocatoria: model.meetingNumber,
+    tipoSesion: model.sessionType,
+    fechaReunion: model.meetingDate.toISOString(),
+    lugar: model.place
+      ? {
+          nombre: model.place.name,
+          esVirtual: model.place.isVirtual,
+          enlaceReunion: model.place.meetingLink,
+        }
+      : null,
+    protocolosATratar: model.protocolCount,
+    informesATratar: null,
   };
 }
 

@@ -43,6 +43,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       findById: jest.fn(),
       findAll: jest.fn(),
       findPendingProtocols: jest.fn(),
+      findNextMeeting: jest.fn().mockResolvedValue(null),
       findAllPlaces: jest.fn(),
       findPlaceById: jest.fn().mockResolvedValue(null),
       createPlace: jest.fn(),

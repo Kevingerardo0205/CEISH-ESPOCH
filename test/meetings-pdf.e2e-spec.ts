@@ -62,6 +62,7 @@ const meetingRepositoryMock: IMeetingRepositoryPort = {
     .fn()
     .mockResolvedValue({ items: [], total: 0, page: 1, limit: 10 }),
   findPendingProtocols: jest.fn().mockResolvedValue([]),
+  findNextMeeting: jest.fn().mockResolvedValue(null),
   findAllPlaces: jest.fn().mockResolvedValue([]),
   findPlaceById: jest.fn().mockResolvedValue(null),
   createPlace: jest.fn().mockResolvedValue(null),

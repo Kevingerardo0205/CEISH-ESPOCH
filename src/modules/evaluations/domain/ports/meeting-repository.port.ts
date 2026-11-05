@@ -4,6 +4,7 @@ import {
   MeetingSummaryEntity,
   PendingProtocolEntity,
   MeetingPlaceFullModel,
+  NextMeetingEntity,
 } from '../entities/meeting.entity';
 
 /** Datos mínimos de asignación activa por protocolo-versión para evaluar el plazo de revisión (TSK-002-N05). */
@@ -108,6 +109,13 @@ export interface IMeetingRepositoryPort {
   }>;
 
   findPendingProtocols(): Promise<PendingProtocolEntity[]>;
+
+  /**
+   * Próxima reunión (RF-ALR.f.7, TSK-015-N07): convocatoria PROGRAMADA o EN_CURSO con
+   * fecha_reunion desde el inicio de hoy en America/Guayaquil (NOW() de la base), la más
+   * cercana y luego por numero_convocatoria. null si no hay ninguna.
+   */
+  findNextMeeting(): Promise<NextMeetingEntity | null>;
 
   findAllPlaces(options?: FindPlacesOptions): Promise<MeetingPlaceFullModel[]>;
 

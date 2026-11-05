@@ -98,7 +98,22 @@ export interface PendingProtocolModel {
   deadline: Date | null;
 }
 
+/**
+ * Modelo de lectura para GET /meetings/next (RF-ALR.f.7, TSK-015-N07).
+ * protocolCount = protocolos distintos del orden del día sin eliminado_en.
+ * El repositorio devuelve Date; el mapper genera el ISO.
+ */
+export interface NextMeetingModel {
+  id: string;
+  meetingNumber: string;
+  sessionType: string;
+  meetingDate: Date;
+  place: MeetingPlaceModel | null;
+  protocolCount: number;
+}
+
 /** Aliases para compatibilidad con la convención "Entity" del port. */
 export type MeetingDetailEntity = MeetingDetailModel;
 export type MeetingSummaryEntity = MeetingSummaryModel;
 export type PendingProtocolEntity = PendingProtocolModel;
+export type NextMeetingEntity = NextMeetingModel;

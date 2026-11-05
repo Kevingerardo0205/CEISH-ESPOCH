@@ -3,6 +3,7 @@ jest.mock('fs');
 import * as fs from 'fs';
 import { Test, TestingModule } from '@nestjs/testing';
 import { NotFoundException } from '@nestjs/common';
+import { GUARDS_METADATA } from '@nestjs/common/constants';
 import type { Response } from 'express';
 import { MeetingsController } from './meetings.controller';
 import { CreateMeetingUseCase } from '../../application/services/create-meeting.use-case';
@@ -10,11 +11,17 @@ import { CalculateMeetingDatesService } from '../../application/services/calcula
 import type { CreateMeetingDto } from '../../application/dtos/create-meeting.dto';
 import type { CalculateEvalDateDto } from '../../application/dtos/calculate-eval-date.dto';
 import { SessionType } from '../database/entities/convocatoria.orm-entity';
+import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
+import { ROLES_KEY } from '../../../../shared/decorators/roles.decorator';
+import { PERMISSIONS_KEY } from '../../../../shared/decorators/permissions.decorator';
+import { Permission } from '../../../../shared/enums/permission.enum';
+import { RoleCode } from '../../../auth/domain/enums/role.enum';
 import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-repository.port';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
 import type {
   MeetingDetailEntity,
   MeetingPlaceFullModel,
+  NextMeetingEntity,
 } from '../../domain/entities/meeting.entity';
 import {
   CreatePlaceDto,
@@ -42,6 +49,7 @@ describe('MeetingsController (T017 / RF-09)', () => {
       findById: jest.fn(),
       findAll: jest.fn(),
       findPendingProtocols: jest.fn(),
+      findNextMeeting: jest.fn().mockResolvedValue(null),
       findAllPlaces: jest.fn(),
       findPlaceById: jest.fn(),
       getOldestAssignedDates: jest.fn().mockResolvedValue([]),
@@ -79,7 +87,12 @@ describe('MeetingsController (T017 / RF-09)', () => {
           useValue: pdfGeneratorMock,
         },
       ],
-    }).compile();
+    })
+      // GET next usa PermissionsGuard (necesita DataSource); el guard real se prueba en
+      // test/meetings-next.e2e-spec.ts. Aquí se prueban el handler y sus metadatos.
+      .overrideGuard(PermissionsGuard)
+      .useValue({ canActivate: () => true })
+      .compile();
 
     controller = module.get<MeetingsController>(MeetingsController);
   });
@@ -353,6 +366,57 @@ describe('MeetingsController (T017 / RF-09)', () => {
 
       expect(result.statusCode).toBe(200);
       expect(result.message).toMatch(/desactivado/i);
+    });
+  });
+
+  describe('GET /meetings/next (RF-ALR.f.7, TSK-015-N07)', () => {
+    it('sin reunión próxima → 200 con data null', async () => {
+      meetingRepositoryMock.findNextMeeting.mockResolvedValue(null);
+      const result = await controller.getNextMeeting();
+      expect(result).toEqual({
+        statusCode: 200,
+        message: 'No hay reuniones próximas',
+        data: null,
+      });
+      expect(meetingRepositoryMock.findNextMeeting).toHaveBeenCalledTimes(1);
+    });
+
+    it('con reunión → data con el contrato de la tarjeta', async () => {
+      const model: NextMeetingEntity = {
+        id: 'f47ac10b-0000-0000-0000-000000000077',
+        meetingNumber: '077-2090',
+        sessionType: 'EXTRAORDINARIA',
+        meetingDate: new Date('2090-01-10T15:30:00.000Z'),
+        place: null,
+        protocolCount: 0,
+      };
+      meetingRepositoryMock.findNextMeeting.mockResolvedValue(model);
+      const result = await controller.getNextMeeting();
+      expect(result.statusCode).toBe(200);
+      expect(result.message).toBe('Próxima reunión obtenida exitosamente');
+      expect(result.data).toEqual({
+        id: model.id,
+        numeroConvocatoria: '077-2090',
+        tipoSesion: 'EXTRAORDINARIA',
+        fechaReunion: '2090-01-10T15:30:00.000Z',
+        lugar: null,
+        protocolosATratar: 0,
+        informesATratar: null,
+      });
+    });
+
+    it('el handler lleva PermissionsGuard, roles SECRETARIA y PRESIDENTE y RESOLUCION_CONVOCATORIAS', () => {
+      const handler = MeetingsController.prototype.getNextMeeting;
+      expect(Reflect.getMetadata(GUARDS_METADATA, handler)).toEqual([
+        PermissionsGuard,
+      ]);
+      expect(Reflect.getMetadata(ROLES_KEY, handler)).toEqual([
+        RoleCode.SECRETARIA,
+        RoleCode.PRESIDENTE,
+      ]);
+      expect(Reflect.getMetadata(PERMISSIONS_KEY, handler)).toEqual([
+        Permission.RESOLUCION_CONVOCATORIAS,
+      ]);
     });
   });
 });
