@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.5.5
+**Versión:** 3.5.6
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -14,6 +14,7 @@
 **Historial:** 2026-10-30 — v3.5.3: HU-001 GET /auth/roles de solo lectura; administración del asistente IA solo SECRETARIA; asignación rechaza roles inexistentes, inactivos o eliminados
 **Historial:** 2026-11-04 — v3.5.4: HU-001 k) rechazos del login con código estable (`code`) y mensajes en español; credenciales inválidas con un mismo mensaje para correo inexistente y contraseña incorrecta
 **Historial:** 2026-11-04 — v3.5.5: RF-EST.1 regla de origen de la etapa (protocolo → recepción → RECEPCION), APROBADO según resolución emitida, Renovación sin estados todavía; RF-EST.2 parcial
+**Historial:** 2026-11-05 — v3.5.6: RF-EST.3 contrato de GET /protocols (acceso SECRETARIA y PRESIDENTE con `PROTOCOLOS_LISTAR`, filtros `search`, `year` y `etapa`, `limit` máximo 100, `principalInvestigator` en la respuesta); HU-001 c) `PROTOCOLOS_LISTAR` en la matriz; pendientes de búsqueda sin tildes, datos personales del listado, regla del año y escritura de `fecha_recepcion`
 
 ---
 
@@ -101,6 +102,7 @@ La matriz se siembra por migración y **no se edita desde la aplicación**. Los 
 | `DASHBOARD_VENCIMIENTOS` | ✓ | ✓ | — | — |
 | `RECEPCION_LISTA`, `RECEPCION_VALIDAR`, `RECEPCION_BUSCAR`, `RECEPCION_CONSTANCIAS` | ✓ | — | — | — |
 | `RECEPCION_NUEVO` | ✓ | — | — | ✓ |
+| `PROTOCOLOS_LISTAR` | ✓ | ✓ | — | — |
 | `EVALUACION_ASIGNAR` | ✓ | — | — | — |
 | `EVALUACION_INFORMES` | ✓ | ✓ | — | — |
 | `EVALUACION_RIESGO`, `EVALUACION_EXPEDITA`, `EVALUACION_PLENO` | ✓ | ✓ | ✓ | — |
@@ -498,7 +500,18 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 
   Cada etapa acepta sus propios filtros además de la búsqueda por código, título o investigador. La etapa Evaluación incluye filtros específicos por Riesgo y Dictámenes. **No existen módulos separados de "Seguimiento" ni de "Renovaciones"**: son etapas dentro de Protocolos. "Mis pendientes" (RF-ALR.f en specs/003) sigue siendo una vista aparte, para las acciones que hay que hacer.
 
-  > **Falta implementar**: los filtros por etapa y las columnas por etapa. El listado ya expone `etapa` y `etapaOrden` (RF-EST.2 parcial, TSK-001.2) y el catálogo `catalogos.estados` ya tiene `etapa` y `orden` (RF-EST.1). — actualizado 04/11/2026
+  **Contrato de `GET /api/protocols` (TSK-001.4, decisión 05/11/2026)**:
+
+  1. **Acceso**: solo SECRETARIA y PRESIDENTE, con el permiso `PROTOCOLOS_LISTAR` («Listar protocolos», módulo `MOD_RECEPCION`, creado por migración). El handler aplica `RolesGuard` y `PermissionsGuard` con `@Roles(SECRETARIA, PRESIDENTE)` y `@Permissions(PROTOCOLOS_LISTAR)`, además del `JwtAuthGuard` de la clase. Sin token → 401; otro rol o sin el permiso → 403. Los demás handlers del controlador (`mis-protocolos`, `mis-subsanaciones`, catálogos y checklist) no cambian.
+  2. **Filtros** (se combinan con AND entre sí y con los existentes: `studyType`, `receptionStatus`, `reviewType`, `investigatorId`, `statusId`, `subsanar`):
+     - `search`: se recorta; si queda vacío, se ignora; máximo 100 caracteres (si no, 400). Busca sin distinguir mayúsculas (ILIKE, con `%`, `_` y `\` escapados) en `codigo_ceish`, `titulo`, el nombre de un coinvestigador (`protocolo_investigadores.nombre_completo`, con EXISTS) y el nombre del investigador principal (`catalogos.usuarios.nombres_completos` por `investigador_principal_id`, con EXISTS). Sin joins que dupliquen filas.
+     - `year`: entero de 2000 a 2100 (si no, 400). Es el año, en America/Guayaquil, de `COALESCE(fecha_recepcion de la recepción de la versión activa, protocolos.creado_en)`. Las dos columnas son `timestamp without time zone` y se interpretan como UTC.
+     - `etapa`: uno de los 6 códigos de RF-EST.1 (si no, 400). Se calcula en SQL con la misma regla de `resolveProtocolStage` y se filtra antes de paginar, así que `total` y `totalPages` cuentan solo esa etapa.
+     - `limit`: de 1 a 100 (si no, 400). `page` sin cambios.
+  3. **Orden**: `updatedAt` DESC, sin cambios.
+  4. **Respuesta**: la misma de antes (`data`, `total`, `page`, `limit`, `totalPages`; cada item con `etapa` y `etapaOrden`) más `principalInvestigator: { id, fullName } | null`. No se quita ni se renombra ningún campo.
+
+  > **Falta implementar**: las columnas por etapa y los filtros propios de cada etapa (Riesgo y Dictámenes en Evaluación). El listado ya filtra por etapa (TSK-001.4), expone `etapa` y `etapaOrden` (RF-EST.2 parcial, TSK-001.2) y el catálogo `catalogos.estados` ya tiene `etapa` y `orden` (RF-EST.1). — actualizado 05/11/2026
 
 ---
 
@@ -667,3 +680,7 @@ Un requerimiento se considerará **Finalizado** cuando:
 | 4 | Los endpoints que solo piden JWT (protocolos, almacenamiento, entre otros — aprox. 55) necesitan una auditoría aparte para confirmar que el servicio valida que el recurso pertenece al usuario antes de devolver datos. | RF-001 | PENDIENTE |
 | 5 | Validación final de la matriz de permisos (HU-001 c) con la Secretaría. | HU-001 c | PENDIENTE |
 | 6 | ¿Cuáles de los permisos `RESOLUCION_URGENCIAS`, `REPORTES_KPIS` y `REPORTES_TIEMPOS` quedan confirmados? (depende de RF-12.8 en specs/002) | HU-001 c | PENDIENTE |
+| 7 | Búsqueda del listado sin distinguir tildes (`unaccent` o `pg_trgm`). No se hace en TSK-001.4. | RF-EST.3 | PENDIENTE |
+| 8 | Recortar los datos personales que devuelve el listado de protocolos (investigadores, instituciones, checklist). | RF-EST.3 | PENDIENTE |
+| 9 | Validar el año del filtro `year`: fecha de recepción de la versión activa o, si no hay recepción, fecha de creación del protocolo. | RF-EST.3 | PENDIENTE DE VALIDAR |
+| 10 | `recepcion.recepciones.fecha_recepcion` se escribe desde Node con `new Date()` y queda en la hora local del proceso (UTC en el contenedor `ceish_api`, UTC−5 en una máquina local). El filtro `year` la toma como UTC. Corregir quién la escribe (por ejemplo, con `NOW()` de la base) en otra tarea. | RF-EST.3 | PENDIENTE |

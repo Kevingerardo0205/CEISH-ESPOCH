@@ -139,6 +139,19 @@
   - **Endpoints:** `GET /protocols/:id`, `POST /protocols` (requieren cargar el estado sin arriesgar los `save` que siguen a `findById`), `GET /reception/protocol/:id`, `GET /evaluations/protocols/pending-peer-assignment`, `GET /evaluations/my-assignments`, `GET /evaluations/evaluators/dashboard`, `GET /evaluations/peer-assignments/my-pending`, `GET /evaluations/meetings/pending-protocols`, `GET /evaluations/meetings`, `GET /resolutions/protocol/:protocolId`. `CallsController` queda fuera (legacy).
   - **Hecho cuando:** cada endpoint devuelve la etapa calculada con `resolveProtocolStage`, con pruebas E2E.
 
+- [ ] **TSK-001.4**: Filtros y acceso de `GET /api/protocols` (RF-EST.3 — spec v3.5.6, 05/11/2026)
+  - **Requisitos cubiertos:** `RF-EST.3` (búsqueda, año, etapa), HU-001 c (`PROTOCOLOS_LISTAR`)
+  - **Archivos:**
+    - CREAR `src/migrations/1900000000000-AddProtocolosListarPermission.ts`: inserta `PROTOCOLOS_LISTAR` («Listar protocolos», `MOD_RECEPCION`) y lo asigna a SECRETARIA y PRESIDENTE (patrón de `FixedRolesMatrix1880000000000`); `down` borra esas 2 filas de `rol_permisos` y el permiso.
+    - CREAR `src/modules/protocols/application/dtos/list-protocols-query.dto.ts` (`ListProtocolsQueryDto extends QueryProtocolDto`: `search`, `year`, `etapa`, `limit` máximo 100) y `list-protocols-query.dto.spec.ts`. Es un DTO propio de `@Get()` para que `mis-protocolos` no cambie.
+    - CREAR `src/modules/protocols/domain/services/protocol-stage.sql.ts` (`protocolStageSql`: CASE que replica `resolveProtocolStage`).
+    - CREAR `src/shared/db/like-pattern.ts` (`escapeLikePattern`) y `like-pattern.spec.ts`.
+    - CREAR `test/protocols-list.e2e-spec.ts`.
+    - MODIFICAR `src/shared/enums/permission.enum.ts` (`PROTOCOLOS_LISTAR`), `src/modules/protocols/infrastructure/controllers/protocol.controller.ts` (solo el handler `@Get()`), `src/modules/protocols/application/services/protocols.service.ts`, `src/modules/protocols/domain/ports/protocol.repository.port.ts`, `src/modules/protocols/infrastructure/repositories/protocol.typeorm.repository.ts` (`findAll`), `src/modules/protocols/application/mappers/protocol.mapper.ts` (`toListResponse` con `principalInvestigator`), `src/modules/protocols/domain/services/resolve-protocol-stage.ts` (comentario cruzado), `test/fixed-roles-matrix.e2e-spec.ts` (totales 36/22/9/8 = 75).
+  - **Cambio:** contrato de RF-EST.3 en spec v3.5.6 (acceso, `search`, `year`, `etapa`, `limit`, `principalInvestigator`). El orden y los campos existentes no cambian.
+  - **Pruebas:** unitarias del DTO (`year`, `etapa`, `search` vacío y largo, `limit` 101) y de `escapeLikePattern`. E2E `test/protocols-list.e2e-spec.ts` con guards reales y login real (`secretaria@test.com` y `presidente@test.com` con `E2E_TEST_ACCOUNTS_PASSWORD`; EVALUADOR e INVESTIGADOR `ZZ_TEST_PLIST_` con contraseña generada): 401, 200, 403, `mis-protocolos` 200 para INVESTIGADOR, regresión `?statusId=14`, búsqueda por código, título, coinvestigador y principal, año con y sin recepción (borde 31/12 en hora de Ecuador), etapa (items y suma de totales por etapa = total sin filtro), paginación por etapa, 400 de `limit` y `etapa`, `principalInvestigator`. Datos `ZZ_TEST_PLIST_`, residuos = 0.
+  - **Hecho cuando:** la migración pasa up/down/up en `ceish_test_db` (en `ceish_db` la aplica el usuario), las pruebas nuevas y las existentes pasan (E2E completa dos veces) y al menos 6 mutaciones (rol, permiso, escape, EXISTS, año, una rama del CASE) hacen fallar una prueba cada una.
+
 - [ ] **Pendiente aparte (E8):** en `ceish_test_db` faltan las FK hacia `catalogos.estados` que crea `1791000000000-RefactorEstadosDictamenes` (asignaciones_evaluacion, versiones_protocolo, recepciones), aunque la migración figura como aplicada. Revisar en otra tarea.
 
 ---
