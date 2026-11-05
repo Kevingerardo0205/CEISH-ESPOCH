@@ -139,6 +139,38 @@
   - **Endpoints:** `GET /protocols/:id`, `POST /protocols` (requieren cargar el estado sin arriesgar los `save` que siguen a `findById`), `GET /reception/protocol/:id`, `GET /evaluations/protocols/pending-peer-assignment`, `GET /evaluations/my-assignments`, `GET /evaluations/evaluators/dashboard`, `GET /evaluations/peer-assignments/my-pending`, `GET /evaluations/meetings/pending-protocols`, `GET /evaluations/meetings`, `GET /resolutions/protocol/:protocolId`. `CallsController` queda fuera (legacy).
   - **Hecho cuando:** cada endpoint devuelve la etapa calculada con `resolveProtocolStage`, con pruebas E2E.
 
+- [x] **TSK-001.4**: Filtros y acceso de `GET /api/protocols` (RF-EST.3 — spec v3.5.6, 04/11/2026)
+  - **Requisitos cubiertos:** `RF-EST.3` (búsqueda, año, etapa), HU-001 c (`PROTOCOLOS_LISTAR`)
+  - **Archivos:**
+    - CREAR `src/migrations/1900000000000-AddProtocolosListarPermission.ts`: inserta `PROTOCOLOS_LISTAR` («Listar protocolos», `MOD_RECEPCION`) y lo asigna a SECRETARIA y PRESIDENTE (patrón de `FixedRolesMatrix1880000000000`); `down` borra esas 2 filas de `rol_permisos` y el permiso.
+    - CREAR `src/modules/protocols/application/dtos/list-protocols-query.dto.ts` (`ListProtocolsQueryDto extends QueryProtocolDto`: `search`, `year`, `etapa`, `limit` máximo 100) y `list-protocols-query.dto.spec.ts`. Es un DTO propio de `@Get()` para que `mis-protocolos` no cambie.
+    - CREAR `src/modules/protocols/domain/services/protocol-stage.sql.ts` (`protocolStageSql`: CASE que replica `resolveProtocolStage`).
+    - CREAR `src/shared/db/like-pattern.ts` (`escapeLikePattern`) y `like-pattern.spec.ts`.
+    - CREAR `test/protocols-list.e2e-spec.ts`.
+    - MODIFICAR `src/shared/enums/permission.enum.ts` (`PROTOCOLOS_LISTAR`), `src/modules/protocols/infrastructure/controllers/protocol.controller.ts` (solo el handler `@Get()`), `src/modules/protocols/application/services/protocols.service.ts`, `src/modules/protocols/domain/ports/protocol.repository.port.ts`, `src/modules/protocols/infrastructure/repositories/protocol.typeorm.repository.ts` (`findAll`), `src/modules/protocols/application/mappers/protocol.mapper.ts` (`toListResponse` con `principalInvestigator`), `src/modules/protocols/domain/services/resolve-protocol-stage.ts` (comentario cruzado), `test/fixed-roles-matrix.e2e-spec.ts` (totales 36/22/9/8 = 75).
+  - **Cambio:** contrato de RF-EST.3 en spec v3.5.6 (acceso, `search`, `year`, `etapa`, `limit`, `principalInvestigator`). El orden y los campos existentes no cambian.
+  - **Pruebas:** unitarias del DTO (`year`, `etapa`, `search` vacío y largo, `limit` 101) y de `escapeLikePattern`. E2E `test/protocols-list.e2e-spec.ts` con guards reales y login real (`secretaria@test.com` y `presidente@test.com` con `E2E_TEST_ACCOUNTS_PASSWORD`; EVALUADOR e INVESTIGADOR `ZZ_TEST_PLIST_` con contraseña generada): 401, 200, 403, `mis-protocolos` 200 para INVESTIGADOR, regresión `?statusId=14`, búsqueda por código, título, coinvestigador y principal, año con y sin recepción (borde 31/12 en hora de Ecuador), etapa (items y suma de totales por etapa = total sin filtro), paginación por etapa, 400 de `limit` y `etapa`, `principalInvestigator`. Datos `ZZ_TEST_PLIST_`, residuos = 0.
+  - **Hecho cuando:** la migración pasa up/down/up en `ceish_test_db` (en `ceish_db` la aplica el usuario), las pruebas nuevas y las existentes pasan (E2E completa dos veces) y al menos 6 mutaciones (rol, permiso, escape, EXISTS, año, una rama del CASE) hacen fallar una prueba cada una.
+  - **Resultados (04/11/2026, commit 53d2bec):** 561 unit (63 suites; antes 530: +27 de `list-protocols-query.dto.spec.ts` y +4 de `like-pattern.spec.ts`) · E2E `protocols-list` 30/30 en 2 corridas seguidas · E2E completa 18 suites, 311 pruebas (279 + 30 + 2 nuevas de `fixed-roles-matrix`) en 2 corridas seguidas · tsc 0 errores · `nest build` OK · eslint: 0 en los archivos tocados salvo `protocols.service.ts` (10) y `protocol.controller.ts` (1 error y 1 warning), iguales que en `dev` · migración en `ceish_test_db`: antes SECRETARIA 35 / PRESIDENTE 21 / EVALUADOR 9 / INVESTIGADOR 8 y permiso 0 → up 36/22/9/8 y 1 → down 35/21/9/8 y 0 → up 36/22/9/8 y 1 (75 filas para los 4 roles); en `ceish_db`: NO EJECUTADO (la aplica el usuario) · totales por etapa en `ceish_test_db` (con los 21 protocolos de prueba): RECEPCION 130, ASIGNACION 6, EVALUACION 15, RESOLUCION 2, SEGUIMIENTO 3, RENOVACION 0 = 156 = total sin filtro · residuos `ZZ_TEST_PLIST_` / `@e2e-plist.test` (protocolos, versiones, recepciones, investigadores, usuarios, roles de usuario) = 0 · convocatorias huérfanas = 57
+
+  | Mutación | Qué se rompió | Prueba que falla (nombre exacto) | Tests |
+  |---|---|---|---|
+  | M1 rol | `@Roles(SECRETARIA, PRESIDENTE)` → `@Roles(SECRETARIA)` | `acceso › PRESIDENTE → 200, y ?statusId=14 sigue filtrando EVALUADO` | 1 failed, 29 passed |
+  | M2 permiso | sin `@Permissions(PROTOCOLOS_LISTAR)` en `@Get()` | `acceso › PRESIDENTE sin PROTOCOLOS_LISTAR en su rol → 403` | 1 failed, 29 passed |
+  | M3 escape | `%${search}%` sin `escapeLikePattern` | `search › "%" se busca literal` · `search › por código: "_" se busca literal (no como comodín)` | 2 failed, 28 passed |
+  | M4A EXISTS coinvestigador | `OR FALSE AND EXISTS (… protocolo_investigadores` | `search › por coinvestigador: una sola fila aunque coincidan 2, con total correcto` | 1 failed, 29 passed |
+  | M4B EXISTS principal | `OR FALSE AND EXISTS (… catalogos.usuarios` | `search › por investigador principal sin fila en protocolo_investigadores` · `respuesta › principalInvestigator { id, fullName } y los campos previos` | 2 failed, 28 passed |
+  | M5 año sin zona | sin `AT TIME ZONE 'UTC' AT TIME ZONE 'America/Guayaquil'` | `year (America/Guayaquil) › 2030: recepción del 31/12 a las 23:30 en Ecuador` · `› 2031: recepción a medianoche del 1/1 y creación (sin recepción) del 31/12 a las 23:59` · `› 2032: nada (la creación de las 04:59 UTC sigue siendo 2031 en Ecuador)` | 3 failed, 27 passed |
+  | M7 COALESCE invertido | `COALESCE(creado_en, fecha_recepcion)` | `year › 2030: …` · `year › 2031: …` | 2 failed, 28 passed |
+  | M6 CASE APROBADO | `THEN 'SEGUIMIENTO'` → `THEN ps.etapa` | `etapa › RESOLUCION: devuelve solo esa etapa` · `etapa › SEGUIMIENTO: devuelve solo esa etapa` · `etapa › sobre todo ceish_test_db: cada item trae la etapa filtrada y la suma por etapa = total sin filtro` (repetida 2 veces, mismo resultado) | 3 failed, 27 passed |
+  | M8 CASE recepción | `WHEN rs.id … THEN 'RECEPCION'` | `etapa › ASIGNACION: devuelve solo esa etapa` · `etapa › RECEPCION: devuelve solo esa etapa` · `etapa › sobre todo ceish_test_db: …` | 3 failed, 27 passed |
+
+  - **Notas:**
+    - `principalInvestigator` también aparece en `GET /protocols/mis-protocolos` y `mis-subsanaciones`, que usan el mismo `findAll`/`toListResponse` (cambio aditivo). Esos dos handlers siguen validando con `QueryProtocolDto`.
+    - Diferencias con nestjs-best-practices/nestjs-patterns, por seguir el repo: respuesta con mappers (no `ClassSerializerInterceptor` ni DTO de respuesta), `ValidationPipe` global del repo sin `enableImplicitConversion` (`@Type(() => Number)` en el DTO), guards en `src/shared/guards`.
+    - La migración usa `as Array<{ id: number }>` en lugar del `eslint-disable` de la 1880; tras ese cambio se repitió down/up en `ceish_test_db` (35/21 → 36/22).
+    - En `ceish_db` el usuario aplica la migración con `MIGRATION_CONFIRM_DB=ceish_db npm run migration:run`.
+
 - [ ] **Pendiente aparte (E8):** en `ceish_test_db` faltan las FK hacia `catalogos.estados` que crea `1791000000000-RefactorEstadosDictamenes` (asignaciones_evaluacion, versiones_protocolo, recepciones), aunque la migración figura como aplicada. Revisar en otra tarea.
 
 ---

@@ -1,9 +1,9 @@
 import { ProtocolOrmEntity } from '../../infrastructure/database/protocol.entity.orm';
-import { QueryProtocolDto } from '../../application/dtos/query-protocol.dto';
+import { ListProtocolsQueryDto } from '../../application/dtos/list-protocols-query.dto';
 
 export abstract class IProtocolRepository {
   abstract findAll(
-    query: QueryProtocolDto,
+    query: ListProtocolsQueryDto,
   ): Promise<[ProtocolOrmEntity[], number]>;
   abstract findProtocolsForReception(
     status?: string,

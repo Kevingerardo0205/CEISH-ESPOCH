@@ -24,12 +24,21 @@ export class ProtocolMapper {
     return { etapa: stage, etapaOrden: order };
   }
 
-  /** Respuesta de los listados de GET /protocols: toResponse + etapa y etapaOrden. */
+  /**
+   * Respuesta de los listados de GET /protocols: toResponse + etapa y etapaOrden
+   * (TSK-001.2) + principalInvestigator (TSK-001.4), desde la relación ya cargada.
+   */
   static toListResponse(orm: ProtocolOrmEntity) {
     if (!orm) return null;
     return {
       ...ProtocolMapper.toResponse(orm),
       ...ProtocolMapper.toStage(orm),
+      principalInvestigator: orm.principalInvestigator
+        ? {
+            id: orm.principalInvestigator.id,
+            fullName: orm.principalInvestigator.fullName,
+          }
+        : null,
     };
   }
 

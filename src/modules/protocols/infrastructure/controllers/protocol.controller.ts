@@ -14,9 +14,16 @@ import { ProtocolsService } from '../../application/services/protocols.service';
 import { RequirementsService } from '../../application/services/requirements.service';
 import { CreateProtocolDto } from '../../application/dtos/create-protocol.dto';
 import { QueryProtocolDto } from '../../application/dtos/query-protocol.dto';
+import { ListProtocolsQueryDto } from '../../application/dtos/list-protocols-query.dto';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { ProtocolMapper } from '../../application/mappers/protocol.mapper';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
+import { RolesGuard } from '../../../../shared/guards/roles.guard';
+import { PermissionsGuard } from '../../../../shared/guards/permissions.guard';
+import { Roles } from '../../../../shared/decorators/roles.decorator';
+import { Permissions } from '../../../../shared/decorators/permissions.decorator';
+import { Permission } from '../../../../shared/enums/permission.enum';
+import { RoleCode } from '../../../auth/domain/enums/role.enum';
 import {
   ApiTags,
   ApiOperation,
@@ -41,9 +48,16 @@ export class ProtocolController {
     private readonly requirementsService: RequirementsService,
   ) {}
 
+  /** RF-EST.3 (TSK-001.4): solo SECRETARIA y PRESIDENTE, con PROTOCOLOS_LISTAR. */
   @Get()
-  @ApiOperation({ summary: 'Listar todos los protocolos' })
-  async findAll(@Query() query: QueryProtocolDto) {
+  @UseGuards(RolesGuard, PermissionsGuard)
+  @Roles(RoleCode.SECRETARIA, RoleCode.PRESIDENTE)
+  @Permissions(Permission.PROTOCOLOS_LISTAR)
+  @ApiOperation({
+    summary:
+      'Listar protocolos con búsqueda, año y etapa (SECRETARIA y PRESIDENTE)',
+  })
+  async findAll(@Query() query: ListProtocolsQueryDto) {
     return this.protocolsService.findAll(query);
   }
 
