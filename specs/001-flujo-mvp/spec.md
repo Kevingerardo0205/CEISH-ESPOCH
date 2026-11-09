@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.5.6
+**Versión:** 3.7.1
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -15,6 +15,10 @@
 **Historial:** 2026-11-04 — v3.5.4: HU-001 k) rechazos del login con código estable (`code`) y mensajes en español; credenciales inválidas con un mismo mensaje para correo inexistente y contraseña incorrecta
 **Historial:** 2026-11-04 — v3.5.5: RF-EST.1 regla de origen de la etapa (protocolo → recepción → RECEPCION), APROBADO según resolución emitida, Renovación sin estados todavía; RF-EST.2 parcial
 **Historial:** 2026-11-04 — v3.5.6: RF-EST.3 contrato de GET /protocols (acceso SECRETARIA y PRESIDENTE con `PROTOCOLOS_LISTAR`, filtros `search`, `year` y `etapa`, `limit` máximo 100, `principalInvestigator` en la respuesta); HU-001 c) `PROTOCOLOS_LISTAR` en la matriz; pendientes de búsqueda sin tildes, datos personales del listado, regla del año y escritura de `fecha_recepcion`
+**Historial:** 2026-11-09 — v3.6.0: creación del protocolo (origen: pruebas del 09/11/2026 con los protocolos 171 y 173, reunión del 06/11/2026 con la Secretaría y la Presidenta, decisiones de la usuaria del 09/11/2026). HU-002 estado inicial BORRADOR; RF-02.1 modificado; RF-02.2 título (trim, 20 a 200); RF-02.3 borrador y envío (`POST /protocols/:id/submit`); RF-02.4 `fecha_recepcion` al enviar con `NOW()` (cierra el pendiente 10 de la sección 11); RF-02.5 `receptionStatus = BORRADOR`; RF-02.6 auditoría `PROTOCOL_CREATED`; RF-02.7 ciclo del borrador (decidido, se implementa con el rediseño del frontend); RF-03.3 requisitos por tipo (CONFIDENCIALIDAD, CONFLICTO_INTERES y ANEXO_5 obligatorios en EI e IO); RF-EST.3 sin borradores en los listados de la Secretaría; notas en RF-NORM.1, RF-18.1 y RF-19.1; pendientes 11 a 18
+**Historial:** 2026-11-09 — v3.6.1: RF-02.2 se aplica también a cualquier edición del título por la API; cierra el pendiente 16 (hoy el backend no tiene endpoint ni DTO de edición del protocolo)
+**Historial:** 2026-11-09 — v3.7.0: decisiones de la usuaria del 09/11/2026. Pendiente 13 cerrado: la fecha de documentación completa es `fecha_constancia`, fijada al aprobar la recepción (RF-02.4 e, RF-NORM.1). Pendiente 14 cerrado: 8 días de calendario desde la creación, sin aviso por correo; la pantalla muestra la fecha de eliminación (RF-02.7). Pendiente 17 cerrado: el catálogo se reconstruye por `codigo_anexo` en una tarea aparte (TSK-001.13). Nuevo RF-02.8: edición del borrador con `PATCH /protocols/:id` (el frontend llama a `PUT /protocols/:id`, que el backend no expone). Pendientes 15 y 18 siguen abiertos hasta la reunión con la Secretaría del jueves 12/11/2026
+**Historial:** 2026-11-09 — v3.7.1: decisiones de la usuaria del 09/11/2026. Pendiente 12 cerrado: `POST /protocols/:id/submit` también reenvía después de una subsanación, desde 9, 11 y 20 a 15; en otros estados 409; `fecha_recepcion` solo se escribe si es NULL (guarda el primer envío) (RF-02.3 e, RF-02.4 b). Pendiente 19 cerrado: se aceptan RF-02.8 f y g. Relleno de `fecha_constancia` aprobado como migración reversible (RF-02.4)
 
 ---
 
@@ -192,12 +196,14 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 | **Estimación** | 16 horas |
 | **Prioridad** | ALTA (2) |
 | **Dependencias** | HU-001 |
-| **Requisitos origen** | RF-002 |
+| **Requisitos origen** | RF-002 (RF-02.1 a RF-02.7), RF-03.3 |
 
 #### 2. Pruebas de Aceptación
-1. **Campos Obligatorios**: El sistema exige título, tipo de estudio e ID del Investigador Principal.
+1. **Campos Obligatorios**: El sistema exige título, tipo de estudio e ID del Investigador Principal. El título se recorta y debe tener entre 20 y 200 caracteres (RF-02.2). — decisión 09/11/2026
 2. **Declaración Jurada Obligatoria**: Impide guardar el borrador si no se acepta la declaración de que el estudio no ha iniciado previamente.
-3. **Estado Inicial**: Al registrar, se asigna el estado inicial `TRÁMITE EN PROCESO` / `PENDIENTE_ASIGNACION`.
+3. **Estado Inicial**: Al registrar (paso 1 del formulario), el protocolo queda como **borrador**: la recepción de la versión 1 en `INICIADO` (9), `fecha_recepcion` NULL, `receptionStatus = BORRADOR`, y la Secretaría no lo ve (RF-02.3, RF-02.5). — Reemplaza a: «estado inicial `TRÁMITE EN PROCESO` / `PENDIENTE_ASIGNACION`» — decisión 09/11/2026
+4. **Envío**: El borrador pasa a la Secretaría solo cuando el investigador lo envía (`POST /protocols/:id/submit`): la recepción pasa a `EN_REVISION_SECRETARIA` (15), se fija `fecha_recepcion` y aparece en los pendientes de la Secretaría (RF-02.3, RF-02.4). — decisión 09/11/2026
+5. **Edición del borrador**: Mientras es borrador, el investigador principal puede corregir los datos del paso 1 (`PATCH /protocols/:id`); después del envío, no (RF-02.8). — decisión 09/11/2026
 
 ---
 
@@ -400,11 +406,77 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 ### RF-02: Registro de Datos Mínimos del Protocolo
 - **RF-02.1**: El sistema exige los campos obligatorios `title`, `studyTypeId`, `principalInvestigatorId` e `isAffidavitAccepted`.
 - **Criterio EARS (RF-02.1)**: **Mientras** el Investigador Principal no acepte la Declaración Jurada, **el sistema debe** impedir el registro del protocolo.
+- **Criterio EARS (RF-02.1, modificado 09/11/2026)**: **Cuando** el Investigador Principal registre los datos mínimos (paso 1), **el sistema debe** crear el protocolo como borrador según RF-02.3, no como trámite enviado. — Reemplaza a: registro que equivalía al envío — decisión 09/11/2026
+
+- **RF-02.2 (Título del protocolo, decisión 09/11/2026)**: El título se recorta (trim) antes de validar y de guardar, y debe tener entre 20 y 200 caracteres después del recorte. La misma regla aplica en el frontend y en `CreateProtocolDto`.
+  - **Criterio EARS (RF-02.2)**: **Si** el título recortado tiene menos de 20 o más de 200 caracteres, **el sistema debe** rechazar el registro con 400 y un mensaje en español que indique el rango.
+  - **Criterio EARS (RF-02.2)**: **Cuando** el título sea válido, **el sistema debe** guardarlo ya recortado.
+  - > La columna `protocolos.titulo` admite 1000 caracteres; la regla no cambia el esquema. Los protocolos existentes con títulos fuera del rango no se modifican.
+  - **Criterio EARS (RF-02.2, edición — decisión 09/11/2026)**: **Si** un endpoint de edición del protocolo acepta `title`, **el sistema debe** aplicarle la misma regla (trim, 20 a 200), con la misma validación que `CreateProtocolDto`, para que nadie lo cambie por la API sin validar.
+  - > Estado actual (09/11/2026): el backend no tiene endpoint ni DTO de edición del protocolo (`protocol.controller.ts` no tiene `@Put` ni `@Patch`; no existe `UpdateProtocolDto`), así que hoy ningún camino cambia el título después de crearlo. En el frontend, `editar-protocolo.page.ts` no tiene campo de título y reenvía el original (`editar-protocolo.page.ts:345`, PR #22 del frontend) con `PUT /protocols/:id` (`protocolo.service.ts:472-476` del frontend), una ruta que el backend no expone. Cierra el pendiente 16.
+
+- **RF-02.3 (Borrador y envío, decisión 09/11/2026)**:
+  - **Criterio EARS (RF-02.3 a)**: **Cuando** el investigador cree el protocolo (`POST /protocols`), **el sistema debe** crear la versión 1 y su recepción en `INICIADO` (9), que en este flujo significa **borrador**.
+  - **Criterio EARS (RF-02.3 b)**: **Mientras** la recepción de la versión activa esté en `INICIADO` (9), **el sistema debe** excluir el protocolo de las vistas de la Secretaría: `GET /reception/protocols` (con y sin filtro, incluido `pendientes`), `GET /protocols` (RF-EST.3) y `GET /secretaria/pendientes` (RF-ALR.f en specs/003). El investigador lo sigue viendo en `GET /protocols/mis-protocolos`.
+  - **Criterio EARS (RF-02.3 c)**: **Cuando** el investigador principal envíe el borrador (`POST /protocols/:id/submit`), **el sistema debe** pasar la recepción a `EN_REVISION_SECRETARIA` (15); desde ese momento el protocolo aparece en la fila «Validar» de los pendientes de la Secretaría (RF-ALR.f.1 a en specs/003) y en `GET /reception/protocols`.
+  - **Criterio EARS (RF-02.3 d)**: **Si** quien envía no es el investigador principal, **el sistema debe** rechazar el envío con un mensaje en español (hoy 400; el código de estado no cambia en esta versión).
+  - **Criterio EARS (RF-02.3 e, decisión 09/11/2026 — pendiente 12)**: **Cuando** el investigador principal reenvíe el protocolo después de una subsanación documental, **el sistema debe** usar el mismo `POST /protocols/:id/submit`: se acepta con la recepción en `INICIADO` (9), `INCOMPLETO` (11) o `REQUIERE_SUBSANACION_DOC` (20) y pasa a `EN_REVISION_SECRETARIA` (15).
+  - **Criterio EARS (RF-02.3 e.1)**: **Si** la recepción está en cualquier otro estado, **el sistema debe** responder 409 con un mensaje en español, sin cambiar el estado ni las fechas. Hoy `submit` cambia a 15 desde cualquier estado (incluso desde `COMPLETO`).
+  - **Criterio EARS (RF-02.3 f)**: **Cuando** se envíe el borrador, **el sistema debe** registrar `PROTOCOL_SUBMITTED` en `sistema.audit_log` (ya ocurre hoy, con `registro_id` = id del protocolo).
+
+- **RF-02.4 (`fecha_recepcion`, decisión 09/11/2026)**: `recepcion.recepciones.fecha_recepcion` es la fecha y hora en que el investigador envía el protocolo a la Secretaría.
+  - **Criterio EARS (RF-02.4 a)**: **Cuando** se cree el protocolo, **el sistema debe** dejar `fecha_recepcion` en NULL. Requiere quitar el `NOT NULL` y el `DEFAULT now()` de la columna (hoy `NOT NULL DEFAULT now()`); es un cambio de esquema que va en su propia migración (TSK-001.6).
+  - **Criterio EARS (RF-02.4 b, actualizado 09/11/2026 — pendiente 12)**: **Cuando** se envíe o se reenvíe el protocolo (RF-02.3 c y e), **el sistema debe** escribir `fecha_recepcion` solo si es NULL, con la hora de la base (`COALESCE(fecha_recepcion, NOW())`), no con `new Date()` de Node. Así guarda el primer envío; los reenvíos después de una subsanación no la cambian.
+  - **Criterio EARS (RF-02.4 c)**: **Cuando** la Secretaría complete la recepción (`finalizarRevision`, `verificarRequisitos` con `isComplete`), **el sistema debe** conservar la `fecha_recepcion` del envío: no se vuelve a escribir.
+  - **Criterio EARS (RF-02.4 d)**: **Mientras** `fecha_recepcion` sea NULL, el filtro `year` de RF-EST.3 sigue usando `protocolos.creado_en` (el `COALESCE` actual) y las consultas que la leen deben tolerar NULL.
+  - **Criterio EARS (RF-02.4 e, decisión 09/11/2026 — pendiente 13)**: **Cuando** la Secretaría apruebe la recepción (paso a `COMPLETO` (10) en `finalizarRevision` o en `verificarRequisitos` con `isComplete`), **el sistema debe** fijar `recepcion.recepciones.fecha_constancia` con `NOW()` de la base. Esa es la **fecha de documentación completa**; no se crea columna nueva.
+  - **Criterio EARS (RF-02.4 f)**: **Cuando** después se emita la constancia PDF (`POST /reception/protocol/:protocolId/certificate`, `emitirConstancia`), **el sistema debe** conservar la `fecha_constancia` ya fijada (`COALESCE(fecha_constancia, NOW())`); hoy `emitirConstancia` la escribe siempre con `new Date()` (`reception.service.ts:835`).
+  - **Criterio EARS (RF-02.4 g)**: **Cuando** un cálculo necesite la fecha de documentación completa (plazo normativo de RF-NORM.1, `responseDeadline`, fechas de la convocatoria, alerta de protocolos sin convocatoria, `GET /evaluations/meetings/pending-protocols`), **el sistema debe** usar `fecha_constancia`, no `fecha_recepcion`.
+  - > Datos existentes (09/11/2026): en `ceish_db`, 22 de 25 recepciones en `COMPLETO` tienen `fecha_constancia` NULL; para ellas `fecha_recepcion` guarda hoy la fecha del último completado (se pisaba al completar). Decisión del 09/11/2026 (aprobada): en TSK-001.6, una migración reversible rellena `fecha_constancia = fecha_recepcion` solo donde `fecha_constancia` IS NULL y la recepción ya pasó por `COMPLETO`, sin tocar otras columnas. El agente la corre solo en `ceish_test_db`; en `ceish_db` la aplica la usuaria.
+  - > Cierra el pendiente 10 de la sección 11 (la escritura con `new Date()` desde Node).
+
+- **RF-02.5 (Estado mostrado del borrador, decisión 09/11/2026)**: `receptionStatus` (getter de `ProtocolOrmEntity`) devuelve `BORRADOR` cuando la recepción de la versión activa está en `INICIADO` (9). Hoy ese caso cae en `PENDIENTE_SUBSANACION`. Es un valor nuevo en la respuesta (cambio aditivo del enum `ReceptionStatus`); los demás valores no cambian.
+  - **Criterio EARS (RF-02.5)**: **Mientras** la recepción de la versión activa esté en `INICIADO` (9), **el sistema debe** devolver `receptionStatus = "BORRADOR"` en todas las respuestas que usan `ProtocolMapper`.
+
+- **RF-02.6 (Auditoría de la creación, decisión 09/11/2026)**:
+  - **Criterio EARS (RF-02.6 a)**: **Cuando** se cree un protocolo, **el sistema debe** dejar una fila `PROTOCOL_CREATED` en `sistema.audit_log` con `registro_id` = id del protocolo creado.
+  - **Criterio EARS (RF-02.6 b)**: **Cuando** se registre esa fila, **el sistema debe** omitir de `datos_nuevos` las cédulas (`identification`) y los teléfonos (`phone`, `sponsorPhone`) de investigadores, coinvestigadores y patrocinador.
+  - > Estado actual (09/11/2026): la fila sí se crea (130 filas `PROTOCOL_CREATED` en `ceish_db`), pero con `registro_id` NULL, así que no aparece al buscar por protocolo (para el 173 solo aparecen `DOCUMENT_UPLOADED` y `PROTOCOL_SUBMITTED`). `datos_nuevos` guarda el cuerpo completo de la petición, con el arreglo `investigators`. Causa probable, a confirmar en TSK-001.9: el `AuditInterceptor` (APP_INTERCEPTOR) recibe la respuesta ya envuelta por `ResponseInterceptor` (`{ data, statusCode, message }`), así que `data.id` es undefined; `submit` funciona porque toma `params.id`.
+
+- **RF-02.7 (Ciclo del borrador — decidido el 09/11/2026; se implementa después, con el rediseño del frontend)**:
+  - **Criterio EARS (RF-02.7 a, decisión 09/11/2026 — pendiente 14)**: **Si** un borrador no se envía en 8 días de calendario contados desde su creación (`protocolos.creado_en`), **el sistema debe** eliminarlo: `eliminado_en` (soft delete) en el protocolo y borrado de sus archivos en R2. Editar el borrador (RF-02.8) no reinicia el plazo.
+  - **Criterio EARS (RF-02.7 b, decisión 09/11/2026)**: **Mientras** el protocolo sea borrador, **el sistema debe** devolver la fecha en que se eliminará (creación + 8 días de calendario, en America/Guayaquil) para que el investigador la vea en pantalla. No se envían avisos por correo.
+  - **Criterio EARS (RF-02.7 c)**: **Si** el investigador ya tiene un borrador abierto (recepción en `INICIADO` y sin `eliminado_en`), **el sistema debe** rechazar la creación de otro con un mensaje en español.
+  - **Criterio EARS (RF-02.7 d)**: **Cuando** el investigador elija «Descartar borrador», **el sistema debe** eliminarlo igual que en (a).
+  - > El plazo de 8 días es un parámetro de `sistema.parametros_sistema` según RF-PAR.1; el nombre del parámetro y el del campo de la respuesta se fijan en TSK-001.11.
+
+- **RF-02.8 (Edición del borrador, decisión 09/11/2026)**: El frontend (`editar-protocolo.page.ts`) guarda con `PUT /protocols/:id`, que el backend no expone (no hay `@Put` ni `@Patch` en `protocol.controller.ts`). Se crea `PATCH /protocols/:id` solo para borradores.
+  - **Criterio EARS (RF-02.8 a)**: **Mientras** la recepción de la versión activa esté en `INICIADO` (9), **el sistema debe** permitir al investigador principal editar los datos del paso 1 con `PATCH /protocols/:id`: título, tipo de estudio, indicadores (`isVulnerablePopulation`, `usesBiologicalSamples`, `isMulticentric`, `hasExternalInstitutions`, `isIndigenousPopulation`), datos de financiamiento y patrocinador, fechas estimadas, cobertura y duración, coinvestigadores e instituciones. La lista exacta sale de `CreateProtocolDto` y se fija en TSK-001.14.
+  - **Criterio EARS (RF-02.8 b)**: **Cuando** se edite, **el sistema debe** aplicar la misma validación que en la creación (RF-02.2 para el título, los mismos tipos para los indicadores), reutilizando las reglas de `CreateProtocolDto`. `riskLevelId` no forma parte del DTO: con el `ValidationPipe` global (`forbidNonWhitelisted: true`), enviarlo responde 400. `principalInvestigatorId` e `isAffidavitAccepted` no se editan.
+  - **Criterio EARS (RF-02.8 c)**: **Si** quien edita no es el investigador principal del protocolo, **el sistema debe** rechazar la petición con un mensaje en español, sin cambios.
+  - **Criterio EARS (RF-02.8 d)**: **Si** la recepción no está en `INICIADO` (9), **el sistema debe** responder 409 con un mensaje en español, sin cambios.
+  - **Criterio EARS (RF-02.8 e)**: **Cuando** cambien el tipo de estudio o algún indicador, **el sistema debe** recalcular el checklist con `calcularRequeridos`: agrega los requisitos nuevos en `NO_PRESENTADO` y conserva, con su estado y sus documentos ya subidos, los que siguen aplicando.
+  - **Criterio EARS (RF-02.8 f, decisión 09/11/2026 — pendiente 19)**: **Si** un requisito con documento subido deja de aplicar, **el sistema debe** marcar ese requisito como `NO_APLICA` y conservar el documento (fila en `recepcion.documentos` con su `requisito_id` y el archivo en R2), sin mostrarlo como obligatorio. Si el requisito vuelve a aplicar en otra edición, vuelve a su estado anterior con el mismo documento. Los archivos se borran de R2 solo cuando se elimina o se descarta el borrador (RF-02.7). Un requisito sin documento que deja de aplicar se quita del checklist.
+  - **Criterio EARS (RF-02.8 g, decisión 09/11/2026 — pendiente 19)**: **Cuando** se edite, **el sistema debe** registrar `PROTOCOL_UPDATED` en `sistema.audit_log` con `registro_id` = id del protocolo y `datos_nuevos` saneado como en RF-02.6 b.
+  - > La edición no cambia `fecha_recepcion` (sigue NULL) ni reinicia el plazo del borrador (RF-02.7 a). Dependencia: el frontend cambia `PUT` por `PATCH` y solo permite editar en borrador, en una tarea del repo del frontend.
 
 ### RF-03: Generación Automática y Ajuste del Checklist Documental
 - **RF-03.1**: El sistema debe generar dinámicamente la matriz de requisitos según el tipo de estudio.
 - **RF-03.2**: La Secretaria podrá corregir el tipo de estudio durante la revisión técnica si detecta discrepancias metodológicas.
 - **Criterio EARS (RF-03.1)**: **Cuando** se registre un protocolo o la Secretaria corrija su tipología, **el sistema debe** actualizar automáticamente el checklist de requisitos obligatorios.
+- **RF-03.3 (Requisitos por tipo de estudio — catálogo, decisión de la Secretaría del 06/11/2026)**: En `catalogos.tipos_documento`, `CONFIDENCIALIDAD`, `CONFLICTO_INTERES` y `ANEXO_5` son obligatorios sin condición en EI e IO (hoy dependen de `muestras`/`vulnerable` y de `institucionesPublicas`). EC no cambia.
+
+  | Tipo | Requisitos sin marcas (hoy) | Requisitos sin marcas (v3.6.0) |
+  |---|---|---|
+  | EI | 7: ANEXO_1, ANEXO_2, CONSENTIMIENTO, INSTRUMENTOS, CV_INVESTIGADORES, ANEXO_4, FICHA_INTERVENCION | 10: los 7 + CONFIDENCIALIDAD, CONFLICTO_INTERES, ANEXO_5 |
+  | IO | 6: ANEXO_1, ANEXO_2, CONSENTIMIENTO, INSTRUMENTOS, CV_INVESTIGADORES, ANEXO_4 | 9: los 6 + CONFIDENCIALIDAD, CONFLICTO_INTERES, ANEXO_5 |
+
+  - **Criterio EARS (RF-03.3 a)**: **Cuando** se cree un protocolo EI sin marcas, **el sistema debe** generar 10 requisitos; IO sin marcas, 9.
+  - **Criterio EARS (RF-03.3 b)**: **Si** el protocolo marca población indígena, **el sistema debe** sumar `TRADUCCION_ANCESTRAL` y `CONSENTIMIENTO_COM` (EI 12, IO 11). Esta regla ya está en el catálogo y no cambia.
+  - **Criterio EARS (RF-03.3 c)**: **Cuando** se aplique el cambio, **la migración debe** actualizar las filas por `codigo_anexo` (nunca por `id`) y no tocar el checklist (`requisitos_protocolo`) de los protocolos existentes.
+  - > `POLIZA_RC` e `IDONEIDAD_INST` dependen de `riesgoMayor` en EI; ningún llamador de `calcularRequeridos` pasa esa marca y el riesgo lo fijan los pares después de la creación. Qué hacer con ellos: por confirmar (sección 11, pendiente 15).
+  - > Si el checklist de un protocolo existente se recalcula al corregir su tipología (RF-03.2), usará el catálogo vigente, ya con esta regla (no verificado en el código el 09/11/2026).
+  - > Las migraciones del catálogo `1778850000000-ForceDocumentCodesById` y `1778870000000-FixAllDocumentCodes` escriben `codigo_anexo` por `id`, y `1778800000000-SeedTiposDocumento` inserta por `nombre` con el id de la secuencia. En una base nueva los ids no coinciden con los de `ceish_db` (19 ANEXO_1 … 45 APROB_ORIGEN), así que los códigos quedarían distintos (análisis estático; no ejecutado en una base nueva). Pendiente 17 cerrado (09/11/2026): el catálogo se reconstruye por `codigo_anexo` en una tarea aparte (TSK-001.13).
 
 ### RF-04: Carga Individual y Bloqueo de Inmutabilidad
 - **RF-04.1**: Permite la subida de archivos individuales por cada punto del checklist.
@@ -511,6 +583,8 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
   3. **Orden**: `updatedAt` DESC, sin cambios.
   4. **Respuesta**: la misma de antes (`data`, `total`, `page`, `limit`, `totalPages`; cada item con `etapa` y `etapaOrden`) más `principalInvestigator: { id, fullName } | null`. No se quita ni se renombra ningún campo.
 
+  5. **Borradores (decisión 09/11/2026, RF-02.3 b)**: el listado excluye los protocolos cuya recepción de la versión activa está en `INICIADO` (9). Los totales por etapa cuentan solo protocolos enviados.
+
   > **Falta implementar**: las columnas por etapa y los filtros propios de cada etapa (Riesgo y Dictámenes en Evaluación). El listado ya filtra por etapa (TSK-001.4), expone `etapa` y `etapaOrden` (RF-EST.2 parcial, TSK-001.2) y el catálogo `catalogos.estados` ya tiene `etapa` y `orden` (RF-EST.1). — actualizado 04/11/2026
 
 ---
@@ -523,6 +597,7 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 
 ### RF-NORM: Plazo Normativo del Comité
 - **RF-NORM.1**: El plazo normativo del comité es 45 días laborables (expedita) o 60 (pleno y ensayos clínicos), contados desde la documentación completa (código definitivo). En emergencia: 15 días. Es una fecha de referencia y control, no bloquea la creación de convocatorias: el sistema debe mostrar una advertencia si la `fecha_reunion` supera el plazo y usarlo para las alertas de protocolos pendientes de convocatoria. No corre mientras el trámite esté en `Incompleto / Requiere Subsanación`. Cada nueva versión recalcula un plazo nuevo. Los días se cuentan según RF-CAL. Valores parametrizables y ajustables manualmente con motivo registrado.
+  > Nota (09/11/2026, pendiente 13 cerrado): con RF-02.4, `fecha_recepcion` pasa a ser la fecha de envío. La fecha de documentación completa, desde la que corre este plazo, es `recepcion.recepciones.fecha_constancia`, fijada con `NOW()` de la base al aprobar la recepción (RF-02.4 e–g). La regla de 45/60/15 días no cambia; solo cambia la columna de origen.
 
 ---
 
@@ -566,6 +641,7 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 ### RF-18: Usabilidad, Plantillas de Requisitos y Deep-Linking
 - **RF-18.1**: El sistema debe proveer acceso directo a las plantillas y formatos oficiales descargables por cada Anexo en el catálogo de requisitos, y soportar deep-linking desde notificaciones de correo.
 - **Criterio EARS (RF-18.1)**: **Cuando** un Investigador consulte el checklist de requisitos, **el sistema debe** retornar la URL de descarga directa de la plantilla oficial del anexo correspondiente.
+  > Nota (09/11/2026): en la reunión del 06/11/2026 se propuso que la Secretaría suba los formatos oficiales en Configuración y que el investigador los descargue uno por uno o todos en un ZIP. Por confirmar con la Secretaría el 12/11/2026 (sección 11, pendiente 18).
 - **Criterio EARS (RF-18.2)**: **Cuando** un Investigador abra el enlace de la notificación por correo, **el sistema debe** redirigirlo directamente a la pantalla de Aceptación Explícita de Plazos de ese protocolo específico.
 - **Criterio EARS (RF-18.3)**: **Cuando** la Secretaría redacte observaciones por ítem del checklist, **el sistema debe** disponer de áreas de texto multilínea (`textarea`) sin compresión ni scrolls perezosos.
 
@@ -576,6 +652,7 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 - **Criterio EARS (RF-19.1)**: **Si** la modalidad del estudio es Tesis (Pregrado o Posgrado), **el sistema debe** inyectar automáticamente en el checklist los requisitos obligatorios del Acta de Aprobación de Tema y Certificado del Director.
 - **Criterio EARS (RF-19.2)**: **Cuando** un Evaluador Par registre su dictamen técnico, **el sistema debe** permitir subir el informe narrativo en Word/PDF y registrar simultáneamente el dictamen estructurado de los Anexos 9 y 10.
 - **Criterio EARS (RF-19.3)**: **Cuando** la Secretaría emita un comunicado formal o convocatoria, **el sistema debe** permitir incluir el código de referencia Quipux correspondiente.
+  > Nota (09/11/2026): en la reunión del 06/11/2026 se mencionaron, para tesis, la captura del informe antiplagio y el oficio del tutor, y una bandera «es tesis» al crear. No coinciden con los dos documentos de RF-19.1 (acta de aprobación del tema y certificado del director). Por confirmar con la Secretaría el 12/11/2026 (sección 11, pendiente 11); RF-19.1 no cambia hasta entonces.
 
 ---
 
@@ -683,4 +760,13 @@ Un requerimiento se considerará **Finalizado** cuando:
 | 7 | Búsqueda del listado sin distinguir tildes (`unaccent` o `pg_trgm`). No se hace en TSK-001.4. | RF-EST.3 | PENDIENTE |
 | 8 | Recortar los datos personales que devuelve el listado de protocolos (investigadores, instituciones, checklist). | RF-EST.3 | PENDIENTE |
 | 9 | Validar el año del filtro `year`: fecha de recepción de la versión activa o, si no hay recepción, fecha de creación del protocolo. | RF-EST.3 | PENDIENTE DE VALIDAR |
-| 10 | `recepcion.recepciones.fecha_recepcion` se escribe desde Node con `new Date()` y queda en la hora local del proceso (UTC en el contenedor `ceish_api`, UTC−5 en una máquina local). El filtro `year` la toma como UTC. Corregir quién la escribe (por ejemplo, con `NOW()` de la base) en otra tarea. | RF-EST.3 | PENDIENTE |
+| 10 | `recepcion.recepciones.fecha_recepcion` se escribe desde Node con `new Date()` y queda en la hora local del proceso (UTC en el contenedor `ceish_api`, UTC−5 en una máquina local). El filtro `year` la toma como UTC. Corregir quién la escribe (por ejemplo, con `NOW()` de la base) en otra tarea. | RF-EST.3 | CERRADO (09/11/2026): RF-02.4, se fija al enviar con `NOW()` de la base; se implementa en TSK-001.6 |
+| 11 | Tesis: ¿se piden la captura del informe antiplagio y el oficio del tutor (en lugar de, o además de, los dos documentos de RF-19.1)? ¿Se agrega la bandera «es tesis» al crear el protocolo? (reunión del 06/11/2026) | RF-19.1, RF-03.3 | PENDIENTE de confirmar con la Secretaría (12/11/2026) |
+| 12 | ¿El reenvío de una subsanación documental (`INCOMPLETO` 11, `REQUIERE_SUBSANACION_DOC` 20) usa `POST /protocols/:id/submit`, o solo se envía desde `INICIADO` (9)? | RF-02.3 e | CERRADO (09/11/2026): sí; `submit` se acepta desde 9, 11 y 20 y pasa a 15; en otros estados 409; `fecha_recepcion` con `COALESCE` guarda el primer envío |
+| 13 | Fecha de documentación completa para el plazo normativo y los reportes, ahora que `fecha_recepcion` es la de envío: ¿columna propia (`fecha_completado`, requiere consulta), fila de auditoría o `fecha_constancia`? | RF-02.4, RF-NORM.1 | CERRADO (09/11/2026): `fecha_constancia`, fijada con `NOW()` al aprobar la recepción; sin columna nueva (RF-02.4 e–g). Desbloquea TSK-001.6 |
+| 14 | Ciclo del borrador: ¿desde cuándo se cuentan los 8 días, y son de calendario o laborables? | RF-02.7 | CERRADO (09/11/2026): 8 días de calendario desde la creación; sin aviso por correo; la pantalla muestra la fecha de eliminación |
+| 15 | `POLIZA_RC` e `IDONEIDAD_INST` (EI, condición `riesgoMayor`) no pueden pedirse al crear porque el riesgo lo fijan los pares después. ¿Se piden después de fijar el riesgo, en qué etapa y con qué plazo? | RF-03.3 | PENDIENTE de confirmar con la Secretaría (jueves 12/11/2026) |
+| 16 | ¿La edición del título (si existe un endpoint que lo cambie) aplica la regla de RF-02.2? | RF-02.2 | CERRADO (09/11/2026): sí, cualquier endpoint de edición que acepte `title` aplica RF-02.2; hoy el backend no tiene endpoint ni DTO de edición, y el `PUT /protocols/:id` que llama el frontend no existe en el backend |
+| 17 | Catálogo de requisitos en una base nueva: las migraciones 1778850000000 y 1778870000000 escriben por `id`; ¿se reconstruye el catálogo por `codigo_anexo` en una tarea aparte? | RF-03.3 | CERRADO (09/11/2026): sí, en TSK-001.13 |
+| 18 | Formatos oficiales descargables (uno por uno y en ZIP) que la Secretaría sube en Configuración (reunión del 06/11/2026). | RF-18.1 | PENDIENTE de confirmar con la Secretaría (jueves 12/11/2026) |
+| 19 | RF-02.8 f: ¿se acepta conservar como `NO_APLICA` el documento de un requisito que deja de aplicar al editar el borrador, y borrarlo de R2 solo al eliminar o descartar el borrador? ¿Se registra `PROTOCOL_UPDATED` (RF-02.8 g)? | RF-02.8 | CERRADO (09/11/2026): se aceptan RF-02.8 f y g |
