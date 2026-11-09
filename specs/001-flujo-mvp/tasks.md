@@ -182,6 +182,104 @@
 
 ---
 
+### Módulo: Creación del protocolo (`protocols` / `reception` / `audit`) — spec v3.6.0, 09/11/2026
+
+> Origen: pruebas del 09/11/2026 (protocolos 171 y 173), reunión del 06/11/2026 con la Secretaría y la Presidenta, decisiones de la usuaria del 09/11/2026. Diseño en plan.md §1c. Orden sugerido: 001.5 → 001.7 → 001.8 → 001.9 → 001.10 → 001.6 → 001.14; 001.13 aparte; 001.11 con el rediseño del frontend; 001.12 después del 12/11/2026. Todas las E2E con login real, guards reales, datos `ZZ_TEST_` o correos `@e2e-<tarea>.test`, limpieza en `beforeAll` y `afterAll`, `--runInBand`.
+
+- [ ] **TSK-001.5**: Borrador invisible para la Secretaría y envío o reenvío desde `INICIADO`, `INCOMPLETO` o `REQUIERE_SUBSANACION_DOC` (RF-02.3, HU-002 3 y 4, RF-EST.3 punto 5)
+  - **Requisitos cubiertos:** `RF-02.3 a–e`, `RF-EST.3` punto 5
+  - **Archivos:**
+    - MODIFICAR `src/modules/protocols/infrastructure/repositories/protocol.typeorm.repository.ts` (`findProtocolsForReception`: `pendientes` = 15, sin filtro excluye 9; `findAll`: opción para excluir borradores)
+    - MODIFICAR `src/modules/protocols/domain/ports/protocol.repository.port.ts` (opción de `findAll`, si hace falta)
+    - MODIFICAR `src/modules/protocols/application/services/protocols.service.ts` (`findAll` del handler `@Get()` excluye borradores; `submit` acepta 9, 11 y 20 y rechaza con 409 en cualquier otro estado)
+    - MODIFICAR `src/modules/reception/application/services/reception.service.ts` (solo si `updateReceptionStatus` necesita el estado de origen)
+    - CREAR `test/protocol-draft-submit.e2e-spec.ts`
+    - Función de dominio para la regla de envío: buscar antes equivalentes con Grep; si hace falta un archivo nuevo, se reporta antes de crearlo.
+  - **Pruebas (E2E):** borrador recién creado → no aparece en `GET /reception/protocols` (sin filtro y con `status=pendientes`) ni en `GET /protocols` (SECRETARIA y PRESIDENTE); sí en `GET /protocols/mis-protocolos` del investigador · `submit` → recepción en 15 y aparece en `GET /reception/protocols?status=pendientes` y en la fila `VALIDAR` de `GET /secretaria/pendientes` · reenvío desde `INCOMPLETO` (11) → 15 · reenvío desde `REQUIERE_SUBSANACION_DOC` (20) → 15 · segundo `submit` (ya en 15) → 409 y el estado no cambia · `submit` con recepción en 10, 12 y 21 → 409 con mensaje en español y el estado no cambia · `submit` de otro investigador → 400 (sin cambios) · `PROTOCOL_SUBMITTED` con `registro_id` = id · regresión de `test/protocols-list.e2e-spec.ts` y `test/secretaria-pendientes.e2e-spec.ts`.
+  - **Mutaciones:** (M1) `pendientes` vuelve a `IN (9, 15)` · (M2) quitar la exclusión del 9 sin filtro · (M3) quitar la exclusión en `findAll` de `GET /protocols` · (M4) `submit` sin validar el estado de origen (código actual) · (M5) excluir el 9 también en `mis-protocolos` · (M6) aceptar solo 9 (sin 11 ni 20) · (M7) aceptar también 15.
+  - **Hecho cuando:** las pruebas nuevas y las existentes pasan dos veces seguidas, cada mutación hace fallar al menos una prueba con su nombre exacto, `npx tsc --noEmit` sin errores y `npx eslint` de los archivos tocados no empeora frente a `dev`.
+
+- [ ] **TSK-001.6**: `fecha_recepcion` NULL al crear, `NOW()` al enviar y sin pisar al completar; `fecha_constancia` como fecha de documentación completa (RF-02.4, RF-NORM.1) — desbloqueada: pendiente 13 cerrado el 09/11/2026
+  - **Requisitos cubiertos:** `RF-02.4 a–g`, `RF-NORM.1` (origen del plazo); cierra los pendientes 10 y 13 de la sección 11
+  - **Dependencias:** TSK-001.5 (el `submit` con estado de origen 9)
+  - **Archivos:**
+    - CREAR `src/migrations/1910000000000-NullableFechaRecepcion.ts` (`DROP NOT NULL`, `DROP DEFAULT`; `down()` rellena NULL con `COALESCE(v.fecha_envio, p.creado_en)` y restaura `NOT NULL DEFAULT now()`). Timestamp a confirmar contra la última migración al implementar.
+    - MODIFICAR `src/modules/reception/infrastructure/database/reception.entity.orm.ts` (`nullable: true`, sin `default`), `src/modules/reception/domain/entities/reception.entity.ts` (tipo con null)
+    - MODIFICAR `src/modules/reception/application/services/reception.service.ts` (`iniciarRecepcion` :437 con null; `finalizarRevision` :277 y `verificarRequisitos` :660 sin escribir `receptionDate`)
+    - MODIFICAR `src/modules/protocols/application/services/protocols.service.ts` (`submit`: `UPDATE … SET fecha_recepcion = COALESCE(fecha_recepcion, NOW()), estado_id = 15 WHERE id = $1 AND estado_id IN (9, 11, 20)`)
+    - MODIFICAR `src/modules/reception/application/services/reception.service.ts` también en `finalizarRevision` y `verificarRequisitos` (fijar `fecha_constancia = NOW()` al pasar a 10) y en `emitirConstancia` :835 (`COALESCE(fecha_constancia, NOW())`)
+    - MODIFICAR los consumidores del plazo normativo para leer `fecha_constancia` y los demás para tolerar NULL (lista en plan.md §1c)
+    - En la misma migración o en una segunda (se decide al implementar y se lista aquí antes de crearla): relleno de `fecha_constancia = fecha_recepcion` donde es NULL y la recepción ya pasó por `COMPLETO` (aprobado el 09/11/2026; reversible: `down()` vuelve a NULL solo las filas que rellenó; el agente la corre solo en `ceish_test_db`, la usuaria en `ceish_db`)
+    - CREAR `test/reception-date.e2e-spec.ts`
+  - **Pruebas (E2E):** al crear, `fecha_recepcion` IS NULL en la base · tras `submit`, `fecha_recepcion` está entre el `NOW()` de la base antes y después de la petición (sin desfase de zona: comparar con `NOW()`, no con el reloj de Node) · tras `finalizarRevision` y tras `verificarRequisitos(isComplete=true)`, `fecha_recepcion` no cambia · reenvío desde 11 y desde 20 → `fecha_recepcion` sigue siendo la del primer envío · un `submit` rechazado (409) no cambia `fecha_recepcion` · `GET /protocols?year=` con borrador sin fecha usa `creado_en` · la migración pasa up/down/up en `ceish_test_db` · reloj de la API adelantado (como MUT-H de TSK-001.1c) no cambia la fecha guardada · al aprobar (por `finalizarRevision` y por `verificarRequisitos`), `fecha_constancia` queda con `NOW()` de la base · `emitirConstancia` después de aprobar no cambia `fecha_constancia` · el plazo normativo (`responseDeadline` y la advertencia de la convocatoria) cuenta desde `fecha_constancia`, no desde el envío (protocolo con envío y aprobación en días distintos) · para un protocolo ya completo antes de la migración, el plazo calculado es el mismo antes y después del relleno.
+  - **Mutaciones:** (M1) `iniciarRecepcion` vuelve a `new Date()` (código actual) · (M2) `submit` con `new Date()` de Node · (M3) `finalizarRevision` vuelve a `receptionDate = now` · (M4) `verificarRequisitos` vuelve a `receptionDate = now` · (M5) quitar `AND estado_id IN (9, 11, 20)` del `UPDATE` · (M5b) `fecha_recepcion = NOW()` sin `COALESCE` (un reenvío pisa el primer envío) · (M6) aprobar sin fijar `fecha_constancia` (código actual) · (M7) `emitirConstancia` vuelve a `certificateDate = now` (código actual) · (M8) `responseDeadline` vuelve a leer `fecha_recepcion` (código actual).
+  - **Hecho cuando:** la migración corre en `ceish_test_db` (en `ceish_db` la aplica el usuario con `MIGRATION_CONFIRM_DB`), los cálculos del plazo normativo siguen dando lo mismo para protocolos ya completos, las pruebas pasan dos veces y cada mutación es detectada.
+
+- [ ] **TSK-001.7**: `receptionStatus = BORRADOR` con la recepción en `INICIADO` (RF-02.5, HU-002 3)
+  - **Requisitos cubiertos:** `RF-02.5`
+  - **Archivos:** MODIFICAR `src/modules/protocols/domain/enums/reception-status.enum.ts` (`BORRADOR`), `src/modules/protocols/infrastructure/database/protocol.entity.orm.ts` (getter :162-175) · pruebas: unitarias del getter (archivo de prueba existente si lo hay; si no, se reporta antes de crear) y casos en `test/protocol-draft-submit.e2e-spec.ts`.
+  - **Pruebas:** unitarias por estado (9 → `BORRADOR`; 10, 11, 12, 15 sin cambios; 9 con versión > 1 → `BORRADOR`; sin recepción → `PENDIENTE_SUBSANACION` como hoy) · E2E: `POST /protocols` y `GET /protocols/mis-protocolos` devuelven `BORRADOR`; tras `submit`, `EN_REVISION_SECRETARIA`.
+  - **Mutaciones:** (M1) quitar la rama del 9 (código actual: `PENDIENTE_SUBSANACION`) · (M2) poner la rama del 9 después de la de versión.
+  - **Hecho cuando:** pruebas y mutaciones como arriba, y el valor nuevo queda anotado para el contrato del frontend.
+
+- [ ] **TSK-001.8**: Título con trim y entre 20 y 200 caracteres (RF-02.2, HU-002 1)
+  - **Requisitos cubiertos:** `RF-02.2`
+  - **Archivos:** MODIFICAR `src/modules/protocols/application/dtos/create-protocol.dto.ts` · CREAR `src/modules/protocols/application/dtos/create-protocol.dto.spec.ts` · casos E2E en `test/protocol-draft-submit.e2e-spec.ts`.
+  - **Pruebas:** unitarias con `plainToInstance` + `validate`: 19 caracteres → error; 20 → válido; 200 → válido; 201 → error; `"   " + 19 caracteres + "   "` → error; `"  " + 20 caracteres + "  "` → válido y guardado sin espacios; solo espacios → error; no string → error. E2E: `POST /protocols` con título corto → 400 con mensaje en español; con espacios alrededor → 201 y `title` recortado en la respuesta y en la base.
+  - **Mutaciones:** (M1) sin `@Transform` (trim) · (M2) `@Length(20, 1000)` · (M3) sin `@Length` (código actual: solo `@IsNotEmpty`).
+  - **Edición (spec v3.6.1, pendiente 16 cerrado):** hoy no hay endpoint ni DTO de edición del protocolo en el backend (verificado el 09/11/2026: sin `@Put`/`@Patch` en `protocol.controller.ts`, sin `UpdateProtocolDto`), así que esta tarea no tiene nada más que tocar. Si una tarea futura crea un DTO de edición con `title`, debe reutilizar esta misma validación (no duplicarla) y probar los mismos bordes.
+  - **Hecho cuando:** pruebas y mutaciones como arriba; la regla del frontend va en su propia tarea del repo del frontend.
+
+- [ ] **TSK-001.9**: `PROTOCOL_CREATED` con `registro_id` y sin cédulas ni teléfonos (RF-02.6)
+  - **Requisitos cubiertos:** `RF-02.6 a–b`
+  - **Archivos:** MODIFICAR `src/shared/interceptors/audit.interceptor.ts`, `src/modules/protocols/infrastructure/controllers/protocol.controller.ts` (solo el handler `create`, para dejar `request.auditDetails` saneado) · función pura de saneo: buscar antes equivalentes; archivo nuevo solo si se reporta · CREAR `test/protocol-created-audit.e2e-spec.ts`.
+  - **Pruebas:** primero una E2E que reproduce el fallo (fila `PROTOCOL_CREATED` con `registro_id` NULL) · después: `registro_id` = id del protocolo creado; `datos_nuevos` sin `identification`, `phone` ni `sponsorPhone` en ningún nivel (también dentro de `investigators`), con el resto de campos · `PROTOCOL_SUBMITTED` y `DOCUMENT_UPLOADED` siguen con su `registro_id` · unitarias de la función de saneo.
+  - **Mutaciones:** (M1) volver a `data?.id` (código actual) · (M2) `auditDetails` = `request.body` sin sanear (código actual) · (M3) sanear solo el primer nivel (deja las cédulas de `investigators`).
+  - **Hecho cuando:** pruebas y mutaciones como arriba y la causa confirmada queda escrita en las notas de la tarea.
+
+- [ ] **TSK-001.10**: Catálogo: CONFIDENCIALIDAD, CONFLICTO_INTERES y ANEXO_5 obligatorios en EI e IO (RF-03.3)
+  - **Requisitos cubiertos:** `RF-03.3 a–c`
+  - **Archivos:** CREAR `src/migrations/1920000000000-RequisitosObligatoriosEiIo.ts` (timestamp a confirmar; por `codigo_anexo`, aborta si falta un código o su relación EI/IO; `down()` restaura las condiciones anteriores por código) · CREAR `test/requirements-by-type.e2e-spec.ts`.
+  - **Pruebas:** E2E: crear EI sin marcas → 10 requisitos (lista exacta de RF-03.3); IO sin marcas → 9; EI con población indígena → 12; IO con población indígena → 11; EC sin cambios frente a antes · el checklist de un protocolo `ZZ_TEST_` creado antes de la migración no cambia · migración up/down/up en `ceish_test_db` con conteos antes y después · la migración no usa ids (revisión del archivo).
+  - **Mutaciones:** (M1) dejar `CONFIDENCIALIDAD` con `["muestras","vulnerable"]` (catálogo actual) → EI 9 / IO 8 · (M2) actualizar solo EI → IO sin marcas sigue en 6 · (M3) `UPDATE` por id en lugar de por código con un id distinto en `ceish_test_db` (si no se puede reproducir, «no detectable: <razón>»).
+  - **Hecho cuando:** la migración corre en `ceish_test_db` (en `ceish_db` la aplica el usuario), pruebas y mutaciones como arriba. La reconstrucción del catálogo en una base nueva va en TSK-001.13.
+
+- [ ] **TSK-001.11** *(para después, con el rediseño del frontend)*: Ciclo del borrador (RF-02.7)
+  - **Requisitos cubiertos:** `RF-02.7 a–d`
+  - **Alcance (pendiente 14 cerrado el 09/11/2026):** eliminación automática a los 8 días de calendario desde la creación sin envío (`eliminado_en` + borrado de archivos en R2), fecha de eliminación en las respuestas del borrador para mostrarla en pantalla, un solo borrador abierto por investigador (rechazo en `POST /protocols`), «Descartar borrador». Sin avisos por correo.
+  - **Dependencias:** TSK-001.5 (borrador = recepción en 9), rediseño del frontend (pantalla con la fecha de eliminación y botón «Descartar»).
+  - **Archivos:** se definen con el diseño del frontend; los nuevos se listan aquí con Acción CREAR antes de implementar.
+  - **Pruebas y mutaciones (previstas):** reloj forzado (`jest.useFakeTimers` o `NOW()` simulado) en los días 7, 8 y 9 de calendario, incluido un borrador creado a las 23:30 de Ecuador (borde de día en America/Guayaquil); la fecha de eliminación de la respuesta coincide con la del job; editar el borrador no mueve la fecha; segundo borrador rechazado; descartar borra el protocolo y sus archivos (almacenamiento simulado en unitarias); mutaciones: sin filtro de estado 9 (borraría protocolos enviados), sin `eliminado_en IS NULL` en el conteo de borradores, borrado físico en lugar de soft delete, días laborables en lugar de calendario, contar desde la última modificación.
+  - **Hecho cuando:** el frontend tiene el flujo y las pruebas y mutaciones pasan como en las demás tareas.
+
+- [ ] **TSK-001.12** *(pendiente de confirmar con la Secretaría, jueves 12/11/2026)*: Tesis, requisitos de riesgo mayor y formatos descargables
+  - **Requisitos cubiertos:** pendientes 11 (tesis: informe antiplagio, oficio del tutor, bandera «es tesis»; relación con RF-19.1), 15 (`POLIZA_RC` e `IDONEIDAD_INST` con `riesgoMayor`) y 18 (formatos oficiales en Configuración, descarga uno por uno y en ZIP; RF-18.1).
+  - **Hecho cuando:** la Secretaría confirma cada punto, el spec se actualiza con RF y criterios EARS, y cada punto se divide en su propia TSK con archivos, pruebas y mutaciones. No se implementa nada antes.
+
+- [ ] **TSK-001.13** *(aparte; no se implementa en esta rama)*: Reconstrucción del catálogo de requisitos por `codigo_anexo` en una base nueva (RF-03.3, pendiente 17 cerrado el 09/11/2026)
+  - **Requisitos cubiertos:** `RF-03.3` (nota del catálogo), `RF-03.1`
+  - **Problema:** `1778800000000-SeedTiposDocumento` inserta por `nombre` con el id de la secuencia, y `1778850000000-ForceDocumentCodesById` y `1778870000000-FixAllDocumentCodes` escriben `codigo_anexo` por `id`; en una base nueva (con `script.sql`, sin filas previas) los códigos no quedan como en `ceish_db` (19 ANEXO_1 … 45 APROB_ORIGEN). Análisis estático del 09/11/2026; no ejecutado en una base nueva.
+  - **Archivos:** CREAR una migración nueva (nombre y timestamp al implementar, después de la de TSK-001.10) · CREAR una E2E o script de verificación que levante una base vacía (nombre a definir; si hace falta otro archivo, se reporta antes). Las migraciones viejas no se modifican.
+  - **Cambio:** deja `catalogos.tipos_documento` (código, nombre, tipos de estudio, `condicion_json`, `es_obligatorio`) y `catalogos.tipo_documento_estudio` como en `ceish_db` después de TSK-001.10, identificando cada fila por `codigo_anexo` (inserta si falta, actualiza si existe); idempotente; en `ceish_db` no cambia nada.
+  - **Pruebas:** base vacía + `script.sql` + todas las migraciones → mismo conjunto de (código, tipos, condiciones, obligatoriedad) que `ceish_db` y mismos conteos de RF-03.3 (EI 10, IO 9, con indígena 12 y 11) · correrla dos veces no cambia nada · en `ceish_test_db` no cambia ninguna fila.
+  - **Mutaciones:** (M1) actualizar por id (como 1778870000000) · (M2) omitir la relación en `tipo_documento_estudio` de un código · (M3) quitar la idempotencia (insert sin comprobar).
+  - **Hecho cuando:** la comparación con `ceish_db` da 0 diferencias en la base nueva, pruebas y mutaciones como en las demás tareas.
+
+- [ ] **TSK-001.14**: Edición del borrador con `PATCH /protocols/:id` (RF-02.8, HU-002 5)
+  - **Requisitos cubiertos:** `RF-02.8 a–g`
+  - **Dependencias:** TSK-001.5 (borrador = recepción en 9), TSK-001.8 (validación del título, se reutiliza), TSK-001.9 (saneo de `datos_nuevos`, se reutiliza para `PROTOCOL_UPDATED`). **Frontend:** tarea en el repo del frontend para cambiar `PUT /protocols/:id` por `PATCH` en `protocolo.service.ts:472-476` y permitir la edición solo en borrador (`editar-protocolo.page.ts`); hasta entonces la pantalla sigue fallando.
+  - **Archivos:**
+    - MODIFICAR `src/modules/protocols/infrastructure/controllers/protocol.controller.ts` (handler `@Patch(':id')` con `@Audit('PROTOCOL_UPDATED')`)
+    - MODIFICAR `src/modules/protocols/application/services/protocols.service.ts` (`update`: propiedad, estado 9, transacción, recálculo y conciliación del checklist)
+    - CREAR `src/modules/protocols/application/dtos/update-protocol.dto.ts` (derivado de `CreateProtocolDto`, sin `principalInvestigatorId` ni `isAffidavitAccepted`) y `update-protocol.dto.spec.ts`
+    - CREAR `test/protocol-edit-draft.e2e-spec.ts`
+    - Antes de crear: Grep de `UpdateProtocolDto`, `PartialType`, `OmitType` y de una función de conciliación de checklist ya existente.
+  - **Pruebas:** unitarias del DTO (título con los bordes de TSK-001.8, indicadores no booleanos → error, `riskLevelId` → rechazado por el pipe global, `principalInvestigatorId` → rechazado) · E2E: el investigador principal edita el borrador → 200 y cambios guardados · otro investigador → rechazo sin cambios · recepción en 15 y en 10 → 409 con mensaje en español, sin cambios · cambio de IO a EI sin marcas → el checklist pasa de 9 a 10 requisitos y el documento ya subido de un requisito que sigue aplicando conserva su estado y su `requisito_id` · desmarcar población indígena con documento subido en `TRADUCCION_ANCESTRAL` → ese requisito queda `NO_APLICA` y el documento y su archivo siguen (RF-02.8 f) · volver a marcarla → el requisito recupera su estado con el mismo documento · requisito sin documento que deja de aplicar → se quita · `fecha_recepcion` sigue NULL y `creado_en` no cambia · fila `PROTOCOL_UPDATED` con `registro_id` y sin cédulas ni teléfonos · un fallo a mitad del recálculo no deja cambios parciales (transacción).
+  - **Mutaciones:** (M1) sin la comprobación del estado 9 · (M2) sin la comprobación de investigador principal · (M3) recalcular borrando y recreando todo el checklist (pierde `requisito_id` y estados) · (M4) borrar el documento del requisito que deja de aplicar · (M5) no recalcular cuando solo cambia un indicador · (M6) DTO sin la validación de título.
+  - **Hecho cuando:** las pruebas nuevas y las existentes pasan dos veces seguidas, cada mutación es detectada, `tsc` sin errores, eslint de los archivos tocados sin empeorar frente a `dev`, y la tarea del frontend queda anotada como dependencia abierta.
+
+---
+
 ### Módulo: Evaluaciones y Cuotas por Perfil (`evaluations`)
 
 - [ ] **TSK-12.1**: Implementar la entidad y DTO para asignación de evaluadores con su rol/perfil profesional (`ETICA_METODOLOGICO_SALUD`, `JURIDICO`, `SOCIEDAD_CIVIL`).
