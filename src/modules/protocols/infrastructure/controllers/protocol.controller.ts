@@ -37,6 +37,19 @@ import {
   isValidPdfExtension,
   sanitizeFilenameBackend,
 } from '../../../../shared/utils/validation';
+import { omitPersonalData } from '../../../../shared/utils/omit-personal-data';
+
+/**
+ * Claves que no se guardan en `datos_nuevos` de la auditoría del protocolo, en ningún nivel
+ * (spec-001 RF-02.6 b, decisión 09/11/2026). Las reutiliza PROTOCOL_UPDATED (RF-02.8 g).
+ */
+const PROTOCOL_AUDIT_OMITTED_KEYS: readonly string[] = [
+  'identification',
+  'phone',
+  'sponsorPhone',
+  'contactPhone',
+  'sponsorRuc',
+];
 
 @ApiTags('protocols')
 @ApiBearerAuth()
@@ -287,8 +300,14 @@ export class ProtocolController {
     @Request()
     req: ExpressRequest & {
       user: { id: number; roles: string[]; permissions: string[] };
+      auditDetails?: unknown;
     },
   ) {
+    // RF-02.6 b (TSK-001.9): AuditInterceptor guarda auditDetails en lugar del cuerpo completo.
+    req.auditDetails = omitPersonalData(
+      req.body as unknown,
+      PROTOCOL_AUDIT_OMITTED_KEYS,
+    );
     const ipAddress = req.ip || req.connection.remoteAddress || '';
     const protocol = await this.protocolsService.create(
       dto,
