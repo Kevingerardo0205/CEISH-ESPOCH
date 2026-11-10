@@ -8,17 +8,29 @@ import {
   ValidateNested,
   IsBoolean,
   IsNotEmpty,
+  Length,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, Type } from 'class-transformer';
 import { ApiProperty } from '@nestjs/swagger';
 import { GeographicCoverage } from '../../domain/enums/geographic-coverage.enum';
 import { CreateInvestigatorDto } from './create-investigator.dto';
 import { CreateInstitutionDto } from './create-institution.dto';
 
 export class CreateProtocolDto {
-  @ApiProperty({ example: 'Título del Protocolo de Investigación' })
-  @IsString()
-  @IsNotEmpty()
+  // RF-02.2: se recorta antes de validar y de guardar; 20 a 200 caracteres después del recorte.
+  // El DTO de edición (TSK-001.14) hereda estas reglas con PartialType/OmitType.
+  @ApiProperty({
+    example: 'Título del Protocolo de Investigación',
+    minLength: 20,
+    maxLength: 200,
+  })
+  @Transform(({ value }: { value: unknown }): unknown =>
+    typeof value === 'string' ? value.trim() : value,
+  )
+  @IsString({ message: 'El título debe ser un texto' })
+  @Length(20, 200, {
+    message: 'El título debe tener entre 20 y 200 caracteres',
+  })
   title!: string;
 
   @ApiProperty({ example: 30 })
