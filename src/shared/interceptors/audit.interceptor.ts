@@ -8,6 +8,7 @@ import { Reflector } from '@nestjs/core';
 import { Observable } from 'rxjs';
 import { tap } from 'rxjs/operators';
 import { AUDIT_KEY } from '../decorators/audit.decorator';
+import { omitSecrets } from '../utils/omit-secrets';
 import { AuditService } from '../../modules/audit/application/services/audit.service';
 
 @Injectable()
@@ -48,9 +49,10 @@ export class AuditInterceptor implements NestInterceptor {
             userId: user?.id,
             action,
             ipAddress,
+            // RF-AUD.1 a (TSK-001.15): nunca se guardan contraseñas, tokens ni secretos.
             newData:
               request.method !== 'GET'
-                ? request.auditDetails || request.body
+                ? omitSecrets(request.auditDetails || request.body)
                 : null,
             recordId:
               data?.id || (!isNaN(paramsId) ? paramsId : wrappedId(data)),

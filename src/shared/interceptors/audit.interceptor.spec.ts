@@ -39,6 +39,50 @@ describe('AuditInterceptor — registro_id (spec-001 RF-02.6 a, TSK-001.9)', () 
     return (createLog.mock.calls[0] as [{ recordId?: unknown }])[0].recordId;
   }
 
+  async function newDataFor(
+    body: unknown,
+    auditDetails?: unknown,
+  ): Promise<unknown> {
+    const request = {
+      user: { id: 7 },
+      ip: '127.0.0.1',
+      method: 'POST',
+      params: {},
+      body,
+      auditDetails,
+    };
+    const context = {
+      getHandler: () => undefined,
+      switchToHttp: () => ({ getRequest: () => request }),
+    } as unknown as ExecutionContext;
+    const next: CallHandler = { handle: () => of({ data: { id: 1 } }) };
+    await lastValueFrom(interceptor.intercept(context, next));
+    await new Promise((r) => setImmediate(r));
+    expect(createLog).toHaveBeenCalledTimes(1);
+    return (createLog.mock.calls[0] as [{ newData?: unknown }])[0].newData;
+  }
+
+  describe('datos_nuevos sin secretos (RF-AUD.1 a, TSK-001.15)', () => {
+    it('sanea el cuerpo de la petición en cualquier nivel', async () => {
+      expect(
+        await newDataFor({
+          email: 'persona@example.test',
+          password: 'valor-ficticio',
+          nested: { refresh_token: 'valor-ficticio', keep: 1 },
+        }),
+      ).toEqual({ email: 'persona@example.test', nested: { keep: 1 } });
+    });
+
+    it('sanea también request.auditDetails cuando el handler lo deja', async () => {
+      expect(
+        await newDataFor(
+          { ignored: true },
+          { title: 'Estudio', items: [{ token: 'valor-ficticio', a: 1 }] },
+        ),
+      ).toEqual({ title: 'Estudio', items: [{ a: 1 }] });
+    });
+  });
+
   it('id en data.id (respuesta sin envolver)', async () => {
     expect(await recordIdFor({}, { id: 41 })).toBe(41);
   });
