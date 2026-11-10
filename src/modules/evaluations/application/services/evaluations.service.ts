@@ -801,25 +801,52 @@ export class EvaluationsService {
     return this.evaluationRepository.findProfiles();
   }
 
-  async createProfile(dto: CreateEvaluatorProfileDto) {
-    return this.evaluationRepository.saveProfile({
-      nombre: dto.nombre,
-      descripcion: dto.descripcion,
-      ordenPrioridad: dto.ordenPrioridad || 0,
-      isActive: true,
-    } as unknown as Partial<EvaluatorProfileOrmEntity>);
+  /** TSK-001.16: el DTO (nombre, descripcion, ordenPrioridad) se mapea a la entidad (name, …). */
+  async createProfile(
+    dto: CreateEvaluatorProfileDto,
+  ): Promise<EvaluatorProfileOrmEntity> {
+    try {
+      return await this.evaluationRepository.saveProfile({
+        name: dto.nombre,
+        description: dto.descripcion,
+        priorityOrder: dto.ordenPrioridad ?? 0,
+        isActive: true,
+      });
+    } catch (error: unknown) {
+      throw this.toProfileNameConflict(error);
+    }
   }
 
-  async updateProfile(id: number, dto: UpdateEvaluatorProfileDto) {
+  /** TSK-001.16: solo aplica los campos recibidos; sin campos no llama a update. */
+  async updateProfile(
+    id: number,
+    dto: UpdateEvaluatorProfileDto,
+  ): Promise<EvaluatorProfileOrmEntity | null> {
     const profile = await this.evaluationRepository.findProfileById(id);
     if (!profile)
       throw new NotFoundException('Perfil de evaluador no encontrado');
 
-    await this.evaluationRepository.updateProfile(
-      id,
-      dto as unknown as Partial<EvaluatorProfileOrmEntity>,
-    );
+    const changes: Partial<EvaluatorProfileOrmEntity> = {};
+    if (dto.nombre !== undefined) changes.name = dto.nombre;
+    if (dto.descripcion !== undefined) changes.description = dto.descripcion;
+    if (dto.ordenPrioridad !== undefined)
+      changes.priorityOrder = dto.ordenPrioridad;
+    if (Object.keys(changes).length === 0) return profile;
+
+    try {
+      await this.evaluationRepository.updateProfile(id, changes);
+    } catch (error: unknown) {
+      throw this.toProfileNameConflict(error);
+    }
     return this.evaluationRepository.findProfileById(id);
+  }
+
+  /** Unicidad de `perfiles_evaluador.nombre` (Postgres 23505) → 409; otro error, tal cual. */
+  private toProfileNameConflict(error: unknown): unknown {
+    if ((error as { code?: string } | null)?.code === '23505') {
+      return new ConflictException('Ya existe un perfil con ese nombre');
+    }
+    return error;
   }
 
   async deleteProfile(id: number) {
