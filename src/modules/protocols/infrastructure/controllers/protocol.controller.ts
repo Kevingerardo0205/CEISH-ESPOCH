@@ -58,7 +58,7 @@ export class ProtocolController {
       'Listar protocolos con búsqueda, año y etapa (SECRETARIA y PRESIDENTE)',
   })
   async findAll(@Query() query: ListProtocolsQueryDto) {
-    return this.protocolsService.findAll(query);
+    return this.protocolsService.findAll(query, { excludeDrafts: true });
   }
 
   // Las rutas estáticas deben ir ANTES de las rutas dinámicas como :id

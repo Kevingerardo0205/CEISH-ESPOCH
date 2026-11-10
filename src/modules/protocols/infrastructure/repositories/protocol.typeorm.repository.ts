@@ -1,7 +1,12 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository, Between } from 'typeorm';
-import { IProtocolRepository } from '../../domain/ports/protocol.repository.port';
+import {
+  FindAllProtocolsOptions,
+  IProtocolRepository,
+} from '../../domain/ports/protocol.repository.port';
+import { ProtocolStatus } from '../../domain/enums/protocol-status.enum';
+import { SUBMITTABLE_RECEPTION_STATUS_IDS } from '../../domain/services/can-submit-protocol';
 import { ProtocolOrmEntity } from '../database/protocol.entity.orm';
 import { ListProtocolsQueryDto } from '../../application/dtos/list-protocols-query.dto';
 import { BaseTypeOrmRepository } from '../../../../shared/db/base.repository';
@@ -61,7 +66,8 @@ export class ProtocolTypeOrmRepository
 
     if (status) {
       if (status === 'pendientes') {
-        qb.andWhere('reception.statusId IN (9, 15)');
+        // RF-02.3 b (TSK-001.5): el borrador (9) no es pendiente de la Secretaría.
+        qb.andWhere('reception.statusId = 15');
       } else if (status === 'incompletos') {
         qb.andWhere('reception.statusId = 11');
       } else if (status === 'validados') {
@@ -69,6 +75,9 @@ export class ProtocolTypeOrmRepository
       } else if (status === 'archivados') {
         qb.andWhere('reception.statusId = 12');
       }
+    } else {
+      // RF-02.3 b (TSK-001.5): sin filtro tampoco se muestran los borradores.
+      qb.andWhere('reception.statusId <> 9');
     }
 
     return qb.orderBy('reception.receptionDate', 'DESC').getMany();
@@ -76,6 +85,7 @@ export class ProtocolTypeOrmRepository
 
   async findAll(
     query: ListProtocolsQueryDto,
+    options: FindAllProtocolsOptions = {},
   ): Promise<[ProtocolOrmEntity[], number]> {
     const { limit, skip } = getPaginationParams(query);
     const { studyType, receptionStatus, reviewType } = query;
@@ -95,6 +105,12 @@ export class ProtocolTypeOrmRepository
       .leftJoin('activeVersion.resolutions', 'activeResolutions')
       .addSelect('activeResolutions.id')
       .leftJoinAndSelect('p.versions', 'versions');
+
+    if (options.excludeDrafts) {
+      // RF-EST.3 punto 5 (TSK-001.5): sin borradores, también en el total; se conservan
+      // los protocolos sin recepción.
+      qb.andWhere('(reception.statusId IS NULL OR reception.statusId <> 9)');
+    }
 
     if (studyType) qb.andWhere('studyType.code = :studyType', { studyType });
     if (query.statusId) {
@@ -183,6 +199,26 @@ export class ProtocolTypeOrmRepository
     qb.orderBy('p.updatedAt', 'DESC');
 
     return qb.getManyAndCount();
+  }
+
+  async submitActiveReception(protocolId: number): Promise<boolean> {
+    // RF-02.3 c y e (TSK-001.5): el estado de origen va en el mismo UPDATE, así dos envíos
+    // simultáneos no pasan los dos. TSK-001.6 agrega aquí
+    // `fecha_recepcion = COALESCE(r.fecha_recepcion, NOW())` al SET.
+    const [, affected]: [unknown, number] = await this.repo.manager.query(
+      `UPDATE recepcion.recepciones r
+          SET estado_id = $2
+         FROM public.protocolos p
+        WHERE p.id = $1
+          AND r.version_id = p.version_actual_id
+          AND r.estado_id = ANY($3::int[])`,
+      [
+        protocolId,
+        ProtocolStatus.EN_REVISION_SECRETARIA,
+        SUBMITTABLE_RECEPTION_STATUS_IDS,
+      ],
+    );
+    return affected > 0;
   }
 
   async countByYear(year: number): Promise<number> {

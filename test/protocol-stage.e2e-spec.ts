@@ -264,17 +264,27 @@ describe('Etapa del protocolo — RF-EST.1 / RF-EST.2 (ceish_test_db)', () => {
       rows = Array.isArray(res.body.data) ? res.body.data : res.body.data.data;
     });
 
-    it.each(SCENARIOS.map((s) => [s.key, s.expected[0], s.expected[1]]))(
-      '%s → etapa %s, etapaOrden %i',
-      (key, etapa, orden) => {
-        const row = rows.find((r) => r.id === protocolIds[key]);
-        expect(row).toBeDefined();
-        expect({ etapa: row.etapa, etapaOrden: row.etapaOrden }).toEqual({
-          etapa,
-          etapaOrden: orden,
-        });
-      },
-    );
+    it.each(
+      SCENARIOS.filter((s) => s.receptionStatusId !== 9).map((s) => [
+        s.key,
+        s.expected[0],
+        s.expected[1],
+      ]),
+    )('%s → etapa %s, etapaOrden %i', (key, etapa, orden) => {
+      const row = rows.find((r) => r.id === protocolIds[key]);
+      expect(row).toBeDefined();
+      expect({ etapa: row.etapa, etapaOrden: row.etapaOrden }).toEqual({
+        etapa,
+        etapaOrden: orden,
+      });
+    });
+
+    // TSK-001.5 (spec-001 RF-02.3 b, RF-EST.3 punto 5): el borrador (recepción en 9) no se lista.
+    it('NULL_INICIADO (borrador, recepción en 9) no aparece', () => {
+      expect(
+        rows.find((r) => r.id === protocolIds.NULL_INICIADO),
+      ).toBeUndefined();
+    });
   });
 
   describe('GET /api/reception/protocols', () => {
@@ -289,11 +299,9 @@ describe('Etapa del protocolo — RF-EST.1 / RF-EST.2 (ceish_test_db)', () => {
     });
 
     it.each(
-      SCENARIOS.filter((s) => s.receptionStatusId !== null).map((s) => [
-        s.key,
-        s.expected[0],
-        s.expected[1],
-      ]),
+      SCENARIOS.filter(
+        (s) => s.receptionStatusId !== null && s.receptionStatusId !== 9,
+      ).map((s) => [s.key, s.expected[0], s.expected[1]]),
     )('%s → etapa %s, etapaOrden %i', (key, etapa, orden) => {
       const row = rows.find((r) => r.id === protocolIds[key]);
       expect(row).toBeDefined();
@@ -301,6 +309,13 @@ describe('Etapa del protocolo — RF-EST.1 / RF-EST.2 (ceish_test_db)', () => {
         etapa,
         etapaOrden: orden,
       });
+    });
+
+    // TSK-001.5 (spec-001 RF-02.3 b): el borrador (recepción en 9) no se lista.
+    it('NULL_INICIADO (borrador, recepción en 9) no aparece', () => {
+      expect(
+        rows.find((r) => r.id === protocolIds.NULL_INICIADO),
+      ).toBeUndefined();
     });
   });
 });

@@ -108,7 +108,7 @@ src/
 
 | TSK | Orden | Estado | Alcance |
 |---|---|---|---|
-| 001.5 | 1 | Por hacer | Borrador invisible para la Secretaría y `submit` desde 9, 11 y 20 (RF-02.3) |
+| 001.5 | 1 | Hecho (09/11/2026, 8779421) | Borrador invisible para la Secretaría y `submit` desde 9, 11 y 20 (RF-02.3) |
 | 001.6 | 5 | Por hacer (desbloqueada: pendiente 13 cerrado el 09/11/2026) | `fecha_recepcion` NULL al crear, `NOW()` al enviar, sin pisar al completar; `fecha_constancia` al aprobar y como origen del plazo normativo (RF-02.4); migración de la columna y de datos |
 | 001.7 | 2 | Por hacer | `receptionStatus = BORRADOR` (RF-02.5) |
 | 001.8 | 3 | Por hacer | Título con trim y 20 a 200 (RF-02.2) |

@@ -329,16 +329,17 @@ describe('TSK-001.4 — GET /api/protocols: filtros y acceso (ceish_test_db)', (
       principalId: investigadorUserId,
     });
 
-    // Año (fechas en UTC; Ecuador = UTC−5)
+    // Año (fechas en UTC; Ecuador = UTC−5). Recepción en 15 (enviado): desde TSK-001.5 el
+    // borrador (9) no aparece en GET /protocols (RF-EST.3 punto 5).
     await seed('YEAR_REC_BORDE', {
       title: 'YEARX recepcion borde',
-      receptionStatusId: 9,
+      receptionStatusId: 15,
       receptionDateUtc: '2031-01-01 04:30:00', // 2030-12-31 23:30 en Ecuador
       createdAtUtc: '2031-01-05 12:00:00',
     });
     await seed('YEAR_REC_MEDIANOCHE', {
       title: 'YEARX recepcion medianoche',
-      receptionStatusId: 9,
+      receptionStatusId: 15,
       receptionDateUtc: '2031-01-01 05:00:00', // 2031-01-01 00:00 en Ecuador
       createdAtUtc: '2030-06-01 12:00:00',
     });
@@ -368,7 +369,8 @@ describe('TSK-001.4 — GET /api/protocols: filtros y acceso (ceish_test_db)', (
       receptionStatusId: 10,
       withResolution: true,
     });
-    await seed('ST_REC', { title: 'STAGEX recepcion', receptionStatusId: 9 });
+    // Recepción en 15: el borrador (9) ya no se lista (TSK-001.5); 15 también es RECEPCION.
+    await seed('ST_REC', { title: 'STAGEX recepcion', receptionStatusId: 15 });
     await seed('ST_SIN_REC', { title: 'STAGEX sin recepcion' });
     await seed('ST_EVALUADO', {
       title: 'STAGEX evaluado',

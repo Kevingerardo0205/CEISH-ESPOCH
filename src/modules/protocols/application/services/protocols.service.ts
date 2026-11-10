@@ -8,7 +8,11 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { IProtocolRepository } from '../../domain/ports/protocol.repository.port';
+import {
+  FindAllProtocolsOptions,
+  IProtocolRepository,
+} from '../../domain/ports/protocol.repository.port';
+import { canSubmitProtocol } from '../../domain/services/can-submit-protocol';
 import { ProtocolOrmEntity } from '../../infrastructure/database/protocol.entity.orm';
 import { StudyTypeOrmEntity } from '../../infrastructure/database/study-type.entity.orm';
 import { RiskLevelOrmEntity } from '../../infrastructure/database/risk-level.entity.orm';
@@ -50,8 +54,14 @@ export class ProtocolsService {
     private readonly receptionService: ReceptionService,
   ) {}
 
-  async findAll(query: ListProtocolsQueryDto) {
-    const [data, total] = await this.protocolsRepository.findAll(query);
+  async findAll(
+    query: ListProtocolsQueryDto,
+    options?: FindAllProtocolsOptions,
+  ) {
+    const [data, total] = await this.protocolsRepository.findAll(
+      query,
+      options,
+    );
     return paginate(
       data.map((p) => ProtocolMapper.toListResponse(p)),
       total,
@@ -96,8 +106,17 @@ export class ProtocolsService {
   async submit(id: number) {
     const protocol = await this.findOne(id);
 
-    // Cambiar estado a revisión por secretaría en la recepción
-    await this.receptionService.updateReceptionStatus(id, 15); // 15 = EN_REVISION_SECRETARIA
+    // RF-02.3 c, e y e.1 (TSK-001.5): solo desde 9, 11 o 20; el UPDATE repite la condición
+    // para que dos envíos simultáneos no pasen los dos.
+    const receptionStatusId = protocol.activeVersion?.reception?.statusId;
+    if (
+      !canSubmitProtocol(receptionStatusId) ||
+      !(await this.protocolsRepository.submitActiveReception(id))
+    ) {
+      throw new ConflictException(
+        'El protocolo no se puede enviar en su estado actual: solo se envía un borrador o un protocolo con documentación incompleta o por subsanar.',
+      );
+    }
 
     return {
       message: 'Protocolo enviado exitosamente para revisión técnica.',
