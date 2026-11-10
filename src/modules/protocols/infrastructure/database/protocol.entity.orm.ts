@@ -167,6 +167,9 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
     if (sId === 12) return 'ARCHIVADO' as ReceptionStatus;
 
     const currentVerNumber = this.activeVersion?.versionNumber || 1;
+    // RF-02.5 (TSK-001.7, spec v3.7.2): borrador = versión 1 en 9; una versión > 1 en 9 es una
+    // subsanación en curso y sigue en EVALUACION_SUBSANACIONES.
+    if (sId === 9 && currentVerNumber === 1) return ReceptionStatus.BORRADOR;
     if (currentVerNumber > 1) {
       return ReceptionStatus.EVALUACION_SUBSANACIONES;
     }

@@ -144,7 +144,8 @@ export class ProtocolTypeOrmRepository
         else if (receptionStatus === ReceptionStatus.INCOMPLETO) statusId = 11;
         else if (receptionStatus === ReceptionStatus.EN_REVISION_SECRETARIA)
           statusId = 15;
-        else if (receptionStatus === 'ARCHIVADO') statusId = 12;
+        // Cast solo de tipo (TSK-001.7): 'ARCHIVADO' no está en ReceptionStatus; BORRADOR cae en 9.
+        else if ((receptionStatus as string) === 'ARCHIVADO') statusId = 12;
         qb.andWhere('reception.statusId = :statusId', { statusId });
       }
     }

@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.7.1
+**Versión:** 3.7.2
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -19,6 +19,7 @@
 **Historial:** 2026-11-09 — v3.6.1: RF-02.2 se aplica también a cualquier edición del título por la API; cierra el pendiente 16 (hoy el backend no tiene endpoint ni DTO de edición del protocolo)
 **Historial:** 2026-11-09 — v3.7.0: decisiones de la usuaria del 09/11/2026. Pendiente 13 cerrado: la fecha de documentación completa es `fecha_constancia`, fijada al aprobar la recepción (RF-02.4 e, RF-NORM.1). Pendiente 14 cerrado: 8 días de calendario desde la creación, sin aviso por correo; la pantalla muestra la fecha de eliminación (RF-02.7). Pendiente 17 cerrado: el catálogo se reconstruye por `codigo_anexo` en una tarea aparte (TSK-001.13). Nuevo RF-02.8: edición del borrador con `PATCH /protocols/:id` (el frontend llama a `PUT /protocols/:id`, que el backend no expone). Pendientes 15 y 18 siguen abiertos hasta la reunión con la Secretaría del jueves 12/11/2026
 **Historial:** 2026-11-09 — v3.7.1: decisiones de la usuaria del 09/11/2026. Pendiente 12 cerrado: `POST /protocols/:id/submit` también reenvía después de una subsanación, desde 9, 11 y 20 a 15; en otros estados 409; `fecha_recepcion` solo se escribe si es NULL (guarda el primer envío) (RF-02.3 e, RF-02.4 b). Pendiente 19 cerrado: se aceptan RF-02.8 f y g. Relleno de `fecha_constancia` aprobado como migración reversible (RF-02.4)
+**Historial:** 2026-11-09 — v3.7.2: decisión de la usuaria del 09/11/2026 (TSK-001.7). RF-02.5: `BORRADOR` solo con la recepción de la versión activa en 9 y versión activa 1; con 9 y versión > 1 sigue `EVALUACION_SUBSANACIONES` (lo usa el frontend para «Subir correcciones» y el modo subsanación). RF-02.7: la eliminación a los 8 días, «un solo borrador por investigador» y «Descartar borrador» aplican solo a la versión 1 en 9
 
 ---
 
@@ -436,8 +437,8 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
   - > Datos existentes (09/11/2026): en `ceish_db`, 22 de 25 recepciones en `COMPLETO` tienen `fecha_constancia` NULL; para ellas `fecha_recepcion` guarda hoy la fecha del último completado (se pisaba al completar). Decisión del 09/11/2026 (aprobada): en TSK-001.6, una migración reversible rellena `fecha_constancia = fecha_recepcion` solo donde `fecha_constancia` IS NULL y la recepción ya pasó por `COMPLETO`, sin tocar otras columnas. El agente la corre solo en `ceish_test_db`; en `ceish_db` la aplica la usuaria.
   - > Cierra el pendiente 10 de la sección 11 (la escritura con `new Date()` desde Node).
 
-- **RF-02.5 (Estado mostrado del borrador, decisión 09/11/2026)**: `receptionStatus` (getter de `ProtocolOrmEntity`) devuelve `BORRADOR` cuando la recepción de la versión activa está en `INICIADO` (9). Hoy ese caso cae en `PENDIENTE_SUBSANACION`. Es un valor nuevo en la respuesta (cambio aditivo del enum `ReceptionStatus`); los demás valores no cambian.
-  - **Criterio EARS (RF-02.5)**: **Mientras** la recepción de la versión activa esté en `INICIADO` (9), **el sistema debe** devolver `receptionStatus = "BORRADOR"` en todas las respuestas que usan `ProtocolMapper`.
+- **RF-02.5 (Estado mostrado del borrador, decisión 09/11/2026; precisado el 09/11/2026 en v3.7.2)**: `receptionStatus` (getter de `ProtocolOrmEntity`) devuelve `BORRADOR` cuando la recepción de la versión activa está en `INICIADO` (9) **y la versión activa es la 1**. Hoy, con la versión 1, ese caso cae en `PENDIENTE_SUBSANACION`; con versión > 1 devuelve `EVALUACION_SUBSANACIONES`, y eso no cambia (la versión nueva de una subsanación nace con su recepción en 9, y el frontend usa `EVALUACION_SUBSANACIONES` para «Subir correcciones» y el modo subsanación). Es un valor nuevo en la respuesta (cambio aditivo del enum `ReceptionStatus`); los demás valores no cambian.
+  - **Criterio EARS (RF-02.5)**: **Mientras** la recepción de la versión activa esté en `INICIADO` (9) y la versión activa sea la 1, **el sistema debe** devolver `receptionStatus = "BORRADOR"` en todas las respuestas que usan `ProtocolMapper`. Con la recepción en 9 y versión activa > 1, sigue devolviendo `EVALUACION_SUBSANACIONES`. — Reemplaza a: «`BORRADOR` con la recepción en 9, sin condición de versión» — decisión 09/11/2026
 
 - **RF-02.6 (Auditoría de la creación, decisión 09/11/2026)**:
   - **Criterio EARS (RF-02.6 a)**: **Cuando** se cree un protocolo, **el sistema debe** dejar una fila `PROTOCOL_CREATED` en `sistema.audit_log` con `registro_id` = id del protocolo creado.
@@ -450,6 +451,7 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
   - **Criterio EARS (RF-02.7 c)**: **Si** el investigador ya tiene un borrador abierto (recepción en `INICIADO` y sin `eliminado_en`), **el sistema debe** rechazar la creación de otro con un mensaje en español.
   - **Criterio EARS (RF-02.7 d)**: **Cuando** el investigador elija «Descartar borrador», **el sistema debe** eliminarlo igual que en (a).
   - > El plazo de 8 días es un parámetro de `sistema.parametros_sistema` según RF-PAR.1; el nombre del parámetro y el del campo de la respuesta se fijan en TSK-001.11.
+  - > **Alcance (precisado el 09/11/2026, v3.7.2):** «borrador» en RF-02.7 a–d es solo la **versión 1** con su recepción en `INICIADO` (9). Una versión > 1 en 9 es una subsanación en curso: no se elimina a los 8 días, no cuenta para «un solo borrador por investigador» y no se puede descartar.
 
 - **RF-02.8 (Edición del borrador, decisión 09/11/2026)**: El frontend (`editar-protocolo.page.ts`) guarda con `PUT /protocols/:id`, que el backend no expone (no hay `@Put` ni `@Patch` en `protocol.controller.ts`). Se crea `PATCH /protocols/:id` solo para borradores.
   - **Criterio EARS (RF-02.8 a)**: **Mientras** la recepción de la versión activa esté en `INICIADO` (9), **el sistema debe** permitir al investigador principal editar los datos del paso 1 con `PATCH /protocols/:id`: título, tipo de estudio, indicadores (`isVulnerablePopulation`, `usesBiologicalSamples`, `isMulticentric`, `hasExternalInstitutions`, `isIndigenousPopulation`), datos de financiamiento y patrocinador, fechas estimadas, cobertura y duración, coinvestigadores e instituciones. La lista exacta sale de `CreateProtocolDto` y se fija en TSK-001.14.
