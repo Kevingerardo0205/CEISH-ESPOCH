@@ -137,6 +137,26 @@ src/
 
 ---
 
+## 1d. Auditoría sin secretos (TSK-001.15) y perfiles de evaluador (TSK-001.16)
+
+**Requisitos:** RF-AUD.1 a–b del spec v3.7.3 (10/11/2026). TSK-001.16 corrige un fallo, sin requisito nuevo.
+**Módulos:** `src/shared/utils`, `src/shared/interceptors`, `src/migrations`; `evaluations` (001.16)
+
+| TSK | Orden | Estado | Alcance |
+|---|---|---|---|
+| 001.15 | 1 | Por hacer | `omitSecrets` (claves normalizadas, cualquier nivel) aplicada en `AuditInterceptor` a `datos_nuevos`; migración `1930000000000-StripSecretsFromAuditLog` sin respaldo y con `down()` vacío (RF-AUD.1) |
+| 001.16 | 2 | Por hacer | `POST` y `PATCH /evaluations/profiles` responden 500: el servicio arma `nombre`/`descripcion`/`ordenPrioridad` y la entidad mapea `name`/`description`/`priorityOrder` |
+
+| Punto | Cambio |
+|---|---|
+| Saneo (001.15) | CREAR `src/shared/utils/omit-secrets.ts`: copia profunda independiente de `omitPersonalData` (que no cambia); compara cada clave en minúsculas y sin `_` ni `-` contra la lista de RF-AUD.1 a. En `audit.interceptor.ts`, `newData = omitSecrets(request.auditDetails \|\| request.body)`; el `registro_id` de TSK-001.9 no cambia. El interceptor no toca `datos_anteriores` (nadie lo llena). |
+| Filas viejas (001.15) | Migración con una función SQL recursiva sobre `jsonb` que quita las claves en cualquier nivel de `datos_nuevos` y `datos_anteriores`, solo en las filas que las tienen. Sin tabla de respaldo. Guard: el de `src/config/typeorm-cli.config.ts:13-27` (`MIGRATION_CONFIRM_DB` = `DB_NAME`), sin guard propio. TypeORM 0.3.31 acepta una migración pendiente con marca menor que la última ejecutada (`MigrationExecutor.js:154-164`, la comprobación de marca está comentada), así que 1910 y 1920 (TSK-001.6 y 001.10) pueden aplicarse después. |
+| Perfiles (001.16) | Mapear a las propiedades de `EvaluatorProfileOrmEntity` sin el cast `as unknown as`; E2E de `POST` y `PATCH`. |
+
+> Deuda: los escritores directos de `audit_log` (`evaluations.service.ts:1286, 1342, 1418, 1692` y `dos-defense.middleware.ts:304-316`) no pasan por `AuditInterceptor`; hoy guardan campos explícitos sin secretos. Un `@BeforeInsert` en `AuditLogOrmEntity` los cubriría; no se hace en 001.15 (decisión 10/11/2026).
+
+---
+
 ## 2. Modelo de Datos (Esquema JSON & Ejemplo)
 
 Representación del modelo de dominio serializado para un Protocolo de Investigación completo con su historial de versión v2.0, Aceptación Explícita con IP, Asignación de Evaluadores con Cuotas, y Referencia Quipux:

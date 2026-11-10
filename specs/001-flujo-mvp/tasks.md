@@ -331,6 +331,32 @@
 
 ---
 
+### Módulo: Auditoría (`audit`) y perfiles de evaluador — spec v3.7.3, 10/11/2026
+
+> Origen: hallazgo de seguridad de TSK-001.9 (10/11/2026) y decisiones de la usuaria del 10/11/2026. Diseño en plan.md §1d.
+
+- [ ] **TSK-001.15**: Secretos fuera de la auditoría (RF-AUD.1)
+  - **Requisitos cubiertos:** `RF-AUD.1 a–b`
+  - **Archivos:**
+    - CREAR `src/shared/utils/omit-secrets.ts` (+ `.spec.ts`): independiente de `omitPersonalData`, que no cambia.
+    - MODIFICAR `src/shared/interceptors/audit.interceptor.ts` (`datos_nuevos` saneado, venga de `auditDetails` o del cuerpo) y `src/shared/interceptors/audit.interceptor.spec.ts`.
+    - CREAR `src/migrations/1930000000000-StripSecretsFromAuditLog.ts`.
+    - CREAR `test/audit-secrets.e2e-spec.ts`.
+  - **Pruebas:** unitarias de `omitSecrets` (`password` y `token` arriba y anidados; variantes `Password`, `refresh_token`, `access-token`, `newPassword`; `codigo_anexo` y `code` se quedan; el resto queda; no modifica el original) · unitarias del interceptor (se sanea el cuerpo y también `auditDetails`) · E2E con `ResponseInterceptor` como en `main.ts`: `POST /auth/users` con contraseña → la fila `USER_CREATED` no contiene la contraseña como texto ni la clave `password`, conserva `email` y `fullName`, `registro_id` = id del usuario · `PATCH /auth/users/:id` con contraseña → la fila no la contiene · migración: filas `ZZ_TEST_` con secretos anidados y con variantes → `up()` los quita y el resto del JSON queda igual · regresión: `test/protocol-created-audit.e2e-spec.ts`.
+  - **Mutaciones:** (M1) sin saneo (código actual) · (M2) solo el primer nivel · (M3) sanea el cuerpo pero no `auditDetails` · (M4) comparación exacta sin normalizar (`refresh_token` se escapa) · (M5) sin `password` en la lista · (M6) la migración solo limpia el primer nivel.
+  - **Excepción aprobada (10/11/2026):** la Regla 14 de la constitución (`constitution_v2.md:103-108`) pide migraciones reversibles; el `down()` de esta migración no restaura nada porque los secretos no deben volver (motivo de seguridad). La migración no conserva los valores en ninguna tabla.
+  - **Deuda:** los escritores directos de `audit_log` (`evaluations.service.ts:1286, 1342, 1418, 1692`; `dos-defense.middleware.ts:304-316`) no pasan por el interceptor; hoy guardan campos explícitos sin secretos. Un `@BeforeInsert` en `AuditLogOrmEntity` los cubriría; no se agrega (decisión 10/11/2026).
+  - **Hecho cuando:** pruebas y mutaciones como arriba, dos rondas completas iguales, residuos en `ceish_test_db` en 0, la migración registrada en `ceish_test_db` sin filas con secretos. En `ceish_db` la aplica la usuaria.
+
+- [ ] **TSK-001.16**: `POST` y `PATCH /evaluations/profiles` responden 500 (`nombre` frente a `name`)
+  - **Origen:** E2E de TSK-001.9 (10/11/2026): `null value in column "nombre" of relation "perfiles_evaluador"`.
+  - **Causa:** `createProfile` (`evaluations.service.ts:804-811`) arma `{ nombre, descripcion, ordenPrioridad }` y la entidad mapea `name`, `description` y `priorityOrder` (`evaluator-profile.entity.orm.ts:8-9`); el cast `as unknown as Partial<EvaluatorProfileOrmEntity>` lo oculta. `updateProfile` (:813-820) pasa el DTO con el mismo cast (a verificar si ignora `nombre`).
+  - **Archivos:** MODIFICAR `src/modules/evaluations/application/services/evaluations.service.ts` · E2E de `POST` y `PATCH /evaluations/profiles` con SECRETARIA (archivo a definir al implementar).
+  - **Mutaciones:** (M1) volver al mapeo actual.
+  - **Hecho cuando:** `POST` responde 201 y guarda el nombre; `PATCH` cambia el nombre; `EVALUATOR_PROFILE_CREATED` guarda `registro_id` (TSK-001.9).
+
+---
+
 ### Módulo: Evaluaciones y Cuotas por Perfil (`evaluations`)
 
 - [ ] **TSK-12.1**: Implementar la entidad y DTO para asignación de evaluadores con su rol/perfil profesional (`ETICA_METODOLOGICO_SALUD`, `JURIDICO`, `SOCIEDAD_CIVIL`).
