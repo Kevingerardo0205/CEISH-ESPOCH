@@ -71,7 +71,8 @@ describe('TSK-001.5 — borrador y envío del protocolo (ceish_test_db)', () => 
     api().post(`/api/protocols/${protocolId}/submit`).set(auth(who)).send({});
 
   async function cleanup(): Promise<void> {
-    const protocolIds = `SELECT id FROM public.protocolos WHERE titulo LIKE '${PREFIX}%'`;
+    // ltrim: TSK-001.8 envía títulos con espacios; si el recorte falla, igual se limpian.
+    const protocolIds = `SELECT id FROM public.protocolos WHERE ltrim(titulo) LIKE '${PREFIX}%'`;
     const versionIds = `SELECT id FROM public.versiones_protocolo WHERE protocolo_id IN (${protocolIds})`;
     await ds.query(
       `DELETE FROM sistema.audit_log WHERE usuario_id IN
@@ -94,13 +95,13 @@ describe('TSK-001.5 — borrador y envío del protocolo (ceish_test_db)', () => 
       );
     }
     await ds.query(
-      `UPDATE public.protocolos SET version_actual_id = NULL WHERE titulo LIKE '${PREFIX}%'`,
+      `UPDATE public.protocolos SET version_actual_id = NULL WHERE ltrim(titulo) LIKE '${PREFIX}%'`,
     );
     await ds.query(
       `DELETE FROM public.versiones_protocolo WHERE protocolo_id IN (${protocolIds})`,
     );
     await ds.query(
-      `DELETE FROM public.protocolos WHERE titulo LIKE '${PREFIX}%'`,
+      `DELETE FROM public.protocolos WHERE ltrim(titulo) LIKE '${PREFIX}%'`,
     );
     await ds.query(
       `DELETE FROM catalogos.usuarios_roles WHERE usuario_id IN
@@ -530,6 +531,45 @@ describe('TSK-001.5 — borrador y envío del protocolo (ceish_test_db)', () => 
         .sort((a, b) => a - b);
       expect(statuses).toEqual([201, 409]);
       expect(await receptionStatus(id)).toBe(15);
+    });
+  });
+
+  // ─── TSK-001.8 (RF-02.2): título recortado y entre 20 y 200 caracteres ─────────
+  describe('título del protocolo (RF-02.2)', () => {
+    const postProtocol = (title: string) =>
+      api().post('/api/protocols').set(auth('investigador')).send({
+        title,
+        principalInvestigatorId: investigadorId,
+        studyTypeId,
+        isAffidavitAccepted: true,
+        investigators: [],
+        institutions: [],
+      });
+
+    it('POST /api/protocols con un título corto → 400 con el mensaje en español y sin protocolo', async () => {
+      const title = `${PREFIX}corto`; // 18 caracteres
+      const res = await postProtocol(title);
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain(
+        'El título debe tener entre 20 y 200 caracteres',
+      );
+      const rows = await ds.query(
+        `SELECT id FROM public.protocolos WHERE btrim(titulo) = $1`,
+        [title],
+      );
+      expect(rows).toHaveLength(0);
+    });
+
+    it('POST /api/protocols con espacios alrededor → 201 y title recortado en la respuesta y en la base', async () => {
+      const trimmed = `${PREFIX}TITULO_TRIM estudio con espacios`;
+      const res = await postProtocol(`   ${trimmed}   `);
+      expect(res.status).toBe(201);
+      expect(res.body.title).toBe(trimmed);
+      const rows = await ds.query(
+        `SELECT titulo FROM public.protocolos WHERE btrim(titulo) = $1`,
+        [trimmed],
+      );
+      expect(rows.map((r: { titulo: string }) => r.titulo)).toEqual([trimmed]);
     });
   });
 });
