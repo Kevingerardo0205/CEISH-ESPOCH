@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.7.2
+**Versión:** 3.7.3
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -20,6 +20,7 @@
 **Historial:** 2026-11-09 — v3.7.0: decisiones de la usuaria del 09/11/2026. Pendiente 13 cerrado: la fecha de documentación completa es `fecha_constancia`, fijada al aprobar la recepción (RF-02.4 e, RF-NORM.1). Pendiente 14 cerrado: 8 días de calendario desde la creación, sin aviso por correo; la pantalla muestra la fecha de eliminación (RF-02.7). Pendiente 17 cerrado: el catálogo se reconstruye por `codigo_anexo` en una tarea aparte (TSK-001.13). Nuevo RF-02.8: edición del borrador con `PATCH /protocols/:id` (el frontend llama a `PUT /protocols/:id`, que el backend no expone). Pendientes 15 y 18 siguen abiertos hasta la reunión con la Secretaría del jueves 12/11/2026
 **Historial:** 2026-11-09 — v3.7.1: decisiones de la usuaria del 09/11/2026. Pendiente 12 cerrado: `POST /protocols/:id/submit` también reenvía después de una subsanación, desde 9, 11 y 20 a 15; en otros estados 409; `fecha_recepcion` solo se escribe si es NULL (guarda el primer envío) (RF-02.3 e, RF-02.4 b). Pendiente 19 cerrado: se aceptan RF-02.8 f y g. Relleno de `fecha_constancia` aprobado como migración reversible (RF-02.4)
 **Historial:** 2026-11-09 — v3.7.2: decisión de la usuaria del 09/11/2026 (TSK-001.7). RF-02.5: `BORRADOR` solo con la recepción de la versión activa en 9 y versión activa 1; con 9 y versión > 1 sigue `EVALUACION_SUBSANACIONES` (lo usa el frontend para «Subir correcciones» y el modo subsanación). RF-02.7: la eliminación a los 8 días, «un solo borrador por investigador» y «Descartar borrador» aplican solo a la versión 1 en 9
+**Historial:** 2026-11-10 — v3.7.3: hallazgo de seguridad del 10/11/2026 (TSK-001.9) y decisiones de la usuaria del 10/11/2026. Sección nueva RF-AUD (Auditoría): RF-AUD.1 secretos fuera de `sistema.audit_log` en toda acción registrada mediante `AuditInterceptor` y depuración de las filas anteriores con una migración que no conserva los valores (excepción aprobada a la Regla 14 de la constitución: el `down()` no restaura)
 
 ---
 
@@ -682,6 +683,13 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
   | Avisos | `alerta_renovacion_offsets_dias` | TEXT | 90,60,15 |
 
   > `alerta_renovacion_offsets_dias` usa `tipo_dato = TEXT` con valores separados por coma. El parámetro `entrega_evaluacion_dias_habiles_tras_reunion` queda **retirado** (reemplazado por `entrega_dictamen_horas_tras_sesion`). — Reemplaza a: `entrega_evaluacion_dias_habiles_tras_reunion` — rediseño 27/10/2026
+
+### RF-AUD: Auditoría
+
+- **RF-AUD.1 (Secretos fuera de la auditoría, decisión 10/11/2026)**:
+  - **Criterio EARS (RF-AUD.1 a)**: **Cuando** se registre en `sistema.audit_log` una acción mediante `AuditInterceptor`, **el sistema debe** omitir de `datos_nuevos`, en cualquier nivel (objetos y arreglos) y sin distinguir mayúsculas, `_` ni `-`, las claves `password`, `contrasena`, `currentPassword`, `newPassword`, `confirmPassword`, `token`, `accessToken`, `refreshToken`, `secret` y `otp`, tanto si el valor es texto plano como si es un hash, y también cuando el handler deja `request.auditDetails`. La clave `code` no se omite (es genérica: códigos de requisito o de nivel de riesgo).
+  - **Criterio EARS (RF-AUD.1 b)**: **Cuando** se aplique la migración de depuración, **el sistema debe** quitar esas mismas claves de `datos_nuevos` y `datos_anteriores` de las filas anteriores, en cualquier nivel, sin conservar los valores en ningún lado; su `down()` no los restaura (excepción a la Regla 14 de la constitución aprobada por la usuaria el 10/11/2026). La usuaria la aplica en `ceish_db` y decide aparte el cambio de contraseñas de los usuarios afectados.
+  - > Estado actual (10/11/2026): `POST /auth/users` (`USER_CREATED`) y `PATCH /auth/users/:id` (`USER_UPDATED`) guardan la contraseña del cuerpo en `datos_nuevos` (`audit.interceptor.ts:52`); en `ceish_test_db` hay 1 fila `USER_CREATED` con una contraseña que no es hash bcrypt. Login, setup-account, refresh y reset-password no tienen `@Audit`, pero RF-AUD.1 a las protege si se les agrega. Los escritores directos de `evaluations.service.ts` (riesgo) y el middleware anti-DoS guardan campos explícitos sin secretos; no pasan por `AuditInterceptor`.
 
 ---
 

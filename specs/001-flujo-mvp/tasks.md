@@ -331,6 +331,51 @@
 
 ---
 
+### Módulo: Auditoría (`audit`) y perfiles de evaluador — spec v3.7.3, 10/11/2026
+
+> Origen: hallazgo de seguridad de TSK-001.9 (10/11/2026) y decisiones de la usuaria del 10/11/2026. Diseño en plan.md §1d.
+
+- [x] **TSK-001.15**: Secretos fuera de la auditoría (RF-AUD.1) — Hecho 10/11/2026 (`7f921ab`)
+  - **Requisitos cubiertos:** `RF-AUD.1 a–b`
+  - **Archivos:**
+    - CREAR `src/shared/utils/omit-secrets.ts` (+ `.spec.ts`): independiente de `omitPersonalData`, que no cambia.
+    - MODIFICAR `src/shared/interceptors/audit.interceptor.ts` (`datos_nuevos` saneado, venga de `auditDetails` o del cuerpo) y `src/shared/interceptors/audit.interceptor.spec.ts`.
+    - CREAR `src/migrations/1930000000000-StripSecretsFromAuditLog.ts`.
+    - CREAR `test/audit-secrets.e2e-spec.ts`.
+  - **Pruebas:** unitarias de `omitSecrets` (`password` y `token` arriba y anidados; variantes `Password`, `refresh_token`, `access-token`, `newPassword`; `codigo_anexo` y `code` se quedan; el resto queda; no modifica el original) · unitarias del interceptor (se sanea el cuerpo y también `auditDetails`) · E2E con `ResponseInterceptor` como en `main.ts`: `POST /auth/users` con contraseña → la fila `USER_CREATED` no contiene la contraseña como texto ni la clave `password`, conserva `email` y `fullName`, `registro_id` = id del usuario · `PATCH /auth/users/:id` con contraseña → la fila no la contiene · migración: filas `ZZ_TEST_` con secretos anidados y con variantes → `up()` los quita y el resto del JSON queda igual · regresión: `test/protocol-created-audit.e2e-spec.ts`.
+  - **Mutaciones:** (M1) sin saneo (código actual) · (M2) solo el primer nivel · (M3) sanea el cuerpo pero no `auditDetails` · (M4) comparación exacta sin normalizar (`refresh_token` se escapa) · (M5) sin `password` en la lista · (M6) la migración solo limpia el primer nivel.
+  - **Excepción aprobada (10/11/2026):** la Regla 14 de la constitución (`constitution_v2.md:103-108`) pide migraciones reversibles; el `down()` de esta migración no restaura nada porque los secretos no deben volver (motivo de seguridad). La migración no conserva los valores en ninguna tabla.
+  - **Deuda:** los escritores directos de `audit_log` (`evaluations.service.ts:1286, 1342, 1418, 1692`; `dos-defense.middleware.ts:304-316`) no pasan por el interceptor; hoy guardan campos explícitos sin secretos. Un `@BeforeInsert` en `AuditLogOrmEntity` los cubriría; no se agrega (decisión 10/11/2026).
+  - **Hecho cuando:** pruebas y mutaciones como arriba, dos rondas completas iguales, residuos en `ceish_test_db` en 0, la migración registrada en `ceish_test_db` sin filas con secretos. En `ceish_db` la aplica la usuaria.
+  - **Resultado (10/11/2026, `7f921ab`):**
+    - Antes (sin cambiar el interceptor): unitarias 617/617; E2E 362 (355 pasan, 7 de `meeting-pdf-real` por timeout, ver nota). Las 2 unitarias nuevas del interceptor fallan; en la E2E nueva fallan `POST` y `PATCH /auth/users` (la contraseña está en `datos_nuevos`) y la de la migración pasa.
+    - Después: `tsc` 0; unitarias 626/626 (69 suites, +7 `omitSecrets`, +2 interceptor); E2E 365/365 (23 suites, +3 `audit-secrets`) en las rondas 1 y 3. En la ronda 2: 364/365 (falló `meeting-pdf-real › M4-03` por timeout de 60 s).
+    - Lint: `audit.interceptor.ts` 18 problemas, igual que en `dev` y con las mismas reglas; los archivos nuevos y `audit.interceptor.spec.ts`, 0.
+    - La prueba E2E de la migración corre `up()` dentro de una transacción de un solo `QueryRunner` y siempre hace rollback (la función de `pg_temp` está en esa misma conexión). No deja filas.
+    - `ceish_test_db`: conteo previo (claves secretas en cualquier nivel, normalizadas) 1 fila (`datos_nuevos` 1, `datos_anteriores` 0) de 3761. Migración por el script de `package.json` con `DB_NAME=ceish_test_db MIGRATION_CONFIRM_DB=ceish_test_db`: «1 filas depuradas», registrada (`migrations.id` 80, `1930000000000`). Conteo posterior 0, y 0 después de cada ronda. Residuos `ZZ_TEST_SEC_` y `@e2e-tsk-001-15.test` en 0.
+  - **Mutaciones** (revertidas editando; `cmp` contra la copia previa sin diferencias):
+
+    | Mutación | Qué se rompió | Pruebas que fallan | Tests |
+    |---|---|---|---|
+    | M1 | interceptor sin `omitSecrets` (código de `dev`, `cmp` idéntico) | unit: «sanea el cuerpo de la petición en cualquier nivel», «sanea también request.auditDetails cuando el handler lo deja»; E2E: «POST /auth/users con password: …», «PATCH /auth/users/:id con password: …» | unit 2 failed, 12 passed; E2E 2 failed, 1 passed |
+    | M2 | `omitSecrets` solo en el primer nivel | unit: «quita las variantes … en objetos anidados», «quita las claves secretas dentro de los arreglos …», «no modifica el objeto original», «sanea el cuerpo …», «sanea también request.auditDetails …» | unit 5 failed, 9 passed; E2E 0 failed (no tiene secretos anidados) |
+    | M3 | sanea el cuerpo pero no `auditDetails` | unit: «sanea también request.auditDetails cuando el handler lo deja» | unit 1 failed, 13 passed; E2E 0 failed (`/auth/users` no usa `auditDetails`) |
+    | M4 | comparación exacta sin normalizar | unit: «quita las variantes … en objetos anidados», «quita las claves secretas dentro de los arreglos …», «sanea el cuerpo …» | unit 3 failed, 11 passed; E2E 0 failed (la clave es `password` exacta) |
+    | M5 | sin `password` en la lista | unit: «quita password y token del primer nivel», «quita las variantes …», «quita las claves secretas dentro de los arreglos …», «quita la clave aunque el valor sea un hash bcrypt», «sanea el cuerpo …»; E2E: «POST …», «PATCH …» | unit 5 failed, 9 passed; E2E 2 failed, 1 passed |
+    | M6 | la migración solo limpia el primer nivel | E2E: «up() quita los secretos en cualquier nivel, con variantes y en datos_anteriores, …» | E2E 1 failed, 2 passed |
+
+  - **Nota (`meeting-pdf-real`):** en la línea base falló 7/7 por timeout en 3 corridas con `audit.interceptor.ts` igual a `dev`. Esas pruebas tardaron 31–80 s, frente a 10–32 s en las rondas de TSK-001.9, con los contenedores de Airflow usando 77–188 % de CPU. pdfmake y `package*.json` no cambiaron. Pasó completa en las rondas 1 y 3. No tiene relación con la auditoría (es un `GET`, `newData` = null).
+  - **Pendiente de la usuaria:** aplicar la migración en `ceish_db` con `MIGRATION_CONFIRM_DB`.
+
+- [ ] **TSK-001.16**: `POST` y `PATCH /evaluations/profiles` responden 500 (`nombre` frente a `name`)
+  - **Origen:** E2E de TSK-001.9 (10/11/2026): `null value in column "nombre" of relation "perfiles_evaluador"`.
+  - **Causa:** `createProfile` (`evaluations.service.ts:804-811`) arma `{ nombre, descripcion, ordenPrioridad }` y la entidad mapea `name`, `description` y `priorityOrder` (`evaluator-profile.entity.orm.ts:8-9`); el cast `as unknown as Partial<EvaluatorProfileOrmEntity>` lo oculta. `updateProfile` (:813-820) pasa el DTO con el mismo cast (a verificar si ignora `nombre`).
+  - **Archivos:** MODIFICAR `src/modules/evaluations/application/services/evaluations.service.ts` · E2E de `POST` y `PATCH /evaluations/profiles` con SECRETARIA (archivo a definir al implementar).
+  - **Mutaciones:** (M1) volver al mapeo actual.
+  - **Hecho cuando:** `POST` responde 201 y guarda el nombre; `PATCH` cambia el nombre; `EVALUATOR_PROFILE_CREATED` guarda `registro_id` (TSK-001.9).
+
+---
+
 ### Módulo: Evaluaciones y Cuotas por Perfil (`evaluations`)
 
 - [ ] **TSK-12.1**: Implementar la entidad y DTO para asignación de evaluadores con su rol/perfil profesional (`ETICA_METODOLOGICO_SALUD`, `JURIDICO`, `SOCIEDAD_CIVIL`).
