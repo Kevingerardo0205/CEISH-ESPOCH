@@ -367,12 +367,39 @@
   - **Nota (`meeting-pdf-real`):** en la línea base falló 7/7 por timeout en 3 corridas con `audit.interceptor.ts` igual a `dev`. Esas pruebas tardaron 31–80 s, frente a 10–32 s en las rondas de TSK-001.9, con los contenedores de Airflow usando 77–188 % de CPU. pdfmake y `package*.json` no cambiaron. Pasó completa en las rondas 1 y 3. No tiene relación con la auditoría (es un `GET`, `newData` = null).
   - **Pendiente de la usuaria:** aplicar la migración en `ceish_db` con `MIGRATION_CONFIRM_DB`.
 
-- [ ] **TSK-001.16**: `POST` y `PATCH /evaluations/profiles` responden 500 (`nombre` frente a `name`)
+- [x] **TSK-001.16**: `POST` y `PATCH /evaluations/profiles` responden 500 (`nombre` frente a `name`) — Hecho 10/11/2026 (`6ee0fdb`)
   - **Origen:** E2E de TSK-001.9 (10/11/2026): `null value in column "nombre" of relation "perfiles_evaluador"`.
   - **Causa:** `createProfile` (`evaluations.service.ts:804-811`) arma `{ nombre, descripcion, ordenPrioridad }` y la entidad mapea `name`, `description` y `priorityOrder` (`evaluator-profile.entity.orm.ts:8-9`); el cast `as unknown as Partial<EvaluatorProfileOrmEntity>` lo oculta. `updateProfile` (:813-820) pasa el DTO con el mismo cast (a verificar si ignora `nombre`).
   - **Archivos:** MODIFICAR `src/modules/evaluations/application/services/evaluations.service.ts` · E2E de `POST` y `PATCH /evaluations/profiles` con SECRETARIA (archivo a definir al implementar).
   - **Mutaciones:** (M1) volver al mapeo actual.
   - **Hecho cuando:** `POST` responde 201 y guarda el nombre; `PATCH` cambia el nombre; `EVALUATOR_PROFILE_CREATED` guarda `registro_id` (TSK-001.9).
+  - **Decisiones (10/11/2026):**
+    - A: el servicio mapea el DTO a la entidad, sin el cast; el DTO no cambia.
+    - B: `updateProfile` solo aplica los campos recibidos, comparando con `!== undefined` (`ordenPrioridad` 0 se guarda).
+    - `PATCH` con cuerpo vacío: 200 con el perfil actual, sin llamar a `update`.
+    - Nombre duplicado (23505) en `POST` y `PATCH`: 409 `Ya existe un perfil con ese nombre`, capturado en el servicio sin pre-chequeo. Sigue el patrón de `protocols.service.ts:233`.
+    - C: sin perfil Bioético ni permisos nuevos. Solo `secretaria` tiene `EVALUADORES_PERFILES` en `ceish_test_db`.
+  - **Causa confirmada:** antes del cambio, los 7 casos de la E2E daban 500:
+    - `POST` (también el de nombre duplicado): `QueryFailedError: null value in column "nombre" of relation "perfiles_evaluador" violates not-null constraint`.
+    - `PATCH` con campos: `EntityPropertyNotFoundError: Property "nombre" was not found in "EvaluatorProfileOrmEntity"` (o `"ordenPrioridad"`). No ignoraba el nombre en silencio.
+    - `PATCH {}`: `UpdateValuesMissingError`.
+  - **Archivos:** MODIFICAR `evaluations.service.ts` (`createProfile`, `updateProfile`, privado `toProfileNameConflict`); CREAR `src/modules/evaluations/application/services/evaluator-profiles.spec.ts` (10 unitarias) y `test/evaluator-profiles.e2e-spec.ts` (7 E2E, perfiles `ZZ_TEST_PERF_`, los de `PATCH` insertados por SQL).
+  - **Resultado:**
+    - Antes: unitarias 626/626; E2E 365/365. En las pruebas nuevas, 8 de las 10 unitarias y las 7 E2E fallaban.
+    - Después, dos rondas iguales: `tsc` 0; eslint 0 en los tres archivos (`evaluations.service.ts` tenía 0 en `dev`); unitarias 636/636 (70 suites); E2E 372/372 (24 suites).
+    - `meeting-pdf-real` sin timeouts (8–22 s). Siguen en verde `protocol-created-audit` (001.9), `audit-secrets` (001.15) y `fixed-roles-matrix`. Residuos `ZZ_TEST_PERF_` y `EVALUATOR_PROFILE_%` en 0.
+  - **Mutaciones** (revertidas editando; `cmp` contra la copia previa sin diferencias):
+
+    | Mutación | Qué se rompió | Pruebas que fallan | Tests |
+    |---|---|---|---|
+    | M1 | mapeo anterior (`nombre`/`descripcion`/`ordenPrioridad` y el DTO con el cast) | unit: «guarda name, description y priorityOrder…», «sin ordenPrioridad guarda priorityOrder 0», «con nombre cambia name…», «mapea descripcion y ordenPrioridad…», «ordenPrioridad 0 se aplica»; E2E: «responde 201…», «con un nombre que ya existe responde 409…», «cambia el nombre…», «con ordenPrioridad 0 guarda el 0», «renombrar al mismo nombre responde 200», «con el nombre de otro perfil responde 409…» | unit 5 failed, 5 passed; E2E 6 failed, 1 passed |
+    | M2 | `updateProfile` ignora el nombre | unit: «con nombre cambia name…», «un nombre duplicado (23505)…» (update); E2E: «cambia el nombre…», «con el nombre de otro perfil responde 409…» | unit 2 failed, 8 passed; E2E 2 failed, 5 passed |
+    | M3 | `createProfile` devuelve la entidad sin `id` | unit: «guarda name, description y priorityOrder…»; E2E: «responde 201…» (`registro_id`: Expected 63, Received null) | unit 1 failed, 9 passed; E2E 1 failed, 6 passed |
+    | M4 | sin manejo de 23505 | unit: «un nombre duplicado (23505)…» (create y update); E2E: los dos 409 | unit 2 failed, 8 passed; E2E 2 failed, 5 passed |
+    | M5 | `ordenPrioridad` por truthiness en `updateProfile` | unit: «ordenPrioridad 0 se aplica»; E2E: «con ordenPrioridad 0 guarda el 0» | unit 1 failed, 9 passed; E2E 1 failed, 6 passed |
+
+  - **Nota:** con M3, la primera versión de la E2E fallaba antes, al comprobar el `id` de la respuesta. Se reordenó para buscar la fila de auditoría por `datos_nuevos->>'nombre'` y comprobar su `registro_id` antes que el `id` de la respuesta.
+  - **Reportado, fuera de alcance:** `GET /evaluations/profiles` no tiene `@Permissions`; `PRESIDENTE` no tiene `EVALUADORES_PERFILES` (decisión C).
 
 ---
 

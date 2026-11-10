@@ -145,7 +145,7 @@ src/
 | TSK | Orden | Estado | Alcance |
 |---|---|---|---|
 | 001.15 | 1 | Hecho (10/11/2026, `7f921ab`; migración en `ceish_db` pendiente de la usuaria) | `omitSecrets` (claves normalizadas, cualquier nivel) aplicada en `AuditInterceptor` a `datos_nuevos`; migración `1930000000000-StripSecretsFromAuditLog` sin respaldo y con `down()` vacío (RF-AUD.1) |
-| 001.16 | 2 | Por hacer | `POST` y `PATCH /evaluations/profiles` responden 500: el servicio arma `nombre`/`descripcion`/`ordenPrioridad` y la entidad mapea `name`/`description`/`priorityOrder` |
+| 001.16 | 2 | Hecho (10/11/2026, `6ee0fdb`) | `POST` y `PATCH /evaluations/profiles` responden 500: el servicio arma `nombre`/`descripcion`/`ordenPrioridad` y la entidad mapea `name`/`description`/`priorityOrder` |
 
 | Punto | Cambio |
 |---|---|
