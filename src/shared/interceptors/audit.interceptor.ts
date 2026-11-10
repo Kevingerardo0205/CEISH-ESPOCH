@@ -27,6 +27,19 @@ export class AuditInterceptor implements NestInterceptor {
     const user = request.user;
     const ipAddress = request.ip;
     const paramsId = request.params?.id ? parseInt(request.params.id, 10) : NaN;
+    // TSK-001.9 (RF-02.6 a): en producción este interceptor envuelve a ResponseInterceptor
+    // (main.ts:39) y recibe { data, statusCode, message }. El id de la respuesta envuelta solo se
+    // usa si la ruta no tiene parámetros (con :protocolId, :documentId… sería otra entidad) y si es
+    // entero (registro_id es INT: un uuid haría fallar el INSERT y se perdería la fila).
+    const routeParams =
+      (request as { params?: Record<string, string> }).params ?? {};
+    const routeHasParams = Object.keys(routeParams).length > 0;
+    const wrappedId = (data: unknown): number | undefined => {
+      const id = (data as { data?: { id?: unknown } } | null)?.data?.id;
+      return !routeHasParams && Number.isInteger(id)
+        ? (id as number)
+        : undefined;
+    };
 
     return next.handle().pipe(
       tap(async (data) => {
@@ -39,7 +52,8 @@ export class AuditInterceptor implements NestInterceptor {
               request.method !== 'GET'
                 ? request.auditDetails || request.body
                 : null,
-            recordId: data?.id || (!isNaN(paramsId) ? paramsId : undefined),
+            recordId:
+              data?.id || (!isNaN(paramsId) ? paramsId : wrappedId(data)),
             // Podríamos inferir la tabla o código de protocolo si es necesario
           });
         } catch (error) {

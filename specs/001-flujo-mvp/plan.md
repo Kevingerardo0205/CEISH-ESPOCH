@@ -112,7 +112,7 @@ src/
 | 001.6 | 5 | Por hacer (desbloqueada: pendiente 13 cerrado el 09/11/2026) | `fecha_recepcion` NULL al crear, `NOW()` al enviar, sin pisar al completar; `fecha_constancia` al aprobar y como origen del plazo normativo (RF-02.4); migración de la columna y de datos |
 | 001.7 | 2 | Hecho (09/11/2026) | `receptionStatus = BORRADOR` con recepción en 9 y versión 1 (RF-02.5) |
 | 001.8 | 3 | Hecho (09/11/2026, 826142c) | Título con trim y 20 a 200 (RF-02.2) |
-| 001.9 | 4 | Por hacer | `PROTOCOL_CREATED` con `registro_id` y sin cédulas ni teléfonos (RF-02.6) |
+| 001.9 | 4 | Hecho (09/11/2026, e9f88e7) | `PROTOCOL_CREATED` con `registro_id` y sin cédulas ni teléfonos (RF-02.6) |
 | 001.10 | 6 | Por hacer | Catálogo: CONFIDENCIALIDAD, CONFLICTO_INTERES y ANEXO_5 obligatorios en EI e IO (RF-03.3) |
 | 001.11 | — | Para después (rediseño del frontend) | Ciclo del borrador: 8 días de calendario desde la creación, fecha de eliminación en pantalla, uno por investigador, descartar; solo versión 1 en 9 (RF-02.7) |
 | 001.12 | — | Pendiente de confirmar (jueves 12/11/2026) | Tesis, `riesgoMayor`, formatos descargables (pendientes 11, 15 y 18) |
