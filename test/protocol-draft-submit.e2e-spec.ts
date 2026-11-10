@@ -60,6 +60,8 @@ describe('TSK-001.5 — borrador y envío del protocolo (ceish_test_db)', () => 
   let app: INestApplication;
   let ds: DataSource;
   const token: Record<string, string> = {};
+  /** Respuesta de POST /api/protocols por clave de createDraft (TSK-001.7). */
+  const createdBody: Record<string, any> = {};
   let investigadorId: number;
   let studyTypeId: number;
 
@@ -159,6 +161,7 @@ describe('TSK-001.5 — borrador y envío del protocolo (ceish_test_db)', () => 
     if (res.status !== 201) {
       throw new Error(`POST /api/protocols falló con status ${res.status}`);
     }
+    createdBody[key] = res.body;
     const [row] = await ds.query(
       `SELECT id FROM public.protocolos WHERE titulo = $1`,
       [title],
@@ -214,6 +217,18 @@ describe('TSK-001.5 — borrador y envío del protocolo (ceish_test_db)', () => 
     return (res.body.data.items as any[])
       .filter((i) => i.accion === 'VALIDAR')
       .map((i) => i.protocolId);
+  }
+
+  /** TSK-001.7: receptionStatus del protocolo en GET /protocols/mis-protocolos del investigador. */
+  async function misProtocolosReceptionStatus(
+    protocolId: number,
+  ): Promise<string | undefined> {
+    const res = await api()
+      .get('/api/protocols/mis-protocolos?limit=100')
+      .set(auth('investigador'));
+    expect(res.status).toBe(200);
+    return (res.body.data as any[]).find((p) => p.id === protocolId)
+      ?.receptionStatus;
   }
 
   async function protocolsList(
@@ -370,6 +385,15 @@ describe('TSK-001.5 — borrador y envío del protocolo (ceish_test_db)', () => 
       );
       expect(ids).toContain(draftId);
     });
+
+    // TSK-001.7 (RF-02.5 v3.7.2): borrador = versión 1 con la recepción en 9.
+    it('POST /api/protocols responde receptionStatus BORRADOR', () => {
+      expect(createdBody.BORRADOR.receptionStatus).toBe('BORRADOR');
+    });
+
+    it('GET /protocols/mis-protocolos devuelve receptionStatus BORRADOR', async () => {
+      expect(await misProtocolosReceptionStatus(draftId)).toBe('BORRADOR');
+    });
   });
 
   // ─── RF-02.3 c, e, e.1 y f: envío y reenvío ──────────────────────────────────
@@ -399,6 +423,12 @@ describe('TSK-001.5 — borrador y envío del protocolo (ceish_test_db)', () => 
     it('aparece en GET /protocols para SECRETARIA', async () => {
       const { ids } = await protocolsList('secretaria');
       expect(ids).toContain(draftId);
+    });
+
+    it('después de submit, mis-protocolos devuelve receptionStatus EN_REVISION_SECRETARIA (ya no BORRADOR)', async () => {
+      expect(await misProtocolosReceptionStatus(draftId)).toBe(
+        'EN_REVISION_SECRETARIA',
+      );
     });
 
     it('registra PROTOCOL_SUBMITTED con registro_id = id del protocolo', async () => {
