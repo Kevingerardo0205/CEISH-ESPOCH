@@ -303,9 +303,56 @@
   - **Pruebas y mutaciones (previstas):** reloj forzado (`jest.useFakeTimers` o `NOW()` simulado) en los días 7, 8 y 9 de calendario, incluido un borrador creado a las 23:30 de Ecuador (borde de día en America/Guayaquil); la fecha de eliminación de la respuesta coincide con la del job; editar el borrador no mueve la fecha; segundo borrador rechazado; descartar borra el protocolo y sus archivos (almacenamiento simulado en unitarias); mutaciones: sin filtro de estado 9 (borraría protocolos enviados), sin la condición de versión 1 (borraría una subsanación de versión en curso), sin `eliminado_en IS NULL` en el conteo de borradores, borrado físico en lugar de soft delete, días laborables en lugar de calendario, contar desde la última modificación.
   - **Hecho cuando:** el frontend tiene el flujo y las pruebas y mutaciones pasan como en las demás tareas.
 
-- [ ] **TSK-001.12** *(pendiente de confirmar con la Secretaría, jueves 12/11/2026)*: Tesis, requisitos de riesgo mayor y formatos descargables
-  - **Requisitos cubiertos:** pendientes 11 (tesis: informe antiplagio, oficio del tutor, bandera «es tesis»; relación con RF-19.1), 15 (`POLIZA_RC` e `IDONEIDAD_INST` con `riesgoMayor`) y 18 (formatos oficiales en Configuración, descarga uno por uno y en ZIP; RF-18.1).
-  - **Hecho cuando:** la Secretaría confirma cada punto, el spec se actualiza con RF y criterios EARS, y cada punto se divide en su propia TSK con archivos, pruebas y mutaciones. No se implementa nada antes.
+- [x] **TSK-001.12**: Trabajo de titulación (tesis) al crear el protocolo (RF-19.1 v3.7.4, pendiente 11 cerrado el 14/11/2026)
+  - **Requisitos cubiertos:** `RF-19.1`, `RF-19.1 a–d`
+  - **Decisión (usuaria, 14/11/2026):** bandera `isThesis` (`public.protocolos.es_tesis`, `false` por defecto). Con tesis, el checklist suma `TESIS_ANTIPLAGIO` «Captura del informe antiplagio» y `TESIS_OFICIO_TUTOR` «Oficio o certificado del tutor», obligatorios, en todos los tipos de estudio (`IO`, `EI`, `EC`, `EX`; `EX` está inactivo y se incluye igual). Se suben en PDF como el resto: `isValidPdfExtension` no cambia. Reemplazan a TSK-19.1. `riesgoMayor` (pendiente 15) y los formatos descargables (pendiente 18) pasan a TSK-001.17 y TSK-001.18.
+  - **Archivos:**
+    - CREAR `src/migrations/1940000000000-AddThesisFlagAndRequirements.ts`: `ADD COLUMN IF NOT EXISTS es_tesis BOOLEAN NOT NULL DEFAULT FALSE`; inserta los dos códigos en `catalogos.tipos_documento` por `codigo_anexo` solo si no existen, con `condicion_json.condiciones_por_tipo` = `["tesis"]` para cada código de `catalogos.tipos_estudio`, y sus filas en `catalogos.tipo_documento_estudio` (obligatorio); `down()` borra las filas de los dos códigos y la columna. Se aplica en `ceish_test_db`; en `ceish_db` la aplica la usuaria con `MIGRATION_CONFIRM_DB`.
+    - MODIFICAR `src/modules/protocols/application/dtos/create-protocol.dto.ts` (`isThesis?: boolean`, `@IsOptional() @IsBoolean()`).
+    - MODIFICAR `src/modules/protocols/infrastructure/database/protocol.entity.orm.ts` (columna `es_tesis`).
+    - MODIFICAR `src/modules/protocols/application/services/protocols.service.ts` (guarda `isThesis`).
+    - MODIFICAR `src/modules/protocols/application/services/requirements.service.ts` (flag `tesis`).
+    - MODIFICAR `src/modules/reception/application/services/reception.service.ts` (pasa `tesis` en `finalizarRevision`, `iniciarRecepcion` y `verificarRequisitos`).
+    - MODIFICAR `src/modules/protocols/infrastructure/controllers/protocol.controller.ts` (`GET /protocols/requirements?tesis=`).
+    - MODIFICAR `src/modules/protocols/application/mappers/protocol.mapper.ts` (`isThesis` en `toResponse`; `hasExternalInstitutions` e `isIndigenousPopulation` quedan fuera, pendiente 20).
+    - CREAR `src/modules/protocols/application/services/requirements.service.spec.ts`.
+    - CREAR `test/protocol-thesis.e2e-spec.ts`.
+  - **Pruebas:** unitarias de `calcularRequeridos` (con `tesis: true` aparecen los dos códigos; con `false` o sin el flag, no; tesis + `poblacionIndigena` suma los de ambos). E2E con login real, títulos `ZZ_TEST_`, limpieza en `beforeAll` y `afterAll`: `POST /protocols` con `isThesis: true` deja 2 requisitos más que con `false`; `GET /protocols/:id` devuelve `isThesis`; `GET /protocols/requirements?tesis=true` devuelve 2 más; subir PDF a `TESIS_ANTIPLAGIO` responde 201 y un `.png` responde 400; residuos en 0.
+  - **Mutaciones:** (M1) sin `tesis` en `iniciarRecepcion` · (M2) sin guardar `isThesis` en `protocols.service.ts` · (M3) sin `isThesis` en el mapper · (M4) `condicion_json` vacío (el requisito sale siempre) · (M5) sin `tesis` en `verificarRequisitos`.
+  - **Hecho cuando:** pruebas nuevas y existentes pasan dos veces, mutaciones detectadas, `tsc` sin errores, eslint de los archivos tocados sin empeorar, residuos en 0 en `ceish_test_db`.
+  - **Resultados (14/11/2026, código `5744458`, docs `86cd53a`):**
+    - Migración `1940000000000` aplicada solo en `ceish_test_db` (antes: 0 filas con `TESIS_%` y sin `es_tesis`; después: 2 tipos de documento, 8 filas en `tipo_documento_estudio` (IO, EI, EC, EX), columna `es_tesis`; `revert` y `run` probados). En `ceish_db`: pendiente, la aplica la usuaria.
+    - `npx tsc --noEmit`: exit 0 (dos veces). Unitarias: `Tests: 641 passed, 641 total` (dos veces; línea base 636 + 5 nuevas).
+    - `test/protocol-thesis.e2e-spec.ts`: 14 de 15 pasan. El caso «verificación de la Secretaría» (agregado para detectar M5: `PATCH /reception/protocol/:id/verify` con tesis y sin los 2 documentos → 400 que los nombra) **NO EJECUTADO**: falta `E2E_TEST_ACCOUNTS_PASSWORD` en el entorno del agente.
+    - E2E completa `--runInBand`, dos veces: `Test Suites: 17 passed, 8 failed, 25 total` · `Tests: 272 passed, 115 failed, 387 total`. Las 115 fallas son todas `ABORT: falta E2E_TEST_ACCOUNTS_PASSWORD` (protocol-thesis 1, protocol-draft-submit 25, protocols-list 30, meetings-next 17, protocol-created-audit 7, secretaria-pendientes 25, audit-secrets 3, evaluator-profiles 7). Con la contraseña: NO EJECUTADO.
+    - Residuos `ZZ_TEST_` y `@e2e-tsk-001-12.test`: 0. Convocatorias huérfanas: 57 (igual que antes).
+    - eslint: archivos nuevos 0 problemas; modificados igual que `dev` (protocols.service 9 = 9, requirements.service 5 = 5, protocol.controller 2 = 2, los demás 0 = 0).
+  - **Mutaciones** (E2E `protocol-thesis`; el total incluye el caso de la Secretaría, que falla por la contraseña):
+
+    | Mutación | Qué se rompió | Pruebas que fallan | Línea |
+    |---|---|---|---|
+    | M1 | sin `tesis` en `iniciarRecepcion` | checklist con 2 más; .png 400; PDF en TESIS_ANTIPLAGIO y TESIS_OFICIO_TUTOR | `Tests: 5 failed, 10 passed, 15 total` |
+    | M2 | sin guardar `isThesis` en `protocols.service.ts` | es_tesis guardado; checklist; GET /:id true; mis-protocolos; .png; 2 PDF | `Tests: 8 failed, 7 passed, 15 total` |
+    | M3 | sin `isThesis` en `ProtocolMapper.toResponse` | GET /:id true y false; mis-protocolos | `Tests: 4 failed, 11 passed, 15 total` |
+    | M4 | `condiciones_por_tipo: {}` en la migración (aplicada en `ceish_test_db`, luego restaurada) | checklist con 2 más; sin tesis no los tiene; requirements IO, EI, EC y EX | `Tests: 7 failed, 8 passed, 15 total` |
+    | M5 | sin `tesis` en `verificarRequisitos` | «con tesis y solo los demás requisitos subidos responde 400 y nombra los 2 documentos de tesis» (`Expected: 400`, `Received: 200`) | `Tests: 1 failed, 14 passed, 15 total` |
+
+    Después de cada reversión: `git diff --stat -- src` → `7 files changed, 25 insertions(+)` (sin la mutación). M5 (15/11/2026, sobre `5744458` ya commiteado): revertida editando; `cmp` contra la copia previa → idénticos; `git diff --stat -- src` vacío.
+  - **Cierre (15/11/2026, con `E2E_TEST_ACCOUNTS_PASSWORD` en el entorno; código sin cambios desde `5744458`):**
+    - `test/protocol-thesis.e2e-spec.ts --runInBand`: `Tests: 15 passed, 15 total` (incluye el caso de la Secretaría).
+    - M5 detectada (ver tabla).
+    - E2E completa `--runInBand`, dos veces: `Test Suites: 25 passed, 25 total` · `Tests: 387 passed, 387 total` (las 8 suites que fallaban por la contraseña pasan).
+    - `npx tsc --noEmit`: exit 0. Unitarias: `Test Suites: 71 passed, 71 total` · `Tests: 641 passed, 641 total`.
+    - `ceish_test_db` (`SELECT current_database()` → `ceish_test_db`): protocolos `ZZ_TEST_%` 0, usuarios `@e2e-tsk-001-12.test` 0; convocatorias huérfanas 57 (igual que antes).
+    - Pendiente fuera de esta marca: aplicar la migración `1940000000000` en `ceish_db` (la aplica la usuaria con `MIGRATION_CONFIRM_DB`). `finalizarRevision` también recibe `tesis` y no tiene prueba propia.
+
+- [ ] **TSK-001.17** *(Por hacer; no se implementa en TSK-001.12)*: `POLIZA_RC` e `IDONEIDAD_INST` con `riesgoMayor` (pendiente 15)
+  - **Requisitos cubiertos:** `RF-03.3`
+  - **Hecho cuando:** la Secretaría confirma en qué etapa y con qué plazo se piden, el spec se actualiza con RF y EARS, y la tarea lista archivos, pruebas y mutaciones.
+
+- [ ] **TSK-001.18** *(Por hacer; no se implementa en TSK-001.12)*: Formatos oficiales descargables en Configuración, uno por uno y en ZIP (pendiente 18)
+  - **Requisitos cubiertos:** `RF-18.1`
+  - **Hecho cuando:** la Secretaría confirma el alcance, el spec se actualiza con RF y EARS, y la tarea lista archivos, pruebas y mutaciones.
 
 - [ ] **TSK-001.13** *(aparte; no se implementa en esta rama)*: Reconstrucción del catálogo de requisitos por `codigo_anexo` en una base nueva (RF-03.3, pendiente 17 cerrado el 09/11/2026)
   - **Requisitos cubiertos:** `RF-03.3` (nota del catálogo), `RF-03.1`
@@ -477,7 +524,7 @@
   - **Requisitos cubiertos:** `RF-18.2`
   - **Hecho cuando:** El cuerpo del correo de recepción contenga el enlace que redirige directamente a la pantalla de Aceptación Explícita de Plazos de ese protocolo (`/protocols/:id/explicit-acceptance`).
 
-- [ ] **TSK-19.1**: Inyectar requisitos de Tesis de Grado/Posgrado en `ChecklistService`.
+- [ ] ~~**TSK-19.1**~~ *(reemplazada por TSK-001.12, 14/11/2026; RF-19.1 v3.7.4)*: Inyectar requisitos de Tesis de Grado/Posgrado en `ChecklistService`.
   - **Requisitos cubiertos:** `RF-19.1`
   - **Hecho cuando:** Si `isThesis = true`, el checklist incluya automáticamente los ítems obligatorios: *Acta de Aprobación de Tema* y *Certificado del Director de Tesis*.
 

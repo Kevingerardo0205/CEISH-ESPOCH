@@ -37,6 +37,8 @@ export class RequirementsService {
       riesgoMayor?: boolean;
       institucionesPublicas?: boolean;
       poblacionIndigena?: boolean;
+      // RF-19.1 (TSK-001.12): condición `tesis` de condiciones_por_tipo.
+      tesis?: boolean;
     },
   ): Promise<RequirementInfo[]> {
     this.logger.debug(

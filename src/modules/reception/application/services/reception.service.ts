@@ -231,6 +231,7 @@ export class ReceptionService {
         multicentrico: protocol.isMulticentric,
         institucionesPublicas: protocol.hasExternalInstitutions,
         poblacionIndigena: protocol.isIndigenousPopulation,
+        tesis: protocol.isThesis,
       },
     );
 
@@ -413,6 +414,7 @@ export class ReceptionService {
         multicentrico: protocol.isMulticentric,
         institucionesPublicas: protocol.hasExternalInstitutions,
         poblacionIndigena: protocol.isIndigenousPopulation,
+        tesis: protocol.isThesis,
       });
 
     // CRÍTICO 2: Evitar duplicar el checklist de requisitos si ya existen registros
@@ -625,6 +627,7 @@ export class ReceptionService {
           multicentrico: protocol.isMulticentric,
           institucionesPublicas: protocol.hasExternalInstitutions,
           poblacionIndigena: protocol.isIndigenousPopulation,
+          tesis: protocol.isThesis,
         },
       );
 

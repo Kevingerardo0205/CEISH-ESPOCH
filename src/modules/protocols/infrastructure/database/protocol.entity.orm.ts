@@ -242,6 +242,10 @@ export class ProtocolOrmEntity extends BaseOrmEntity {
   @Column({ name: 'poblacion_indigena', default: false })
   isIndigenousPopulation!: boolean;
 
+  // RF-19.1 (TSK-001.12): trabajo de titulación (tesis).
+  @Column({ name: 'es_tesis', default: false })
+  isThesis!: boolean;
+
   // E2: Declaración Jurada
   @Column({ name: 'declaracion_no_iniciado', default: false })
   isAffidavitAccepted!: boolean;

@@ -208,6 +208,7 @@ export class ProtocolController {
   @ApiQuery({ name: 'multicentrico', type: Boolean, required: false })
   @ApiQuery({ name: 'riesgoMayor', type: Boolean, required: false })
   @ApiQuery({ name: 'institucionesPublicas', type: Boolean, required: false })
+  @ApiQuery({ name: 'tesis', type: Boolean, required: false })
   async getRequirements(
     @Query('tipo') tipo: string,
     @Query('muestras') muestras?: string,
@@ -215,6 +216,7 @@ export class ProtocolController {
     @Query('multicentrico') multicentrico?: string,
     @Query('riesgoMayor') riesgoMayor?: string,
     @Query('institucionesPublicas') institucionesPublicas?: string,
+    @Query('tesis') tesis?: string,
   ) {
     return this.requirementsService.calcularRequeridos(tipo as any, {
       muestras: muestras === 'true',
@@ -222,6 +224,7 @@ export class ProtocolController {
       multicentrico: multicentrico === 'true',
       riesgoMayor: riesgoMayor === 'true',
       institucionesPublicas: institucionesPublicas === 'true',
+      tesis: tesis === 'true',
     });
   }
 
