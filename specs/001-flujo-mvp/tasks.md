@@ -303,7 +303,7 @@
   - **Pruebas y mutaciones (previstas):** reloj forzado (`jest.useFakeTimers` o `NOW()` simulado) en los días 7, 8 y 9 de calendario, incluido un borrador creado a las 23:30 de Ecuador (borde de día en America/Guayaquil); la fecha de eliminación de la respuesta coincide con la del job; editar el borrador no mueve la fecha; segundo borrador rechazado; descartar borra el protocolo y sus archivos (almacenamiento simulado en unitarias); mutaciones: sin filtro de estado 9 (borraría protocolos enviados), sin la condición de versión 1 (borraría una subsanación de versión en curso), sin `eliminado_en IS NULL` en el conteo de borradores, borrado físico en lugar de soft delete, días laborables en lugar de calendario, contar desde la última modificación.
   - **Hecho cuando:** el frontend tiene el flujo y las pruebas y mutaciones pasan como en las demás tareas.
 
-- [ ] **TSK-001.12**: Trabajo de titulación (tesis) al crear el protocolo (RF-19.1 v3.7.4, pendiente 11 cerrado el 14/11/2026)
+- [x] **TSK-001.12**: Trabajo de titulación (tesis) al crear el protocolo (RF-19.1 v3.7.4, pendiente 11 cerrado el 14/11/2026)
   - **Requisitos cubiertos:** `RF-19.1`, `RF-19.1 a–d`
   - **Decisión (usuaria, 14/11/2026):** bandera `isThesis` (`public.protocolos.es_tesis`, `false` por defecto). Con tesis, el checklist suma `TESIS_ANTIPLAGIO` «Captura del informe antiplagio» y `TESIS_OFICIO_TUTOR` «Oficio o certificado del tutor», obligatorios, en todos los tipos de estudio (`IO`, `EI`, `EC`, `EX`; `EX` está inactivo y se incluye igual). Se suben en PDF como el resto: `isValidPdfExtension` no cambia. Reemplazan a TSK-19.1. `riesgoMayor` (pendiente 15) y los formatos descargables (pendiente 18) pasan a TSK-001.17 y TSK-001.18.
   - **Archivos:**
@@ -335,10 +335,16 @@
     | M2 | sin guardar `isThesis` en `protocols.service.ts` | es_tesis guardado; checklist; GET /:id true; mis-protocolos; .png; 2 PDF | `Tests: 8 failed, 7 passed, 15 total` |
     | M3 | sin `isThesis` en `ProtocolMapper.toResponse` | GET /:id true y false; mis-protocolos | `Tests: 4 failed, 11 passed, 15 total` |
     | M4 | `condiciones_por_tipo: {}` en la migración (aplicada en `ceish_test_db`, luego restaurada) | checklist con 2 más; sin tesis no los tiene; requirements IO, EI, EC y EX | `Tests: 7 failed, 8 passed, 15 total` |
-    | M5 | sin `tesis` en `verificarRequisitos` | solo la detecta el caso de la Secretaría | NO EJECUTADO (falta `E2E_TEST_ACCOUNTS_PASSWORD`) |
+    | M5 | sin `tesis` en `verificarRequisitos` | «con tesis y solo los demás requisitos subidos responde 400 y nombra los 2 documentos de tesis» (`Expected: 400`, `Received: 200`) | `Tests: 1 failed, 14 passed, 15 total` |
 
-    Después de cada reversión: `git diff --stat -- src` → `7 files changed, 25 insertions(+)` (sin la mutación).
-  - **Pendiente para marcar [x]:** correr `test/protocol-thesis.e2e-spec.ts` con `E2E_TEST_ACCOUNTS_PASSWORD` (15 de 15) y M5; aplicar la migración en `ceish_db`. `finalizarRevision` también recibe `tesis` y no tiene prueba propia.
+    Después de cada reversión: `git diff --stat -- src` → `7 files changed, 25 insertions(+)` (sin la mutación). M5 (15/11/2026, sobre `5744458` ya commiteado): revertida editando; `cmp` contra la copia previa → idénticos; `git diff --stat -- src` vacío.
+  - **Cierre (15/11/2026, con `E2E_TEST_ACCOUNTS_PASSWORD` en el entorno; código sin cambios desde `5744458`):**
+    - `test/protocol-thesis.e2e-spec.ts --runInBand`: `Tests: 15 passed, 15 total` (incluye el caso de la Secretaría).
+    - M5 detectada (ver tabla).
+    - E2E completa `--runInBand`, dos veces: `Test Suites: 25 passed, 25 total` · `Tests: 387 passed, 387 total` (las 8 suites que fallaban por la contraseña pasan).
+    - `npx tsc --noEmit`: exit 0. Unitarias: `Test Suites: 71 passed, 71 total` · `Tests: 641 passed, 641 total`.
+    - `ceish_test_db` (`SELECT current_database()` → `ceish_test_db`): protocolos `ZZ_TEST_%` 0, usuarios `@e2e-tsk-001-12.test` 0; convocatorias huérfanas 57 (igual que antes).
+    - Pendiente fuera de esta marca: aplicar la migración `1940000000000` en `ceish_db` (la aplica la usuaria con `MIGRATION_CONFIRM_DB`). `finalizarRevision` también recibe `tesis` y no tiene prueba propia.
 
 - [ ] **TSK-001.17** *(Por hacer; no se implementa en TSK-001.12)*: `POLIZA_RC` e `IDONEIDAD_INST` con `riesgoMayor` (pendiente 15)
   - **Requisitos cubiertos:** `RF-03.3`
