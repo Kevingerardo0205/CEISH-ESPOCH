@@ -320,6 +320,25 @@
   - **Pruebas:** unitarias de `calcularRequeridos` (con `tesis: true` aparecen los dos códigos; con `false` o sin el flag, no; tesis + `poblacionIndigena` suma los de ambos). E2E con login real, títulos `ZZ_TEST_`, limpieza en `beforeAll` y `afterAll`: `POST /protocols` con `isThesis: true` deja 2 requisitos más que con `false`; `GET /protocols/:id` devuelve `isThesis`; `GET /protocols/requirements?tesis=true` devuelve 2 más; subir PDF a `TESIS_ANTIPLAGIO` responde 201 y un `.png` responde 400; residuos en 0.
   - **Mutaciones:** (M1) sin `tesis` en `iniciarRecepcion` · (M2) sin guardar `isThesis` en `protocols.service.ts` · (M3) sin `isThesis` en el mapper · (M4) `condicion_json` vacío (el requisito sale siempre) · (M5) sin `tesis` en `verificarRequisitos`.
   - **Hecho cuando:** pruebas nuevas y existentes pasan dos veces, mutaciones detectadas, `tsc` sin errores, eslint de los archivos tocados sin empeorar, residuos en 0 en `ceish_test_db`.
+  - **Resultados (14/11/2026, código `5744458`, docs `86cd53a`):**
+    - Migración `1940000000000` aplicada solo en `ceish_test_db` (antes: 0 filas con `TESIS_%` y sin `es_tesis`; después: 2 tipos de documento, 8 filas en `tipo_documento_estudio` (IO, EI, EC, EX), columna `es_tesis`; `revert` y `run` probados). En `ceish_db`: pendiente, la aplica la usuaria.
+    - `npx tsc --noEmit`: exit 0 (dos veces). Unitarias: `Tests: 641 passed, 641 total` (dos veces; línea base 636 + 5 nuevas).
+    - `test/protocol-thesis.e2e-spec.ts`: 14 de 15 pasan. El caso «verificación de la Secretaría» (agregado para detectar M5: `PATCH /reception/protocol/:id/verify` con tesis y sin los 2 documentos → 400 que los nombra) **NO EJECUTADO**: falta `E2E_TEST_ACCOUNTS_PASSWORD` en el entorno del agente.
+    - E2E completa `--runInBand`, dos veces: `Test Suites: 17 passed, 8 failed, 25 total` · `Tests: 272 passed, 115 failed, 387 total`. Las 115 fallas son todas `ABORT: falta E2E_TEST_ACCOUNTS_PASSWORD` (protocol-thesis 1, protocol-draft-submit 25, protocols-list 30, meetings-next 17, protocol-created-audit 7, secretaria-pendientes 25, audit-secrets 3, evaluator-profiles 7). Con la contraseña: NO EJECUTADO.
+    - Residuos `ZZ_TEST_` y `@e2e-tsk-001-12.test`: 0. Convocatorias huérfanas: 57 (igual que antes).
+    - eslint: archivos nuevos 0 problemas; modificados igual que `dev` (protocols.service 9 = 9, requirements.service 5 = 5, protocol.controller 2 = 2, los demás 0 = 0).
+  - **Mutaciones** (E2E `protocol-thesis`; el total incluye el caso de la Secretaría, que falla por la contraseña):
+
+    | Mutación | Qué se rompió | Pruebas que fallan | Línea |
+    |---|---|---|---|
+    | M1 | sin `tesis` en `iniciarRecepcion` | checklist con 2 más; .png 400; PDF en TESIS_ANTIPLAGIO y TESIS_OFICIO_TUTOR | `Tests: 5 failed, 10 passed, 15 total` |
+    | M2 | sin guardar `isThesis` en `protocols.service.ts` | es_tesis guardado; checklist; GET /:id true; mis-protocolos; .png; 2 PDF | `Tests: 8 failed, 7 passed, 15 total` |
+    | M3 | sin `isThesis` en `ProtocolMapper.toResponse` | GET /:id true y false; mis-protocolos | `Tests: 4 failed, 11 passed, 15 total` |
+    | M4 | `condiciones_por_tipo: {}` en la migración (aplicada en `ceish_test_db`, luego restaurada) | checklist con 2 más; sin tesis no los tiene; requirements IO, EI, EC y EX | `Tests: 7 failed, 8 passed, 15 total` |
+    | M5 | sin `tesis` en `verificarRequisitos` | solo la detecta el caso de la Secretaría | NO EJECUTADO (falta `E2E_TEST_ACCOUNTS_PASSWORD`) |
+
+    Después de cada reversión: `git diff --stat -- src` → `7 files changed, 25 insertions(+)` (sin la mutación).
+  - **Pendiente para marcar [x]:** correr `test/protocol-thesis.e2e-spec.ts` con `E2E_TEST_ACCOUNTS_PASSWORD` (15 de 15) y M5; aplicar la migración en `ceish_db`. `finalizarRevision` también recibe `tesis` y no tiene prueba propia.
 
 - [ ] **TSK-001.17** *(Por hacer; no se implementa en TSK-001.12)*: `POLIZA_RC` e `IDONEIDAD_INST` con `riesgoMayor` (pendiente 15)
   - **Requisitos cubiertos:** `RF-03.3`

@@ -115,7 +115,7 @@ src/
 | 001.9 | 4 | Hecho (09/11/2026, e9f88e7) | `PROTOCOL_CREATED` con `registro_id` y sin cédulas ni teléfonos (RF-02.6) |
 | 001.10 | 6 | Por hacer | Catálogo: CONFIDENCIALIDAD, CONFLICTO_INTERES y ANEXO_5 obligatorios en EI e IO (RF-03.3) |
 | 001.11 | — | Para después (rediseño del frontend) | Ciclo del borrador: 8 días de calendario desde la creación, fecha de eliminación en pantalla, uno por investigador, descartar; solo versión 1 en 9 (RF-02.7) |
-| 001.12 | 8 | En curso (14/11/2026) | Tesis: `isThesis` (`es_tesis`) y `TESIS_ANTIPLAGIO` + `TESIS_OFICIO_TUTOR` en todos los tipos de estudio, en PDF (RF-19.1 v3.7.4, pendiente 11 cerrado) |
+| 001.12 | 8 | Código hecho (14/11/2026, 5744458); falta la E2E con la Secretaría, M5 y la migración en `ceish_db` | Tesis: `isThesis` (`es_tesis`) y `TESIS_ANTIPLAGIO` + `TESIS_OFICIO_TUTOR` en todos los tipos de estudio, en PDF (RF-19.1 v3.7.4, pendiente 11 cerrado) |
 | 001.17 | — | Por hacer | `POLIZA_RC` e `IDONEIDAD_INST` con `riesgoMayor` (pendiente 15) |
 | 001.18 | — | Por hacer | Formatos oficiales descargables, uno por uno y en ZIP (pendiente 18, RF-18.1) |
 | 001.13 | — | Por hacer, aparte | Reconstrucción del catálogo de requisitos por `codigo_anexo` para bases nuevas (pendiente 17 cerrado) |
