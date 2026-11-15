@@ -172,6 +172,7 @@ export class ProtocolsService {
       isMulticentric: cleanData.isMulticentric || false,
       hasExternalInstitutions: cleanData.hasExternalInstitutions || false,
       isIndigenousPopulation: cleanData.isIndigenousPopulation || false,
+      isThesis: cleanData.isThesis || false,
       isAffidavitAccepted: true,
       affidavitDate: new Date(),
       affidavitIp: ipAddress,

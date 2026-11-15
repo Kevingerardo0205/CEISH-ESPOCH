@@ -133,6 +133,17 @@ export class CreateProtocolDto {
   @IsBoolean()
   isIndigenousPopulation?: boolean;
 
+  // RF-19.1 (TSK-001.12): trabajo de titulación; con true el checklist suma
+  // TESIS_ANTIPLAGIO y TESIS_OFICIO_TUTOR.
+  @ApiProperty({
+    example: false,
+    required: false,
+    description: 'Trabajo de titulación (tesis)',
+  })
+  @IsOptional()
+  @IsBoolean()
+  isThesis?: boolean;
+
   // E2: Declaración Jurada
   @ApiProperty({
     example: true,

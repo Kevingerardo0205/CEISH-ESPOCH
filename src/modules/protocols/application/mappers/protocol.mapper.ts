@@ -74,6 +74,7 @@ export class ProtocolMapper {
       isVulnerablePopulation: orm.isVulnerablePopulation,
       usesBiologicalSamples: orm.usesBiologicalSamples,
       isMulticentric: orm.isMulticentric,
+      isThesis: orm.isThesis,
       currentVersion: orm.currentVersion,
       isTimelineTermsAccepted: orm.isTimelineTermsAccepted,
       timelineTermsAcceptedAt: orm.timelineTermsAcceptedAt,
