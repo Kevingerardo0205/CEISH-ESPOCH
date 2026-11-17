@@ -397,10 +397,36 @@
 - [ ] **TSK-001.20** *(Por hacer; prioridad alta, seguridad; detectada en TSK-001.18)*: `GET /documents`, `GET /documents/protocol/:id` y `POST /documents` sin permisos
   - **Problema:** `documents.controller.ts:26-42` no tiene `@Roles` ni `@Permissions`, y los guards dejan pasar sin metadatos (`roles.guard.ts:19-21`, `permissions.guard.ts:38-40`): cualquier usuario con sesión podría listar los documentos de todos los protocolos o registrar uno. Sin probar en ejecución (análisis estático del 16/11/2026).
   - **Hecho cuando:** la usuaria decide permisos y propiedad por endpoint, el spec lo recoge y la tarea lista archivos, E2E (403 para un investigador ajeno) y mutaciones.
+  - **Agregado en TSK-001.22 (17/11/2026):** `POST /documents` recibe `Partial<DocumentOrmEntity>` (`documents.controller.ts:20`), que incluye `uploadedByUserId` (`document.entity.orm.ts:71`): quien sube el documento sale del cuerpo y no del token. Debe salir de `req.user.id`.
 
 - [ ] **TSK-001.21** *(Por hacer; detectada en TSK-001.18)*: coinvestigadores en `GET /protocols/checklist/:id`
   - **Problema:** `getChecklist` revisa `protocol.investigators` (`protocol.controller.ts`), pero `findById` no carga esa relación (`protocol.typeorm.repository.ts:41-46`): por el código, un coinvestigador recibiría 400. Sin probar en ejecución.
   - **Hecho cuando:** E2E con login real de un coinvestigador (200) y de un usuario ajeno (rechazo), y mutación que quite la carga de la relación.
+
+- [ ] **TSK-001.22**: `POST /protocols` toma el investigador principal del JWT, no del cuerpo (RF-02.9 v3.7.6; seguridad, prioridad alta)
+  - **Requisitos cubiertos:** `RF-02.1` (modificado), `RF-02.9 a–d`
+  - **Hallazgo (14/11/2026):** `protocols.service.ts:144-149` busca el investigador principal con `dto.principalInvestigatorId` y `:158` lo guarda; `create` (`protocol.controller.ts:306-329`) solo tiene `JwtAuthGuard`. Un usuario con sesión, de cualquier rol, puede crear un protocolo a nombre de otro.
+  - **Decisión (usuaria, 17/11/2026):** opción B, transitoria. El investigador principal sale siempre de `req.user.id`. `principalInvestigatorId` queda opcional y marcado como obsoleto en `CreateProtocolDto`: distinto del id del token → 400 «No puede crear un protocolo a nombre de otro investigador.» sin crear nada; igual → se ignora. Solo el rol INVESTIGADOR crea (`@UseGuards(RolesGuard)` + `@Roles(RoleCode.INVESTIGADOR)`, como `auth.controller.ts:227-228`). El retiro final del campo va en TSK-001.24.
+  - **Línea base (Paso 0, 17/11/2026, rama desde `dev` `e0c5dec`):** `tsc` exit 0; unitarias `Tests: 648 passed, 648 total`; eslint: `protocols.service.ts` 9, `protocol.controller.ts` 2, `create-protocol.dto.ts` 0, `create-protocol.dto.spec.ts` 0. El frontend envía `principalInvestigatorId: Number(user?.id)` (`nuevo-protocolo.page.ts:547`).
+  - **Archivos:**
+    - MODIFICAR `src/modules/protocols/application/dtos/create-protocol.dto.ts` (`principalInvestigatorId` opcional, `@deprecated` y `deprecated` en Swagger).
+    - MODIFICAR `src/modules/protocols/application/dtos/create-protocol.dto.spec.ts` (sin el campo es válido; con un número es válido; con un texto no).
+    - MODIFICAR `src/modules/protocols/application/services/protocols.service.ts` (`create` usa `userId`; 400 si el cuerpo trae otro id, antes de cualquier escritura).
+    - MODIFICAR `src/modules/protocols/infrastructure/controllers/protocol.controller.ts` (`RolesGuard` y `@Roles(RoleCode.INVESTIGADOR)` en `create`).
+    - CREAR `test/protocol-principal-jwt.e2e-spec.ts`.
+    - Las 4 E2E que ya crean protocolos (`protocol-created-audit`, `protocol-draft-submit`, `protocol-thesis`, `requirement-templates`) no se tocan: siguen enviando el campo igual al usuario del token.
+  - **Pruebas:** DTO (arriba). E2E con login real (2 investigadores y 1 EVALUADOR `ZZ_TEST_PIJWT_`, correo `@e2e-tsk-001-22.test`, contraseñas generadas dentro de la prueba, mock de correo explícito, limpieza en `beforeAll` y `afterAll`): primero se reproduce el fallo con el código anterior (un investigador envía el id del otro → el protocolo queda a nombre del otro); después: id de otro → 400 con el mensaje en español y sin protocolo nuevo; sin el campo → a nombre del usuario del token (columna y fila PRINCIPAL en `protocolo_investigadores`); con el mismo id → igual; EVALUADOR → 403 sin protocolo nuevo; `PROTOCOL_CREATED` con `usuario_id` = investigador principal guardado y `registro_id` = id del protocolo. Residuos en 0.
+  - **Mutaciones:** (M1) `create` vuelve a usar `dto.principalInvestigatorId` · (M2) sin `@Roles(RoleCode.INVESTIGADOR)`. Las dos deben detectarse en la E2E.
+  - **Hecho cuando:** pruebas nuevas y existentes pasan dos veces, mutaciones detectadas, `tsc` sin errores, eslint de los archivos tocados sin empeorar respecto de `dev`, residuos en 0 en `ceish_test_db`.
+  - **Observación (sin tarea):** `POST /auth/refresh` recibe `userId` del cuerpo junto con `refreshToken` (`auth.controller.ts:107-112`). Es aceptable solo si `refreshTokens` compara el token con el hash guardado de ese usuario; no se verificó en TSK-001.22.
+
+- [ ] **TSK-001.23** *(Por hacer; seguridad; detectada en TSK-001.22)*: coinvestigadores agregados en `POST /protocols` sin verificación
+  - **Problema:** `investigators[].userId` (`create-investigator.dto.ts:35-37`) se guarda tal cual (`protocols.service.ts:208-218`): quien crea el protocolo puede agregar a cualquier usuario como coinvestigador, y eso le da acceso al checklist y a la subida de documentos (`protocol.controller.ts:137,196`). Solo se descartan las filas con rol PRINCIPAL. Sin probar en ejecución.
+  - **Hecho cuando:** la usuaria decide cómo se vincula un coinvestigador (invitación, rol INVESTIGADOR, sin `userId`), el spec lo recoge y la tarea lista archivos, E2E y mutaciones.
+
+- [ ] **TSK-001.24** *(Por hacer; depende de la tarea del frontend que quita `principalInvestigatorId` del payload de `nuevo-protocolo.page.ts:547` y de `crear-protocolo.dto.ts:59`)*: retiro final de `principalInvestigatorId` de `CreateProtocolDto` (opción A de RF-02.9 b)
+  - **Cambio:** se quita el campo del DTO; con el `ValidationPipe` global (`forbidNonWhitelisted: true`) enviarlo responde 400. Se quita también de las 4 E2E que lo envían y de `create-protocol.dto.spec.ts`, y se borra la comprobación transitoria del servicio.
+  - **Hecho cuando:** E2E con el campo → 400 sin protocolo nuevo; sin el campo → a nombre del usuario del token; mutación que vuelva a aceptar el campo.
 
 - [ ] **TSK-001.13** *(aparte; no se implementa en esta rama)*: Reconstrucción del catálogo de requisitos por `codigo_anexo` en una base nueva (RF-03.3, pendiente 17 cerrado el 09/11/2026)
   - **Requisitos cubiertos:** `RF-03.3` (nota del catálogo), `RF-03.1`
