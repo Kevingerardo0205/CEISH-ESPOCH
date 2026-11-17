@@ -1,9 +1,10 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { StudyTypeCode } from '../../domain/enums/study-type.enum';
 import { TipoDocumentoEstudioOrmEntity } from '../../infrastructure/database/tipo-documento-estudio.entity.orm';
 import { StudyTypeOrmEntity } from '../../infrastructure/database/study-type.entity.orm';
+import { TipoDocumentoOrmEntity } from '../../infrastructure/database/tipo-documento.entity.orm';
 
 export interface RequirementInfo {
   id: number;
@@ -22,7 +23,37 @@ export class RequirementsService {
     private readonly tipoDocumentoEstudioRepository: Repository<TipoDocumentoEstudioOrmEntity>,
     @InjectRepository(StudyTypeOrmEntity)
     private readonly studyTypeRepository: Repository<StudyTypeOrmEntity>,
+    @InjectRepository(TipoDocumentoOrmEntity)
+    private readonly tipoDocumentoRepository: Repository<TipoDocumentoOrmEntity>,
   ) {}
+
+  /**
+   * RF-18.1 b (TSK-001.18): código de la plantilla de cada requisito del checklist
+   * (`codigo_requisito` → `tipos_documento.codigo_anexo` → `codigo_plantilla`).
+   * Solo vale si la plantilla está activa y tiene archivo; en cualquier otro caso, `null`
+   * (también para códigos que no están en el catálogo).
+   */
+  async resolveTemplateCodes(
+    requirementCodes: string[],
+  ): Promise<Map<string, string | null>> {
+    const result = new Map<string, string | null>();
+    const codes = [...new Set(requirementCodes.filter((c) => !!c))];
+    for (const code of requirementCodes) result.set(code, null);
+    if (codes.length === 0) return result;
+
+    const docs = await this.tipoDocumentoRepository.find({
+      where: { codigoAnexo: In(codes) },
+      relations: ['plantilla'],
+    });
+    for (const doc of docs) {
+      const template = doc.plantilla;
+      if (!doc.codigoAnexo || !template) continue;
+      if (template.isActive && template.filePath) {
+        result.set(doc.codigoAnexo, template.code);
+      }
+    }
+    return result;
+  }
 
   /**
    * Calcula los requisitos exigidos según el PET CEISH-ESPOCH V2
