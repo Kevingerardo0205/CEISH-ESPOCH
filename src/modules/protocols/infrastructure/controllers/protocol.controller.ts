@@ -303,8 +303,11 @@ export class ProtocolController {
     );
   }
 
+  /** RF-02.9 c (TSK-001.22): solo el rol INVESTIGADOR crea protocolos. */
   @Post()
-  @ApiOperation({ summary: 'Crear un nuevo protocolo' })
+  @UseGuards(RolesGuard)
+  @Roles(RoleCode.INVESTIGADOR)
+  @ApiOperation({ summary: 'Crear un nuevo protocolo (INVESTIGADOR)' })
   @Audit('PROTOCOL_CREATED')
   async create(
     @Body() dto: CreateProtocolDto,

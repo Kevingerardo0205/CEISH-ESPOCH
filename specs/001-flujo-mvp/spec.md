@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.7.5
+**Versión:** 3.7.6
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -23,6 +23,7 @@
 **Historial:** 2026-11-10 — v3.7.3: hallazgo de seguridad del 10/11/2026 (TSK-001.9) y decisiones de la usuaria del 10/11/2026. Sección nueva RF-AUD (Auditoría): RF-AUD.1 secretos fuera de `sistema.audit_log` en toda acción registrada mediante `AuditInterceptor` y depuración de las filas anteriores con una migración que no conserva los valores (excepción aprobada a la Regla 14 de la constitución: el `down()` no restaura)
 **Historial:** 2026-11-14 — v3.7.4: decisiones de la usuaria del 14/11/2026 (TSK-001.12). Pendiente 11 cerrado: bandera `isThesis` (`protocolos.es_tesis`) al crear el protocolo; con tesis, el checklist suma `TESIS_ANTIPLAGIO` (captura del informe antiplagio) y `TESIS_OFICIO_TUTOR` (oficio o certificado del tutor) en todos los tipos de estudio, en PDF como el resto; reemplazan al acta de aprobación del tema y al certificado del director (RF-19.1 reescrito). RF-02.8 a incluye `isThesis`. Pendientes 15 y 18 pasan a TSK-001.17 y TSK-001.18. Pendientes nuevos 20 (indicadores que no devuelve `GET /protocols/:id`) y 21 (archivar con motivo)
 **Historial:** 2026-11-16 — v3.7.5: decisiones de la usuaria del 15/11/2026 y 16/11/2026 (TSK-001.18). Pendiente 18 cerrado: en la pantalla de documentos del investigador, un botón «Descargar formato» por requisito que tenga plantilla; sin ZIP para el investigador (un ZIP, si se hace, queda para Configuración). RF-18.1 reescrito: relación requisito → plantilla con `catalogos.tipos_documento.codigo_plantilla`; el checklist devuelve `templateCode` por requisito (no una URL) y `GET /documents/templates/:code/download` responde `{ downloadUrl }` sin redirección
+**Historial:** 2026-11-17 — v3.7.6: hallazgo de seguridad del 14/11/2026 y decisiones de la usuaria del 17/11/2026 (TSK-001.22). RF-02.1: `principalInvestigatorId` deja de ser obligatorio. RF-02.9 nuevo: en `POST /protocols` el investigador principal sale siempre del usuario autenticado (JWT); `principalInvestigatorId` queda opcional y obsoleto (transitorio: distinto del usuario autenticado → 400 en español; igual → se ignora; se retira del todo en TSK-001.24); solo el rol INVESTIGADOR crea protocolos (403); `PROTOCOL_CREATED` con `usuario_id` = investigador principal
 
 ---
 
@@ -196,7 +197,7 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 |---|---|
 | **Título** | Registro Simplificado de Protocolo de Investigación |
 | **ID** | HU-002 |
-| **Descripción** | Permite al Investigador Principal registrar los datos mínimos (`title`, `studyTypeId`, `principalInvestigatorId`) y aceptar la Declaración Jurada para iniciar la solicitud. |
+| **Descripción** | Permite al Investigador Principal registrar los datos mínimos (`title`, `studyTypeId`; el investigador principal es el usuario autenticado, RF-02.9) y aceptar la Declaración Jurada para iniciar la solicitud. |
 | **Estimación** | 16 horas |
 | **Prioridad** | ALTA (2) |
 | **Dependencias** | HU-001 |
@@ -408,7 +409,7 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
 - **Criterio EARS (RF-01.1)**: **Cuando** un usuario ingrese credenciales válidas, **el sistema debe** autenticar la sesión y conceder acceso al dashboard según su rol (`Investigador`, `Secretaria`, `Evaluador` o `Presidente`).
 
 ### RF-02: Registro de Datos Mínimos del Protocolo
-- **RF-02.1**: El sistema exige los campos obligatorios `title`, `studyTypeId`, `principalInvestigatorId` e `isAffidavitAccepted`.
+- **RF-02.1 (modificado 17/11/2026)**: El sistema exige los campos obligatorios `title`, `studyTypeId` e `isAffidavitAccepted`. El investigador principal no se pide en el cuerpo: es el usuario autenticado (RF-02.9). — Reemplaza a: `principalInvestigatorId` obligatorio en el cuerpo — decisión 17/11/2026
 - **Criterio EARS (RF-02.1)**: **Mientras** el Investigador Principal no acepte la Declaración Jurada, **el sistema debe** impedir el registro del protocolo.
 - **Criterio EARS (RF-02.1, modificado 09/11/2026)**: **Cuando** el Investigador Principal registre los datos mínimos (paso 1), **el sistema debe** crear el protocolo como borrador según RF-02.3, no como trámite enviado. — Reemplaza a: registro que equivalía al envío — decisión 09/11/2026
 
@@ -466,6 +467,13 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
   - **Criterio EARS (RF-02.8 f, decisión 09/11/2026 — pendiente 19)**: **Si** un requisito con documento subido deja de aplicar, **el sistema debe** marcar ese requisito como `NO_APLICA` y conservar el documento (fila en `recepcion.documentos` con su `requisito_id` y el archivo en R2), sin mostrarlo como obligatorio. Si el requisito vuelve a aplicar en otra edición, vuelve a su estado anterior con el mismo documento. Los archivos se borran de R2 solo cuando se elimina o se descarta el borrador (RF-02.7). Un requisito sin documento que deja de aplicar se quita del checklist.
   - **Criterio EARS (RF-02.8 g, decisión 09/11/2026 — pendiente 19)**: **Cuando** se edite, **el sistema debe** registrar `PROTOCOL_UPDATED` en `sistema.audit_log` con `registro_id` = id del protocolo y `datos_nuevos` saneado como en RF-02.6 b.
   - > La edición no cambia `fecha_recepcion` (sigue NULL) ni reinicia el plazo del borrador (RF-02.7 a). Dependencia: el frontend cambia `PUT` por `PATCH` y solo permite editar en borrador, en una tarea del repo del frontend.
+
+- **RF-02.9 (Investigador principal desde la sesión, hallazgo de seguridad del 14/11/2026, decisión 17/11/2026)**: Hoy `POST /protocols` toma el investigador principal de `principalInvestigatorId` del cuerpo (`protocols.service.ts:144-149,158`) y no comprueba el rol: un usuario con sesión puede crear un protocolo a nombre de otro.
+  - **Criterio EARS (RF-02.9 a)**: **Cuando** un usuario cree un protocolo, **el sistema debe** registrar como investigador principal al usuario autenticado (id del JWT), sin leerlo del cuerpo.
+  - **Criterio EARS (RF-02.9 b, transitorio)**: **Si** el cuerpo trae `principalInvestigatorId` distinto del usuario autenticado, **el sistema debe** responder 400 con el mensaje «No puede crear un protocolo a nombre de otro investigador.» sin crear nada. Si es igual, se ignora; si no viene, se crea igual. En `CreateProtocolDto` el campo queda opcional y marcado como obsoleto.
+    - > Nota (decisión 17/11/2026): es transitorio para no romper el frontend, que hoy envía el id del usuario con sesión (`nuevo-protocolo.page.ts:547`). Cuando el frontend deje de enviarlo, el campo se retira del DTO (TSK-001.24) y, con el `ValidationPipe` global (`forbidNonWhitelisted: true`), enviarlo responde 400.
+  - **Criterio EARS (RF-02.9 c)**: **Si** el usuario autenticado no tiene el rol INVESTIGADOR, **el sistema debe** responder 403 sin crear nada (`RolesGuard` con `@Roles(INVESTIGADOR)`, como `auth.controller.ts`).
+  - **Criterio EARS (RF-02.9 d)**: **Cuando** se cree el protocolo, la fila `PROTOCOL_CREATED` (RF-02.6) **debe** tener `usuario_id` = investigador principal guardado.
 
 ### RF-03: Generación Automática y Ajuste del Checklist Documental
 - **RF-03.1**: El sistema debe generar dinámicamente la matriz de requisitos según el tipo de estudio.

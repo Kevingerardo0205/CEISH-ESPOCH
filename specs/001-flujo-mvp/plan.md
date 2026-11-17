@@ -121,6 +121,10 @@ src/
 | 001.19 | — | Por hacer | `GET /resolutions/templates/observations-response` redirige a `https://nestjs.com` (`@Redirect` con el `ResponseInterceptor`), igual que la descarga de plantillas antes de TSK-001.18 |
 | 001.20 | — | Por hacer, prioridad alta (seguridad) | `GET /documents`, `GET /documents/protocol/:id` y `POST /documents` sin permisos ni comprobación de propiedad |
 | 001.21 | — | Por hacer | `GET /protocols/checklist/:id` revisa coinvestigadores sin cargar la relación `investigators` (con E2E) |
+| 001.22 | — | Hecho (17/11/2026, eb53ef9); pendiente el frontend (quitar el campo del payload) y después TSK-001.24 | `POST /protocols`: investigador principal desde el JWT, `principalInvestigatorId` opcional y obsoleto (distinto del token → 400), solo rol INVESTIGADOR (RF-02.9 v3.7.6) |
+| 001.23 | — | Por hacer (seguridad) | `POST /protocols` agrega coinvestigadores con `investigators[].userId` sin verificación |
+| 001.24 | — | Por hacer; depende de la tarea del frontend que quita el campo del payload | Retiro final de `principalInvestigatorId` de `CreateProtocolDto` (opción A de RF-02.9 b) |
+| 001.25 | — | Por hacer, prioridad media (bloquea el cierre limpio de las tareas) | `test/meeting-pdf-real.e2e-spec.ts` inestable por tiempo (M4-01, M4-03, M4-04 y M5 superan a veces 30 y 60 s): medir la generación del PDF y decidir si se optimiza o se sube el límite solo en esa suite |
 | 001.13 | — | Por hacer, aparte | Reconstrucción del catálogo de requisitos por `codigo_anexo` para bases nuevas (pendiente 17 cerrado) |
 | 001.14 | 7 | Por hacer | `PATCH /protocols/:id` para editar el borrador (RF-02.8); depende de 001.5, 001.8 y 001.9; dependencia en el frontend (PUT → PATCH) |
 
