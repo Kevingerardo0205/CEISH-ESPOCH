@@ -236,4 +236,22 @@ export class ProtocolTypeOrmRepository
       relations: ['activeVersion', 'activeVersion.reception'],
     });
   }
+
+  async hasEvaluatorAssignment(
+    protocolId: number,
+    userId: number,
+    statusIds: readonly number[],
+  ): Promise<boolean> {
+    const rows: unknown[] = await this.repo.manager.query(
+      `SELECT 1
+         FROM evaluacion.asignaciones_evaluacion ae
+         JOIN public.versiones_protocolo v ON v.id = ae.version_id
+        WHERE v.protocolo_id = $1
+          AND ae.evaluador_id = $2
+          AND ae.estado_id = ANY($3::int[])
+        LIMIT 1`,
+      [protocolId, userId, statusIds],
+    );
+    return rows.length > 0;
+  }
 }

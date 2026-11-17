@@ -236,9 +236,19 @@ export class ProtocolController {
     });
   }
 
+  /**
+   * RF-02.10 (TSK-001.26): investigador principal, PROTOCOLOS_LISTAR (sin borradores) o
+   * evaluador asignado; los demás reciben 404.
+   */
   @Get(':id')
   @ApiOperation({ summary: 'Obtener un protocolo por ID' })
-  async findOne(@Param('id') id: string) {
+  async findOne(
+    @Param('id') id: string,
+    @Request()
+    req: ExpressRequest & {
+      user: { id: number; roles: string[]; permissions: string[] };
+    },
+  ) {
     // Si llegamos aquí con 'risk-levels', es que NestJS no hizo match arriba
     if (id === 'risk-levels' || id === 'study-types') {
       throw new BadRequestException(
@@ -251,7 +261,10 @@ export class ProtocolController {
       throw new BadRequestException('ID de protocolo debe ser un número');
     }
 
-    const protocol = await this.protocolsService.findOne(numericId);
+    const protocol = await this.protocolsService.findOneForReader(
+      numericId,
+      req.user,
+    );
     return ProtocolMapper.toResponse(protocol);
   }
 

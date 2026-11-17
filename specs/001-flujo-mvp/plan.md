@@ -120,11 +120,15 @@ src/
 | 001.18 | 9 | Hecho (17/11/2026, cd8c92c); falta solo aplicar la migración en `ceish_db` (usuaria) | Requisito → plantilla (`tipos_documento.codigo_plantilla`), `templateCode` en `GET /protocols/checklist/:id` y `{ downloadUrl }` en `GET /documents/templates/:code/download`; sin ZIP para el investigador (pendiente 18 cerrado, RF-18.1 v3.7.5) |
 | 001.19 | — | Por hacer | `GET /resolutions/templates/observations-response` redirige a `https://nestjs.com` (`@Redirect` con el `ResponseInterceptor`), igual que la descarga de plantillas antes de TSK-001.18 |
 | 001.20 | — | Por hacer, prioridad alta (seguridad) | `GET /documents`, `GET /documents/protocol/:id` y `POST /documents` sin permisos ni comprobación de propiedad |
-| 001.21 | — | Por hacer | `GET /protocols/checklist/:id` revisa coinvestigadores sin cargar la relación `investigators` (con E2E) |
+| 001.21 | — | En espera: la plataforma no admite coinvestigadores por ahora (usuaria, 17/11/2026) | `GET /protocols/checklist/:id` revisa coinvestigadores sin cargar la relación `investigators` (con E2E) |
 | 001.22 | — | Hecho (17/11/2026, eb53ef9); pendiente el frontend (quitar el campo del payload) y después TSK-001.24 | `POST /protocols`: investigador principal desde el JWT, `principalInvestigatorId` opcional y obsoleto (distinto del token → 400), solo rol INVESTIGADOR (RF-02.9 v3.7.6) |
-| 001.23 | — | Por hacer (seguridad) | `POST /protocols` agrega coinvestigadores con `investigators[].userId` sin verificación |
+| 001.23 | — | En espera: la plataforma no admite coinvestigadores por ahora (usuaria, 17/11/2026); seguridad | `POST /protocols` agrega coinvestigadores con `investigators[].userId` sin verificación |
 | 001.24 | — | Por hacer; depende de la tarea del frontend que quita el campo del payload | Retiro final de `principalInvestigatorId` de `CreateProtocolDto` (opción A de RF-02.9 b) |
 | 001.25 | — | Por hacer, prioridad media (bloquea el cierre limpio de las tareas) | `test/meeting-pdf-real.e2e-spec.ts` inestable por tiempo (M4-01, M4-03, M4-04 y M5 superan a veces 30 y 60 s): medir la generación del PDF y decidir si se optimiza o se sube el límite solo en esa suite |
+| 001.26 | — | Hecho (17/11/2026, aff732e) | Control de acceso en `GET /protocols/:id`: investigador principal, `PROTOCOLOS_LISTAR` sin borradores, evaluador con asignación 5, 6 o 7; los demás 404 (RF-02.10 v3.7.7) |
+| 001.27 | — | Por hacer; depende de 001.26 | Encabezado en `GET /protocols/:id`: `etapa`, `etapaOrden`, `principalInvestigator`, `riskLevelCode` y los textos actuales llenos (RF-EST.2) |
+| 001.28 | — | Por hacer | Última sesión del protocolo en `GET /protocols/:id` (regla en su Paso 0) |
+| 001.29 | — | Por hacer; a la espera de la decisión de la usuaria | Código del protocolo según el PET 4.1.6 (hoy: 3 dígitos con ceros, secuencia por tipo y por año, sigla EX) |
 | 001.13 | — | Por hacer, aparte | Reconstrucción del catálogo de requisitos por `codigo_anexo` para bases nuevas (pendiente 17 cerrado) |
 | 001.14 | 7 | Por hacer | `PATCH /protocols/:id` para editar el borrador (RF-02.8); depende de 001.5, 001.8 y 001.9; dependencia en el frontend (PUT → PATCH) |
 

@@ -27,4 +27,13 @@ export abstract class IProtocolRepository {
   abstract save(entity: Partial<ProtocolOrmEntity>): Promise<ProtocolOrmEntity>;
   abstract update(id: number, data: Partial<ProtocolOrmEntity>): Promise<void>;
   abstract countByYear(year: number): Promise<number>;
+  /**
+   * RF-02.10 a (TSK-001.26): true si el usuario tiene una asignación de evaluador en alguna
+   * versión del protocolo con uno de los estados indicados.
+   */
+  abstract hasEvaluatorAssignment(
+    protocolId: number,
+    userId: number,
+    statusIds: readonly number[],
+  ): Promise<boolean>;
 }

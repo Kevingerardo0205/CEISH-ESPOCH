@@ -30,6 +30,21 @@ import { RequirementsService } from './requirements.service';
 import { StudyTypeCode } from '../../domain/enums/study-type.enum';
 import { UploadDocumentDto } from '../../../reception/application/dtos/upload-document.dto';
 import { ReceptionStatus } from '../../domain/enums/reception-status.enum';
+import { Permission } from '../../../../shared/enums/permission.enum';
+import { AssignmentStatus } from '../../../evaluations/domain/enums/assignment-status.enum';
+
+/** RF-02.10 a (TSK-001.26): estados de la asignación que dejan leer el protocolo al evaluador. */
+const READER_ASSIGNMENT_STATUS_IDS: readonly number[] = [
+  AssignmentStatus.SUGGESTED,
+  AssignmentStatus.ASSIGNED,
+  AssignmentStatus.COMPLETED,
+];
+
+/** Usuario autenticado tal como lo deja `JwtStrategy.validate` en `req.user`. */
+interface ProtocolReader {
+  id: number;
+  permissions?: string[];
+}
 
 @Injectable()
 export class ProtocolsService {
@@ -77,6 +92,41 @@ export class ProtocolsService {
     if (!protocol)
       throw new NotFoundException(`Protocol with ID ${id} not found`);
     return protocol;
+  }
+
+  /**
+   * RF-02.10 (TSK-001.26): GET /protocols/:id. Leen el investigador principal, quien tiene
+   * PROTOCOLOS_LISTAR (salvo un borrador, como en el listado) y el evaluador con una asignación
+   * en estado 5, 6 o 7 en alguna versión. Sin coinvestigadores por ahora. Los demás: 404.
+   */
+  async findOneForReader(id: number, reader: ProtocolReader) {
+    if (!id || isNaN(id)) {
+      throw new BadRequestException('ID de protocolo inválido');
+    }
+    const notFound = new NotFoundException('Protocolo no encontrado.');
+    const protocol = await this.protocolsRepository.findById(id);
+    if (!protocol) throw notFound;
+
+    if (protocol.principalInvestigatorId === reader.id) return protocol;
+
+    const canList = (reader.permissions ?? []).includes(
+      Permission.PROTOCOLOS_LISTAR,
+    );
+    if (canList && protocol.receptionStatus !== ReceptionStatus.BORRADOR) {
+      return protocol;
+    }
+
+    if (
+      await this.protocolsRepository.hasEvaluatorAssignment(
+        id,
+        reader.id,
+        READER_ASSIGNMENT_STATUS_IDS,
+      )
+    ) {
+      return protocol;
+    }
+
+    throw notFound;
   }
 
   async findAllStudyTypes() {
