@@ -144,7 +144,15 @@ export class ProtocolController {
       );
     }
 
-    return protocol.checklist || [];
+    // RF-18.1 b (TSK-001.18): templateCode por fila, sin quitar ni renombrar campos.
+    const checklist = protocol.checklist || [];
+    const templateCodes = await this.requirementsService.resolveTemplateCodes(
+      checklist.map((row) => row.requirementCode),
+    );
+    return checklist.map((row) => ({
+      ...row,
+      templateCode: templateCodes.get(row.requirementCode) ?? null,
+    }));
   }
 
   @Post(':id/upload-document')

@@ -1,12 +1,4 @@
-import {
-  Controller,
-  Post,
-  Body,
-  Get,
-  Param,
-  UseGuards,
-  Redirect,
-} from '@nestjs/common';
+import { Controller, Post, Body, Get, Param, UseGuards } from '@nestjs/common';
 import { DocumentsService } from '../../application/services/documents.service';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
@@ -49,16 +41,19 @@ export class DocumentsController {
     return this.documentsService.findAllTemplates();
   }
 
+  // RF-18.1 c (TSK-001.18): { downloadUrl } sin redirección (el ResponseInterceptor
+  // envolvía el retorno de @Redirect y NestJS redirigía a la URL por defecto).
   @Get('templates/:code/download')
   @ApiOperation({
-    summary: 'Redirigir a la URL de descarga de una plantilla por su código',
+    summary:
+      'Obtener la URL firmada de descarga de una plantilla por su código',
   })
-  @Redirect('https://nestjs.com', 302)
   async downloadTemplate(
     @Param('code') code: string,
-  ): Promise<{ url: string; statusCode: number }> {
-    const url = await this.documentsService.getTemplateDownloadUrl(code);
-    return { url, statusCode: 302 };
+  ): Promise<{ downloadUrl: string }> {
+    const downloadUrl =
+      await this.documentsService.getTemplateDownloadUrl(code);
+    return { downloadUrl };
   }
 
   @Post('templates')
