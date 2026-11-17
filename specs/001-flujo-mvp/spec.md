@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.7.6
+**Versión:** 3.7.7
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -24,6 +24,7 @@
 **Historial:** 2026-11-14 — v3.7.4: decisiones de la usuaria del 14/11/2026 (TSK-001.12). Pendiente 11 cerrado: bandera `isThesis` (`protocolos.es_tesis`) al crear el protocolo; con tesis, el checklist suma `TESIS_ANTIPLAGIO` (captura del informe antiplagio) y `TESIS_OFICIO_TUTOR` (oficio o certificado del tutor) en todos los tipos de estudio, en PDF como el resto; reemplazan al acta de aprobación del tema y al certificado del director (RF-19.1 reescrito). RF-02.8 a incluye `isThesis`. Pendientes 15 y 18 pasan a TSK-001.17 y TSK-001.18. Pendientes nuevos 20 (indicadores que no devuelve `GET /protocols/:id`) y 21 (archivar con motivo)
 **Historial:** 2026-11-16 — v3.7.5: decisiones de la usuaria del 15/11/2026 y 16/11/2026 (TSK-001.18). Pendiente 18 cerrado: en la pantalla de documentos del investigador, un botón «Descargar formato» por requisito que tenga plantilla; sin ZIP para el investigador (un ZIP, si se hace, queda para Configuración). RF-18.1 reescrito: relación requisito → plantilla con `catalogos.tipos_documento.codigo_plantilla`; el checklist devuelve `templateCode` por requisito (no una URL) y `GET /documents/templates/:code/download` responde `{ downloadUrl }` sin redirección
 **Historial:** 2026-11-17 — v3.7.6: hallazgo de seguridad del 14/11/2026 y decisiones de la usuaria del 17/11/2026 (TSK-001.22). RF-02.1: `principalInvestigatorId` deja de ser obligatorio. RF-02.9 nuevo: en `POST /protocols` el investigador principal sale siempre del usuario autenticado (JWT); `principalInvestigatorId` queda opcional y obsoleto (transitorio: distinto del usuario autenticado → 400 en español; igual → se ignora; se retira del todo en TSK-001.24); solo el rol INVESTIGADOR crea protocolos (403); `PROTOCOL_CREATED` con `usuario_id` = investigador principal
+**Historial:** 2026-11-17 — v3.7.7: hallazgo de seguridad 6b (TSK-F02-9 del frontend) y decisiones de la usuaria del 17/11/2026 (TSK-001.26). RF-02.10 nuevo: `GET /protocols/:id` solo lo leen el investigador principal, quien tiene `PROTOCOLOS_LISTAR` (SECRETARIA y PRESIDENTE; un borrador no) y el evaluador con una asignación en estado 5, 6 o 7 en alguna versión; los demás reciben 404 «Protocolo no encontrado.». Límite actual del sistema: la plataforma no admite coinvestigadores por ahora (quien figura como coinvestigador recibe 404)
 
 ---
 
@@ -474,6 +475,14 @@ Cada rechazo de `POST /auth/login` lleva un código estable (`code`) además del
     - > Nota (decisión 17/11/2026): es transitorio para no romper el frontend, que hoy envía el id del usuario con sesión (`nuevo-protocolo.page.ts:547`). Cuando el frontend deje de enviarlo, el campo se retira del DTO (TSK-001.24) y, con el `ValidationPipe` global (`forbidNonWhitelisted: true`), enviarlo responde 400.
   - **Criterio EARS (RF-02.9 c)**: **Si** el usuario autenticado no tiene el rol INVESTIGADOR, **el sistema debe** responder 403 sin crear nada (`RolesGuard` con `@Roles(INVESTIGADOR)`, como `auth.controller.ts`).
   - **Criterio EARS (RF-02.9 d)**: **Cuando** se cree el protocolo, la fila `PROTOCOL_CREATED` (RF-02.6) **debe** tener `usuario_id` = investigador principal guardado.
+
+- **RF-02.10 (Lectura de un protocolo, hallazgo de seguridad 6b, decisión 17/11/2026)**: Hoy `GET /protocols/:id` (`protocol.controller.ts:239-256`) solo exige sesión: cualquier usuario autenticado lee cualquier protocolo.
+  - **Criterio EARS (RF-02.10 a)**: **Cuando** un usuario pida `GET /protocols/:id`, **el sistema debe** devolver el protocolo solo si se cumple alguna de estas condiciones:
+    - es el investigador principal (`protocolos.investigador_principal_id` = usuario autenticado);
+    - tiene el permiso `PROTOCOLOS_LISTAR` (SECRETARIA y PRESIDENTE, HU-001 c) y el protocolo no es un borrador (recepción de la versión activa en `INICIADO` (9) y versión activa 1, RF-02.5), igual que en el listado (RF-EST.3 punto 5);
+    - es evaluador con una asignación en `evaluacion.asignaciones_evaluacion` en alguna versión del protocolo, en estado 5 (sugerida), 6 (asignada) o 7 (completada). Los estados 8 (archivada), 26 y 27 (reasignada) no dan acceso.
+  - **Criterio EARS (RF-02.10 b)**: **Si** no se cumple ninguna, **el sistema debe** responder 404 con el mensaje «Protocolo no encontrado.», sin datos del protocolo (no revela si existe).
+  - > Límite actual del sistema (decisión de la usuaria, 17/11/2026): la plataforma no admite coinvestigadores por ahora. Un usuario que figura como coinvestigador en `protocolo_investigadores` no lee el protocolo por esa razón (404). TSK-001.21 y TSK-001.23 quedan en espera; el checklist y la subida de documentos deberán seguir la misma regla cuando se retomen.
 
 ### RF-03: Generación Automática y Ajuste del Checklist Documental
 - **RF-03.1**: El sistema debe generar dinámicamente la matriz de requisitos según el tipo de estudio.

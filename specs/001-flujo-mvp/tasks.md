@@ -399,7 +399,8 @@
   - **Hecho cuando:** la usuaria decide permisos y propiedad por endpoint, el spec lo recoge y la tarea lista archivos, E2E (403 para un investigador ajeno) y mutaciones.
   - **Agregado en TSK-001.22 (17/11/2026):** `POST /documents` recibe `Partial<DocumentOrmEntity>` (`documents.controller.ts:20`), que incluye `uploadedByUserId` (`document.entity.orm.ts:71`): quien sube el documento sale del cuerpo y no del token. Debe salir de `req.user.id`.
 
-- [ ] **TSK-001.21** *(Por hacer; detectada en TSK-001.18)*: coinvestigadores en `GET /protocols/checklist/:id`
+- [ ] **TSK-001.21** *(En espera: la plataforma no admite coinvestigadores por ahora (usuaria, 17/11/2026); detectada en TSK-001.18)*: coinvestigadores en `GET /protocols/checklist/:id`
+  - **Nota (TSK-001.26, 17/11/2026):** cuando se retome, el checklist y la subida de documentos (`protocol.controller.ts:137,196`) deberán seguir la misma regla que `GET /protocols/:id` (RF-02.10): sin coinvestigadores, solo el investigador principal. Esta tarea no los toca.
   - **Problema:** `getChecklist` revisa `protocol.investigators` (`protocol.controller.ts`), pero `findById` no carga esa relación (`protocol.typeorm.repository.ts:41-46`): por el código, un coinvestigador recibiría 400. Sin probar en ejecución.
   - **Hecho cuando:** E2E con login real de un coinvestigador (200) y de un usuario ajeno (rechazo), y mutación que quite la carga de la relación.
 
@@ -451,13 +452,37 @@
   - **Hacer:** medir con evidencia cuánto tarda de verdad generar el PDF (arranque del generador, plantilla, consultas) dentro y fuera de la E2E completa; decidir con la usuaria si se optimiza la generación o si se sube el límite solo en esa suite. No cambiar límites sin esa decisión.
   - **Hecho cuando:** la decisión queda en el spec o en la tarea, y la suite pasa tres corridas completas seguidas `--runInBand` sin `Exceeded timeout`.
 
-- [ ] **TSK-001.23** *(Por hacer; seguridad; detectada en TSK-001.22)*: coinvestigadores agregados en `POST /protocols` sin verificación
+- [ ] **TSK-001.23** *(En espera: la plataforma no admite coinvestigadores por ahora (usuaria, 17/11/2026); seguridad; detectada en TSK-001.22)*: coinvestigadores agregados en `POST /protocols` sin verificación
   - **Problema:** `investigators[].userId` (`create-investigator.dto.ts:35-37`) se guarda tal cual (`protocols.service.ts:208-218`): quien crea el protocolo puede agregar a cualquier usuario como coinvestigador, y eso le da acceso al checklist y a la subida de documentos (`protocol.controller.ts:137,196`). Solo se descartan las filas con rol PRINCIPAL. Sin probar en ejecución.
   - **Hecho cuando:** la usuaria decide cómo se vincula un coinvestigador (invitación, rol INVESTIGADOR, sin `userId`), el spec lo recoge y la tarea lista archivos, E2E y mutaciones.
 
 - [ ] **TSK-001.24** *(Por hacer; depende de la tarea del frontend que quita `principalInvestigatorId` del payload de `nuevo-protocolo.page.ts:547` y de `crear-protocolo.dto.ts:59`)*: retiro final de `principalInvestigatorId` de `CreateProtocolDto` (opción A de RF-02.9 b)
   - **Cambio:** se quita el campo del DTO; con el `ValidationPipe` global (`forbidNonWhitelisted: true`) enviarlo responde 400. Se quita también de las 4 E2E que lo envían y de `create-protocol.dto.spec.ts`, y se borra la comprobación transitoria del servicio.
   - **Hecho cuando:** E2E con el campo → 400 sin protocolo nuevo; sin el campo → a nombre del usuario del token; mutación que vuelva a aceptar el campo.
+
+- [ ] **TSK-001.26**: control de acceso en `GET /protocols/:id` (RF-02.10 v3.7.7; seguridad, prioridad alta; hallazgo 6b, TSK-F02-9 del frontend)
+  - **Requisitos cubiertos:** `RF-02.10 a–b`
+  - **Hallazgo:** `findOne` (`protocol.controller.ts:239-256`) solo tiene el `JwtAuthGuard` de la clase (`:57`) y no recibe `req.user`: cualquier usuario con sesión lee cualquier protocolo.
+  - **Decisión (usuaria, 17/11/2026):** leen el investigador principal; quien tiene `PROTOCOLOS_LISTAR` (SECRETARIA y PRESIDENTE), salvo un borrador; y el evaluador con una asignación en estado 5, 6 o 7 en alguna versión. Sin coinvestigadores por ahora. Los demás: 404 «Protocolo no encontrado.». La respuesta no cambia (eso va en TSK-001.27).
+  - **Línea base (Paso 0, 17/11/2026, rama desde `dev` `2d5cc0a`):** `tsc` exit 0; unitarias `Tests: 654 passed, 654 total`; eslint: `protocol.controller.ts` 2, `protocols.service.ts` 9, `protocol.typeorm.repository.ts` 0, `protocol.repository.port.ts` 0. Única E2E existente que llama a `GET /:id`: `protocol-thesis.e2e-spec.ts:305,311` (investigador dueño).
+  - **Archivos:**
+    - MODIFICAR `src/modules/protocols/infrastructure/controllers/protocol.controller.ts` (`findOne` pasa `req.user` al servicio).
+    - MODIFICAR `src/modules/protocols/application/services/protocols.service.ts` (`findOneForReader`: comprueba el acceso y responde 404).
+    - MODIFICAR `src/modules/protocols/domain/ports/protocol.repository.port.ts` y `src/modules/protocols/infrastructure/repositories/protocol.typeorm.repository.ts` (`hasEvaluatorAssignment(protocolId, userId, statusIds)`).
+    - CREAR `test/protocol-read-access.e2e-spec.ts`.
+  - **Pruebas:** E2E con login real, primero reproduciendo el fallo con el código anterior. 200 para el investigador dueño, SECRETARIA y PRESIDENTE (`secretaria@test.com` y `presidente@test.com` con `E2E_TEST_ACCOUNTS_PASSWORD`) y evaluadores con asignación en 5, 6 y 7. 404 «Protocolo no encontrado.» para un investigador ajeno, un usuario que figura como coinvestigador, un evaluador sin asignación, un evaluador con asignación en 8 y la SECRETARIA con un borrador. 401 sin token. Datos `ZZ_TEST_PREAD_`, correo `@e2e-tsk-001-26.test`, contraseñas generadas dentro de la prueba, mock de correo explícito, limpieza en `beforeAll` y `afterAll`, residuos en 0. `protocol-thesis` sigue pasando.
+  - **Mutaciones:** (M1) sin la comprobación del dueño · (M2) la asignación ignora el estado · (M3) el coinvestigador lee · (M4) sin la comprobación del permiso · (M5) la SECRETARIA lee un borrador.
+  - **Hecho cuando:** pruebas nuevas y existentes pasan dos veces, mutaciones detectadas, `tsc` sin errores, eslint de los archivos tocados sin empeorar respecto de `dev`, residuos en 0 en `ceish_test_db`.
+
+- [ ] **TSK-001.27** *(Por hacer; depende de TSK-001.26; cubre la parte de `GET /protocols/:id` de TSK-001.3)*: encabezado del protocolo en `GET /protocols/:id` (RF-EST.2)
+  - **Problema (Paso 0 de TSK-001.26):** `findById` (`protocol.typeorm.repository.ts:36-50`) solo carga `checklist`, `activeVersion`, `activeVersion.reception` y `versions`: `studyType`, `studyTypeCode` y `riskLevel` (`protocol.mapper.ts:52-54`) salen undefined, y no hay `etapa`, `etapaOrden` ni `principalInvestigator`. `findById` tiene 19 llamadas, muchas seguidas de un `save`: no se toca.
+  - **Decisión (usuaria, 17/11/2026):** se mantienen los textos actuales (`studyType`, `studyTypeCode`, `riskLevel`, que el frontend usa como texto en `protocolo.service.ts:357,401,429`) y se agregan `riskLevelCode`, `principalInvestigator { id, fullName }`, `etapa` y `etapaOrden` (con `resolveProtocolStage`, incluida APROBADO→SEGUIMIENTO con resolución emitida). Sin `investigators` ni `institutions` (cédulas y teléfonos).
+  - **Cambio mínimo propuesto:** método nuevo del repositorio solo para `GET /:id`, con los joins de `findAll` (`repo:95-107`: `studyType`, `riskLevel`, `principalInvestigator`, `status`, `reception.status`, `activeVersion.resolutions`), y respuesta con `ProtocolMapper.toListResponse` (`mapper:31-43`) más `riskLevelCode`.
+  - **Pruebas:** E2E con datos creados por la prueba (`ZZ_TEST_`, reutilizando los helpers de TSK-001.2 si existen; nada de SQL a mano sobre datos existentes): borrador → RECEPCION 1; APROBADO con resolución → SEGUIMIENTO 5; APROBADO sin resolución → RESOLUCION 4; campos nuevos llenos; los existentes siguen; sin cédulas ni teléfonos. Mutaciones: sin el join de resoluciones · sin el de `principalInvestigator` · `toResponse` en lugar de `toListResponse`.
+
+- [ ] **TSK-001.28** *(Por hacer; la regla se decide en su Paso 0)*: última sesión del protocolo `{ number, date }` o null en `GET /protocols/:id`
+  - **Contexto (Paso 0 de TSK-001.26):** la sesión es la convocatoria: `evaluacion.convocatorias` (`numero_convocatoria` varchar único, `fecha_reunion` timestamptz que puede ser NULL, `estado` PROGRAMADA, EN_CURSO, CONCLUIDA, CANCELADA; `convocatoria.orm-entity.ts:20-25,32-52,84-90`), ligada por `evaluacion.convocatoria_protocolos` (`protocolo_id`, `version_id`, `UNIQUE (convocatoria_id, version_id)`; `convocatoria-protocolo.orm-entity.ts:28-40`). `evaluacion.sesiones.convocatoria_id` guarda la sesión realizada (`session.entity.orm.ts:32`). El repositorio de reuniones no tiene un método por protocolo.
+  - **A decidir:** qué es la «última sesión» (incluida una PROGRAMADA futura), qué se muestra con `fecha_reunion` NULL y qué módulo hace la consulta (protocols leería tablas de evaluations).
 
 - [ ] **TSK-001.13** *(aparte; no se implementa en esta rama)*: Reconstrucción del catálogo de requisitos por `codigo_anexo` en una base nueva (RF-03.3, pendiente 17 cerrado el 09/11/2026)
   - **Requisitos cubiertos:** `RF-03.3` (nota del catálogo), `RF-03.1`
