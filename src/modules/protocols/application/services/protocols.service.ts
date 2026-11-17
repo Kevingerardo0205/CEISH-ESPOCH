@@ -141,8 +141,20 @@ export class ProtocolsService {
     if (!studyType)
       throw new NotFoundException('Tipo de estudio no encontrado');
 
+    // RF-02.9 a y b (TSK-001.22): el investigador principal es el usuario autenticado.
+    // principalInvestigatorId es obsoleto: si viene, debe ser el mismo usuario.
+    if (
+      dto.principalInvestigatorId !== undefined &&
+      dto.principalInvestigatorId !== null &&
+      dto.principalInvestigatorId !== userId
+    ) {
+      throw new BadRequestException(
+        'No puede crear un protocolo a nombre de otro investigador.',
+      );
+    }
+
     const principalInvestigator = await this.userRepository.findOne({
-      where: { id: dto.principalInvestigatorId },
+      where: { id: userId },
       relations: ['investigatorProfile'],
     });
     if (!principalInvestigator)
@@ -155,7 +167,7 @@ export class ProtocolsService {
     const protocolToSave = this.protocolsRepository.save({
       title: cleanData.title,
       studyTypeId: cleanData.studyTypeId,
-      principalInvestigatorId: cleanData.principalInvestigatorId,
+      principalInvestigatorId: principalInvestigator.id,
       financingAmount: cleanData.financingAmount,
       financingSources: cleanData.financingSources,
       sponsorRuc: cleanData.sponsorRuc,

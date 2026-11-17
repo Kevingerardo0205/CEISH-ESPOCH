@@ -33,10 +33,21 @@ export class CreateProtocolDto {
   })
   title!: string;
 
-  @ApiProperty({ example: 30 })
+  /**
+   * @deprecated RF-02.9 b (TSK-001.22): el investigador principal es el usuario autenticado.
+   * Transitorio: si viene distinto del usuario del token el servicio responde 400; igual se
+   * ignora. Se retira en TSK-001.24.
+   */
+  @ApiProperty({
+    example: 30,
+    required: false,
+    deprecated: true,
+    description:
+      'Obsoleto: el investigador principal es el usuario autenticado. Si se envía, debe ser su propio id.',
+  })
+  @IsOptional()
   @IsNumber()
-  @IsNotEmpty()
-  principalInvestigatorId!: number;
+  principalInvestigatorId?: number;
 
   @ApiProperty({ example: 1 })
   @IsNumber()

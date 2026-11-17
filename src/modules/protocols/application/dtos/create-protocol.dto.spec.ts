@@ -82,3 +82,34 @@ describe('CreateProtocolDto.title (RF-02.2, TSK-001.8)', () => {
     },
   );
 });
+
+describe('CreateProtocolDto.principalInvestigatorId (RF-02.9 b, TSK-001.22)', () => {
+  async function errorsFor(
+    principalInvestigatorId: unknown,
+    omit = false,
+  ): Promise<string[]> {
+    const payload = validPayload('a'.repeat(25));
+    if (omit) delete payload.principalInvestigatorId;
+    else payload.principalInvestigatorId = principalInvestigatorId;
+    const result = await validate(plainToInstance(CreateProtocolDto, payload), {
+      whitelist: true,
+      forbidNonWhitelisted: true,
+    });
+    return result.map((e) => e.property);
+  }
+
+  it('sin el campo → válido (el investigador principal sale del token)', async () => {
+    expect(await errorsFor(undefined, true)).toEqual([]);
+  });
+
+  it('con un número → válido (el servicio lo compara con el usuario del token)', async () => {
+    expect(await errorsFor(30)).toEqual([]);
+  });
+
+  it.each(['30', 'abc', true, {}])(
+    'con un valor que no es número (%p) → error',
+    async (value) => {
+      expect(await errorsFor(value)).toEqual(['principalInvestigatorId']);
+    },
+  );
+});
