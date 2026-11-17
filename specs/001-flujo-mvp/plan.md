@@ -117,7 +117,10 @@ src/
 | 001.11 | — | Para después (rediseño del frontend) | Ciclo del borrador: 8 días de calendario desde la creación, fecha de eliminación en pantalla, uno por investigador, descartar; solo versión 1 en 9 (RF-02.7) |
 | 001.12 | 8 | Hecho (15/11/2026, 5744458); falta solo aplicar la migración en `ceish_db` (usuaria) | Tesis: `isThesis` (`es_tesis`) y `TESIS_ANTIPLAGIO` + `TESIS_OFICIO_TUTOR` en todos los tipos de estudio, en PDF (RF-19.1 v3.7.4, pendiente 11 cerrado) |
 | 001.17 | — | Por hacer | `POLIZA_RC` e `IDONEIDAD_INST` con `riesgoMayor` (pendiente 15) |
-| 001.18 | — | Por hacer | Formatos oficiales descargables, uno por uno y en ZIP (pendiente 18, RF-18.1) |
+| 001.18 | 9 | En curso (16/11/2026) | Requisito → plantilla (`tipos_documento.codigo_plantilla`), `templateCode` en `GET /protocols/checklist/:id` y `{ downloadUrl }` en `GET /documents/templates/:code/download`; sin ZIP para el investigador (pendiente 18 cerrado, RF-18.1 v3.7.5) |
+| 001.19 | — | Por hacer | `GET /resolutions/templates/observations-response` redirige a `https://nestjs.com` (`@Redirect` con el `ResponseInterceptor`), igual que la descarga de plantillas antes de TSK-001.18 |
+| 001.20 | — | Por hacer, prioridad alta (seguridad) | `GET /documents`, `GET /documents/protocol/:id` y `POST /documents` sin permisos ni comprobación de propiedad |
+| 001.21 | — | Por hacer | `GET /protocols/checklist/:id` revisa coinvestigadores sin cargar la relación `investigators` (con E2E) |
 | 001.13 | — | Por hacer, aparte | Reconstrucción del catálogo de requisitos por `codigo_anexo` para bases nuevas (pendiente 17 cerrado) |
 | 001.14 | 7 | Por hacer | `PATCH /protocols/:id` para editar el borrador (RF-02.8); depende de 001.5, 001.8 y 001.9; dependencia en el frontend (PUT → PATCH) |
 

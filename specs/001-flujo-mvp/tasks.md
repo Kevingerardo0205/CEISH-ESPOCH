@@ -350,9 +350,33 @@
   - **Requisitos cubiertos:** `RF-03.3`
   - **Hecho cuando:** la Secretaría confirma en qué etapa y con qué plazo se piden, el spec se actualiza con RF y EARS, y la tarea lista archivos, pruebas y mutaciones.
 
-- [ ] **TSK-001.18** *(Por hacer; no se implementa en TSK-001.12)*: Formatos oficiales descargables en Configuración, uno por uno y en ZIP (pendiente 18)
-  - **Requisitos cubiertos:** `RF-18.1`
-  - **Hecho cuando:** la Secretaría confirma el alcance, el spec se actualiza con RF y EARS, y la tarea lista archivos, pruebas y mutaciones.
+- [ ] **TSK-001.18**: Requisito → plantilla para «Descargar formato» del investigador (RF-18.1 v3.7.5, pendiente 18 cerrado el 16/11/2026)
+  - **Requisitos cubiertos:** `RF-18.1 a–d`
+  - **Decisión (usuaria, 15/11/2026 y 16/11/2026):** un botón «Descargar formato» por requisito que tenga plantilla, sin ZIP para el investigador. Relación con la columna `catalogos.tipos_documento.codigo_plantilla` (clave foránea a `sistema.plantillas_documentos(codigo)`), sin convención implícita. El checklist devuelve `templateCode` (no una URL) y la descarga `{ downloadUrl }`. El fallo de `GET /resolutions/templates/observations-response` va en TSK-001.19.
+  - **Línea base (Paso 0, 16/11/2026):** `GET /documents/templates/:code/download` usa `@Redirect` y el `ResponseInterceptor` global envuelve el retorno en `{ data, statusCode, message }`; NestJS lee `result.url` del valor envuelto (`router-response-controller.js:18-25`) y redirige a `https://nestjs.com`. En `ceish_test_db` solo existe la plantilla `RESPUESTA_OBSERVACIONES`; nada relaciona requisitos con plantillas; `codigo_anexo` no es UNIQUE (0 duplicados). El consentimiento informado del catálogo es `CONSENTIMIENTO` (id 21, «Formulario de Consentimiento Informado»).
+  - **Archivos:**
+    - CREAR `src/migrations/1950000000000-AddTemplateCodeToRequirements.ts`: valida primero (bloque `DO` con `RAISE EXCEPTION`) que cada `codigo_anexo` de la relación exista exactamente una vez con `eliminado_en IS NULL`; `ADD COLUMN IF NOT EXISTS codigo_plantilla VARCHAR(100) NULL` con la clave foránea; inserta las 8 plantillas (`ANEXO_1` a `ANEXO_6`, `CONFIDENCIALIDAD`, `CONFLICTO_INTERES`) con `ruta_archivo` NULL y `ON CONFLICT (codigo) DO NOTHING`; relaciona `ANEXO_1`, `ANEXO_2`, `ANEXO_4`, `ANEXO_5`, `ANEXO_6`, `CONFIDENCIALIDAD`, `CONFLICTO_INTERES` con su mismo código y `CONSENTIMIENTO` con `ANEXO_3`. `down()` quita la columna y borra esas 8 plantillas solo si siguen sin archivo. Se aplica en `ceish_test_db`; en `ceish_db` la aplica la usuaria con `MIGRATION_CONFIRM_DB`.
+    - MODIFICAR `src/modules/protocols/infrastructure/database/tipo-documento.entity.orm.ts` (columna `codigo_plantilla` y relación `plantilla` con `DocumentTemplateOrmEntity` por `codigo`).
+    - MODIFICAR `src/modules/protocols/application/services/requirements.service.ts` (`resolveTemplateCodes(codes)`: código del requisito → código de plantilla o `null`, solo con plantilla activa y con archivo).
+    - MODIFICAR `src/modules/protocols/application/services/requirements.service.spec.ts` (repositorio nuevo en el módulo de prueba y casos de `resolveTemplateCodes`).
+    - MODIFICAR `src/modules/protocols/infrastructure/controllers/protocol.controller.ts` (`getChecklist` agrega `templateCode` a cada fila, sin quitar ni renombrar campos).
+    - MODIFICAR `src/modules/documents/infrastructure/controllers/documents.controller.ts` (sin `@Redirect`; devuelve `{ downloadUrl }`; el 404 de `documents.service.ts:62-66` no cambia).
+    - CREAR `test/requirement-templates.e2e-spec.ts`.
+  - **Pruebas:** unitarias de `resolveTemplateCodes`: plantilla activa con archivo → código; sin archivo → `null`; inactiva → `null`; requisito sin relación → `null`; código que no está en el catálogo → `null`; lista vacía sin consultar. E2E con login real (investigador `ZZ_TEST_PLT_`, correo `@e2e-tsk-001-18.test`, contraseña generada), plantillas de prueba `ZZ_TEST_PLT_*` y limpieza en `beforeAll` y `afterAll`: `GET /protocols/checklist/:id` trae `templateCode` en cada fila, con plantilla activa y con archivo el código, sin archivo o inactiva `null`, sin relación `null`, y los campos existentes siguen; `GET /documents/templates/:code/download` responde 200 con `data.downloadUrl` (almacenamiento simulado de forma explícita, se comprueba la clave pedida) y 404 en español sin archivo, inactiva o inexistente; migración en `ceish_test_db`: relación de los 8 requisitos y `NULL` en el resto, y dentro de una transacción revertida, `up()` aborta si falta un código o está repetido. Residuos en 0.
+  - **Mutaciones:** (M1) `templateCode` sin revisar `ruta_archivo` · (M2) sin revisar `activo` · (M3) la descarga vuelve a `@Redirect` · (M4) la migración no aborta con un código faltante.
+  - **Hecho cuando:** pruebas nuevas y existentes pasan dos veces, mutaciones detectadas, `tsc` sin errores, eslint de los archivos tocados sin empeorar respecto de `dev`, residuos en 0 en `ceish_test_db`.
+
+- [ ] **TSK-001.19** *(Por hacer; detectada en TSK-001.18)*: `GET /resolutions/templates/observations-response` no entrega el formato
+  - **Problema:** `resolutions.controller.ts:58-67` usa `@Redirect('https://nestjs.com', 302)` y devuelve `{ url, statusCode }`; el `ResponseInterceptor` global (`main.ts:39`) lo envuelve en `{ data, … }` y NestJS redirige a `https://nestjs.com`. Mismo fallo que tenía `GET /documents/templates/:code/download` antes de TSK-001.18.
+  - **Hecho cuando:** responde `{ downloadUrl }` (o se retira en favor de `GET /documents/templates/RESPUESTA_OBSERVACIONES/download`, a decidir), con E2E y mutación como en TSK-001.18.
+
+- [ ] **TSK-001.20** *(Por hacer; prioridad alta, seguridad; detectada en TSK-001.18)*: `GET /documents`, `GET /documents/protocol/:id` y `POST /documents` sin permisos
+  - **Problema:** `documents.controller.ts:26-42` no tiene `@Roles` ni `@Permissions`, y los guards dejan pasar sin metadatos (`roles.guard.ts:19-21`, `permissions.guard.ts:38-40`): cualquier usuario con sesión podría listar los documentos de todos los protocolos o registrar uno. Sin probar en ejecución (análisis estático del 16/11/2026).
+  - **Hecho cuando:** la usuaria decide permisos y propiedad por endpoint, el spec lo recoge y la tarea lista archivos, E2E (403 para un investigador ajeno) y mutaciones.
+
+- [ ] **TSK-001.21** *(Por hacer; detectada en TSK-001.18)*: coinvestigadores en `GET /protocols/checklist/:id`
+  - **Problema:** `getChecklist` revisa `protocol.investigators` (`protocol.controller.ts`), pero `findById` no carga esa relación (`protocol.typeorm.repository.ts:41-46`): por el código, un coinvestigador recibiría 400. Sin probar en ejecución.
+  - **Hecho cuando:** E2E con login real de un coinvestigador (200) y de un usuario ajeno (rechazo), y mutación que quite la carga de la relación.
 
 - [ ] **TSK-001.13** *(aparte; no se implementa en esta rama)*: Reconstrucción del catálogo de requisitos por `codigo_anexo` en una base nueva (RF-03.3, pendiente 17 cerrado el 09/11/2026)
   - **Requisitos cubiertos:** `RF-03.3` (nota del catálogo), `RF-03.1`
@@ -516,7 +540,7 @@
 
 ### Módulo: Usabilidad, Plantillas, Tesis, Anexos e Integración Quipux (`documents` / `reception` / `resolutions`)
 
-- [ ] **TSK-18.1**: Extender el catálogo de requisitos para retornar `downloadTemplateUrl`.
+- [ ] ~~**TSK-18.1**~~ *(reemplazada por TSK-001.18, 16/11/2026; RF-18.1 v3.7.5)*: Extender el catálogo de requisitos para retornar `downloadTemplateUrl`.
   - **Requisitos cubiertos:** `RF-18.1`
   - **Hecho cuando:** `GET /api/reception/requirements` retorne la URL de descarga del formato oficial Word/PDF para cada Anexo.
 
