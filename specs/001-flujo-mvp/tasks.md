@@ -451,6 +451,7 @@
   - **Problema:** M4-01, M4-03, M4-04 y M5-01 a M5-03 superan a veces sus límites de 30 s y 60 s (tabla de tiempos en TSK-001.22), y los tiempos suben entre corridas. La suite genera el PDF real de la convocatoria (`MeetingPdfGeneratorAdapter`, TSK-009-N21/N24).
   - **Hacer:** medir con evidencia cuánto tarda de verdad generar el PDF (arranque del generador, plantilla, consultas) dentro y fuera de la E2E completa; decidir con la usuaria si se optimiza la generación o si se sube el límite solo en esa suite. No cambiar límites sin esa decisión.
   - **Hecho cuando:** la decisión queda en el spec o en la tarea, y la suite pasa tres corridas completas seguidas `--runInBand` sin `Exceeded timeout`.
+  - **Evidencia (TSK-001.26, 17/11/2026):** dos corridas completas sin fallas, con tiempos mucho menores (M4-01 / M4-02 / M4-04 / M4-03 / M5-01 / M5-02 / M5-03): ronda 1 16,7 / 7,9 / 15,4 / 15,0 / 7,1 / 7,2 / 8,1 s; ronda 2 23,7 / 11,2 / 23,3 / 23,4 / 11,9 / 10,4 / 11,7 s. Sugiere que los tiempos dependen de la carga de la máquina; falta medir.
 
 - [ ] **TSK-001.23** *(En espera: la plataforma no admite coinvestigadores por ahora (usuaria, 17/11/2026); seguridad; detectada en TSK-001.22)*: coinvestigadores agregados en `POST /protocols` sin verificación
   - **Problema:** `investigators[].userId` (`create-investigator.dto.ts:35-37`) se guarda tal cual (`protocols.service.ts:208-218`): quien crea el protocolo puede agregar a cualquier usuario como coinvestigador, y eso le da acceso al checklist y a la subida de documentos (`protocol.controller.ts:137,196`). Solo se descartan las filas con rol PRINCIPAL. Sin probar en ejecución.
@@ -460,7 +461,7 @@
   - **Cambio:** se quita el campo del DTO; con el `ValidationPipe` global (`forbidNonWhitelisted: true`) enviarlo responde 400. Se quita también de las 4 E2E que lo envían y de `create-protocol.dto.spec.ts`, y se borra la comprobación transitoria del servicio.
   - **Hecho cuando:** E2E con el campo → 400 sin protocolo nuevo; sin el campo → a nombre del usuario del token; mutación que vuelva a aceptar el campo.
 
-- [ ] **TSK-001.26**: control de acceso en `GET /protocols/:id` (RF-02.10 v3.7.7; seguridad, prioridad alta; hallazgo 6b, TSK-F02-9 del frontend)
+- [x] **TSK-001.26**: control de acceso en `GET /protocols/:id` (RF-02.10 v3.7.7; seguridad, prioridad alta; hallazgo 6b, TSK-F02-9 del frontend)
   - **Requisitos cubiertos:** `RF-02.10 a–b`
   - **Hallazgo:** `findOne` (`protocol.controller.ts:239-256`) solo tiene el `JwtAuthGuard` de la clase (`:57`) y no recibe `req.user`: cualquier usuario con sesión lee cualquier protocolo.
   - **Decisión (usuaria, 17/11/2026):** leen el investigador principal; quien tiene `PROTOCOLOS_LISTAR` (SECRETARIA y PRESIDENTE), salvo un borrador; y el evaluador con una asignación en estado 5, 6 o 7 en alguna versión. Sin coinvestigadores por ahora. Los demás: 404 «Protocolo no encontrado.». La respuesta no cambia (eso va en TSK-001.27).
@@ -473,6 +474,37 @@
   - **Pruebas:** E2E con login real, primero reproduciendo el fallo con el código anterior. 200 para el investigador dueño, SECRETARIA y PRESIDENTE (`secretaria@test.com` y `presidente@test.com` con `E2E_TEST_ACCOUNTS_PASSWORD`) y evaluadores con asignación en 5, 6 y 7. 404 «Protocolo no encontrado.» para un investigador ajeno, un usuario que figura como coinvestigador, un evaluador sin asignación, un evaluador con asignación en 8 y la SECRETARIA con un borrador. 401 sin token. Datos `ZZ_TEST_PREAD_`, correo `@e2e-tsk-001-26.test`, contraseñas generadas dentro de la prueba, mock de correo explícito, limpieza en `beforeAll` y `afterAll`, residuos en 0. `protocol-thesis` sigue pasando.
   - **Mutaciones:** (M1) sin la comprobación del dueño · (M2) la asignación ignora el estado · (M3) el coinvestigador lee · (M4) sin la comprobación del permiso · (M5) la SECRETARIA lee un borrador.
   - **Hecho cuando:** pruebas nuevas y existentes pasan dos veces, mutaciones detectadas, `tsc` sin errores, eslint de los archivos tocados sin empeorar respecto de `dev`, residuos en 0 en `ceish_test_db`.
+  - **Decisión (usuaria, 17/11/2026):** `PROTOCOLOS_LISTAR` se lee del token, con el desfase de hasta 15 minutos aceptado (nota en RF-02.10).
+  - **Resultados (17/11/2026, código `aff732e`, docs `21fe91f`):**
+    - Fallo reproducido con el handler anterior (`protocol.controller.ts` de `HEAD`; `git diff` del controlador contra `HEAD` vacío): `Tests: 8 failed, 9 passed, 17 total`. Las 8 pruebas de 404 fallan: un investigador ajeno, el coinvestigador, los evaluadores sin asignación y en 8, la SECRETARIA y el PRESIDENTE con un borrador recibían 200 con el protocolo; un protocolo inexistente respondía `Protocol with ID … not found` en inglés.
+    - `test/protocol-read-access.e2e-spec.ts` + `test/protocol-thesis.e2e-spec.ts`: `Test Suites: 2 passed, 2 total` · `Tests: 32 passed, 32 total` (dos veces seguidas).
+    - `npx tsc --noEmit`: exit 0 (dos veces). Unitarias: `Test Suites: 71 passed, 71 total` · `Tests: 654 passed, 654 total` (dos veces).
+    - E2E completa `--runInBand` con `E2E_TEST_ACCOUNTS_PASSWORD=<contraseña de prueba>`, dos veces: `Test Suites: 28 passed, 28 total` · `Tests: 427 passed, 427 total`. `meeting-pdf-real` pasó en las dos (tiempos en TSK-001.25).
+    - Residuos en `ceish_test_db` (`current_database()` → `ceish_test_db`): protocolos `ZZ_TEST_%` 0, usuarios `@e2e-%` 0, usuarios con cédula `ZZPRD%` 0, asignaciones sin versión 0, cuentas con intentos fallidos o bloqueadas 0. Convocatorias huérfanas: 57 (igual que antes).
+    - eslint (comparado con `dev`): `protocols.service.ts` 9 = 9, `protocol.controller.ts` 2 = 2, `protocol.repository.port.ts` 0 = 0, `protocol.typeorm.repository.ts` 0 = 0; nuevo `protocol-read-access.e2e-spec.ts` 0.
+  - **Mutaciones** (revertidas copiando el archivo guardado antes; `cmp` → idénticos; `git diff --stat -- src` después de cada una: `4 files changed, 92 insertions(+), 2 deletions(-)`, sin la mutación):
+
+    | Mutación | Qué se rompió | Prueba que falla | Línea |
+    |---|---|---|---|
+    | M1 | sin `if (protocol.principalInvestigatorId === reader.id) return protocol;` | «el investigador principal (protocolo enviado)», «el investigador principal (su borrador)» | `Tests: 2 failed, 15 passed, 17 total` |
+    | M2 | `hasEvaluatorAssignment` sin `ae.estado_id = ANY($3)` | «un evaluador con asignación en estado 8» | `Tests: 1 failed, 16 passed, 17 total` |
+    | M3 | el dueño o un coinvestigador (relación `investigators` cargada, como en el checklist) | «un usuario que figura como coinvestigador» | `Tests: 1 failed, 16 passed, 17 total` |
+    | M4 | sin la comprobación de `PROTOCOLOS_LISTAR` (`false && canList`) | «la SECRETARIA (PROTOCOLOS_LISTAR)», «el PRESIDENTE (PROTOCOLOS_LISTAR)» | `Tests: 2 failed, 15 passed, 17 total` |
+    | M5 | `if (canList)` sin excluir el borrador | «la SECRETARIA con un borrador», «el PRESIDENTE con un borrador» | `Tests: 2 failed, 15 passed, 17 total` |
+
+  - **Pendiente:** frontend: los casos que ahora reciben 404 (por ejemplo, un evaluador cuya asignación pasó a 8, 26 o 27 al abrir `evaluation-form`) caen en el estado «no encontrado» de F10 D14.
+
+- [ ] **TSK-001.29** *(Por hacer; a la espera de la decisión de la usuaria; detectada en TSK-001.26)*: código del protocolo según el PET 4.1.6
+  - **PET 4.1.6:** `CEISH-ESPOCH-{IO|EI|EC}-{número de ingreso secuencial por año}-{año}`; el PET escribe el número como «1, 2, 3, 4…».
+  - **Hoy (análisis estático del 17/11/2026):** el código se asigna cuando la recepción queda completa (estado 10), en `reception.service.ts:279-284` y `:665-672`, con `catalogos.generate_codigo_ceish` (`reception.typeorm.repository.ts:127-133`; función definida en `1786000000000-DatabaseRefactoringAndNormalizations.ts:47-73`, igual en `ceish_test_db`):
+    - rellena con ceros a 3 dígitos (`LPAD(v_secuencial::text, 3, '0')`, `:70`): `CEISH-ESPOCH-IO-001-2026`, el PET escribe «1»;
+    - reinicia cada año (máximo del año + 1);
+    - cuenta por tipo de estudio (filtra por la sigla, `:68`); si el PET quiere un número de ingreso único por año para todos los tipos, no coincide;
+    - genera la sigla `EX` para el tipo EX, que el PET no menciona;
+    - el año sale de `now.getFullYear()` en Node, no de la zona America/Guayaquil;
+    - `MAX + 1` sin bloqueo: dos recepciones completas a la vez podrían calcular el mismo número (la columna `codigo_ceish` es UNIQUE, así que una fallaría). Sin probar en ejecución.
+    - `ProtocolCodeGenerator` (`protocol-code-generator.service.ts:12-16`, también con 3 dígitos) está registrado en `protocols.module.ts:45,58`, pero nadie llama a `generate`.
+  - **A decidir (usuaria):** ceros a la izquierda o no; secuencia por tipo o general; qué hacer con EX; qué pasa con los códigos ya emitidos.
 
 - [ ] **TSK-001.27** *(Por hacer; depende de TSK-001.26; cubre la parte de `GET /protocols/:id` de TSK-001.3)*: encabezado del protocolo en `GET /protocols/:id` (RF-EST.2)
   - **Problema (Paso 0 de TSK-001.26):** `findById` (`protocol.typeorm.repository.ts:36-50`) solo carga `checklist`, `activeVersion`, `activeVersion.reception` y `versions`: `studyType`, `studyTypeCode` y `riskLevel` (`protocol.mapper.ts:52-54`) salen undefined, y no hay `etapa`, `etapaOrden` ni `principalInvestigator`. `findById` tiene 19 llamadas, muchas seguidas de un `save`: no se toca.
