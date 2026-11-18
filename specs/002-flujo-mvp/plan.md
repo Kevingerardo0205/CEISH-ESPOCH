@@ -410,3 +410,55 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 | Decisión pendiente | Impacto | Dónde resolver |
 |---|---|---|
 | No existe endpoint para **quitar un protocolo de una convocatoria**; comportamiento de sus asignaciones activas no está definido (¿volver a "Pendiente de convocatoria"? ¿mantener `fecha_limite`?) | PR-C (alertas y seguimiento) necesita saber si un protocolo puede desagendarse y cómo queda su estado de entrega | Acta de decisión con Secretaría/Presidencia antes de diseñar PR-C |
+
+---
+
+## 17. Asignación por la Presidencia (spec v1.3.0, 17/11/2026)
+
+**Origen:** reunión del 06/11/2026 (reglamento art. 37) y decisiones de la usuaria del 17/11/2026. Reemplaza CS-02 (mínimo configurable) y CS-03 (Metodológico y Salud definen el riesgo). La reasignación (RF-12.3) no cambia: proceso aparte, tarea futura.
+
+### 17.1 Flujo actual (Paso 0, `dev` en `f5920c1`)
+
+| Punto | Hoy | Archivo:línea |
+|---|---|---|
+| Quién asigna | `@Roles` SECRETARIA y PRESIDENTE, pero solo SECRETARIA tiene `EVALUACION_ASIGNAR` → PRESIDENTE 403 | `evaluations.controller.ts:153-178`; `1880000000000-FixedRolesMatrix.ts:99` |
+| Composición | Exactamente 4, uno por perfil (Jurídico, Sociedad civil, Metodológico, Salud); el validador lanza `Error` → 500 | `evaluator-dtos.ts:48-57`; `quota-evaluator-validator.service.ts:14-41` |
+| Riesgo | Sorteo de 2 entre los que no son Sociedad civil; la resolución solo compara si son exactamente 2 | `random-risk-selector.service.ts:9-29`; `evaluations.service.ts:1327` |
+| Comprobaciones | Ninguna sobre el protocolo (recepción, tiempos, asignaciones previas); versión 1 fija | `evaluator-assignment-adapter.service.ts:38-41`; `evaluation.typeorm.repository.ts:404-411` |
+| Estado / plazo | Sin cambio de estado; sin plazo salvo herencia de convocatoria | `assign-evaluators.use-case.ts:159-191` |
+| Correo | Solo si ya hay convocatoria; sin los 8 días | `assign-evaluators.use-case.ts:222-223`; `mailer-notification.adapter.ts:37-98` |
+| Código muerto | `evaluationsService.assignPeerEvaluators` sin llamadores | `evaluations.service.ts:895-1103` |
+
+### 17.2 Diseño objetivo
+
+- **Dominio:** `QuotaEvaluatorValidatorService` pasa a validar la composición por tipo de revisión (RF-12.1 a–c) y sigue siendo puro; `EvaluatorProfile` suma `BIOETICO` y `ETICO` con una sola función de conversión (`toEvaluatorProfile`). `RandomRiskSelectorService` se retira.
+- **Aplicación:** `AssignEvaluatorsUseCase` es el único camino (MeetingsController/EvaluationsController canónicos, nada en `CallsController`): comprobaciones de RF-12.1 d, versión activa, Anexo 10 para todos menos Sociedad civil, `reviewType` y `asignado_por` en una transacción con bloqueo de la fila del protocolo, y emisión de `evaluator.assigned` siempre, con `plazo_revision_oficio_dias` de `SystemParamsService`. `submitPeerRiskLevel` resuelve el riesgo con N propuestas.
+- **Infraestructura:** dos migraciones de datos (perfil Bioético; PRESIDENTE → `EVALUACION_ASIGNAR`), sin cambios de esquema. Consultas reutilizadas: fila `asignar` de `PENDING_ITEMS_SQL` y `findEvaluatorsWithWorkload` (con `SUGGESTED`).
+- **API (cambios aprobados el 17/11/2026):** cuerpo `{ reviewType, evaluators[] }` con ≥ 2; `{ evaluatorIds }` deja de aceptarse; rutas de asignación solo PRESIDENTE; `pending-peer-assignment` cambia su respuesta. El frontend se ajusta en su repo.
+- **Plazos:** sin constantes nuevas. El oficio usa `plazo_revision_oficio_dias` (`deadline-rules.ts:18`, `system-params.service.ts:17`); la fecha de entrega sigue siendo `fecha_entrega_evaluacion` de la convocatoria. `plazo_evaluacion_dias` del tipo de estudio no se usa.
+
+### 17.3 Secuencia de PRs
+
+| Orden | Tarea | Rama sugerida | Depende de |
+|---|---|---|---|
+| 0 | Spec v1.3.0 (esta) | `docs/spec-002-asignacion-presidenta` | — |
+| 1 | TSK-002-N50 Bioético | `feat/tsk-002-n50-perfil-bioetico` | — |
+| 2 | TSK-002-N51 permiso PRESIDENTE | `feat/tsk-002-n51-permiso-presidente` | — |
+| 3 | TSK-002-N52 asignación por la PRESIDENTE | `feat/tsk-002-n52-asignacion-presidente` | N50, N51 |
+| 4 | TSK-002-N53 riesgo por N pares | `feat/tsk-002-n53-riesgo-n-pares` | N52 |
+| 5 | TSK-002-N54 pantalla de la PRESIDENTE | `feat/tsk-002-n54-pendientes-presidente` | N51, N52 |
+| 6 | TSK-002-N55 retiro del código muerto | `refactor/tsk-002-n55-retiro-sorteo` | N52, N53 |
+
+### 17.4 Riesgos
+
+| Riesgo | Mitigación |
+|---|---|
+| El frontend aún envía `{ evaluatorIds }` o asigna como SECRETARIA | Coordinar con el repo FRONTEND-CEISH antes de fusionar N52; mensaje 400 explícito para el formato antiguo |
+| Asignaciones duplicadas por peticiones simultáneas | Bloqueo de la fila del protocolo y comprobación «sin asignaciones activas» dentro de la misma transacción (N52) |
+| Bioético sin miembros | La fila se quita en expedita; solo bloquean Sociedad civil y el mínimo de 2 |
+| La PRESIDENTE pasa también los guardias de `POST /evaluations/reassign` al recibir el permiso | Se reporta en N51; la reasignación no cambia en esta etapa |
+| Pruebas existentes que asumen 4 evaluadores o el 403 por convocatoria | Listadas en N52 (archivos a modificar) |
+
+### 17.5 Decisiones abiertas
+
+Ver `spec.md` §11, n.º 3 a 9 (tipo de revisión al designar el riesgo; Sociedad civil en pleno; persona con Sociedad civil y otro perfil; fecha del registro del riesgo en discrepancia; `submit-risk` sin convocatoria; `ENSAYO_CLINICO`; aviso de fecha de entrega al agendar).

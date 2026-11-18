@@ -34,6 +34,7 @@ Las tareas marcadas con `[x]` certifican componentes previamente implementados y
   - **Descripción:** Valida que la lista contenga exactamente 4 candidatos con la combinación única de perfiles requeridos.
   - **Pruebas necesarias:** `npm test -- quota-evaluator-validator.service.spec.ts` (100% pasando).
   - **Hecho cuando:** La suite unitaria valida asignaciones correctas y rechaza duplicados o incompletos con mensaje en español.
+  - **Reemplazada (spec v1.3.0, 17/11/2026):** la cuota de 4 deja de regir; la nueva composición (RF-12.1) la implementa TSK-002-N52.
 
 - [x] **TSK-002-02**: Implementar el servicio de sorteo aleatorio de Anexo 10 excluyendo Sociedad Civil.
   - **Requisito relacionado:** `RF-12.2`
@@ -44,6 +45,7 @@ Las tareas marcadas con `[x]` certifican componentes previamente implementados y
   - **Descripción:** Selecciona aleatoriamente 2 evaluadores entre Jurídico, Metodológico y Salud, excluyendo innegociablemente a Sociedad Civil.
   - **Pruebas necesarias:** `npm test -- random-risk-selector.service.spec.ts` (100 iteraciones aleatorias pasando).
   - **Hecho cuando:** `SOCIEDAD_CIVIL` nunca recibe la marca `isAssignedForAnnex10` y siempre se eligen exactamente 2 evaluadores.
+  - **Reemplazada (spec v1.3.0, 17/11/2026):** sin sorteo; Anexo 10 para todos menos Sociedad civil (RF-12.2a, TSK-002-N52). El servicio se retira en TSK-002-N55.
 
 - [x] **TSK-002-03**: Implementar el adaptador de despacho de notificaciones con formato Deep-Linking.
   - **Requisito relacionado:** `RF-12.6`
@@ -989,3 +991,123 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
     - `test/evaluations-contract.e2e-spec.ts` — MODIFICAR: usa `POST /api/evaluations/calls` (ruta legacy); debe migrar a `POST /api/evaluations/meetings` o eliminarse el test si la ruta desaparece.
     - `test/real-db-evaluations.e2e-spec.ts` — VERIFICAR: línea ~1604 usa `POST /api/evaluations/calls`; evaluar si el test puede migrar a la ruta canónica.
   - **Hecho cuando:** `git grep CallsController CallsService -- src/` no devuelve resultados en código de producción; tsc limpio; tests verdes; eslint limpio; `evaluations.module.ts` no importa ni provee `CallsController`/`CallsService`.
+
+---
+
+## 9. Asignación por la Presidencia (spec v1.3.0 — reunión 06/11/2026, decisiones 17/11/2026)
+
+> Numeración: se parte de **N50**. N49 no es tarea, sino la etiqueta de las «propuestas pendientes de decisión (N49)» de TSK-002-N48; por eso se deja libre.
+> Orden: **N50 → N51 → N52 → N53 → N54 → N55**. N53 y N54 dependen de N52; N55 va al final.
+> Reglas de siempre: una tarea por rama y por PR; Paso 0 (solo lectura) antes de cada una; migraciones solo en `ceish_test_db` (en `ceish_db` las aplica la usuaria con `MIGRATION_CONFIRM_DB`); E2E con `--runInBand`; mutaciones revertidas editando; residuos de prueba = 0 y convocatorias huérfanas sin cambio.
+> Línea base (Paso 0 del 17/11/2026, `dev` en `f5920c1`): `tsc` 0; unitarias 71 suites / 654 tests; `eslint` sobre los archivos candidatos: 1 error previo (`random-risk-selector.service.ts:2:10`, `EvaluatorCandidateInput` sin uso).
+
+- [ ] **TSK-002-N50** (B — Por hacer): perfil **Bioético** nuevo, distinto de Ético; el código reconoce Bioético y Ético.
+  - **Requisitos:** RF-12.1 f; EARS 1c.
+  - **EARS:** **Cuando** se aplique la migración, **el sistema debe** tener en `catalogos.perfiles_evaluador` un perfil activo «Bioético», distinto de «Ético» (id 7, que no cambia), sin miembros. **Cuando** un miembro tenga el perfil Bioético o Ético, **el sistema debe** resolverlo a `EvaluatorProfile.BIOETICO` o `EvaluatorProfile.ETICO`, sin confundirlos («BIOETIC» se comprueba antes que «ETIC»).
+  - **Estado previo (Paso 0, 17/11/2026):** en `ceish_test_db` existen 6 Metodológico, 7 Ético, 8 Jurídico, 9 Salud y 10 Sociedad Civil (miembros activos 3/4/1/3/2); no hay Bioético. El enum `EvaluatorProfile` (`src/shared/enums/evaluator-enums.ts:1-6`) solo tiene JURIDICO, SOCIEDAD_CIVIL, METODOLOGICO y SALUD. La conversión de nombre a enum está repetida en `evaluator-assignment-adapter.service.ts:148-180`, `inherit-evaluators.use-case.ts:25-37` y `reassign-evaluator.use-case.ts:59-71` (y en el código muerto `evaluations.service.ts:1003-1012`); ninguna reconoce Ético ni Bioético. TSK-001.16 (POST/PATCH `/evaluations/profiles` sin 500) ya está hecha (`6ee0fdb`).
+  - **Archivos afectados:**
+    - `src/migrations/1960000000000-AddBioeticoEvaluatorProfile.ts` — CREAR: `INSERT … ('Bioético', <descripción>, <orden>, true) ON CONFLICT (nombre) DO NOTHING`; `down()` lo borra solo si no tiene filas en `evaluadores_perfil`, `asignaciones_evaluacion` ni `asignacion_historial`.
+    - `src/shared/enums/evaluator-enums.ts` — MODIFICAR: añadir `BIOETICO` y `ETICO`; exportar una sola función `toEvaluatorProfile(name?: string): EvaluatorProfile | null` (normaliza tildes y mayúsculas).
+    - `src/modules/evaluations/application/services/evaluator-assignment-adapter.service.ts`, `src/modules/evaluations/application/use-cases/inherit-evaluators.use-case.ts` — MODIFICAR: usar `toEvaluatorProfile` en lugar de su copia local.
+    - `src/modules/evaluations/application/use-cases/reassign-evaluator.use-case.ts` — **NO MODIFICAR** en esta tarea: hoy rechaza Ético con 400 (`:84-88`) y la reasignación no cambia en esta etapa; su copia local se retira en la tarea futura de reasignación.
+    - `src/shared/enums/evaluator-enums.spec.ts` — CREAR: unitarias de `toEvaluatorProfile` (Bioético, Bioetico, BIOÉTICA, Ético, Etico, Metodológico, Salud, Jurídico, Sociedad Civil, nombre vacío o desconocido).
+    - `test/evaluator-profiles.e2e-spec.ts` — MODIFICAR: `GET /evaluations/profiles` incluye «Bioético» activo y «Ético» sigue igual.
+  - **E2E:** `GET /evaluations/profiles` (SECRETARIA) devuelve Bioético y Ético como perfiles distintos; tras correr la migración dos veces no hay duplicado.
+  - **Mutaciones:** (M1) quitar BIOETICO de `toEvaluatorProfile` → falla la unitaria de Bioético; (M2) comprobar «ETIC» antes que «BIOETIC» → Bioético se resuelve como ETICO y falla la unitaria; (M3) migración sin el INSERT → falla la E2E.
+  - **Hecho cuando:** la migración existe en `ceish_test_db`; Bioético se lista sin miembros; las unitarias y la E2E pasan; reasignación sin cambios.
+  - **Nota:** Bioético empieza **sin miembros**; hasta que la Secretaría le asigne miembros (`EVALUADORES_PERFILES`), la fila Bioético de la expedita queda vacía y se quita (RF-12.1 f).
+
+- [ ] **TSK-002-N51** (C — Por hacer): la **PRESIDENTE** recibe `EVALUACION_ASIGNAR` y es la única que puede asignar.
+  - **Requisitos:** RF-12.1 (primer párrafo); EARS 1 (403 a la SECRETARIA).
+  - **EARS:** **Cuando** la PRESIDENTE llame a `POST /evaluations/protocols/:id/assign-peer-evaluators` o `POST /evaluations/assign`, **el sistema no debe** responder 403 por rol ni permiso. **Si** los llama la SECRETARIA, **el sistema debe** responder `403`. **Mientras** tanto, la SECRETARIA conserva `EVALUACION_ASIGNAR` para historial, asignaciones activas, `completion-status`, `risk-level`, `recalculate-status` y reasignación.
+  - **Estado previo:** la matriz `1880000000000-FixedRolesMatrix.ts:99` da `EVALUACION_ASIGNAR` solo a SECRETARIA (en `ceish_test_db` lo mismo). `@Roles('SECRETARIA', 'PRESIDENTE')` en `evaluations.controller.ts:154` y `:169`; `PermissionsGuard` (`permissions.guard.ts:88-96`) devuelve hoy 403 a la PRESIDENTE. Matriz actual: 75 filas (`test/fixed-roles-matrix.e2e-spec.ts:311`), PRESIDENTE 22.
+  - **Archivos afectados:**
+    - `src/migrations/1970000000000-GrantEvaluacionAsignarToPresidente.ts` — CREAR: inserción idempotente por códigos (patrón de `1900000000000-AddProtocolosListarPermission.ts`); `down()` borra solo esa fila. Matriz resultante: 76 filas, PRESIDENTE 23.
+    - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` — MODIFICAR: `@Roles('PRESIDENTE')` en `:154` y `:169`. Las demás rutas no cambian.
+    - `test/fixed-roles-matrix.e2e-spec.ts` — MODIFICAR: 76 filas; PRESIDENTE tiene `EVALUACION_ASIGNAR`; SECRETARIA → 403 y PRESIDENTE ≠ 403 en las dos rutas de asignación; SECRETARIA sigue con 200 en `GET /evaluations/protocol/:protocolId/active-assignments`.
+  - **Efecto a confirmar en el Paso 0 de N51:** con el permiso, la PRESIDENTE también pasa los guardias de `POST /evaluations/reassign` (`:181`, roles SECRETARIA y PRESIDENTE). La decisión 3 deja la reasignación sin cambios; se reporta, no se toca.
+  - **E2E:** las del archivo anterior, con tokens de login real (no fabricados); la caché de 5 min de `PermissionsGuard` no afecta porque cada usuario de prueba entra después de la migración.
+  - **Mutaciones:** (M1) volver a `@Roles('SECRETARIA', 'PRESIDENTE')` → falla «SECRETARIA recibe 403»; (M2) migración sin el INSERT → falla «PRESIDENTE ≠ 403» y el conteo de 76; (M3) quitar `EVALUACION_ASIGNAR` a SECRETARIA → falla «SECRETARIA 200 en active-assignments».
+  - **Hecho cuando:** la migración existe en `ceish_test_db`; las E2E pasan; ninguna otra ruta cambia de roles.
+
+- [ ] **TSK-002-N52** (D — Por hacer; depende de N50 y N51): asignación por la PRESIDENTE con tipo de revisión, composición, comprobaciones, estado, plazo y oficio al asignar; el evaluador ve su asignación desde que se asigna.
+  - **Requisitos:** RF-12.1 a–e y g; RF-12.2a; RF-12.REV; RF-12.6; RF-12.7 a y «DEROGADO 17/11/2026»; EARS 1, 1c, 2 y 6.
+  - **EARS:** los de RF-12.1 (EARS 1 y 1c), RF-12.2a (EARS 2) y RF-12.6 (EARS 6) de la spec v1.3.0. Además: **Cuando** dos peticiones de asignación lleguen a la vez para el mismo protocolo, **el sistema debe** aceptar una y responder `409` a la otra (bloqueo de la fila del protocolo en la transacción). **Mientras** el protocolo no esté en una convocatoria, **el sistema debe** mostrar la asignación al evaluador y dejarle trabajarla (sin el `403` «el protocolo aún no está en una convocatoria»).
+  - **Estado previo (Paso 0, 17/11/2026):**
+    - DTO con exactamente 4 (`evaluator-dtos.ts:48-57`); validador de cuota de 4 que lanza `Error` → 500 (`quota-evaluator-validator.service.ts:14-41`, `http-exception.filter.ts:37-41`); sorteo de 2 (`assign-evaluators.use-case.ts:71-73`).
+    - Sin comprobaciones de recepción, tiempos ni asignaciones previas (6d/6f): el adaptador solo lee `reviewType` (`evaluator-assignment-adapter.service.ts:38-41`); hay 3 versiones con 5 asignaciones activas en `ceish_test_db` (datos de prueba viejos: se dejan tal cual).
+    - Versión 1 fija en lugar de la activa (`evaluation.typeorm.repository.ts:404-411`, llamado desde `assign-evaluators.use-case.ts:147-150`).
+    - `reviewType` llega al caso de uso y no se guarda; `asignado_por` no se graba.
+    - Correo solo si ya hay convocatoria (`assign-evaluators.use-case.ts:222-223`); la plantilla no menciona los 8 días (`mailer-notification.adapter.ts:53-58`).
+    - El cuerpo de `assign-peer-evaluators` está tipado como unión (`evaluations.controller.ts:163`): el `ValidationPipe` no valida un tipo unión (verificar en el Paso 0 con una petición inválida).
+    - Accesos del evaluador condicionados a convocatoria: `evaluations.service.ts:234` (my-assignments), `:295-311` (`assertAssignmentInActiveConvocatoria`), `:352` (submit), `:1132` y `:1190` (my-pending), `:1238` (submit-risk, N48), `:1537`, `:1863` (checklist-details), `:1955` y `:2007` (documentos).
+  - **Contrato (cambios aprobados el 17/11/2026):** las dos rutas aceptan `{ reviewType: 'EXPEDITA' | 'PLENO', evaluators: [{ evaluatorId, profile }] }`, con al menos 2 elementos; en `assign-peer-evaluators` el `protocolId` es el de la ruta (si el cuerpo trae otro, 400). El formato antiguo `{ evaluatorIds }` deja de aceptarse (400) y su DTO se borra en N55. El frontend debe ajustarse (repo FRONTEND-CEISH, fuera de este repo).
+  - **Regla propuesta (no decidida; §11 n.º 5 de la spec) — persona con Sociedad civil y otro perfil:** cada asignación tiene un solo perfil (`perfil_id`), elegido por la Presidente entre los perfiles activos de esa persona; una persona aparece una sola vez. Si va como Sociedad civil, no define el riesgo; si va por su otro perfil, define el riesgo y Sociedad civil debe cubrirlo otra persona. En pleno, si la persona tiene varios perfiles, la Presidente elige con cuál entra (sin valor por defecto).
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/dtos/evaluator-dtos.ts` — MODIFICAR: `AssignEvaluatorsDto` con `reviewType` obligatorio (`EXPEDITA`|`PLENO`), `ArrayMinSize(2)` sin máximo, `protocolId` opcional; mensajes en español.
+    - `src/modules/evaluations/domain/services/quota-evaluator-validator.service.ts` — MODIFICAR: reglas de RF-12.1 a–c por tipo de revisión (perfiles permitidos en expedita, una persona por perfil en expedita, Sociedad civil obligatorio, ≥ 2, ≥ 1 no Sociedad civil, sin personas repetidas). Sigue siendo dominio puro: lanza un error de dominio que el caso de uso convierte en `BadRequestException`.
+    - `src/modules/evaluations/application/use-cases/assign-evaluators.use-case.ts` — MODIFICAR: comprobaciones de RF-12.1 d (protocolo, recepción `COMPLETO` de la versión activa, tiempos aceptados, sin asignaciones `SUGGESTED`/`ASSIGNED` en la versión activa → `409`; evaluador activo, con rol `EVALUADOR` y con el perfil enviado, con `hasActiveProfile` de `evaluation.typeorm.repository.ts:352`); usar `versionActualId`; `isAssignedForAnnex10 = profile !== SOCIEDAD_CIVIL`; guardar `reviewType` en el protocolo y `asignado_por` en una sola transacción con bloqueo de la fila del protocolo; no cambiar el estado; emitir `evaluator.assigned` siempre (con `plazo_revision_oficio_dias`).
+    - `src/modules/evaluations/domain/ports/evaluation.repository.port.ts` y `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR: método(s) de lectura del protocolo para asignar (versión activa, estado de recepción, tiempos aceptados, asignaciones activas, rol del evaluador) y la transacción de guardado con bloqueo; buscar equivalentes antes de crear (p. ej. `findVersionById`, `hasActiveProfile`).
+    - `src/modules/evaluations/application/services/evaluator-assignment-adapter.service.ts` — MODIFICAR: quitar la rama `{ evaluatorIds }` y el emparejamiento de 4 perfiles; solo delega al caso de uso.
+    - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` — MODIFICAR: `:153-178`, cuerpo `AssignEvaluatorsDto` (no unión), pasar `req.user.id` como `asignado_por`, descripciones de Swagger.
+    - `src/modules/evaluations/infrastructure/adapters/mailer-notification.adapter.ts` — MODIFICAR: texto del oficio (perfil, `plazo_revision_oficio_dias` días laborables, fecha de entrega de la convocatoria o la fecha si ya existe, Anexo 10 sí/no, enlace).
+    - `src/modules/evaluations/evaluations.module.ts` — MODIFICAR: inyectar `SystemParamsService` (exportado por `src/modules/sistema/sistema.module.ts:10`) en la fábrica de `AssignEvaluatorsUseCase` (`:204-214`).
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR: retirar el condicionamiento a convocatoria en las líneas del «Estado previo» (derogación de RF-12.7 (4); `submit-risk` según §11 n.º 7).
+    - Pruebas unitarias — MODIFICAR: `quota-evaluator-validator.service.spec.ts`, `assign-evaluators.use-case.spec.ts`, `evaluator-assignment-adapter.service.spec.ts`, `mailer-notification.adapter.spec.ts`, `evaluator-dtos.spec.ts`, `submit-peer-risk.spec.ts` (casos N48-U-01 a U-06) y los de N42/N43.
+    - `test/presidente-assignment.e2e-spec.ts` — CREAR: E2E con base real (prefijo `ZZ_TEST_`, limpieza en `beforeAll`/`afterAll`).
+    - `test/evaluations-assignment.e2e-spec.ts`, `test/real-db-evaluations.e2e-spec.ts` (describe 1, 12, 14, 15 y 16), `test/peer-risk-concurrency.e2e-spec.ts` — MODIFICAR: dejan de asignar 4 con SECRETARIA y de esperar el `403` por convocatoria.
+  - **E2E (`presidente-assignment`):** expedita válida (5 filas) → 201, Anexo 10 en todas menos Sociedad civil, `reviewType` y `asignado_por` guardados, estado sin cambio, versión activa; expedita con 2 (Sociedad civil + otro) → 201; pleno con varias personas del mismo perfil → 201; sin `reviewType` → 400; sin Sociedad civil → 400; solo Sociedad civil → 400; persona repetida → 400; dos personas del mismo perfil en expedita → 400; fila Ético en expedita → 400; evaluador sin el perfil enviado → 400; recepción no `COMPLETO` → 409; tiempos no aceptados → 409; ya asignado → 409; dos peticiones a la vez → una 201 y otra 409; SECRETARIA → 403; correo `evaluator.assigned` emitido sin convocatoria (modo sin envío real) con el texto de los 8 días; el evaluador ve la asignación en `my-assignments` sin convocatoria.
+  - **Mutaciones (reproducen el código anterior o la regla quitada):** (M1) volver a la cuota de 4 → fallan expedita con 2 y pleno; (M2) quitar cada comprobación de RF-12.1 d (recepción, tiempos, ya asignado) → falla su 409; (M3) volver a `findVersionByProtocolId(protocolId)` con versión 1 → falla «versión activa»; (M4) volver al sorteo → falla «Anexo 10 en todas menos Sociedad civil»; (M5) volver a emitir el correo solo con convocatoria → falla «correo sin convocatoria»; (M6) quitar el bloqueo del protocolo → falla la de concurrencia (si no falla de forma estable: «no detectable» con la razón); (M7) volver a lanzar `Error` en el validador → la respuesta es 500 y falla el 400; (M8) restaurar `assertAssignmentInActiveConvocatoria` en `my-assignments` → falla «ve la asignación sin convocatoria».
+  - **Hecho cuando:** todo lo anterior pasa dos veces; `tsc` 0; eslint sin empeorar; residuos 0; convocatorias huérfanas sin cambio.
+
+- [ ] **TSK-002-N53** (E — Por hacer; depende de N52): riesgo por **N pares** (todos menos Sociedad civil) y discrepancia resuelta por la SECRETARIA.
+  - **Requisitos:** RF-12.2 (nota «Falta implementar»), RF-12.2a, d, e, f y g; EARS 2d, 2e, 2f y 2g.
+  - **EARS:** los de RF-12.2d, e y g (EARS 2d, 2e, 2g). Además: **Si** un evaluador asignado como Sociedad civil intenta enviar Anexo 10, **el sistema debe** responder `400` (hoy ya lo hace la comprobación `isAssignedForAnnex10` de `evaluations.service.ts:1251`; se deja cubierto por prueba).
+  - **Estado previo:** `submitPeerRiskLevel` bloquea las asignaciones de Anexo 10 activas (`evaluations.service.ts:1257-1273`) y solo compara si hay **exactamente 2** (`:1327-1329`); en acuerdo pone `EN_EVALUACION` y deriva `reviewType` del nivel (`:1354-1362`); en discrepancia archiva `p1Proposal` y `p2Proposal` (`:1431-1432`). El camino antiguo (tabla `asignaciones_pares_riesgo`) también deriva `reviewType` (`:1596-1605`). La designación en pleno **ya existe**: `PATCH /evaluations/protocols/:protocolId/risk-level` (`evaluations.controller.ts:255-272`, rol SECRETARIA, `EVALUACION_ASIGNAR`; `evaluations.service.ts:1647+`): exige `DISCREPANCIA_RIESGO` y una convocatoria que incluya el protocolo, y deriva `reviewType` (`:1697-1715`); no comprueba la fecha de la reunión. El Anexo 9 en pleno exige `annex10` (`evaluations.service.ts:473-476`): revisar contra RF-12.2g.
+  - **Propuesta (no implementar sin decidir §11 n.º 6):** si la SECRETARIA solo debe registrar el riesgo «el día de la convocatoria», añadir a `designatePlenumRiskLevel` la comprobación `NOW()` de la base ≥ inicio del día de `fecha_reunion` en America/Guayaquil (409 si es antes). Si no, queda como está.
+  - **Archivos afectados:**
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR: `submitPeerRiskLevel` para N asignaciones (esperar a todas las vigentes; si todas coinciden, designar; si alguna difiere, `DISCREPANCIA_RIESGO` y archivar todas); con N = 1, designar con la única propuesta; no sobrescribir `reviewType` en el acuerdo ni en `designatePlenumRiskLevel` (§11 n.º 3; si la usuaria decide lo contrario, se conserva la derivación); desbloqueo del Anexo 9 según RF-12.2g; texto de las notificaciones.
+    - `src/modules/evaluations/application/services/submit-peer-risk.spec.ts` — MODIFICAR: N = 1, 2 y 3 (coinciden, difieren, falta una).
+    - `test/peer-risk-n-pares.e2e-spec.ts` — CREAR: base real.
+    - `test/risk-designation.e2e-spec.ts` — MODIFICAR si sus datos asumen 2 propuestas.
+  - **E2E (`peer-risk-n-pares`):** 3 pares coinciden → designado, `EN_EVALUACION`, `reviewType` sin cambio; 3 pares con uno distinto → `DISCREPANCIA_RIESGO`, las 3 archivadas; 2 de 3 enviadas → sin cambios; 1 solo par → su propuesta fija el nivel; Sociedad civil envía Anexo 10 → 400; SECRETARIA registra el nivel en discrepancia con la convocatoria → 200; PRESIDENTE en `risk-level` → 403 (sin cambios de roles).
+  - **Mutaciones:** (M1) volver a `annex10Assignments.length === 2` → fallan N = 1 y N = 3; (M2) comparar solo las dos primeras propuestas → falla «uno distinto entre 3»; (M3) archivar solo dos → falla «las 3 archivadas»; (M4) volver a derivar `reviewType` del nivel → falla «`reviewType` sin cambio» (solo si se confirma §11 n.º 3).
+  - **Hecho cuando:** todo lo anterior pasa dos veces; `tsc` 0; eslint sin empeorar; residuos 0.
+
+- [ ] **TSK-002-N54** (F — Por hacer; depende de N51 y N52): pendientes por asignar y miembros con carga para la PRESIDENTE, reutilizando consultas.
+  - **Requisitos:** RF-12.1 h; EARS 1b.
+  - **EARS:** los de EARS 1b.
+  - **Estado previo:** `GET /evaluations/protocols/pending-peer-assignment` (`evaluations.controller.ts:143-151`, `evaluations.service.ts:866-890`) no excluye los protocolos con asignaciones y devuelve la entidad ORM con relaciones. La regla correcta ya está en la fila `asignar` de `PENDING_ITEMS_SQL` (`src/modules/secretaria/infrastructure/repositories/pending-items.typeorm.repository.ts:68-80`), expuesta solo a SECRETARIA en `GET /secretaria/pendientes`. `GET /evaluations/evaluators/dashboard` (`REPORTES_CARGA`, que la PRESIDENTE tiene) devuelve los miembros con perfiles y `currentLoad` (`evaluation.typeorm.repository.ts:258-350`), que cuenta solo `ASSIGNED` (`:279-280`) y no filtra usuarios inactivos; su `pendingProtocols` (`evaluations.service.ts:175-215`) es la bandeja de resoluciones (spec §RF-12.4) y **no se cambia**.
+  - **Archivos afectados:**
+    - `src/modules/secretaria/infrastructure/repositories/pending-items.typeorm.repository.ts` — MODIFICAR: separar las CTE `base` y `asignar` en un fragmento reutilizable y exponer un método de solo lectura «protocolos por asignar», sin duplicar el SQL. En el Paso 0, comprobar dependencias entre módulos (evitar ciclo `secretaria` ↔ `evaluations`) y si el puerto del repositorio puede exportarse.
+    - `src/modules/secretaria/domain/ports/` (puerto del repositorio) y `src/modules/secretaria/secretaria.module.ts` — MODIFICAR si hace falta exportarlo.
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR: `getProtocolsPendingPeerAssignment` usa ese método.
+    - `src/modules/evaluations/infrastructure/controllers/evaluations.controller.ts` — MODIFICAR: `:143` con `@Roles('PRESIDENTE', 'SECRETARIA')` (solo lectura; la SECRETARIA conserva la consulta).
+    - `src/modules/evaluations/infrastructure/repositories/evaluation.typeorm.repository.ts` — MODIFICAR: `findEvaluatorsWithWorkload` cuenta `SUGGESTED` y `ASSIGNED` sin entrega y solo usuarios activos.
+    - Unitarias del repositorio y del servicio afectados — MODIFICAR.
+    - `test/presidente-pendientes.e2e-spec.ts` — CREAR; `test/secretaria-pendientes.e2e-spec.ts` — MODIFICAR solo si cambia su fixture (la vista de la Secretaría no cambia).
+  - **E2E:** protocolo listo → aparece; con asignaciones activas → no aparece; recepción no `COMPLETO` o sin tiempos aceptados → no aparece; misma lista que la fila «Asignar» de `/secretaria/pendientes`; miembros con carga que cuenta una `SUGGESTED` y una `ASSIGNED`; usuario inactivo no aparece; filtro por perfil (Bioético vacío); PRESIDENTE 200 en ambas.
+  - **Mutaciones:** (M1) volver al `find` anterior de `getProtocolsPendingPeerAssignment` → falla «con asignaciones → no aparece»; (M2) quitar `SUGGESTED` de la carga → falla el conteo; (M3) quitar el filtro de activos → falla «inactivo no aparece».
+  - **Hecho cuando:** todo lo anterior pasa dos veces; `/secretaria/pendientes` sin cambios (su E2E en verde); `tsc` 0; eslint sin empeorar.
+
+- [ ] **TSK-002-N55** (G — Por hacer; al final): retirar el código muerto y el sorteo.
+  - **Requisitos:** RF-12.2a (retiro del sorteo, de `asignaciones_pares_riesgo` como fuente y de `assignPeerEvaluators`).
+  - **Estado previo:** `evaluationsService.assignPeerEvaluators` (`evaluations.service.ts:895-1103`) no tiene llamadores (`git grep`); `RandomRiskSelectorService` (`random-risk-selector.service.ts`) solo lo usan el caso de uso (hasta N52) y ese código muerto; `AssignPeerEvaluatorsDto` (`assign-peer-evaluators.dto.ts`) queda sin uso tras N52; el camino antiguo de `submitPeerRiskLevel` sobre `asignaciones_pares_riesgo` (`evaluations.service.ts:1520-1640` aprox., con los `TODO` de retiro en `:1521` y `:1618`).
+  - **Archivos afectados:**
+    - `src/modules/evaluations/domain/services/random-risk-selector.service.ts` y `random-risk-selector.service.spec.ts` — ELIMINAR (quita también el error de eslint previo).
+    - `src/modules/evaluations/application/dtos/assign-peer-evaluators.dto.ts` — ELIMINAR.
+    - `src/modules/evaluations/application/services/evaluations.service.ts` — MODIFICAR: borrar `assignPeerEvaluators` y, si la usuaria lo confirma en el Paso 0, el camino antiguo de `submitPeerRiskLevel`.
+    - `src/modules/evaluations/evaluations.module.ts` y `evaluations.controller.ts` — MODIFICAR: quitar importaciones sin uso.
+    - La tabla `asignaciones_pares_riesgo` y su entidad ORM **no se borran** en esta tarea (no se modifica el esquema sin consulta).
+  - **E2E:** la suite completa sigue en verde (la corre la usuaria); `git grep -n "RandomRiskSelectorService\|AssignPeerEvaluatorsDto\|assignPeerEvaluators(" -- src test` sin resultados en producción.
+  - **Mutaciones:** no aplican (retiro sin cambio de comportamiento); se demuestra con `git grep` antes y después.
+  - **Hecho cuando:** archivos borrados con la prueba de que nadie los usaba; `tsc` 0; unitarias y E2E en verde; eslint sin empeorar.
+
+### Migraciones de esta sección (solo `ceish_test_db`; la usuaria las aplica en `ceish_db`)
+
+| Tarea | Migración | Qué hace |
+|---|---|---|
+| N50 | `1960000000000-AddBioeticoEvaluatorProfile` | Inserta el perfil «Bioético» (sin miembros). Ético (id 7) no cambia. |
+| N51 | `1970000000000-GrantEvaluacionAsignarToPresidente` | Añade PRESIDENTE → `EVALUACION_ASIGNAR` (matriz 76 filas). |
+
+No hacen falta cambios de esquema: `protocolos.tipo_revision`, `asignaciones_evaluacion.es_asignado_anexo_10`, `perfil_id` y `asignado_por` ya existen.
