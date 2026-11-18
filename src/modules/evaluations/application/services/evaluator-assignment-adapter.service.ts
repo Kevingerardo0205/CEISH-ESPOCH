@@ -9,7 +9,10 @@ import {
 } from '../use-cases/assign-evaluators.use-case';
 import { AssignEvaluatorsDto } from '../dtos/evaluator-dtos';
 import { AssignPeerEvaluatorsDto } from '../dtos/assign-peer-evaluators.dto';
-import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
+import {
+  EvaluatorProfile,
+  toEvaluatorProfile,
+} from '../../../../shared/enums/evaluator-enums';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
 
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
@@ -89,7 +92,7 @@ export class EvaluatorAssignmentAdapterService {
 
       const profiles: EvaluatorProfile[] = [];
       for (const asg of activeAssignments) {
-        const canonicalProfile = this.mapProfileNameToEnum(asg.profile?.name);
+        const canonicalProfile = toEvaluatorProfile(asg.profile?.name);
         if (canonicalProfile && !profiles.includes(canonicalProfile)) {
           profiles.push(canonicalProfile);
           profileIdByKey.set(`${userId}-${canonicalProfile}`, asg.profileId);
@@ -140,43 +143,6 @@ export class EvaluatorAssignmentAdapterService {
       reviewType: protocol?.reviewType,
       evaluators: resolvedMatchingWithIds,
     });
-  }
-
-  /**
-   * Mapea el nombre del perfil de la BD al enum canónico EvaluatorProfile
-   */
-  private mapProfileNameToEnum(name?: string): EvaluatorProfile | null {
-    if (!name) return null;
-    const normalized = name
-      .normalize('NFD')
-      .replace(/[\u0300-\u036f]/g, '')
-      .toUpperCase()
-      .trim();
-
-    if (normalized.includes('JURIDIC') || normalized.includes('LEGAL')) {
-      return EvaluatorProfile.JURIDICO;
-    }
-    if (
-      normalized.includes('SOCIEDAD') ||
-      normalized.includes('CIVIL') ||
-      normalized.includes('COMUNIDAD')
-    ) {
-      return EvaluatorProfile.SOCIEDAD_CIVIL;
-    }
-    if (
-      normalized.includes('METODOLOG') ||
-      normalized.includes('INVESTIGACION')
-    ) {
-      return EvaluatorProfile.METODOLOGICO;
-    }
-    if (
-      normalized.includes('SALUD') ||
-      normalized.includes('MEDIC') ||
-      normalized.includes('CLINIC')
-    ) {
-      return EvaluatorProfile.SALUD;
-    }
-    return null;
   }
 
   /**

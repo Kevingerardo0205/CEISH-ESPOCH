@@ -292,4 +292,39 @@ describe('TSK-001.16 — POST y PATCH /evaluations/profiles (ceish_test_db)', ()
       expect((await profileRow(id)).nombre).toBe(nameFor('LIBRE'));
     });
   });
+
+  /**
+   * TSK-002-N50: tras la migración 1960000000000 el id 7 se llama «Bioético».
+   * MEMBERS_ID7 = filas de evaluadores_perfil con perfil_id = 7 medidas en ceish_test_db
+   * antes de la migración (Paso 0, 18/11/2026).
+   */
+  describe('GET /evaluations/profiles — perfil Bioético (TSK-002-N50)', () => {
+    const MEMBERS_ID7 = 4;
+    const norm = (s: string): string =>
+      s.normalize('NFD').replace(/[̀-ͯ]/g, '').toUpperCase().trim();
+
+    it('lista el id 7 como «Bioético» activo, sin ningún «Ético» ni otro Bioético, y el id 7 conserva sus miembros', async () => {
+      const res = await api().get('/api/evaluations/profiles').set(auth());
+      expect(res.status).toBe(200);
+      const list: any[] = res.body.data ?? res.body;
+      expect(Array.isArray(list)).toBe(true);
+
+      const id7 = list.find((p) => p.id === 7);
+      expect(id7?.name).toBe('Bioético');
+      expect(id7?.isActive).toBe(true);
+
+      const catalog = list.filter((p) => !String(p.name).startsWith(PREFIX));
+      const etico = catalog.filter((p) => norm(p.name) === 'ETICO');
+      const bioetico = catalog.filter((p) =>
+        norm(p.name).startsWith('BIOETIC'),
+      );
+      expect(etico).toEqual([]);
+      expect(bioetico.map((p) => p.id)).toEqual([7]);
+
+      const [{ n }] = await ds.query(
+        `SELECT count(*)::int AS n FROM catalogos.evaluadores_perfil WHERE perfil_id = 7`,
+      );
+      expect(n).toBe(MEMBERS_ID7);
+    });
+  });
 });

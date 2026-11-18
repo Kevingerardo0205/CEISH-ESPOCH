@@ -2,7 +2,7 @@ import { NotFoundException } from '@nestjs/common';
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
 import { ActiveVersionRow } from '../../domain/ports/evaluation.repository.port';
-import { resolveEvaluatorProfile } from '../../../../shared/helpers/evaluator-profile.helper';
+import { toEvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
 
 // Deuda técnica: toda la asignación (assign-evaluators.use-case.ts:127-143,
 // evaluations.service.ts:856-858, EvaluatorAssignmentAdapterService) está fijada
@@ -23,7 +23,12 @@ export interface ActiveAssignmentItemDto {
   evaluatorId: number;
   evaluatorFullName: string;
   evaluatorProfile:
-    'JURIDICO' | 'SOCIEDAD_CIVIL' | 'METODOLOGICO' | 'SALUD' | null;
+    | 'JURIDICO'
+    | 'SOCIEDAD_CIVIL'
+    | 'METODOLOGICO'
+    | 'SALUD'
+    | 'BIOETICO'
+    | null;
   status: 'SUGGESTED' | 'ASSIGNED' | 'COMPLETED';
   isAssignedForAnnex10: boolean;
   /** ISO-8601 completo (con hora). */
@@ -78,7 +83,7 @@ export class GetActiveAssignmentsUseCase {
 
     const mapped: ActiveAssignmentItemDto[] = raw
       .map((a): ActiveAssignmentItemDto => {
-        const profile = resolveEvaluatorProfile(a.profile?.name);
+        const profile = toEvaluatorProfile(a.profile?.name);
         return {
           assignmentId: a.id,
           evaluatorId: a.evaluatorId,

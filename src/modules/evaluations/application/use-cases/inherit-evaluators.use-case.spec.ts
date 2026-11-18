@@ -185,32 +185,63 @@ describe('InheritEvaluatorsUseCase (TSK-002-11)', () => {
     );
   });
 
-  it('should throw an error when one of the active evaluators has Ético profile (id=7)', async () => {
-    const assignmentsWithEtico = [
-      ...ormAssignmentsMock.slice(0, 3),
-      {
-        id: 5,
-        versionId: 99,
-        evaluatorId: 205,
-        profileId: 7,
-        profile: { id: 7, name: 'ÉTICO' },
-        isAssignedForAnnex10: false,
-        deadline: '2026-12-01',
-        statusId: AssignmentStatus.COMPLETED,
-      },
-    ];
+  const withFourth = (name: string) => [
+    ...ormAssignmentsMock.slice(0, 3),
+    {
+      id: 5,
+      versionId: 99,
+      evaluatorId: 205,
+      profileId: 7,
+      profile: { id: 7, name },
+      isAssignedForAnnex10: false,
+      deadline: '2026-12-01',
+      statusId: AssignmentStatus.COMPLETED,
+    },
+  ];
 
+  it('TSK-002-N50: un evaluador con perfil Bioético (id=7) se hereda como cualquier otro perfil', async () => {
     const transactionRepo = {
       findActiveAssignmentsByVersionId: jest
         .fn()
-        .mockResolvedValue(assignmentsWithEtico),
+        .mockResolvedValue(withFourth('Bioético')),
+      saveAssignmentsTransaction: jest
+        .fn()
+        .mockImplementation(async (payloads) =>
+          payloads.map((p: any, idx: number) => ({
+            id: idx + 50,
+            versionId: p.versionId,
+            evaluatorId: p.evaluatorId,
+            isAssignedForAnnex10: p.isAssignedForAnnex10,
+            deadline: p.deadline,
+            statusId: p.statusId,
+          })),
+        ),
+    };
+
+    const transactionalUseCase = new InheritEvaluatorsUseCase(transactionRepo);
+    const inherited = await transactionalUseCase.execute(99, 100, 15, []);
+
+    expect(transactionRepo.saveAssignmentsTransaction).toHaveBeenCalledTimes(1);
+    const payloads =
+      transactionRepo.saveAssignmentsTransaction.mock.calls[0][0];
+    expect(payloads[3].profileId).toBe(7);
+    expect(payloads[3].evaluatorId).toBe(205);
+    expect(inherited).toHaveLength(4);
+    expect(inherited[3].evaluatorProfile).toBe(EvaluatorProfile.BIOETICO);
+  });
+
+  it('TSK-002-N50: un nombre de perfil desconocido da el error genérico y no guarda nada', async () => {
+    const transactionRepo = {
+      findActiveAssignmentsByVersionId: jest
+        .fn()
+        .mockResolvedValue(withFourth('Ético')),
       saveAssignmentsTransaction: jest.fn(),
     };
 
     const transactionalUseCase = new InheritEvaluatorsUseCase(transactionRepo);
 
     await expect(transactionalUseCase.execute(99, 100)).rejects.toThrow(
-      'El evaluador 4 tiene perfil Ético (id=7), que no es compatible con el flujo de herencia de evaluadores par.',
+      "No se pudo determinar el perfil del evaluador 4 (profileId=7, nombre='Ético'). Verifique la asignación.",
     );
     expect(transactionRepo.saveAssignmentsTransaction).not.toHaveBeenCalled();
   });
