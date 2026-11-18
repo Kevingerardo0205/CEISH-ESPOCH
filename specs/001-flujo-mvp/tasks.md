@@ -506,7 +506,7 @@
     - `ProtocolCodeGenerator` (`protocol-code-generator.service.ts:12-16`, también con 3 dígitos) está registrado en `protocols.module.ts:45,58`, pero nadie llama a `generate`.
   - **A decidir (usuaria):** ceros a la izquierda o no; secuencia por tipo o general; qué hacer con EX; qué pasa con los códigos ya emitidos.
 
-- [ ] **TSK-001.27** *(En curso, 18/11/2026; depende de TSK-001.26; cubre la parte de `GET /protocols/:id` de TSK-001.3)*: encabezado del protocolo en `GET /protocols/:id` (RF-EST.2)
+- [x] **TSK-001.27** *(Hecho, 18/11/2026; depende de TSK-001.26; cubre la parte de `GET /protocols/:id` de TSK-001.3)*: encabezado del protocolo en `GET /protocols/:id` (RF-EST.2)
   - **Problema (Paso 0 de TSK-001.26):** `findById` (`protocol.typeorm.repository.ts:36-50`) solo carga `checklist`, `activeVersion`, `activeVersion.reception` y `versions`: `studyType`, `studyTypeCode` y `riskLevel` (`protocol.mapper.ts:52-54`) salen undefined, y no hay `etapa`, `etapaOrden` ni `principalInvestigator`. `findById` tiene 19 llamadas, muchas seguidas de un `save`: no se toca.
   - **Decisión (usuaria, 17/11/2026):** se mantienen los textos actuales (`studyType`, `studyTypeCode`, `riskLevel`, que el frontend usa como texto en `protocolo.service.ts:357,401,429`) y se agregan `riskLevelCode`, `principalInvestigator { id, fullName }`, `etapa` y `etapaOrden` (con `resolveProtocolStage`, incluida APROBADO→SEGUIMIENTO con resolución emitida). Sin `investigators` ni `institutions` (cédulas y teléfonos).
   - **Cambio mínimo propuesto:** método nuevo del repositorio solo para `GET /:id`, con los joins de `findAll` (`repo:95-107`: `studyType`, `riskLevel`, `principalInvestigator`, `status`, `reception.status`, `activeVersion.resolutions`), y respuesta con `ProtocolMapper.toListResponse` (`mapper:31-43`) más `riskLevelCode`.
@@ -526,6 +526,25 @@
   - **Mutaciones:** (M1) sin el join de resoluciones · (M2) sin el join de `principalInvestigator` · (M3) el controlador vuelve a `toResponse` · (M4) sin el join de `riskLevel` · (M5) `findOneForReader` vuelve a `findById` (código anterior).
   - **Hecho cuando:** las E2E nuevas fallan con el código anterior y pasan dos veces; mutaciones M1-M5 detectadas; `tsc` sin errores; unitarias y E2E completa (`--runInBand`) en verde; eslint de los archivos tocados sin errores nuevos (controlador 2, servicio 9, `protocol-stage` 2, los demás 0); residuos en 0 en `ceish_test_db` antes y después.
   - **Pendiente del frontend (EP1b, decisión de la usuaria 18/11/2026):** `mapToEntity` lee `principalInvestigator.fullName` (hoy `String(objeto)` daría «[object Object]»); la pestaña Información muestra `studyType` (nombre) en vez del código; la barra de etapas usa `etapa`/`etapaOrden` del backend en vez del cálculo temporal D13; `riskLevel` se lee como texto.
+  - **Resultados (18/11/2026, código `dbbabf9`):**
+    - Fallo reproducido con el código anterior (`git diff --stat -- src` vacío, solo las E2E nuevas): `protocol-read-access` + `protocol-stage`: `Tests: 10 failed, 32 passed, 42 total` (las 4 pruebas de los campos del encabezado y las 6 de `GET /api/protocols/:id` por etapa; las de claves anteriores y sin datos personales ya pasaban, como se espera).
+    - `findAll` usa ahora el mismo método privado `joinStageRelations` que `findByIdForReader` (los mismos joins, mismo orden); `findProtocolsForReception` no se tocó.
+    - `riskLevel` en `toListResponse` es `null` si el nivel no está fijado (antes la clave no salía en los listados); `toResponse` no cambia.
+    - `protocol-read-access` + `protocol-stage` + `protocol-thesis` + `protocols-list`: `Test Suites: 4 passed, 4 total` · `Tests: 87 passed, 87 total` (dos veces; línea base 74).
+    - `npx tsc --noEmit`: exit 0 (dos veces). Unitarias: `Test Suites: 70 passed, 70 total` · `Tests: 697 passed, 697 total` (dos veces).
+    - E2E completa `--runInBand` con `E2E_TEST_ACCOUNTS_PASSWORD` (longitud 8): `Test Suites: 28 passed, 28 total` · `Tests: 441 passed, 441 total` (una vez).
+    - Residuos en `ceish_test_db` (`docker exec ceish_postgres psql -U "$POSTGRES_USER"`, `current_database()` → `ceish_test_db`), antes y después: protocolos `ZZ_TEST_%` 0, usuarios `@e2e-%` 0, cédulas `ZZ%` 0, asignaciones sin versión 0, cuentas con intentos fallidos o bloqueadas 0; convocatorias huérfanas 57 (igual).
+    - eslint (igual que `dev`): `protocol.controller.ts` 2, `protocols.service.ts` 9, `protocol-stage.e2e-spec.ts` 2, `protocol.mapper.ts`, `protocol.repository.port.ts`, `protocol.typeorm.repository.ts` y `protocol-read-access.e2e-spec.ts` 0.
+  - **Mutaciones** (revertidas copiando el archivo guardado antes; `cmp` → idénticos; `git diff --stat -- src` después de cada una: `5 files changed, 56 insertions(+), 20 deletions(-)`, sin la mutación; corridas `protocol-read-access` + `protocol-stage`):
+
+    | Mutación | Qué se rompió | Prueba que falla | Línea |
+    |---|---|---|---|
+    | M1 | `joinStageRelations` sin el join de `activeVersion.resolutions` (también afecta a `findAll`) | «APROBADO_CON_RES → etapa SEGUIMIENTO, etapaOrden 5» en `GET /api/protocols` y en `GET /api/protocols/:id` | `Tests: 2 failed, 40 passed, 42 total` |
+    | M2 | `findByIdForReader` sin el join de `principalInvestigator` | «el investigador principal / la SECRETARIA / el evaluador asignado (estado 5) recibe etapa, investigador principal, tipo de estudio y nivel de riesgo», «el borrador: etapa RECEPCION 1 y nivel de riesgo null» | `Tests: 4 failed, 38 passed, 42 total` |
+    | M3 | el controlador vuelve a `toResponse` | las 4 anteriores y las 6 de `GET /api/protocols/:id` por etapa | `Tests: 10 failed, 32 passed, 42 total` |
+    | M4 | `findByIdForReader` sin el join de `riskLevel` | las 3 de «… recibe etapa, investigador principal, tipo de estudio y nivel de riesgo» | `Tests: 3 failed, 39 passed, 42 total` |
+    | M5 | `findOneForReader` vuelve a `findById` (código anterior) | las 4 del encabezado y NULL_COMPLETO, EN_EVALUACION, APROBADO_SIN_RES, APROBADO_CON_RES de `GET /api/protocols/:id` (NULL_INICIADO y NULL_SIN_RECEPCION pasan porque sin estados cargados la etapa cae en RECEPCION) | `Tests: 8 failed, 34 passed, 42 total` |
+
 
 - [ ] **TSK-001.28** *(Por hacer; la regla se decide en su Paso 0)*: última sesión del protocolo `{ number, date }` o null en `GET /protocols/:id`
   - **Contexto (Paso 0 de TSK-001.26):** la sesión es la convocatoria: `evaluacion.convocatorias` (`numero_convocatoria` varchar único, `fecha_reunion` timestamptz que puede ser NULL, `estado` PROGRAMADA, EN_CURSO, CONCLUIDA, CANCELADA; `convocatoria.orm-entity.ts:20-25,32-52,84-90`), ligada por `evaluacion.convocatoria_protocolos` (`protocolo_id`, `version_id`, `UNIQUE (convocatoria_id, version_id)`; `convocatoria-protocolo.orm-entity.ts:28-40`). `evaluacion.sesiones.convocatoria_id` guarda la sesión realizada (`session.entity.orm.ts:32`). El repositorio de reuniones no tiene un método por protocolo.
