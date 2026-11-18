@@ -25,14 +25,17 @@ export class ProtocolMapper {
   }
 
   /**
-   * Respuesta de los listados de GET /protocols: toResponse + etapa y etapaOrden
-   * (TSK-001.2) + principalInvestigator (TSK-001.4), desde la relación ya cargada.
+   * Respuesta de los listados de GET /protocols y de GET /protocols/:id: toResponse + etapa y
+   * etapaOrden (TSK-001.2) + principalInvestigator (TSK-001.4), desde la relación ya cargada,
+   * + riskLevel y riskLevelCode, null si el nivel no está fijado (TSK-001.27).
    */
   static toListResponse(orm: ProtocolOrmEntity) {
     if (!orm) return null;
     return {
       ...ProtocolMapper.toResponse(orm),
       ...ProtocolMapper.toStage(orm),
+      riskLevel: orm.riskLevel?.name ?? null,
+      riskLevelCode: orm.riskLevel?.code ?? null,
       principalInvestigator: orm.principalInvestigator
         ? {
             id: orm.principalInvestigator.id,

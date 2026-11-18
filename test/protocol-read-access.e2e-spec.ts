@@ -47,6 +47,8 @@ import { GlobalValidationPipe } from '../src/shared/pipes/validation.pipe';
 import { ResponseInterceptor } from '../src/shared/interceptors/response.interceptor';
 import { IEmailServicePort } from '../src/modules/notifications/domain/ports/email.service.port';
 import { IStorageService } from '../src/shared/storage/domain/ports/storage.service.port';
+import { IProtocolRepository } from '../src/modules/protocols/domain/ports/protocol.repository.port';
+import { ProtocolMapper } from '../src/modules/protocols/application/mappers/protocol.mapper';
 
 const PREFIX = 'ZZ_TEST_PREAD_';
 const EMAIL_DOMAIN = '@e2e-tsk-001-26.test';
@@ -82,6 +84,9 @@ describe('TSK-001.26 — GET /protocols/:id con control de acceso (ceish_test_db
   let app: INestApplication;
   let ds: DataSource;
   let studyTypeId: number;
+  let studyTypeName: string;
+  /** Nivel de riesgo que la prueba fija en su protocolo enviado (TSK-001.27). */
+  let riskLevel: { id: number; code: string; name: string };
   /** Protocolo enviado (recepción en 15): no es borrador. */
   let submittedId: number;
   /** Protocolo en borrador (recepción en 9, versión 1). */
@@ -240,9 +245,15 @@ describe('TSK-001.26 — GET /protocols/:id con control de acceso (ceish_test_db
     await cleanup();
 
     const [st] = await ds.query(
-      `SELECT id FROM catalogos.tipos_estudio WHERE codigo = 'IO'`,
+      `SELECT id, nombre FROM catalogos.tipos_estudio WHERE codigo = 'IO'`,
     );
     studyTypeId = st.id;
+    studyTypeName = st.nombre;
+    const [rl] = await ds.query(
+      `SELECT id, codigo AS code, nombre AS name FROM catalogos.niveles_riesgo
+        WHERE activo ORDER BY id LIMIT 1`,
+    );
+    riskLevel = rl;
 
     for (const { key, cedula, role } of USERS) {
       const generated = `${randomBytes(12).toString('base64url')}Aa1!`;
@@ -289,6 +300,11 @@ describe('TSK-001.26 — GET /protocols/:id con control de acceso (ceish_test_db
       throw new Error(`submit falló con status ${submit.status}`);
     }
     draftId = await createProtocol('BORRADOR estudio de prueba del control');
+    // TSK-001.27: nivel de riesgo fijado solo en el protocolo enviado (creado por esta prueba).
+    await ds.query(
+      `UPDATE public.protocolos SET nivel_riesgo_id = $1 WHERE id = $2`,
+      [riskLevel.id, submittedId],
+    );
 
     const [{ version_actual_id: versionId }] = await ds.query(
       `SELECT version_actual_id FROM public.protocolos WHERE id = $1`,
@@ -393,5 +409,97 @@ describe('TSK-001.26 — GET /protocols/:id con control de acceso (ceish_test_db
   it('sin token responde 401', async () => {
     const res = await api().get(`/api/protocols/${submittedId}`);
     expect(res.status).toBe(401);
+  });
+
+  /**
+   * TSK-001.27 — spec-001 RF-EST.2 (v3.7.8): encabezado del protocolo en GET /protocols/:id.
+   * Campos nuevos para el investigador, la SECRETARIA y el evaluador asignado; las claves de la
+   * respuesta anterior (findById + toResponse, que siguen en el código) siguen con el mismo valor.
+   */
+  describe('encabezado del protocolo (TSK-001.27, RF-EST.2)', () => {
+    /** Respuesta anterior: findById + ProtocolMapper.toResponse, serializada como JSON. */
+    async function previousResponse(protocolId: number): Promise<any> {
+      const repo = app.get(IProtocolRepository);
+      const orm = await repo.findById(protocolId);
+      return JSON.parse(JSON.stringify(ProtocolMapper.toResponse(orm!)));
+    }
+    const typeOf = (v: unknown): string =>
+      v === null ? 'null' : Array.isArray(v) ? 'array' : typeof v;
+
+    it.each([
+      ['el investigador principal', 'owner'],
+      ['la SECRETARIA', 'secretaria'],
+      ['el evaluador asignado (estado 5)', 'eval5'],
+    ] as Array<[string, keyof typeof tokens]>)(
+      '%s recibe etapa, investigador principal, tipo de estudio y nivel de riesgo',
+      async (_label, who) => {
+        const res = await read(who, submittedId);
+        expect(res.status).toBe(200);
+        const data = res.body.data;
+        expect(data.etapa).toBe('RECEPCION');
+        expect(data.etapaOrden).toBe(1);
+        expect(data.principalInvestigator).toEqual({
+          id: ids.owner,
+          fullName: `${PREFIX}owner`,
+        });
+        expect(data.studyType).toBe(studyTypeName);
+        expect(data.studyTypeCode).toBe('IO');
+        expect(data.riskLevel).toBe(riskLevel.name);
+        expect(data.riskLevelCode).toBe(riskLevel.code);
+        expect(data).toHaveProperty('ceishCode', null);
+      },
+    );
+
+    it('el borrador: etapa RECEPCION 1 y nivel de riesgo null', async () => {
+      const res = await read('owner', draftId);
+      expect(res.status).toBe(200);
+      const data = res.body.data;
+      expect(data.etapa).toBe('RECEPCION');
+      expect(data.etapaOrden).toBe(1);
+      expect(data.principalInvestigator).toEqual({
+        id: ids.owner,
+        fullName: `${PREFIX}owner`,
+      });
+      expect(data).toHaveProperty('riskLevel', null);
+      expect(data).toHaveProperty('riskLevelCode', null);
+      expect(data).toHaveProperty('ceishCode', null);
+    });
+
+    it.each([
+      ['enviado', 'submitted'],
+      ['borrador', 'draft'],
+    ] as Array<[string, 'submitted' | 'draft']>)(
+      'protocolo %s: todas las claves de la respuesta anterior siguen, con el mismo tipo y valor',
+      async (_label, which) => {
+        const protocolId = which === 'draft' ? draftId : submittedId;
+        const before = await previousResponse(protocolId);
+        const res = await read('owner', protocolId);
+        expect(res.status).toBe(200);
+        const data = res.body.data;
+        const keys = Object.keys(before);
+        expect(keys.length).toBeGreaterThan(20);
+        for (const key of keys) {
+          expect([key, typeOf(data[key])]).toEqual([key, typeOf(before[key])]);
+          expect([key, data[key]]).toEqual([key, before[key]]);
+        }
+      },
+    );
+
+    it('no devuelve cédulas, correos ni teléfonos', async () => {
+      const res = await read('secretaria', submittedId);
+      expect(res.status).toBe(200);
+      const text = JSON.stringify(res.body.data);
+      for (const leaked of [
+        'ZZPRD0261', // cédula del investigador principal
+        'ZZPRD0263', // cédula del coinvestigador
+        `owner${EMAIL_DOMAIN}`,
+        `coinvestigator${EMAIL_DOMAIN}`,
+        '0000000000', // teléfono del coinvestigador
+      ]) {
+        expect(text).not.toContain(leaked);
+      }
+      expect(res.body.data).not.toHaveProperty('investigators');
+      expect(res.body.data).not.toHaveProperty('institutions');
+    });
   });
 });

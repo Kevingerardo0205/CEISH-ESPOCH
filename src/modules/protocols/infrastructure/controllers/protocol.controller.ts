@@ -265,7 +265,7 @@ export class ProtocolController {
       numericId,
       req.user,
     );
-    return ProtocolMapper.toResponse(protocol);
+    return ProtocolMapper.toListResponse(protocol);
   }
 
   @Post(':id/submit')

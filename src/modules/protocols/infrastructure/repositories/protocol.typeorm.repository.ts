@@ -1,6 +1,6 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository, Between } from 'typeorm';
+import { Repository, Between, SelectQueryBuilder } from 'typeorm';
 import {
   FindAllProtocolsOptions,
   IProtocolRepository,
@@ -49,6 +49,39 @@ export class ProtocolTypeOrmRepository
     });
   }
 
+  /**
+   * RF-EST.2 (TSK-001.27): GET /protocols/:id. Las relaciones de `findById` más las del
+   * encabezado (tipo de estudio, nivel de riesgo, investigador principal con id y nombre) y las
+   * de la etapa, en una sola consulta. Solo lectura: no se guarda después.
+   */
+  async findByIdForReader(id: number): Promise<ProtocolOrmEntity | null> {
+    const qb = this.repo
+      .createQueryBuilder('p')
+      .leftJoinAndSelect('p.checklist', 'checklist')
+      .leftJoinAndSelect('p.versions', 'versions')
+      .leftJoinAndSelect('p.studyType', 'studyType')
+      .leftJoinAndSelect('p.riskLevel', 'riskLevel')
+      .leftJoin('p.principalInvestigator', 'pi')
+      .addSelect(['pi.id', 'pi.fullName']);
+    return this.joinStageRelations(qb).where('p.id = :id', { id }).getOne();
+  }
+
+  /**
+   * Relaciones que necesita `ProtocolMapper.toStage` (RF-EST.1, TSK-001.2): estado del protocolo,
+   * versión activa con su recepción y estado, y los ids de las resoluciones de la versión activa.
+   */
+  private joinStageRelations(
+    qb: SelectQueryBuilder<ProtocolOrmEntity>,
+  ): SelectQueryBuilder<ProtocolOrmEntity> {
+    return qb
+      .leftJoinAndSelect('p.activeVersion', 'activeVersion')
+      .leftJoinAndSelect('activeVersion.reception', 'reception')
+      .leftJoinAndSelect('p.status', 'protocolStatus')
+      .leftJoinAndSelect('reception.status', 'receptionStatus')
+      .leftJoin('activeVersion.resolutions', 'activeResolutions')
+      .addSelect('activeResolutions.id');
+  }
+
   async findProtocolsForReception(
     status?: string,
   ): Promise<ProtocolOrmEntity[]> {
@@ -90,21 +123,16 @@ export class ProtocolTypeOrmRepository
     const { limit, skip } = getPaginationParams(query);
     const { studyType, receptionStatus, reviewType } = query;
 
-    const qb = this.repo
-      .createQueryBuilder('p')
-      .leftJoinAndSelect('p.studyType', 'studyType')
-      .leftJoinAndSelect('p.riskLevel', 'riskLevel')
-      .leftJoinAndSelect('p.principalInvestigator', 'pi')
-      .leftJoinAndSelect('p.investigators', 'investigators')
-      .leftJoinAndSelect('p.institutions', 'institutions')
-      .leftJoinAndSelect('p.checklist', 'checklist')
-      .leftJoinAndSelect('p.activeVersion', 'activeVersion')
-      .leftJoinAndSelect('activeVersion.reception', 'reception')
-      .leftJoinAndSelect('p.status', 'protocolStatus')
-      .leftJoinAndSelect('reception.status', 'receptionStatus')
-      .leftJoin('activeVersion.resolutions', 'activeResolutions')
-      .addSelect('activeResolutions.id')
-      .leftJoinAndSelect('p.versions', 'versions');
+    const qb = this.joinStageRelations(
+      this.repo
+        .createQueryBuilder('p')
+        .leftJoinAndSelect('p.studyType', 'studyType')
+        .leftJoinAndSelect('p.riskLevel', 'riskLevel')
+        .leftJoinAndSelect('p.principalInvestigator', 'pi')
+        .leftJoinAndSelect('p.investigators', 'investigators')
+        .leftJoinAndSelect('p.institutions', 'institutions')
+        .leftJoinAndSelect('p.checklist', 'checklist'),
+    ).leftJoinAndSelect('p.versions', 'versions');
 
     if (options.excludeDrafts) {
       // RF-EST.3 punto 5 (TSK-001.5): sin borradores, también en el total; se conservan
