@@ -24,6 +24,11 @@ export abstract class IProtocolRepository {
     id: number,
     options?: Record<string, unknown>,
   ): Promise<ProtocolOrmEntity | null>;
+  /**
+   * RF-EST.2 (TSK-001.27): protocolo para GET /protocols/:id con el encabezado (tipo de estudio,
+   * nivel de riesgo, investigador principal) y la etapa. Solo lectura.
+   */
+  abstract findByIdForReader(id: number): Promise<ProtocolOrmEntity | null>;
   abstract save(entity: Partial<ProtocolOrmEntity>): Promise<ProtocolOrmEntity>;
   abstract update(id: number, data: Partial<ProtocolOrmEntity>): Promise<void>;
   abstract countByYear(year: number): Promise<number>;

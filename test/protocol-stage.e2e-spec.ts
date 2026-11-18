@@ -318,4 +318,23 @@ describe('Etapa del protocolo — RF-EST.1 / RF-EST.2 (ceish_test_db)', () => {
       ).toBeUndefined();
     });
   });
+
+  // TSK-001.27 (spec-001 RF-EST.2 v3.7.8): la misma etapa en GET /protocols/:id. El usuario del
+  // guard es el investigador principal de estos protocolos, así que también lee el borrador.
+  describe('GET /api/protocols/:id', () => {
+    it.each(SCENARIOS.map((s) => [s.key, s.expected[0], s.expected[1]]))(
+      '%s → etapa %s, etapaOrden %i',
+      async (key, etapa, orden) => {
+        const res = await request(app.getHttpServer())
+          .get(`/api/protocols/${protocolIds[key]}`)
+          .set('x-forwarded-for', TEST_IP);
+        expect(res.status).toBe(200);
+        expect(res.body.id).toBe(protocolIds[key]);
+        expect({
+          etapa: res.body.etapa,
+          etapaOrden: res.body.etapaOrden,
+        }).toEqual({ etapa, etapaOrden: orden });
+      },
+    );
+  });
 });

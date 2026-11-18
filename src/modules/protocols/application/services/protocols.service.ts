@@ -104,7 +104,7 @@ export class ProtocolsService {
       throw new BadRequestException('ID de protocolo inválido');
     }
     const notFound = new NotFoundException('Protocolo no encontrado.');
-    const protocol = await this.protocolsRepository.findById(id);
+    const protocol = await this.protocolsRepository.findByIdForReader(id);
     if (!protocol) throw notFound;
 
     if (protocol.principalInvestigatorId === reader.id) return protocol;
