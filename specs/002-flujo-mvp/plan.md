@@ -446,6 +446,7 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 | 2 | TSK-002-N51 permiso PRESIDENTE | `feat/tsk-002-n51-permiso-presidente` | — |
 | 3 | TSK-002-N52 asignación por la PRESIDENTE | `feat/tsk-002-n52-asignacion-presidente` | N50, N51 |
 | 4 | TSK-002-N53 riesgo por N pares | `feat/tsk-002-n53-riesgo-n-pares` | N52 |
+| 4b | TSK-002-N56 cambio del tipo de revisión por la SECRETARIA (nueva 18/11/2026) | `feat/tsk-002-n56-tipo-revision-secretaria` | N53 |
 | 5 | TSK-002-N54 pantalla de la PRESIDENTE | `feat/tsk-002-n54-pendientes-presidente` | N51, N52 |
 | 6 | TSK-002-N55 retiro del código muerto | `refactor/tsk-002-n55-retiro-sorteo` | N52, N53 |
 
@@ -456,9 +457,10 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 | El frontend aún envía `{ evaluatorIds }` o asigna como SECRETARIA | Coordinar con el repo FRONTEND-CEISH antes de fusionar N52; mensaje 400 explícito para el formato antiguo |
 | Asignaciones duplicadas por peticiones simultáneas | Bloqueo de la fila del protocolo y comprobación «sin asignaciones activas» dentro de la misma transacción (N52) |
 | Bioético sin miembros | La fila se quita en expedita; solo bloquean Sociedad civil y el mínimo de 2 |
-| La PRESIDENTE pasa también los guardias de `POST /evaluations/reassign` al recibir el permiso | Se reporta en N51; la reasignación no cambia en esta etapa |
+| La PRESIDENTE pasa también los guardias de `POST /evaluations/reassign` al recibir el permiso | Riesgo aceptado por la usuaria (18/11/2026); la reasignación no cambia en esta etapa |
+| Cambiar el tipo de revisión con dictámenes en curso cambia el anexo exigido (`evaluations.service.ts:525`, `:680-693`) | Lo hace solo la SECRETARIA desde el día de la reunión (N56); se prueba que las asignaciones no cambian |
 | Pruebas existentes que asumen 4 evaluadores o el 403 por convocatoria | Listadas en N52 (archivos a modificar) |
 
 ### 17.5 Decisiones abiertas
 
-Ver `spec.md` §11, n.º 3 a 9 (tipo de revisión al designar el riesgo; Sociedad civil en pleno; persona con Sociedad civil y otro perfil; fecha del registro del riesgo en discrepancia; `submit-risk` sin convocatoria; `ENSAYO_CLINICO`; aviso de fecha de entrega al agendar).
+Respuestas de la usuaria del 18/11/2026 (`spec.md` §11): n.º 3 el tipo de revisión no cambia solo al designar el riesgo; lo cambia la SECRETARIA según la reunión (N56). n.º 4 en pleno basta con que quede una persona de Sociedad civil. n.º 6 el riesgo en discrepancia se registra con convocatoria y desde el día de la reunión, si no `409` (N53). n.º 7 `submit-risk` sin convocatoria (N52). n.º 9 se mantiene el aviso de la fecha de entrega al agendar. Siguen abiertas: n.º 5 (se decide en el Paso 0 de N52) y n.º 8 `ENSAYO_CLINICO` (fuera de esta etapa).
