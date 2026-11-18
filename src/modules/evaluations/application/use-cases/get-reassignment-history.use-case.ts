@@ -2,8 +2,8 @@ import { NotFoundException } from '@nestjs/common';
 import {
   EvaluatorProfile,
   ReassignmentReason,
+  toEvaluatorProfile,
 } from '../../../../shared/enums/evaluator-enums';
-import { resolveEvaluatorProfile } from '../../../../shared/helpers/evaluator-profile.helper';
 import { ReassignmentHistoryRawRow } from '../../domain/ports/evaluation.repository.port';
 
 export interface ReassignmentHistoryEntryDto {
@@ -46,7 +46,7 @@ export class GetReassignmentHistoryUseCase {
     }
 
     return rows.map((row): ReassignmentHistoryEntryDto => {
-      const evaluatorProfile = resolveEvaluatorProfile(row.profileName);
+      const evaluatorProfile = toEvaluatorProfile(row.profileName);
       if (!evaluatorProfile) {
         throw new NotFoundException(
           `Perfil de evaluador no reconocido '${row.profileName ?? 'nulo'}' en historial ID ${row.id}.`,
