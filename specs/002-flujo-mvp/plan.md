@@ -431,20 +431,23 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 
 ### 17.2 Diseño objetivo
 
-- **Dominio:** `QuotaEvaluatorValidatorService` pasa a validar la composición por tipo de revisión (RF-12.1 a–c) y sigue siendo puro; `EvaluatorProfile` suma `BIOETICO` y `ETICO` con una sola función de conversión (`toEvaluatorProfile`). `RandomRiskSelectorService` se retira.
-- **Aplicación:** `AssignEvaluatorsUseCase` es el único camino (MeetingsController/EvaluationsController canónicos, nada en `CallsController`): comprobaciones de RF-12.1 d, versión activa, Anexo 10 para todos menos Sociedad civil, `reviewType` y `asignado_por` en una transacción con bloqueo de la fila del protocolo, y emisión de `evaluator.assigned` siempre, con `plazo_revision_oficio_dias` de `SystemParamsService`. `submitPeerRiskLevel` resuelve el riesgo con N propuestas.
-- **Infraestructura:** dos migraciones de datos (perfil Bioético; PRESIDENTE → `EVALUACION_ASIGNAR`), sin cambios de esquema. Consultas reutilizadas: fila `asignar` de `PENDING_ITEMS_SQL` y `findEvaluatorsWithWorkload` (con `SUGGESTED`).
+- **Dominio:** `QuotaEvaluatorValidatorService` pasa a validar la composición por tipo de revisión (RF-12.1 a–c) y sigue siendo puro; `EvaluatorProfile` suma `BIOETICO` con una sola función de conversión (`toEvaluatorProfile`); el perfil «Ético» (id 7) se renombra a «Bioético» (spec v1.3.1). `RandomRiskSelectorService` se retira.
+- **Aplicación:** `AssignEvaluatorsUseCase` es el único camino (MeetingsController/EvaluationsController canónicos, nada en `CallsController`): comprobaciones de RF-12.1 d, versión activa, Anexo 10 para todos menos Sociedad civil, `reviewType` y `asignado_por` en una transacción con bloqueo de la fila del protocolo, y emisión de `evaluator.assigned` siempre, con `plazo_revision_oficio_dias` de `SystemParamsService` y la fecha límite del plazo de evaluación. `submitPeerRiskLevel` resuelve el riesgo con N propuestas. `CreateMeetingUseCase` rechaza (`409`) las versiones cuyo plazo de evaluación no ha vencido (N57).
+- **Infraestructura:** dos migraciones de datos (renombre Ético → Bioético; PRESIDENTE → `EVALUACION_ASIGNAR`) y un cambio de esquema aditivo, con visto bueno previo (`asignaciones_evaluacion.fecha_limite_revision timestamptz NULL`, N52). Consultas reutilizadas: fila `asignar` de `PENDING_ITEMS_SQL` y `findEvaluatorsWithWorkload` (con `SUGGESTED`). Un solo predicado «plazo de evaluación vencido» en el repositorio de convocatorias, para `pending-protocols`, para el `409` al agendar (N57) y para la alerta de RF-12.7 d (N58).
 - **API (cambios aprobados el 17/11/2026):** cuerpo `{ reviewType, evaluators[] }` con ≥ 2; `{ evaluatorIds }` deja de aceptarse; rutas de asignación solo PRESIDENTE; `pending-peer-assignment` cambia su respuesta. El frontend se ajusta en su repo.
-- **Plazos:** sin constantes nuevas. El oficio usa `plazo_revision_oficio_dias` (`deadline-rules.ts:18`, `system-params.service.ts:17`); la fecha de entrega sigue siendo `fecha_entrega_evaluacion` de la convocatoria. `plazo_evaluacion_dias` del tipo de estudio no se usa.
+- **Plazos:** sin constantes nuevas. `plazo_revision_oficio_dias` (`deadline-rules.ts:18`, `system-params.service.ts:17`) pasa a ser el plazo de evaluación del PET (spec v1.3.1, RF-12.7 c): la fecha límite = día de la asignación + 8 días laborables, 23:59:59.999 de Ecuador, con `BusinessDayCalculator` y `holidays: []` (no hay fuente de feriados, TSK-015-N04 diferida: lunes a viernes). Se guarda al asignar (N52); el protocolo solo es candidato para una convocatoria cuando vence (N57); la alerta sin convocatoria cuenta desde ese vencimiento (N58). La fecha de entrega del informe sigue siendo `fecha_entrega_evaluacion` de la convocatoria. `plazo_evaluacion_dias` del tipo de estudio no se usa.
 
 ### 17.3 Secuencia de PRs
 
 | Orden | Tarea | Rama sugerida | Depende de |
 |---|---|---|---|
 | 0 | Spec v1.3.0 (esta) | `docs/spec-002-asignacion-presidenta` | — |
-| 1 | TSK-002-N50 Bioético | `feat/tsk-002-n50-perfil-bioetico` | — |
+| 0b | Spec v1.3.1 (PET: Bioético, plazo de evaluación, conflicto de interés) | `docs/spec-002-plazo-bioetico` | — |
+| 1 | TSK-002-N50 renombre Ético → Bioético | `feat/tsk-002-n50-perfil-bioetico` | — |
 | 2 | TSK-002-N51 permiso PRESIDENTE | `feat/tsk-002-n51-permiso-presidente` | — |
-| 3 | TSK-002-N52 asignación por la PRESIDENTE | `feat/tsk-002-n52-asignacion-presidente` | N50, N51 |
+| 3 | TSK-002-N52 asignación por la PRESIDENTE (con la fecha límite del plazo de evaluación) | `feat/tsk-002-n52-asignacion-presidente` | N50, N51 |
+| 3b | TSK-002-N57 candidatos para convocatoria solo con el plazo vencido (nueva 18/11/2026) | `feat/tsk-002-n57-candidatos-plazo-evaluacion` | N52 |
+| 3c | TSK-002-N58 alerta sin convocatoria desde el vencimiento del plazo (nueva 18/11/2026) | `feat/tsk-002-n58-alerta-sin-convocatoria` | N52, N57 |
 | 4 | TSK-002-N53 riesgo por N pares | `feat/tsk-002-n53-riesgo-n-pares` | N52 |
 | 4b | TSK-002-N56 cambio del tipo de revisión por la SECRETARIA (nueva 18/11/2026) | `feat/tsk-002-n56-tipo-revision-secretaria` | N53 |
 | 5 | TSK-002-N54 pantalla de la PRESIDENTE | `feat/tsk-002-n54-pendientes-presidente` | N51, N52 |
@@ -456,7 +459,10 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 |---|---|
 | El frontend aún envía `{ evaluatorIds }` o asigna como SECRETARIA | Coordinar con el repo FRONTEND-CEISH antes de fusionar N52; mensaje 400 explícito para el formato antiguo |
 | Asignaciones duplicadas por peticiones simultáneas | Bloqueo de la fila del protocolo y comprobación «sin asignaciones activas» dentro de la misma transacción (N52) |
-| Bioético sin miembros | La fila se quita en expedita; solo bloquean Sociedad civil y el mínimo de 2 |
+| El renombre de Ético a Bioético encuentra en `ceish_db` un catálogo distinto al de `ceish_test_db` (p. ej. una fila «BIOETICA» vieja) | La migración de N50 comprueba el nombre del id 7 y los duplicados, y aborta con un error en español sin cambiar nada |
+| Tras el renombre, la reasignación rechaza a los miembros Bioético con el mensaje «perfil Ético» (`reassign-evaluator.use-case.ts:84-88`) | Riesgo anotado en N50; se corrige en la tarea futura de reasignación |
+| La columna `fecha_limite_revision` es un cambio de esquema | Aditivo y nullable; necesita el visto bueno de la usuaria en el Paso 0 de N52 |
+| Agendar desde la ruta legacy `POST /evaluations/calls` salta el bloqueo de N57 | Regla del repo: no se toca; se cierra al retirarla (N47) |
 | La PRESIDENTE pasa también los guardias de `POST /evaluations/reassign` al recibir el permiso | Riesgo aceptado por la usuaria (18/11/2026); la reasignación no cambia en esta etapa |
 | Cambiar el tipo de revisión con dictámenes en curso cambia el anexo exigido (`evaluations.service.ts:525`, `:680-693`) | Lo hace solo la SECRETARIA desde el día de la reunión (N56); se prueba que las asignaciones no cambian |
 | Pruebas existentes que asumen 4 evaluadores o el 403 por convocatoria | Listadas en N52 (archivos a modificar) |
@@ -464,3 +470,5 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 ### 17.5 Decisiones abiertas
 
 Respuestas de la usuaria del 18/11/2026 (`spec.md` §11): n.º 3 el tipo de revisión no cambia solo al designar el riesgo; lo cambia la SECRETARIA según la reunión (N56). n.º 4 en pleno basta con que quede una persona de Sociedad civil. n.º 6 el riesgo en discrepancia se registra con convocatoria y desde el día de la reunión, si no `409` (N53). n.º 7 `submit-risk` sin convocatoria (N52). n.º 9 se mantiene el aviso de la fecha de entrega al agendar. Siguen abiertas: n.º 5 (se decide en el Paso 0 de N52) y n.º 8 `ENSAYO_CLINICO` (fuera de esta etapa).
+
+Decisiones de la usuaria del 18/11/2026 tras revisar el PET (spec v1.3.1): (1) «Ético» (id 7) se renombra a «Bioético» (N50 reescrita); (2) plazo de evaluación de 8 días laborables con fecha límite guardada al asignar (N52), candidato para convocatoria solo al vencer (N57) y alerta desde ese vencimiento (N58); (3) el conflicto de interés del PET queda para más adelante (N59; hoy no existe el dato de la unidad administrativa de cada miembro).
