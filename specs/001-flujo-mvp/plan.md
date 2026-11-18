@@ -126,7 +126,7 @@ src/
 | 001.24 | — | Por hacer; depende de la tarea del frontend que quita el campo del payload | Retiro final de `principalInvestigatorId` de `CreateProtocolDto` (opción A de RF-02.9 b) |
 | 001.25 | — | Por hacer, prioridad media (bloquea el cierre limpio de las tareas) | `test/meeting-pdf-real.e2e-spec.ts` inestable por tiempo (M4-01, M4-03, M4-04 y M5 superan a veces 30 y 60 s): medir la generación del PDF y decidir si se optimiza o se sube el límite solo en esa suite |
 | 001.26 | — | Hecho (17/11/2026, aff732e) | Control de acceso en `GET /protocols/:id`: investigador principal, `PROTOCOLOS_LISTAR` sin borradores, evaluador con asignación 5, 6 o 7; los demás 404 (RF-02.10 v3.7.7) |
-| 001.27 | — | Por hacer; depende de 001.26 | Encabezado en `GET /protocols/:id`: `etapa`, `etapaOrden`, `principalInvestigator`, `riskLevelCode` y los textos actuales llenos (RF-EST.2) |
+| 001.27 | — | En curso (18/11/2026) | Encabezado en `GET /protocols/:id`: `etapa`, `etapaOrden`, `principalInvestigator`, `riskLevelCode` y los textos actuales llenos (RF-EST.2) |
 | 001.28 | — | Por hacer | Última sesión del protocolo en `GET /protocols/:id` (regla en su Paso 0) |
 | 001.29 | — | Por hacer; a la espera de la decisión de la usuaria | Código del protocolo según el PET 4.1.6 (hoy: 3 dígitos con ceros, secuencia por tipo y por año, sigla EX) |
 | 001.13 | — | Por hacer, aparte | Reconstrucción del catálogo de requisitos por `codigo_anexo` para bases nuevas (pendiente 17 cerrado) |
