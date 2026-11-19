@@ -288,8 +288,8 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(u.secretaria.loginBody?.user?.permissions).toHaveLength(36);
     });
 
-    it('PRESIDENTE: token contiene exactamente 22 permisos', () => {
-      expect(u.presidente.loginBody?.user?.permissions).toHaveLength(22);
+    it('PRESIDENTE: token contiene exactamente 23 permisos (TSK-002-N51)', () => {
+      expect(u.presidente.loginBody?.user?.permissions).toHaveLength(23);
     });
 
     it('EVALUADOR: token contiene exactamente 9 permisos', () => {
@@ -300,7 +300,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(u.investigador.loginBody?.user?.permissions).toHaveLength(8);
     });
 
-    it('matriz fija: 75 filas vigentes en rol_permisos para los 4 roles (TSK-001.4)', async () => {
+    it('matriz fija: 76 filas vigentes en rol_permisos para los 4 roles (TSK-001.4, TSK-002-N51)', async () => {
       const [{ c }] = await ds.query(
         `SELECT count(*)::int AS c
          FROM catalogos.rol_permisos rp
@@ -308,7 +308,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
          JOIN catalogos.permisos p ON p.id = rp.permiso_id AND p.eliminado_en IS NULL
          WHERE r.codigo IN ('SECRETARIA', 'PRESIDENTE', 'EVALUADOR', 'INVESTIGADOR')`,
       );
-      expect(c).toBe(75);
+      expect(c).toBe(76);
     });
 
     it('SECRETARIA y PRESIDENTE: token incluye PROTOCOLOS_LISTAR; EVALUADOR e INVESTIGADOR no (TSK-001.4)', () => {
@@ -370,7 +370,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
   });
 
   // ─── PRESIDENTE ──────────────────────────────────────────────────────────────
-  describe('PRESIDENTE (22 permisos)', () => {
+  describe('PRESIDENTE (23 permisos)', () => {
     it('GET /auth/admin-only → 200 (tiene rol PRESIDENTE)', async () => {
       const res = await get('/auth/admin-only', u.presidente.token);
       expect(res.status).toBe(200);
@@ -472,6 +472,99 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
         .set('Authorization', `Bearer ${u.secretaria.token}`)
         .send({});
       expect(res.status).not.toBe(403);
+    });
+  });
+
+  // ─── TSK-002-N51: PRESIDENTE recibe EVALUACION_ASIGNAR ───────────────────
+  // N51 solo concede el permiso: las rutas de asignar siguen con
+  // @Roles('SECRETARIA', 'PRESIDENTE'); el 403 a la SECRETARIA va en N52.
+  // Los cuerpos y parámetros son inválidos a propósito: los guards corren antes
+  // que los pipes, así que «no 403» prueba el paso de los guards y el 400 del
+  // pipe impide que el handler escriba en la base.
+  describe('TSK-002-N51 — PRESIDENTE con EVALUACION_ASIGNAR; SECRETARIA sin cambios', () => {
+    beforeEach(() => clearGuardCache());
+
+    const assignRoutes = [
+      {
+        name: 'POST /evaluations/protocols/:id/assign-peer-evaluators',
+        call: (token: string) =>
+          request(app.getHttpServer())
+            .post(
+              '/api/evaluations/protocols/no-numerico/assign-peer-evaluators',
+            )
+            .set('Authorization', `Bearer ${token}`)
+            .send({}),
+      },
+      {
+        name: 'POST /evaluations/assign',
+        call: (token: string) =>
+          request(app.getHttpServer())
+            .post('/api/evaluations/assign')
+            .set('Authorization', `Bearer ${token}`)
+            .send({}),
+      },
+    ];
+
+    const readRoutes = [
+      '/evaluations/protocols/pending-peer-assignment',
+      '/evaluations/evaluators/active',
+    ];
+
+    it('PRESIDENTE: el login incluye EVALUACION_ASIGNAR', () => {
+      const codes: string[] = (
+        u.presidente.loginBody?.user?.permissions ?? []
+      ).map((p: any) => p.code as string);
+      expect(codes).toContain('EVALUACION_ASIGNAR');
+    });
+
+    it('rol_permisos: PRESIDENTE y SECRETARIA tienen EVALUACION_ASIGNAR', async () => {
+      const rows: Array<{ codigo: string }> = await ds.query(
+        `SELECT r.codigo
+         FROM catalogos.rol_permisos rp
+         JOIN catalogos.roles r ON r.id = rp.rol_id
+         JOIN catalogos.permisos p ON p.id = rp.permiso_id AND p.eliminado_en IS NULL
+         WHERE p.codigo = 'EVALUACION_ASIGNAR'
+         ORDER BY r.codigo`,
+      );
+      expect(rows.map((r) => r.codigo)).toEqual(['PRESIDENTE', 'SECRETARIA']);
+    });
+
+    for (const route of assignRoutes) {
+      it(`PRESIDENTE: ${route.name} → no 403 (400 por el cuerpo o el parámetro)`, async () => {
+        const res = await route.call(u.presidente.token);
+        expect(res.status).not.toBe(403);
+        expect(res.status).toBe(400);
+      });
+
+      it(`SECRETARIA: ${route.name} → no 403 en N51 (400 por el cuerpo o el parámetro)`, async () => {
+        const res = await route.call(u.secretaria.token);
+        expect(res.status).not.toBe(403);
+        expect(res.status).toBe(400);
+      });
+    }
+
+    for (const path of readRoutes) {
+      it(`PRESIDENTE: GET ${path} → 200`, async () => {
+        const res = await get(path, u.presidente.token);
+        expect(res.status).toBe(200);
+      });
+
+      it(`SECRETARIA: GET ${path} → 200`, async () => {
+        const res = await get(path, u.secretaria.token);
+        expect(res.status).toBe(200);
+      });
+    }
+
+    it('SECRETARIA: GET /evaluations/protocol/:protocolId/active-assignments → 200', async () => {
+      const [row]: Array<{ id: number }> = await ds.query(
+        `SELECT id FROM public.protocolos ORDER BY id LIMIT 1`,
+      );
+      expect(row).toBeDefined();
+      const res = await get(
+        `/evaluations/protocol/${row.id}/active-assignments`,
+        u.secretaria.token,
+      );
+      expect(res.status).toBe(200);
     });
   });
 
