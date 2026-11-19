@@ -475,13 +475,14 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
     });
   });
 
-  // ─── TSK-002-N51: PRESIDENTE recibe EVALUACION_ASIGNAR ───────────────────
-  // N51 solo concede el permiso: las rutas de asignar siguen con
-  // @Roles('SECRETARIA', 'PRESIDENTE'); el 403 a la SECRETARIA va en N52.
+  // ─── TSK-002-N51/N52: PRESIDENTE asigna; SECRETARIA → 403 al asignar ─────
+  // N51 concede EVALUACION_ASIGNAR a la PRESIDENTE; N52 deja las dos rutas de
+  // asignar con @Roles('PRESIDENTE') y la SECRETARIA recibe 403 (RF-12.1).
+  // La SECRETARIA conserva el permiso para las demás rutas (lectura, reasignación).
   // Los cuerpos y parámetros son inválidos a propósito: los guards corren antes
   // que los pipes, así que «no 403» prueba el paso de los guards y el 400 del
   // pipe impide que el handler escriba en la base.
-  describe('TSK-002-N51 — PRESIDENTE con EVALUACION_ASIGNAR; SECRETARIA sin cambios', () => {
+  describe('TSK-002-N51/N52 — PRESIDENTE asigna; SECRETARIA 403 solo en las rutas de asignar', () => {
     beforeEach(() => clearGuardCache());
 
     const assignRoutes = [
@@ -536,10 +537,9 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
         expect(res.status).toBe(400);
       });
 
-      it(`SECRETARIA: ${route.name} → no 403 en N51 (400 por el cuerpo o el parámetro)`, async () => {
+      it(`SECRETARIA: ${route.name} → 403 (TSK-002-N52, solo la PRESIDENTE asigna)`, async () => {
         const res = await route.call(u.secretaria.token);
-        expect(res.status).not.toBe(403);
-        expect(res.status).toBe(400);
+        expect(res.status).toBe(403);
       });
     }
 

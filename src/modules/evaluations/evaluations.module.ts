@@ -67,6 +67,7 @@ import { UnscheduledProtocolsAlertService } from './application/services/unsched
 import { AuthModule } from '../auth/auth.module';
 import { Logger } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { SystemParamsService } from '../sistema/application/services/system-params.service';
 
 function buildEvaluatorAssignedBridge(
   mailer: MailerNotificationAdapter,
@@ -205,12 +206,18 @@ function buildEvaluatorAssignedBridge(
       useFactory: (
         repo: IEvaluationRepository,
         mailer: MailerNotificationAdapter,
+        systemParams: SystemParamsService,
       ): AssignEvaluatorsUseCase =>
         new AssignEvaluatorsUseCase(
           repo,
           buildEvaluatorAssignedBridge(mailer, 'PR-G'),
+          systemParams,
         ),
-      inject: [IEvaluationRepository, MailerNotificationAdapter],
+      inject: [
+        IEvaluationRepository,
+        MailerNotificationAdapter,
+        SystemParamsService,
+      ],
     },
     {
       provide: ReassignEvaluatorUseCase,

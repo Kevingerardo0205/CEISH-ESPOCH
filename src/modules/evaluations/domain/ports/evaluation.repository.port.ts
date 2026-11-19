@@ -4,6 +4,7 @@ import { ProtocolVersionOrmEntity } from '../../infrastructure/database/protocol
 import { EvaluationOrmEntity } from '../../infrastructure/database/evaluation.entity.orm';
 import { EvaluationResponseDetailOrmEntity } from '../../infrastructure/database/evaluation-response-detail.entity.orm';
 import { AssignmentHistoryOrmEntity } from '../../infrastructure/database/entities/assignment-history.orm-entity';
+import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
 
 export interface ReassignmentHistoryRawRow {
   id: number;
@@ -143,7 +144,60 @@ export abstract class IEvaluationRepository {
     evaluatorId: number,
     protocolId: number,
   ): Promise<EvaluatorEnrichmentInfo | null>;
+
+  // Asignación por la PRESIDENTE [RF-12.1 d/e, RF-12.7 c.1, TSK-002-N52]
+  abstract findEvaluatorCandidates(
+    userIds: number[],
+  ): Promise<EvaluatorCandidateRow[]>;
+  abstract createAssignmentsForActiveVersion(
+    params: CreateAssignmentsForActiveVersionParams,
+  ): Promise<CreateAssignmentsResult>;
 }
+
+/** Datos de un usuario para comprobar que puede evaluar (RF-12.1 d). */
+export interface EvaluatorCandidateRow {
+  userId: number;
+  isActive: boolean;
+  hasEvaluatorRole: boolean;
+  /** Perfiles activos de la persona en catalogos.evaluadores_perfil. */
+  profiles: Array<{ profileId: number; profileName: string }>;
+}
+
+/** Motivos por los que no se puede asignar (el caso de uso los traduce a 400/404/409). */
+export type AssignmentPreconditionFailure =
+  | 'PROTOCOL_NOT_FOUND'
+  | 'NO_ACTIVE_VERSION'
+  | 'VERSION_MISMATCH'
+  | 'RECEPTION_NOT_COMPLETE'
+  | 'TERMS_NOT_ACCEPTED'
+  | 'ALREADY_ASSIGNED';
+
+export interface CreateAssignmentsForActiveVersionParams {
+  protocolId: number;
+  /** Si llega, debe ser la versión activa del protocolo. */
+  expectedVersionId?: number;
+  reviewType: ReviewType.EXPEDITA | ReviewType.PLENO;
+  assignedByUserId: number;
+  evaluators: Array<{
+    evaluatorId: number;
+    profileId: number;
+    isAssignedForAnnex10: boolean;
+  }>;
+  /** Calcula la fecha límite del plazo de evaluación desde NOW() de la base. */
+  computeReviewDeadline: (assignedAt: Date) => Date;
+}
+
+export type CreateAssignmentsResult =
+  | {
+      ok: true;
+      versionId: number;
+      assignedAt: Date;
+      reviewDeadline: Date;
+      /** Fecha de entrega de la convocatoria vigente si ya está agendado (RF-12.7 b). */
+      convocatoriaDeadline: Date | null;
+      assignments: EvaluationAssignmentOrmEntity[];
+    }
+  | { ok: false; reason: AssignmentPreconditionFailure };
 
 export interface ActiveVersionRow {
   ceishCode: string | null;
@@ -155,4 +209,6 @@ export interface EvaluatorEnrichmentInfo {
   evaluatorEmail: string;
   evaluatorFullName: string;
   ceishCode: string | null;
+  /** Título del protocolo para el oficio (RF-12.6, TSK-002-N52). */
+  protocolTitle?: string | null;
 }

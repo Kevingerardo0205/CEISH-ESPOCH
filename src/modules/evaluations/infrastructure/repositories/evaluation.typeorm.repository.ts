@@ -4,6 +4,9 @@ import { DataSource, In, Repository } from 'typeorm';
 import { QueryDeepPartialEntity } from 'typeorm/query-builder/QueryPartialEntity';
 import {
   ActiveVersionRow,
+  CreateAssignmentsForActiveVersionParams,
+  CreateAssignmentsResult,
+  EvaluatorCandidateRow,
   EvaluatorEnrichmentInfo,
   IEvaluationRepository,
   ReassignmentHistoryRawRow,
@@ -20,6 +23,8 @@ import { UserOrmEntity } from '../../../auth/infrastructure/database/user.entity
 import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
 import { ConvocatoriaStatus } from '../database/entities/convocatoria.orm-entity';
+import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
+import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
 
 @Injectable()
 export class EvaluationTypeOrmRepository implements IEvaluationRepository {
@@ -542,11 +547,13 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
         evaluator_full_name: string;
         evaluator_email: string;
         ceish_code: string | null;
+        protocol_title: string | null;
       }>
     >(
       `SELECT u.nombres_completos AS evaluator_full_name,
               u.email_institucional AS evaluator_email,
-              p.codigo_ceish       AS ceish_code
+              p.codigo_ceish       AS ceish_code,
+              p.titulo             AS protocol_title
          FROM catalogos.usuarios u CROSS JOIN public.protocolos p
         WHERE u.id = $1 AND p.id = $2`,
       [evaluatorId, protocolId],
@@ -556,6 +563,200 @@ export class EvaluationTypeOrmRepository implements IEvaluationRepository {
       evaluatorEmail: rows[0].evaluator_email,
       evaluatorFullName: rows[0].evaluator_full_name,
       ceishCode: rows[0].ceish_code ?? null,
+      protocolTitle: rows[0].protocol_title ?? null,
     };
+  }
+
+  /**
+   * TSK-002-N52 (RF-12.1 d): estado de cada usuario para asignarlo como evaluador:
+   * activo, con rol EVALUADOR vigente y sus perfiles activos del catálogo.
+   */
+  async findEvaluatorCandidates(
+    userIds: number[],
+  ): Promise<EvaluatorCandidateRow[]> {
+    if (userIds.length === 0) return [];
+    const rows = await this.dataSource.query<
+      Array<{
+        user_id: number;
+        is_active: boolean;
+        has_evaluator_role: boolean;
+        profile_id: number | null;
+        profile_name: string | null;
+      }>
+    >(
+      `SELECT u.id AS user_id,
+              (u.activo = true AND u.eliminado_en IS NULL) AS is_active,
+              EXISTS (
+                SELECT 1
+                  FROM catalogos.usuarios_roles ur
+                  JOIN catalogos.roles r ON r.id = ur.rol_id
+                 WHERE ur.usuario_id = u.id
+                   AND r.codigo = $2
+                   AND r.activo = true
+                   AND r.eliminado_en IS NULL
+                   AND (ur.fecha_fin IS NULL OR ur.fecha_fin > NOW())
+              ) AS has_evaluator_role,
+              pe.id     AS profile_id,
+              pe.nombre AS profile_name
+         FROM catalogos.usuarios u
+         LEFT JOIN catalogos.evaluadores_perfil ep
+                ON ep.usuario_id = u.id AND ep.activo = true
+         LEFT JOIN catalogos.perfiles_evaluador pe
+                ON pe.id = ep.perfil_id AND pe.activo = true
+        WHERE u.id = ANY($1::int[])
+        ORDER BY u.id, pe.id`,
+      [userIds, RoleCode.EVALUADOR],
+    );
+
+    const byUser = new Map<number, EvaluatorCandidateRow>();
+    for (const row of rows) {
+      const userId = Number(row.user_id);
+      let candidate = byUser.get(userId);
+      if (!candidate) {
+        candidate = {
+          userId,
+          isActive: row.is_active === true,
+          hasEvaluatorRole: row.has_evaluator_role === true,
+          profiles: [],
+        };
+        byUser.set(userId, candidate);
+      }
+      if (row.profile_id !== null && row.profile_name !== null) {
+        candidate.profiles.push({
+          profileId: Number(row.profile_id),
+          profileName: row.profile_name,
+        });
+      }
+    }
+    return Array.from(byUser.values());
+  }
+
+  /**
+   * TSK-002-N52 (RF-12.1 d/e, RF-12.7 c.1): en una sola transacción bloquea la fila del
+   * protocolo (FOR UPDATE), comprueba la recepción COMPLETO de la versión activa, los
+   * tiempos aceptados y que no haya asignaciones activas; guarda las asignaciones sobre
+   * la versión activa con asignado_por y fecha_limite_revision, y el tipo de revisión en
+   * el protocolo. El estado del protocolo no cambia.
+   */
+  async createAssignmentsForActiveVersion(
+    params: CreateAssignmentsForActiveVersionParams,
+  ): Promise<CreateAssignmentsResult> {
+    const queryRunner = this.dataSource.createQueryRunner();
+    await queryRunner.connect();
+    await queryRunner.startTransaction();
+    const fail = async (
+      reason: Extract<CreateAssignmentsResult, { ok: false }>['reason'],
+    ): Promise<CreateAssignmentsResult> => {
+      await queryRunner.rollbackTransaction();
+      return { ok: false, reason };
+    };
+    try {
+      const locked = (await queryRunner.query(
+        `SELECT p.id, p.version_actual_id, p.sometimiento_tiempos_aceptado, NOW() AS now
+           FROM public.protocolos p
+          WHERE p.id = $1 AND p.eliminado_en IS NULL
+          FOR UPDATE`,
+        [params.protocolId],
+      )) as Array<{
+        id: number;
+        version_actual_id: number | null;
+        sometimiento_tiempos_aceptado: boolean | null;
+        now: Date;
+      }>;
+      if (locked.length === 0) return await fail('PROTOCOL_NOT_FOUND');
+      const protocol = locked[0];
+      if (protocol.version_actual_id === null) {
+        return await fail('NO_ACTIVE_VERSION');
+      }
+      const versionId = Number(protocol.version_actual_id);
+      if (
+        params.expectedVersionId !== undefined &&
+        Number(params.expectedVersionId) !== versionId
+      ) {
+        return await fail('VERSION_MISMATCH');
+      }
+
+      const reception = (await queryRunner.query(
+        `SELECT 1 FROM recepcion.recepciones r
+          WHERE r.version_id = $1 AND r.estado_id = $2
+          LIMIT 1`,
+        [versionId, ProtocolStatus.COMPLETO],
+      )) as unknown[];
+      if (reception.length === 0) return await fail('RECEPTION_NOT_COMPLETE');
+
+      if (protocol.sometimiento_tiempos_aceptado !== true) {
+        return await fail('TERMS_NOT_ACCEPTED');
+      }
+
+      const active = (await queryRunner.query(
+        `SELECT 1 FROM evaluacion.asignaciones_evaluacion a
+          WHERE a.version_id = $1 AND a.estado_id = ANY($2::int[])
+          LIMIT 1`,
+        [versionId, [AssignmentStatus.SUGGESTED, AssignmentStatus.ASSIGNED]],
+      )) as unknown[];
+      if (active.length > 0) return await fail('ALREADY_ASSIGNED');
+
+      // NOW() es fijo dentro de la transacción: coincide con el DEFAULT now() de fecha_asignacion.
+      const assignedAt = new Date(protocol.now);
+      const reviewDeadline = params.computeReviewDeadline(assignedAt);
+
+      // N41: si la versión ya está en una convocatoria vigente, hereda su fecha de entrega.
+      const conv = (await queryRunner.query(
+        `SELECT c.fecha_entrega_evaluacion
+           FROM evaluacion.convocatorias c
+           JOIN evaluacion.convocatoria_protocolos cp ON cp.convocatoria_id = c.id
+          WHERE cp.version_id = $1
+            AND c.fecha_entrega_evaluacion IS NOT NULL
+            AND c.estado IN ($2, $3)
+          ORDER BY c.fecha_reunion DESC
+          LIMIT 1`,
+        [versionId, ConvocatoriaStatus.PROGRAMADA, ConvocatoriaStatus.EN_CURSO],
+      )) as Array<{ fecha_entrega_evaluacion: Date }>;
+      const convocatoriaDeadline = conv.length
+        ? new Date(conv[0].fecha_entrega_evaluacion)
+        : null;
+
+      const entities = params.evaluators.map((e) =>
+        queryRunner.manager.create(EvaluationAssignmentOrmEntity, {
+          versionId,
+          evaluatorId: e.evaluatorId,
+          profileId: e.profileId,
+          statusId: AssignmentStatus.ASSIGNED,
+          isAssignedForAnnex10: e.isAssignedForAnnex10,
+          assignedByUserId: params.assignedByUserId,
+          reviewDeadline,
+          deadline: convocatoriaDeadline
+            ? toCalendarDateString(convocatoriaDeadline)
+            : null,
+          deadlineTimestamp: convocatoriaDeadline,
+        }),
+      );
+      const saved = await queryRunner.manager.save(
+        EvaluationAssignmentOrmEntity,
+        entities,
+      );
+
+      await queryRunner.query(
+        `UPDATE public.protocolos SET tipo_revision = $2 WHERE id = $1`,
+        [params.protocolId, params.reviewType],
+      );
+
+      await queryRunner.commitTransaction();
+      return {
+        ok: true,
+        versionId,
+        assignedAt,
+        reviewDeadline,
+        convocatoriaDeadline,
+        assignments: saved,
+      };
+    } catch (error) {
+      if (queryRunner.isTransactionActive) {
+        await queryRunner.rollbackTransaction();
+      }
+      throw error;
+    } finally {
+      await queryRunner.release();
+    }
   }
 }

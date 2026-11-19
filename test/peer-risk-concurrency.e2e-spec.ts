@@ -192,12 +192,20 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
   });
 
   describe('Scenario 2: Contrato del endpoint POST /protocols/:id/assign-peer-evaluators cuando el adapter devuelve deadlineDate null (RF-12.7(a))', () => {
-    it('el endpoint retorna deadlineDate null cuando el adapter devuelve null (contrato HTTP, no integración real)', async () => {
+    it('el endpoint retorna deadlineDate null cuando el adapter devuelve null (contrato HTTP, no integración real; cuerpo N52)', async () => {
       // 1. Protocolo Expedita (ID 10)
       const resExpedita = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/10/assign-peer-evaluators')
         .set('Authorization', 'Bearer valid-token')
-        .send({ evaluatorIds: [10, 20, 30, 40] })
+        .send({
+          reviewType: 'EXPEDITA',
+          evaluators: [
+            { evaluatorId: 10, profile: 'JURIDICO' },
+            { evaluatorId: 20, profile: 'SOCIEDAD_CIVIL' },
+            { evaluatorId: 30, profile: 'METODOLOGICO' },
+            { evaluatorId: 40, profile: 'SALUD' },
+          ],
+        })
         .expect(201);
 
       const expeditaData = resExpedita.body.data || resExpedita.body;
@@ -208,7 +216,15 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
       const resPleno = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/20/assign-peer-evaluators')
         .set('Authorization', 'Bearer valid-token')
-        .send({ evaluatorIds: [10, 20, 30, 40] })
+        .send({
+          reviewType: 'PLENO',
+          evaluators: [
+            { evaluatorId: 10, profile: 'JURIDICO' },
+            { evaluatorId: 20, profile: 'SOCIEDAD_CIVIL' },
+            { evaluatorId: 30, profile: 'METODOLOGICO' },
+            { evaluatorId: 40, profile: 'SALUD' },
+          ],
+        })
         .expect(201);
 
       const plenoData = resPleno.body.data || resPleno.body;
@@ -220,7 +236,15 @@ describe('Peer Risk Concurrency & Real Flow Deadline Tests (e2e)', () => {
       const resExpedita = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/10/assign-peer-evaluators')
         .set('Authorization', 'Bearer valid-token')
-        .send({ evaluatorIds: [10, 20, 30, 40] })
+        .send({
+          reviewType: 'EXPEDITA',
+          evaluators: [
+            { evaluatorId: 10, profile: 'JURIDICO' },
+            { evaluatorId: 20, profile: 'SOCIEDAD_CIVIL' },
+            { evaluatorId: 30, profile: 'METODOLOGICO' },
+            { evaluatorId: 40, profile: 'SALUD' },
+          ],
+        })
         .expect(201);
 
       const expeditaData = resExpedita.body.data || resExpedita.body;

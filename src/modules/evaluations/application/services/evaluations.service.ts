@@ -221,30 +221,11 @@ export class EvaluationsService {
     const assignments =
       await this.evaluationRepository.findAssignmentsByEvaluatorId(evaluatorId);
 
-    // N42: solo versiones en convocatoria vigente (PROGRAMADA o EN_CURSO)
-    const versionIds = [
-      ...new Set(
-        assignments
-          .map((a) => a.versionId)
-          .filter((id): id is number => typeof id === 'number'),
-      ),
-    ];
-    const activeVersionIds =
-      versionIds.length > 0
-        ? await this.evaluationRepository.filterVersionIdsInActiveConvocatoria(
-            versionIds,
-          )
-        : [];
-    const activeSet = new Set(activeVersionIds);
-
+    // TSK-002-N52: RF-12.7 (4) y (4b) derogados; el evaluador trabaja su asignación desde que se asigna, sin esperar la convocatoria.
     const now = new Date();
 
     return assignments
-      .filter(
-        (a) =>
-          a.statusId === +AssignmentStatus.ASSIGNED &&
-          activeSet.has(a.versionId),
-      )
+      .filter((a) => a.statusId === +AssignmentStatus.ASSIGNED)
       .map((a) => {
         // end-of-day ECT prevents the deadline day from appearing expired before
         // midnight Ecuador time (new Date('YYYY-MM-DD') = midnight UTC = 19:00 ECT prev day).
@@ -289,24 +270,6 @@ export class EvaluationsService {
    * Aplica la Fase 5: Digitalización de Anexos
    */
   /**
-   * Helper privado TSK-002-N43: verificar que la versión esté en convocatoria vigente
-   * (PROGRAMADA o EN_CURSO) antes de permitir acciones operativas al evaluador.
-   */
-  private async assertAssignmentInActiveConvocatoria(
-    versionId: number,
-  ): Promise<void> {
-    const activeVersionIds =
-      await this.evaluationRepository.filterVersionIdsInActiveConvocatoria([
-        versionId,
-      ]);
-    if (!activeVersionIds || !activeVersionIds.includes(versionId)) {
-      throw new ForbiddenException(
-        'el protocolo aún no está en una convocatoria',
-      );
-    }
-  }
-
-  /**
    * Helper privado TSK-002-N43: resolver evaluación y/o asignación a partir de un ID
    * que puede ser identificador de evaluación o identificador de asignación.
    */
@@ -348,8 +311,7 @@ export class EvaluationsService {
       );
     }
 
-    // N43: guard de convocatoria (orden: existencia -> propiedad -> guard convocatoria -> validaciones de estado)
-    await this.assertAssignmentInActiveConvocatoria(assignment.versionId);
+    // TSK-002-N52: RF-12.7 (4) y (4b) derogados; el evaluador trabaja su asignación desde que se asigna, sin esperar la convocatoria (antes guard N43).
     if (assignment.statusId === +AssignmentStatus.COMPLETED) {
       throw new BadRequestException(
         'Esta evaluación ya ha sido enviada anteriormente.',
@@ -1123,23 +1085,9 @@ export class EvaluationsService {
       order: { assignedAt: 'DESC' },
     });
 
-    // N42: filtrar a versiones en convocatoria vigente (PROGRAMADA o EN_CURSO)
-    const canonicalVersionIds = [
-      ...new Set(canonicalAssignments.map((a) => a.versionId)),
-    ];
-    const activeCanonicalVersionIds =
-      canonicalVersionIds.length > 0
-        ? await this.evaluationRepository.filterVersionIdsInActiveConvocatoria(
-            canonicalVersionIds,
-          )
-        : [];
-    const activeCanonicalSet = new Set(activeCanonicalVersionIds);
-    const filteredCanonical = canonicalAssignments.filter((a) =>
-      activeCanonicalSet.has(a.versionId),
-    );
-
+    // TSK-002-N52: RF-12.7 (4) y (4b) derogados; el evaluador trabaja su asignación desde que se asigna, sin esperar la convocatoria (antes filtro N42).
     const canonicalMapped: PendingPeerRiskAssignmentItem[] = [];
-    for (const a of filteredCanonical) {
+    for (const a of canonicalAssignments) {
       const activeProposal = await this.riskProposalRepo.findOne({
         where: { assignmentId: a.id, isCurrent: true },
       });
@@ -1181,22 +1129,9 @@ export class EvaluationsService {
         .filter((id): id is number => typeof id === 'number'),
     );
 
-    // N42: filtrar asignaciones legacy a protocolos en convocatoria vigente
-    const legacyProtocolIds = [
-      ...new Set(legacyAssignments.map((l) => l.protocolId)),
-    ];
-    const activeLegacyProtocolIds =
-      legacyProtocolIds.length > 0
-        ? await this.evaluationRepository.filterProtocolIdsInActiveConvocatoria(
-            legacyProtocolIds,
-          )
-        : [];
-    const activeLegacySet = new Set(activeLegacyProtocolIds);
-
+    // TSK-002-N52: RF-12.7 (4) y (4b) derogados; el evaluador trabaja su asignación desde que se asigna, sin esperar la convocatoria (antes filtro N42 legacy).
     const filteredLegacy = legacyAssignments.filter(
-      (l) =>
-        !canonicalProtocolIds.has(l.protocolId) &&
-        activeLegacySet.has(l.protocolId),
+      (l) => !canonicalProtocolIds.has(l.protocolId),
     );
 
     return [...canonicalMapped, ...filteredLegacy];
@@ -1234,10 +1169,7 @@ export class EvaluationsService {
             'No tiene permisos para responder esta asignación.',
           );
         }
-        // N48: guard de convocatoria (existencia -> propiedad -> guard -> validaciones de estado)
-        await this.assertAssignmentInActiveConvocatoria(
-          canonicalAssignment.versionId,
-        );
+        // TSK-002-N52: RF-12.7 (4) y (4b) derogados; el evaluador trabaja su asignación desde que se asigna, sin esperar la convocatoria (antes guard N48).
 
         if (
           canonicalAssignment.statusId === +AssignmentStatus.REASIGNED_COI ||
@@ -1532,19 +1464,7 @@ export class EvaluationsService {
         );
       }
 
-      // N48: guard de convocatoria camino legacy (por protocolo_id, mismo patrón que N42)
-      const activeLegacyProtocolIds =
-        await this.evaluationRepository.filterProtocolIdsInActiveConvocatoria([
-          assignment.protocolId,
-        ]);
-      if (
-        !activeLegacyProtocolIds ||
-        !activeLegacyProtocolIds.includes(assignment.protocolId)
-      ) {
-        throw new ForbiddenException(
-          'el protocolo aún no está en una convocatoria',
-        );
-      }
+      // TSK-002-N52: RF-12.7 (4) y (4b) derogados; el evaluador trabaja su asignación desde que se asigna, sin esperar la convocatoria (antes guard N48 legacy).
 
       if (assignment.submittedAt) {
         throw new BadRequestException(
@@ -1856,12 +1776,7 @@ export class EvaluationsService {
    * estadísticas de cumplimiento por criterio técnico.
    */
   async getEvaluationChecklistDetails(id: number) {
-    const { evaluation, assignment } =
-      await this.resolveEvaluationAndAssignment(id);
-
-    if (assignment) {
-      await this.assertAssignmentInActiveConvocatoria(assignment.versionId);
-    }
+    const { evaluation } = await this.resolveEvaluationAndAssignment(id);
 
     // Si no se encuentra evaluación o detalles (formulario nuevo sin borrador), retornar objeto estructurado con hasDraft: false
     if (!evaluation) {
@@ -1951,10 +1866,6 @@ export class EvaluationsService {
       );
     }
 
-    if (assignment) {
-      await this.assertAssignmentInActiveConvocatoria(assignment.versionId);
-    }
-
     if (!evaluation) {
       throw new NotFoundException(
         `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
@@ -2001,10 +1912,6 @@ export class EvaluationsService {
       throw new NotFoundException(
         `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
       );
-    }
-
-    if (assignment) {
-      await this.assertAssignmentInActiveConvocatoria(assignment.versionId);
     }
 
     if (!evaluation) {

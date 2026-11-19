@@ -11,6 +11,7 @@ import {
   Param,
   Delete,
   UnauthorizedException,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtPayload } from '../../../../modules/auth/infrastructure/strategies/jwt.strategy';
 import { EvaluationsService } from '../../application/services/evaluations.service';
@@ -20,7 +21,6 @@ import {
   CreateEvaluatorProfileDto,
   UpdateEvaluatorProfileDto,
 } from '../../application/dtos/evaluator-profile-crud.dto';
-import { AssignPeerEvaluatorsDto } from '../../application/dtos/assign-peer-evaluators.dto';
 import { SubmitPeerRiskDto } from '../../application/dtos/submit-peer-risk.dto';
 
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
@@ -151,30 +151,51 @@ export class EvaluationsController {
   }
 
   @Post('protocols/:id/assign-peer-evaluators')
-  @Roles('SECRETARIA', 'PRESIDENTE')
+  @Roles('PRESIDENTE')
   @Permissions(Permission.EVALUATORS_ASSIGN)
   @Audit('PEER_EVALUATORS_ASSIGNED')
   @ApiOperation({
     summary:
-      'Secretaría asigna evaluadores al protocolo (exactamente 4). 2 aleatorios para riesgo + todos para evaluación ética.',
+      'La Presidente asigna los evaluadores pares: tipo de revisión (EXPEDITA o PLENO) y al menos 2 evaluadores con su perfil; Anexo 10 para todos menos Sociedad civil (RF-12.1, RF-12.2a).',
   })
   async assignPeerEvaluators(
     @Param('id', ParseIntPipe) id: number,
-    @Body() dto: AssignEvaluatorsDto | AssignPeerEvaluatorsDto,
+    @Body() dto: AssignEvaluatorsDto,
+    @Request() req: Request & { user?: JwtPayload },
   ) {
-    return this.assignmentAdapterService.adaptAndAssign(id, dto);
+    return this.assignmentAdapterService.adaptAndAssign(
+      id,
+      dto,
+      this.requireUserId(req),
+    );
   }
 
   @Post('assign')
-  @Roles('SECRETARIA', 'PRESIDENTE')
+  @Roles('PRESIDENTE')
   @Permissions(Permission.EVALUATORS_ASSIGN)
   @Audit('PEER_EVALUATORS_ASSIGNED')
   @ApiOperation({
     summary:
-      'Asignar 4 evaluadores pares con perfiles obligatorios y sorteo determinístico de Anexo 10',
+      'La Presidente asigna los evaluadores pares de un protocolo (protocolId obligatorio en el cuerpo): tipo de revisión y al menos 2 evaluadores con su perfil (RF-12.1).',
   })
-  async assignEvaluators(@Body() dto: AssignEvaluatorsDto) {
-    return this.assignEvaluatorsUseCase.execute(dto);
+  async assignEvaluators(
+    @Body() dto: AssignEvaluatorsDto,
+    @Request() req: Request & { user?: JwtPayload },
+  ) {
+    if (
+      dto.protocolId === undefined ||
+      dto.protocolId === null ||
+      String(dto.protocolId).trim() === ''
+    ) {
+      throw new BadRequestException('El ID del protocolo es obligatorio.');
+    }
+    return this.assignEvaluatorsUseCase.execute({
+      protocolId: dto.protocolId,
+      versionId: dto.versionId,
+      reviewType: dto.reviewType,
+      evaluators: dto.evaluators,
+      assignedByUserId: this.requireUserId(req),
+    });
   }
 
   @Post('reassign')
@@ -189,19 +210,7 @@ export class EvaluationsController {
     @Body() dto: ReassignEvaluatorDto,
     @Request() req: Request & { user?: JwtPayload },
   ) {
-    const rawId = req.user?.id;
-    const n: number =
-      typeof rawId === 'number'
-        ? rawId
-        : typeof rawId === 'string' && /^\d+$/.test(rawId)
-          ? Number(rawId)
-          : NaN;
-    if (!Number.isInteger(n) || n <= 0) {
-      throw new UnauthorizedException(
-        'El usuario autenticado no tiene un identificador válido.',
-      );
-    }
-    const adminUserId = n;
+    const adminUserId = this.requireUserId(req);
     return this.reassignEvaluatorUseCase.execute(dto, adminUserId);
   }
 
@@ -382,5 +391,22 @@ export class EvaluationsController {
     @Param('protocolId', ParseIntPipe) protocolId: number,
   ) {
     return this.submitEvaluationUseCase.finalizeIfComplete(protocolId);
+  }
+
+  /** Id numérico del usuario autenticado; si no es válido, 401. */
+  private requireUserId(req: Request & { user?: JwtPayload }): number {
+    const rawId = req.user?.id;
+    const n: number =
+      typeof rawId === 'number'
+        ? rawId
+        : typeof rawId === 'string' && /^\d+$/.test(rawId)
+          ? Number(rawId)
+          : NaN;
+    if (!Number.isInteger(n) || n <= 0) {
+      throw new UnauthorizedException(
+        'El usuario autenticado no tiene un identificador válido.',
+      );
+    }
+    return n;
   }
 }

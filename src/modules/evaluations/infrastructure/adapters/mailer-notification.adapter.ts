@@ -12,6 +12,17 @@ export interface EvaluatorAssignedEventPayload {
   isAssignedForAnnex10: boolean;
   deadlineDate?: string | null;
   isReassignment?: boolean;
+  /** Oficio al asignar (RF-12.6, TSK-002-N52): días laborables del plazo de evaluación. */
+  reviewBusinessDays?: number;
+  /** Fecha límite del plazo de evaluación (YYYY-MM-DD, America/Guayaquil). */
+  reviewDeadlineDate?: string | null;
+  protocolTitle?: string | null;
+}
+
+/** YYYY-MM-DD → dd/mm/aaaa; null si no tiene ese formato. */
+function toDayMonthYear(calendarDate?: string | null): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(calendarDate ?? '');
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : null;
 }
 
 export interface IMailerService {
@@ -52,10 +63,29 @@ export class MailerNotificationAdapter {
       : `${this.baseUrl}/dashboard/evaluations/list`;
     const rawDeadline = payload.deadlineDate || null;
     const deadlineDateObj = rawDeadline ? new Date(rawDeadline) : null;
-    const deadlineSection =
-      deadlineDateObj !== null && !isNaN(deadlineDateObj.getTime())
+    const hasConvocatoriaDeadline =
+      deadlineDateObj !== null && !isNaN(deadlineDateObj.getTime());
+    const isAssignmentOficio = payload.reviewBusinessDays !== undefined;
+    let deadlineSection: string;
+    if (isAssignmentOficio) {
+      // RF-12.6: plazo de evaluación con su fecha límite y fecha de entrega del informe
+      const reviewDeadline = toDayMonthYear(payload.reviewDeadlineDate);
+      const deliveryDate = hasConvocatoriaDeadline
+        ? toDayMonthYear(rawDeadline)
+        : null;
+      deadlineSection = `
+        <p><strong>Plazo de evaluación:</strong> ${payload.reviewBusinessDays} días laborables desde el día de la asignación${reviewDeadline ? `; fecha límite: <strong>${reviewDeadline}</strong>` : ''}.</p>
+        ${
+          deliveryDate
+            ? `<p><strong>Fecha de entrega del informe (convocatoria):</strong> ${deliveryDate}</p>`
+            : `<p>La fecha de entrega del informe será la fecha de entrega de la convocatoria en que se agende el protocolo.</p>`
+        }
+      `;
+    } else {
+      deadlineSection = hasConvocatoriaDeadline
         ? `<p><strong>Fecha límite normativo de entrega:</strong> ${deadlineDateObj.toLocaleDateString('es-EC', { timeZone: 'UTC', year: 'numeric', month: 'long', day: 'numeric' })}</p>`
         : `<p>La fecha límite de entrega será comunicada por la Secretaría.</p>`;
+    }
 
     const subject = payload.isReassignment
       ? `[REASIGNACIÓN] Evaluación Ética - Protocolo ${protocolCode}`
@@ -68,13 +98,20 @@ export class MailerNotificationAdapter {
           <strong>RESPONSABILIDAD ADICIONAL:</strong> Ha sido seleccionado para diligenciar el <strong>Anexo 10 (Estratificación de Riesgo)</strong>, además del Anexo 9 e Informe Narrativo habitual.
         </div>
       `;
+    } else if (isAssignmentOficio) {
+      annex10Notice = `<p>No debe diligenciar el <strong>Anexo 10 (Estratificación de Riesgo)</strong>.</p>`;
     }
+
+    const titleSection = payload.protocolTitle
+      ? `<p><strong>Título del protocolo:</strong> ${payload.protocolTitle}</p>`
+      : '';
 
     const html = `
       <div style="font-family: Arial, sans-serif; line-height: 1.6; color: #333;">
         <h2>Comité de Ética en Investigación en Seres Humanos (CEISH-ESPOCH)</h2>
         <p>Estimado(a) <strong>${evaluatorName}</strong>,</p>
         <p>Se le ha asignado la revisión del expediente correspondiente al protocolo de investigación con código oficial <strong>${protocolCode}</strong> bajo el perfil de <strong>${payload.evaluatorProfile}</strong>.</p>
+        ${titleSection}
         
         ${annex10Notice}
 
