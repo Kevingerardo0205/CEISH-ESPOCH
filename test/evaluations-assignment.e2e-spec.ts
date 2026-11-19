@@ -6,10 +6,14 @@ import {
 import { AssignmentStatus } from '../src/modules/evaluations/domain/enums/assignment-status.enum';
 import { EvaluationAssignmentEntity } from '../src/modules/evaluations/domain/entities/evaluation-assignment.entity';
 import { AssignmentHistoryEntity } from '../src/modules/evaluations/domain/entities/assignment-history.entity';
-import { AssignEvaluatorsUseCase } from '../src/modules/evaluations/application/use-cases/assign-evaluators.use-case';
+import {
+  AssignEvaluatorsCommand,
+  AssignEvaluatorsUseCase,
+} from '../src/modules/evaluations/application/use-cases/assign-evaluators.use-case';
 import { ReassignEvaluatorUseCase } from '../src/modules/evaluations/application/use-cases/reassign-evaluator.use-case';
 import { SubmitEvaluationUseCase } from '../src/modules/evaluations/application/use-cases/submit-evaluation.use-case';
-import { AssignEvaluatorsDto } from '../src/modules/evaluations/application/dtos/evaluator-dtos';
+import { ReviewType } from '../src/modules/protocols/domain/enums/review-type.enum';
+import type { CreateAssignmentsForActiveVersionParams } from '../src/modules/evaluations/domain/ports/evaluation.repository.port';
 import { IProtocolRepository } from '../src/modules/protocols/domain/ports/protocol.repository.port';
 
 describe('Evaluations Assignment Workflow (e2e integration)', () => {
@@ -17,8 +21,28 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
   let inMemoryHistory: AssignmentHistoryEntity[] = [];
   let emittedEvents: Array<{ event: string; payload: unknown }> = [];
 
+  // TSK-002-N52: catálogo de perfiles de ceish_test_db (id → perfil canónico)
+  const CATALOG: Array<{ profileId: number; profileName: string }> = [
+    { profileId: 6, profileName: 'Metodológico' },
+    { profileId: 7, profileName: 'Bioético' },
+    { profileId: 8, profileName: 'Jurídico' },
+    { profileId: 9, profileName: 'Salud' },
+    { profileId: 10, profileName: 'Sociedad Civil' },
+  ];
+  const PROFILE_BY_ID: Record<number, EvaluatorProfile> = {
+    6: EvaluatorProfile.METODOLOGICO,
+    7: EvaluatorProfile.BIOETICO,
+    8: EvaluatorProfile.JURIDICO,
+    9: EvaluatorProfile.SALUD,
+    10: EvaluatorProfile.SOCIEDAD_CIVIL,
+  };
+  const systemParamsMock = { get: () => 8 };
+  let convocatoriaDeadline: Date | null = null;
+
   let repositoryMock: {
-    saveAssignments: jest.Mock;
+    findEvaluatorCandidates: jest.Mock;
+    createAssignmentsForActiveVersion: jest.Mock;
+    findEnrichmentInfo: jest.Mock;
     findAssignmentById: jest.Mock;
     findAssignmentsByProtocolId: jest.Mock;
     findActiveAssignmentsByVersionId: jest.Mock;
@@ -36,24 +60,62 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     inMemoryHistory = [];
     emittedEvents = [];
 
+    convocatoriaDeadline = null;
     repositoryMock = {
-      saveAssignments: jest
+      findEvaluatorCandidates: jest.fn().mockImplementation((ids: number[]) =>
+        Promise.resolve(
+          ids.map((userId) => ({
+            userId,
+            isActive: true,
+            hasEvaluatorRole: true,
+            profiles: CATALOG,
+          })),
+        ),
+      ),
+      // In this mock, protocolId === versionId (both = 100, 200 o 300)
+      createAssignmentsForActiveVersion: jest
         .fn()
-        .mockImplementation((entities: EvaluationAssignmentEntity[]) => {
-          const persisted = entities.map((entity, index) => {
-            return new EvaluationAssignmentEntity({
-              id: entity.id ?? index + 1,
-              protocolId: entity.protocolId,
-              evaluatorId: entity.evaluatorId,
-              evaluatorProfile: entity.evaluatorProfile,
-              isAssignedForAnnex10: entity.isAssignedForAnnex10,
-              deadlineDate: entity.deadlineDate,
-              status: entity.status,
+        .mockImplementation(
+          (params: CreateAssignmentsForActiveVersionParams) => {
+            const assignedAt = new Date('2026-11-18T15:00:00.000Z');
+            const deadline = convocatoriaDeadline ? '2027-03-20' : null;
+            const orm = params.evaluators.map((e, index) => {
+              const id = inMemoryAssignments.length + index + 1;
+              return {
+                id,
+                versionId: params.protocolId,
+                evaluatorId: e.evaluatorId,
+                profileId: e.profileId,
+                statusId: AssignmentStatus.ASSIGNED,
+                isAssignedForAnnex10: e.isAssignedForAnnex10,
+                deadline,
+              };
             });
-          });
-          inMemoryAssignments.push(...persisted);
-          return Promise.resolve(persisted);
-        }),
+            inMemoryAssignments.push(
+              ...orm.map(
+                (o) =>
+                  new EvaluationAssignmentEntity({
+                    id: o.id,
+                    protocolId: params.protocolId,
+                    evaluatorId: o.evaluatorId,
+                    evaluatorProfile: PROFILE_BY_ID[o.profileId],
+                    isAssignedForAnnex10: o.isAssignedForAnnex10,
+                    deadlineDate: deadline,
+                    status: AssignmentStatus.ASSIGNED,
+                  }),
+              ),
+            );
+            return Promise.resolve({
+              ok: true,
+              versionId: params.protocolId,
+              assignedAt,
+              reviewDeadline: params.computeReviewDeadline(assignedAt),
+              convocatoriaDeadline,
+              assignments: orm,
+            });
+          },
+        ),
+      findEnrichmentInfo: jest.fn().mockResolvedValue(null),
       findAssignmentById: jest
         .fn()
         .mockImplementation((id: number | string) => {
@@ -232,6 +294,7 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     assignUseCase = new AssignEvaluatorsUseCase(
       repositoryMock,
       eventEmitterMock,
+      systemParamsMock,
     );
     reassignUseCase = new ReassignEvaluatorUseCase(
       repositoryMock,
@@ -243,12 +306,14 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     );
   });
 
-  it('should run full end-to-end evaluation workflow: assign 4 -> pick 2 Annex 10 -> reassign by COI -> check completion status', async () => {
+  it('should run full end-to-end evaluation workflow: assign (N52) -> Annex 10 to all but Sociedad civil -> reassign by COI -> check completion status', async () => {
     const protocolId = 100;
 
-    // 1. Asignar la cuota exacta de 4 evaluadores (1 Jurídico, 1 Sociedad Civil, 1 Metodológico, 1 Salud)
-    const assignDto = {
+    // 1. N52: la Presidente asigna en expedita (4 filas: Jurídico, Sociedad civil, Metodológico, Salud)
+    const assignDto: AssignEvaluatorsCommand = {
       protocolId,
+      reviewType: ReviewType.EXPEDITA,
+      assignedByUserId: 900,
       evaluators: [
         {
           evaluatorId: 1,
@@ -273,18 +338,18 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     expect(initialAssignments).toHaveLength(4);
     expect(inMemoryAssignments).toHaveLength(4);
 
-    // 2. Verificar que exactamente 2 evaluadores reciben la marca de Anexo 10 y que SOCIEDAD_CIVIL está excluido
+    // 2. N52 (RF-12.2a): Anexo 10 para todos menos Sociedad civil, sin sorteo
     const annex10Entities = initialAssignments.filter(
       (a) => a.isAssignedForAnnex10,
     );
-    expect(annex10Entities).toHaveLength(2);
+    expect(annex10Entities).toHaveLength(3);
     const sociedadCivilEntity = initialAssignments.find(
       (a) => a.evaluatorProfile === EvaluatorProfile.SOCIEDAD_CIVIL,
     );
     expect(sociedadCivilEntity?.isAssignedForAnnex10).toBe(false);
 
-    // 3. N41: sin convocatoria vigente (saveAssignments path → deadlineDate=null) → NO se emiten eventos
-    expect(emittedEvents).toHaveLength(0);
+    // 3. N52 (RF-12.6): el oficio se emite al asignar, aunque no haya convocatoria
+    expect(emittedEvents).toHaveLength(4);
 
     // 4. Verificar que el estado de completitud es false cuando faltan dictámenes
     let isComplete =
@@ -336,8 +401,10 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
   it('should NOT mark ethical evaluation as completed when Annex 10 evaluator sends preliminary risk proposal, and preserves risk proposal after full evaluation', async () => {
     const protocolId = 200;
 
-    const assignDto: AssignEvaluatorsDto = {
+    const assignDto: AssignEvaluatorsCommand = {
       protocolId,
+      reviewType: ReviewType.EXPEDITA,
+      assignedByUserId: 900,
       evaluators: [
         { evaluatorId: 10, profile: EvaluatorProfile.JURIDICO },
         { evaluatorId: 20, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
@@ -469,79 +536,29 @@ describe('Evaluations Assignment Workflow (e2e integration)', () => {
     expect(isComplete).toBe(true);
   });
 
-  // ── TSK-002-N41 ────────────────────────────────────────────────────────────
-  describe('N41: saveAssignmentsTransaction CON convocatoria vigente → emit 4 eventos', () => {
-    let transactionEmitter: { emit: jest.Mock };
-    let txRepoMock: {
-      saveAssignmentsTransaction: jest.Mock;
-      findVersionByProtocolId: jest.Mock;
-      findActiveConvocatoriaDeadline: jest.Mock;
-    };
+  // ── TSK-002-N41 (con N52) ──────────────────────────────────────────────────
+  it('N41-B4: CON convocatoria vigente → 4 eventos evaluator.assigned con la fecha de entrega (deadlineDate)', async () => {
+    emittedEvents = [];
+    convocatoriaDeadline = new Date('2027-03-20T22:00:00.000Z');
 
-    beforeEach(() => {
-      transactionEmitter = {
-        emit: jest
-          .fn()
-          .mockImplementation((event: string, payload: unknown) => {
-            emittedEvents.push({ event, payload });
-          }),
-      };
-      txRepoMock = {
-        saveAssignmentsTransaction: jest.fn().mockImplementation(
-          (
-            payloads: Array<{
-              evaluatorId: number;
-              isAssignedForAnnex10: boolean;
-              deadline: string | null;
-              statusId: number;
-            }>,
-          ) =>
-            payloads.map((p, idx) => ({
-              id: idx + 100,
-              versionId: 300,
-              evaluatorId: p.evaluatorId,
-              isAssignedForAnnex10: p.isAssignedForAnnex10,
-              deadline: p.deadline,
-              statusId: p.statusId,
-            })),
-        ),
-        findVersionByProtocolId: jest
-          .fn()
-          .mockResolvedValue({ id: 300, protocolId: 300 }),
-        findActiveConvocatoriaDeadline: jest
-          .fn()
-          .mockResolvedValue(new Date('2027-03-20T22:00:00.000Z')),
-      };
+    await assignUseCase.execute({
+      protocolId: 300,
+      reviewType: ReviewType.EXPEDITA,
+      assignedByUserId: 900,
+      evaluators: [
+        { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
+        { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+        { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
+        { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
+      ],
     });
 
-    it('N41-B4: saveAssignmentsTransaction CON convocatoria vigente → 4 eventos evaluator.assigned con deadlineDate', async () => {
-      emittedEvents = [];
-      const txUseCase = new AssignEvaluatorsUseCase(
-        txRepoMock,
-        transactionEmitter,
+    expect(emittedEvents).toHaveLength(4);
+    for (const { event, payload } of emittedEvents) {
+      expect(event).toBe('evaluator.assigned');
+      expect((payload as Record<string, unknown>).deadlineDate).toBe(
+        '2027-03-20',
       );
-
-      const dto = {
-        protocolId: 300,
-        evaluators: [
-          { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
-          { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
-          { evaluatorId: 3, profile: EvaluatorProfile.METODOLOGICO },
-          { evaluatorId: 4, profile: EvaluatorProfile.SALUD },
-        ],
-      };
-
-      await txUseCase.execute(dto);
-
-      // N41: versión en convocatoria → 4 eventos emitidos
-      expect(emittedEvents).toHaveLength(4);
-      for (const { event, payload } of emittedEvents) {
-        expect(event).toBe('evaluator.assigned');
-        expect((payload as Record<string, unknown>).deadlineDate).toBeTruthy();
-        expect(typeof (payload as Record<string, unknown>).deadlineDate).toBe(
-          'string',
-        );
-      }
-    });
+    }
   });
 });

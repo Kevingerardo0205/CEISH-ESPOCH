@@ -1,266 +1,265 @@
-import { BadRequestException, Logger } from '@nestjs/common';
+import {
+  BadRequestException,
+  ConflictException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
-import { QuotaEvaluatorValidatorService } from '../../domain/services/quota-evaluator-validator.service';
-import { RandomRiskSelectorService } from '../../domain/services/random-risk-selector.service';
-import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
-import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
-import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
-import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
-import { EvaluatorEnrichmentInfo } from '../../domain/ports/evaluation.repository.port';
-import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
+import {
+  AssignableReviewType,
+  EvaluatorCandidateInput,
+  EvaluatorCompositionError,
+  QuotaEvaluatorValidatorService,
+} from '../../domain/services/quota-evaluator-validator.service';
+import {
+  EvaluatorProfile,
+  toEvaluatorProfile,
+} from '../../../../shared/enums/evaluator-enums';
+import {
+  AssignmentPreconditionFailure,
+  IEvaluationRepository,
+} from '../../domain/ports/evaluation.repository.port';
+import {
+  BusinessDayCalculator,
+  toCalendarDateString,
+} from '../../../../shared/services/deadline-calculator.service';
+import {
+  SP_PLAZO_REVISION_OFICIO,
+  SystemParamsService,
+} from '../../../sistema/application/services/system-params.service';
 
-// Internal type — carries the catalog profileId resolved by the adapter.
-// Never appears in the public API contract; not a DTO class.
-export interface ResolvedEvaluatorItem {
-  evaluatorId: number | string;
-  profile: EvaluatorProfile;
-  profileId?: number;
-}
-
-// Internal command passed from the controller (without profileId) or from the adapter (with profileId).
+/** Comando interno de asignación por la PRESIDENTE (TSK-002-N52). */
 export interface AssignEvaluatorsCommand {
   protocolId: number | string;
   versionId?: number;
-  reviewType?: ReviewType;
-  evaluators: ResolvedEvaluatorItem[];
+  reviewType: AssignableReviewType;
+  evaluators: EvaluatorCandidateInput[];
+  assignedByUserId: number;
 }
 
-export interface IEvaluationRepository {
-  saveAssignments?(
-    entities: EvaluationAssignmentEntity[],
-  ): Promise<EvaluationAssignmentEntity[]>;
-  saveAssignmentsTransaction?(
-    assignments: Partial<EvaluationAssignmentOrmEntity>[],
-  ): Promise<EvaluationAssignmentOrmEntity[]>;
-  findVersionById?(
-    id: number,
-  ): Promise<{ id: number; protocolId: number } | null>;
-  findVersionByProtocolId?(
-    protocolId: number,
-  ): Promise<{ id: number; protocolId: number } | null>;
-  findEnrichmentInfo?(
-    evaluatorId: number,
-    protocolId: number,
-  ): Promise<EvaluatorEnrichmentInfo | null>;
-  /** Devuelve la fecha de entrega de la convocatoria vigente para esta versión, o null si no hay ninguna (TSK-002-N41). */
-  findActiveConvocatoriaDeadline(versionId: number): Promise<Date | null>;
-}
+export type AssignEvaluatorsRepository = Pick<
+  IEvaluationRepository,
+  | 'findEvaluatorCandidates'
+  | 'createAssignmentsForActiveVersion'
+  | 'findEnrichmentInfo'
+>;
 
 export interface IEventEmitter {
   emit(event: string, payload: Record<string, unknown>): void;
 }
 
+const PRECONDITION_MESSAGES: Record<AssignmentPreconditionFailure, string> = {
+  PROTOCOL_NOT_FOUND: 'El protocolo no existe.',
+  NO_ACTIVE_VERSION: 'El protocolo no tiene una versión activa para asignar.',
+  VERSION_MISMATCH:
+    'La versión indicada no es la versión activa del protocolo.',
+  RECEPTION_NOT_COMPLETE:
+    'La recepción de la versión activa del protocolo no está completa.',
+  TERMS_NOT_ACCEPTED:
+    'El investigador aún no ha aceptado el sometimiento a los tiempos del CEISH.',
+  ALREADY_ASSIGNED:
+    'La versión activa del protocolo ya tiene evaluadores asignados.',
+};
+
 export class AssignEvaluatorsUseCase {
   private readonly logger = new Logger(AssignEvaluatorsUseCase.name);
 
   constructor(
-    private readonly evaluationRepository: IEvaluationRepository,
+    private readonly evaluationRepository: AssignEvaluatorsRepository,
     private readonly eventEmitter: IEventEmitter,
+    private readonly systemParams: Pick<SystemParamsService, 'get'>,
   ) {}
 
   /**
-   * Caso de uso para la asignación atómica de evaluadores pares [RF-12.1, RF-12.2, RF-12.6, RF-12.7(a)]
+   * Asignación de evaluadores pares por la PRESIDENTE
+   * [RF-12.1 a–e, RF-12.2a, RF-12.REV, RF-12.6, RF-12.7 c.1].
    */
   public async execute(
-    dto: AssignEvaluatorsCommand,
+    command: AssignEvaluatorsCommand,
   ): Promise<EvaluationAssignmentEntity[]> {
-    // 1. Validar la cuota exacta de 4 perfiles obligatorios (1 de cada uno)
-    QuotaEvaluatorValidatorService.validateQuota(dto.evaluators);
+    const protocolId = this.toPositiveInt(
+      command.protocolId,
+      'El ID del protocolo debe ser un entero positivo',
+    );
 
-    // 2. Seleccionar aleatoriamente a 2 evaluadores para Anexo 10 (Excluyendo Sociedad Civil)
-    const annex10EvaluatorIds =
-      RandomRiskSelectorService.selectAnnex10Evaluators(dto.evaluators);
-    const annex10Set = new Set(annex10EvaluatorIds);
+    // 1. Composición por tipo de revisión (dominio puro) → 400
+    try {
+      QuotaEvaluatorValidatorService.validateComposition(
+        command.reviewType,
+        command.evaluators,
+      );
+    } catch (err: unknown) {
+      if (err instanceof EvaluatorCompositionError) {
+        throw new BadRequestException(err.message);
+      }
+      throw err;
+    }
 
-    // 3. Instanciar las entidades puras de dominio (RF-12.7(a): fecha_limite queda null hasta la convocatoria)
-    const assignmentEntities = dto.evaluators.map((item, index) => {
-      const generatedId =
-        typeof dto.protocolId === 'number'
-          ? typeof item.evaluatorId === 'number'
-            ? undefined
-            : `asg-${dto.protocolId}-${index + 1}`
-          : `asg-${String(dto.protocolId).substring(0, 8)}-${index + 1}`;
-      const isAssignedForAnnex10 = annex10Set.has(item.evaluatorId);
+    // 2. Cada evaluador: activo, con rol EVALUADOR y con el perfil enviado → perfil_id del catálogo
+    const items = command.evaluators.map((e) => ({
+      evaluatorId: this.toPositiveInt(
+        e.evaluatorId,
+        'El ID del evaluador debe ser un entero positivo',
+      ),
+      profile: e.profile,
+    }));
+    const candidates = await this.evaluationRepository.findEvaluatorCandidates(
+      items.map((i) => i.evaluatorId),
+    );
+    const candidateById = new Map(candidates.map((c) => [c.userId, c]));
 
-      return new EvaluationAssignmentEntity({
-        id: generatedId,
-        protocolId: dto.protocolId,
+    const resolved = items.map((item) => {
+      const candidate = candidateById.get(item.evaluatorId);
+      if (!candidate) {
+        throw new BadRequestException(
+          `El evaluador con ID ${item.evaluatorId} no existe.`,
+        );
+      }
+      if (!candidate.isActive) {
+        throw new BadRequestException(
+          `El evaluador con ID ${item.evaluatorId} no está activo.`,
+        );
+      }
+      if (!candidate.hasEvaluatorRole) {
+        throw new BadRequestException(
+          `El usuario con ID ${item.evaluatorId} no tiene el rol EVALUADOR activo.`,
+        );
+      }
+      const catalogProfile = candidate.profiles.find(
+        (p) => toEvaluatorProfile(p.profileName) === item.profile,
+      );
+      if (!catalogProfile) {
+        throw new BadRequestException(
+          `El evaluador con ID ${item.evaluatorId} no tiene activo el perfil ${item.profile}.`,
+        );
+      }
+      return {
         evaluatorId: item.evaluatorId,
-        evaluatorProfile: item.profile,
-        isAssignedForAnnex10,
-        deadlineDate: null,
+        profile: item.profile,
+        profileId: catalogProfile.profileId,
+        // RF-12.2a: Anexo 10 para todos menos Sociedad civil (sin sorteo)
+        isAssignedForAnnex10: item.profile !== EvaluatorProfile.SOCIEDAD_CIVIL,
+      };
+    });
+
+    // 3. Comprobaciones del protocolo y guardado en una transacción con bloqueo
+    const reviewBusinessDays = this.systemParams.get(SP_PLAZO_REVISION_OFICIO);
+    const result =
+      await this.evaluationRepository.createAssignmentsForActiveVersion({
+        protocolId,
+        expectedVersionId: command.versionId,
+        reviewType: command.reviewType,
+        assignedByUserId: command.assignedByUserId,
+        evaluators: resolved.map((r) => ({
+          evaluatorId: r.evaluatorId,
+          profileId: r.profileId,
+          isAssignedForAnnex10: r.isAssignedForAnnex10,
+        })),
+        computeReviewDeadline: (assignedAt: Date): Date =>
+          BusinessDayCalculator.calculateDetailedDeadline({
+            startDate: assignedAt,
+            businessDaysToAdd: reviewBusinessDays,
+            holidays: [],
+          }).deadlineInstant,
+      });
+
+    if (!result.ok) {
+      const message = PRECONDITION_MESSAGES[result.reason];
+      if (result.reason === 'PROTOCOL_NOT_FOUND') {
+        throw new NotFoundException(message);
+      }
+      if (result.reason === 'VERSION_MISMATCH') {
+        throw new BadRequestException(message);
+      }
+      throw new ConflictException(message);
+    }
+
+    const profileByEvaluator = new Map(
+      resolved.map((r) => [r.evaluatorId, r.profile]),
+    );
+    const saved = result.assignments.map((orm) => {
+      const profile = profileByEvaluator.get(Number(orm.evaluatorId));
+      if (profile === undefined) {
+        throw new Error(
+          `No se encontró el perfil del evaluador con ID ${orm.evaluatorId}.`,
+        );
+      }
+      return new EvaluationAssignmentEntity({
+        id: orm.id,
+        protocolId,
+        evaluatorId: orm.evaluatorId,
+        evaluatorProfile: profile,
+        isAssignedForAnnex10: orm.isAssignedForAnnex10 ?? false,
+        deadlineDate: orm.deadline ?? null,
+        status: orm.statusId,
       });
     });
 
-    // 5. Persistir atómicamente en la base de datos
-    let savedEntities: EvaluationAssignmentEntity[];
-    let enrichProtocolId: number | undefined;
-    let isInConvocatoria = false;
-    if (this.evaluationRepository.saveAssignments) {
-      savedEntities =
-        await this.evaluationRepository.saveAssignments(assignmentEntities);
-    } else if (this.evaluationRepository.saveAssignmentsTransaction) {
-      // b) Strict protocolId: must be a positive integer (rejects "abc", "12abc", 0, -1)
-      const rawProtocolId = dto.protocolId;
-      if (
-        (typeof rawProtocolId === 'string' && !/^\d+$/.test(rawProtocolId)) ||
-        (typeof rawProtocolId === 'number' &&
-          (!Number.isInteger(rawProtocolId) || rawProtocolId <= 0))
-      ) {
-        throw new BadRequestException(
-          `protocolId debe ser un entero positivo; se recibió "${String(rawProtocolId)}".`,
-        );
-      }
-      const numericProtocolId =
-        typeof rawProtocolId === 'number'
-          ? rawProtocolId
-          : parseInt(rawProtocolId, 10);
-      enrichProtocolId = numericProtocolId;
-
-      // a) Validate explicitly supplied versionId before any DB write
-      if (
-        dto.versionId !== undefined &&
-        this.evaluationRepository.findVersionById
-      ) {
-        const existing = await this.evaluationRepository.findVersionById(
-          dto.versionId,
-        );
-        if (existing === null) {
-          throw new BadRequestException(
-            `La versión con ID ${dto.versionId} no existe.`,
-          );
-        }
-        if (existing.protocolId !== numericProtocolId) {
-          throw new BadRequestException(
-            `La versión ${dto.versionId} no pertenece al protocolo ${numericProtocolId}.`,
-          );
-        }
-      }
-
-      let resolvedVersionId: number | undefined = dto.versionId;
-      if (resolvedVersionId === undefined) {
-        if (!this.evaluationRepository.findVersionByProtocolId) {
-          throw new BadRequestException(
-            'No se puede resolver la versión del protocolo: falta versionId o soporte de findVersionByProtocolId.',
-          );
-        }
-        const found =
-          await this.evaluationRepository.findVersionByProtocolId(
-            numericProtocolId,
-          );
-        if (found === null) {
-          throw new BadRequestException(
-            `No existe versión activa resoluble para el protocolo con ID ${numericProtocolId}.`,
-          );
-        }
-        resolvedVersionId = found.id;
-      }
-
-      // N41: si la versión ya tiene convocatoria vigente, propagar la fecha_limite al crear la asignación
-      let convDeadlineTs: Date | null = null;
-      if (resolvedVersionId !== undefined) {
-        convDeadlineTs =
-          await this.evaluationRepository.findActiveConvocatoriaDeadline(
-            resolvedVersionId,
-          );
-      }
-      isInConvocatoria = convDeadlineTs !== null;
-
-      const ormPayloads = assignmentEntities.map((entity, index) => {
-        const dtoItem = dto.evaluators[index];
-        const rawEvaluatorId = entity.evaluatorId;
-        const numericEvaluatorId =
-          typeof rawEvaluatorId === 'number'
-            ? rawEvaluatorId
-            : parseInt(`${rawEvaluatorId}`, 10);
-        if (!Number.isInteger(numericEvaluatorId) || numericEvaluatorId <= 0) {
-          throw new BadRequestException(
-            `El ID del evaluador debe ser un entero positivo; se recibió "${String(rawEvaluatorId)}".`,
-          );
-        }
-        return {
-          versionId: resolvedVersionId,
-          evaluatorId: numericEvaluatorId,
-          profileId: dtoItem?.profileId,
-          statusId: AssignmentStatus.ASSIGNED,
-          isAssignedForAnnex10: entity.isAssignedForAnnex10,
-          deadline: convDeadlineTs
-            ? toCalendarDateString(convDeadlineTs)
-            : null,
-          deadlineTimestamp: convDeadlineTs,
-        };
+    // 4. Oficio al asignar, esté o no en convocatoria (RF-12.6). Un fallo no deshace la asignación.
+    const reviewDeadlineDate = toCalendarDateString(result.reviewDeadline);
+    for (const entity of saved) {
+      await this.emitAssigned(entity, protocolId, {
+        reviewBusinessDays,
+        reviewDeadlineDate,
       });
-      const ormEntities =
-        await this.evaluationRepository.saveAssignmentsTransaction(ormPayloads);
+    }
 
-      const profileMap = new Map(
-        dto.evaluators.map((e) => [e.evaluatorId, e.profile]),
+    return saved;
+  }
+
+  private async emitAssigned(
+    entity: EvaluationAssignmentEntity,
+    protocolId: number,
+    review: { reviewBusinessDays: number; reviewDeadlineDate: string },
+  ): Promise<void> {
+    const evaluatorId = Number(entity.evaluatorId);
+    const payload: Record<string, unknown> = {
+      assignmentId: entity.id,
+      protocolId,
+      evaluatorId,
+      evaluatorProfile: entity.evaluatorProfile,
+      isAssignedForAnnex10: entity.isAssignedForAnnex10,
+      deadlineDate: entity.deadlineDate,
+      reviewBusinessDays: review.reviewBusinessDays,
+      reviewDeadlineDate: review.reviewDeadlineDate,
+    };
+
+    try {
+      const info = await this.evaluationRepository.findEnrichmentInfo(
+        evaluatorId,
+        protocolId,
       );
-      savedEntities = ormEntities.map((orm) => {
-        const resolvedProfile = profileMap.get(orm.evaluatorId);
-        if (resolvedProfile === undefined) {
-          throw new BadRequestException(
-            `No se encontró perfil para el evaluador con ID ${orm.evaluatorId}.`,
-          );
-        }
-        return new EvaluationAssignmentEntity({
-          id: orm.id,
-          protocolId: dto.protocolId,
-          evaluatorId: orm.evaluatorId,
-          evaluatorProfile: resolvedProfile,
-          isAssignedForAnnex10: orm.isAssignedForAnnex10 ?? false,
-          deadlineDate: orm.deadline ?? null,
-          status: orm.statusId,
-        });
-      });
-    } else {
-      savedEntities = assignmentEntities;
-    }
-
-    // 6. Notificar asincrónicamente con Deep-Linking por cada evaluador asignado
-    // N41: solo emitir si la versión ya estaba en convocatoria vigente al momento de asignar
-    for (const entity of savedEntities) {
-      if (!isInConvocatoria) continue;
-      const payload: Record<string, unknown> = {
-        assignmentId: entity.id,
-        protocolId: entity.protocolId,
-        evaluatorId: entity.evaluatorId,
-        evaluatorProfile: entity.evaluatorProfile,
-        isAssignedForAnnex10: entity.isAssignedForAnnex10,
-        deadlineDate: entity.deadlineDate,
-      };
-
-      const effectiveProtocolId: number =
-        enrichProtocolId ??
-        (typeof entity.protocolId === 'number'
-          ? entity.protocolId
-          : parseInt(String(entity.protocolId), 10));
-      const numericEvaluatorId =
-        typeof entity.evaluatorId === 'number'
-          ? entity.evaluatorId
-          : parseInt(String(entity.evaluatorId), 10);
-
-      if (this.evaluationRepository.findEnrichmentInfo) {
-        try {
-          const info = await this.evaluationRepository.findEnrichmentInfo(
-            numericEvaluatorId,
-            effectiveProtocolId,
-          );
-          if (info) {
-            payload.evaluatorEmail = info.evaluatorEmail;
-            payload.evaluatorFullName = info.evaluatorFullName;
-            payload.protocolCode = info.ceishCode;
-          }
-        } catch (err: unknown) {
-          this.logger.warn(
-            `[N17] Error al enriquecer evento evaluadorId=${numericEvaluatorId}, protocolId=${effectiveProtocolId}: ${err instanceof Error ? err.message : String(err)}`,
-          );
-        }
+      if (info) {
+        payload.evaluatorEmail = info.evaluatorEmail;
+        payload.evaluatorFullName = info.evaluatorFullName;
+        payload.protocolCode = info.ceishCode;
+        payload.protocolTitle = info.protocolTitle ?? null;
       }
-
-      this.eventEmitter.emit('evaluator.assigned', payload);
+    } catch (err: unknown) {
+      this.logger.warn(
+        `[N17] Error al enriquecer evento evaluadorId=${evaluatorId}, protocolId=${protocolId}: ${err instanceof Error ? err.message : String(err)}`,
+      );
     }
 
-    return savedEntities;
+    try {
+      this.eventEmitter.emit('evaluator.assigned', payload);
+    } catch (err: unknown) {
+      this.logger.error(
+        `[N52] Error al emitir el oficio assignmentId=${String(entity.id)}: ${err instanceof Error ? err.message : String(err)}`,
+      );
+    }
+  }
+
+  private toPositiveInt(raw: number | string, message: string): number {
+    const value =
+      typeof raw === 'number'
+        ? raw
+        : /^\d+$/.test(String(raw).trim())
+          ? parseInt(String(raw).trim(), 10)
+          : NaN;
+    if (!Number.isInteger(value) || value <= 0) {
+      throw new BadRequestException(`${message}; se recibió "${String(raw)}".`);
+    }
+    return value;
   }
 }

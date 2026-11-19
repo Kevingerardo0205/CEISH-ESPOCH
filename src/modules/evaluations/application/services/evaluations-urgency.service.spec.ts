@@ -1,9 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-argument */
-import {
-  ForbiddenException,
-  BadRequestException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 /**
  * Pruebas unitarias TSK-002-N06: isUrgent solo cuando existe fecha_limite (RF-09.1).
  */
@@ -259,7 +255,7 @@ describe('EvaluationsService.getMyAssignments — isUrgent con umbral=5 (TSK-015
 });
 
 // ── TSK-002-N42 ────────────────────────────────────────────────────────────
-describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vigente', () => {
+describe('EvaluationsService — N52: el evaluador ve sus asignaciones sin convocatoria (deroga N42)', () => {
   let service: EvaluationsService;
   let mockFindAsg: jest.Mock;
   let mockFilterVersionIds: jest.Mock;
@@ -350,7 +346,7 @@ describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vige
     jest.useRealTimers();
   });
 
-  it('N42-U-01: my-assignments excluye asignación cuya versión NO está en convocatoria vigente', async () => {
+  it('N52-U-14 (antes N42-U-01): my-assignments incluye la asignación aunque la versión NO esté en convocatoria', async () => {
     mockFindAsg.mockResolvedValue([
       {
         statusId: AssignmentStatus.ASSIGNED,
@@ -359,30 +355,13 @@ describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vige
         deadline: null,
       },
     ]);
-    mockFilterVersionIds.mockResolvedValue([]); // versión 10 NO activa
-
-    const result = await service.getMyAssignments(1);
-    expect(result).toHaveLength(0);
-    expect(mockFilterVersionIds).toHaveBeenCalledWith([10]);
-  });
-
-  it('N42-U-02: my-assignments incluye asignación cuya versión SÍ está en convocatoria vigente', async () => {
-    mockFindAsg.mockResolvedValue([
-      {
-        statusId: AssignmentStatus.ASSIGNED,
-        versionId: 10,
-        version: null,
-        deadline: null,
-      },
-    ]);
-    mockFilterVersionIds.mockResolvedValue([10]); // versión 10 activa
 
     const result = await service.getMyAssignments(1);
     expect(result).toHaveLength(1);
-    expect(mockFilterVersionIds).toHaveBeenCalledWith([10]);
+    expect(mockFilterVersionIds).not.toHaveBeenCalled();
   });
 
-  it('N42-U-03: peer-pending excluye asignación cuya versión NO está en convocatoria vigente', async () => {
+  it('N52-U-15 (antes N42-U-03): peer-pending incluye la asignación aunque la versión NO esté en convocatoria', async () => {
     mockEvalAssignmentRepo.find.mockResolvedValue([
       {
         id: 55,
@@ -394,59 +373,26 @@ describe('EvaluationsService — N42: filtrar asignaciones por convocatoria vige
         version: { protocolId: 5, protocol: { id: 5 } },
       },
     ]);
-    mockFilterVersionIds.mockResolvedValue([]); // versión 20 NO activa
-
-    const result = await service.getMyPendingPeerAssignments(1);
-    expect(result).toHaveLength(0);
-    expect(mockFilterVersionIds).toHaveBeenCalledWith([20]);
-  });
-
-  it('N42-U-04: peer-pending incluye asignación cuya versión SÍ está en convocatoria vigente', async () => {
-    mockEvalAssignmentRepo.find.mockResolvedValue([
-      {
-        id: 55,
-        versionId: 20,
-        evaluatorId: 1,
-        isAssignedForAnnex10: true,
-        statusId: AssignmentStatus.ASSIGNED,
-        assignedAt: new Date(),
-        version: { protocolId: 5, protocol: { id: 5 } },
-      },
-    ]);
-    mockFilterVersionIds.mockResolvedValue([20]); // versión 20 activa
-    mockRiskProposalRepo.findOne.mockResolvedValue(null); // sin propuesta activa → aparece
+    mockRiskProposalRepo.findOne.mockResolvedValue(null);
 
     const result = await service.getMyPendingPeerAssignments(1);
     expect(result).toHaveLength(1);
-    expect(mockFilterVersionIds).toHaveBeenCalledWith([20]);
+    expect(mockFilterVersionIds).not.toHaveBeenCalled();
   });
 
-  it('N42-U-05: peer-pending excluye asignación legacy cuyo protocolo NO está en convocatoria vigente', async () => {
+  it('N52-U-16 (antes N42-U-05): peer-pending incluye la asignación legacy aunque el protocolo NO esté en convocatoria', async () => {
     mockEvalAssignmentRepo.find.mockResolvedValue([]); // sin canónicas
     mockPeerRiskRepo.find.mockResolvedValue([
       { id: 77, protocolId: 9, evaluatorId: 1, assignedAt: new Date() },
     ]);
-    // mockFilterProtocolIds devuelve [] por defecto (beforeEach)
-
-    const result = await service.getMyPendingPeerAssignments(1);
-    expect(result).toHaveLength(0);
-    expect(mockFilterProtocolIds).toHaveBeenCalledWith([9]);
-  });
-
-  it('N42-U-06: peer-pending incluye asignación legacy cuyo protocolo SÍ está en convocatoria vigente', async () => {
-    mockEvalAssignmentRepo.find.mockResolvedValue([]); // sin canónicas
-    mockPeerRiskRepo.find.mockResolvedValue([
-      { id: 77, protocolId: 9, evaluatorId: 1, assignedAt: new Date() },
-    ]);
-    mockFilterProtocolIds.mockResolvedValue([9]); // protocolo 9 activo
 
     const result = await service.getMyPendingPeerAssignments(1);
     expect(result).toHaveLength(1);
-    expect(mockFilterProtocolIds).toHaveBeenCalledWith([9]);
+    expect(mockFilterProtocolIds).not.toHaveBeenCalled();
   });
 });
 
-describe('TSK-002-N43: Guard de convocatoria activa en acciones de evaluador', () => {
+describe('TSK-002-N52: sin guard de convocatoria en acciones de evaluador (deroga N43)', () => {
   let service: EvaluationsService;
   let mockEvalRepo: any;
   let mockStorageService: any;
@@ -528,36 +474,23 @@ describe('TSK-002-N43: Guard de convocatoria activa en acciones de evaluador', (
       observations: 'Dictamen de prueba',
     };
 
-    it('N43-U-01: sin convocatoria activa -> lanza ForbiddenException con mensaje exacto', async () => {
+    it('N52-U-17 (antes N43-U-01): sin convocatoria -> no hay 403; sigue a las validaciones de estado', async () => {
       mockEvalRepo.findAssignmentById.mockResolvedValue({
         ...sampleAssignment,
+        statusId: AssignmentStatus.COMPLETED, // detiene el flujo justo después del antiguo guard
       });
-      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([]); // sin convocatoria activa
 
-      await expect(service.submitEvaluation(validDto, 901)).rejects.toThrow(
-        new ForbiddenException('el protocolo aún no está en una convocatoria'),
-      );
-      expect(
-        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
-      ).toHaveBeenCalledWith([50]);
-    });
-
-    it('N43-U-02: con convocatoria activa -> pasa el guard de convocatoria', async () => {
-      mockEvalRepo.findAssignmentById.mockResolvedValue({
-        ...sampleAssignment,
-        statusId: AssignmentStatus.COMPLETED, // ya completada para detener el flujo inmediatamente tras el guard
-      });
-      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([50]); // activa
-
-      // Pasa el guard de convocatoria y falla en validación de estado COMPLETED (400)
       await expect(service.submitEvaluation(validDto, 901)).rejects.toThrow(
         new BadRequestException(
           'Esta evaluación ya ha sido enviada anteriormente.',
         ),
       );
+      expect(
+        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
+      ).not.toHaveBeenCalled();
     });
 
-    it('N43-U-03: no-dueño -> lanza BadRequestException de propiedad antes del guard de convocatoria', async () => {
+    it('N43-U-03: no-dueño -> lanza BadRequestException de propiedad', async () => {
       mockEvalRepo.findAssignmentById.mockResolvedValue({
         ...sampleAssignment,
       }); // dueño = 901
@@ -576,29 +509,12 @@ describe('TSK-002-N43: Guard de convocatoria activa en acciones de evaluador', (
   });
 
   describe('getEvaluationChecklistDetails (GET /evaluations/:id/checklist-details)', () => {
-    it('N43-U-04: sin convocatoria activa -> lanza ForbiddenException con mensaje exacto', async () => {
+    it('N52-U-18 (antes N43-U-04): sin convocatoria -> retorna la estructura con hasDraft: false (sin 403)', async () => {
       mockEvalRepo.findEvaluationById.mockResolvedValue(null);
       mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
       mockEvalRepo.findAssignmentById.mockResolvedValue({
         ...sampleAssignment,
       });
-      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([]); // sin convocatoria activa
-
-      await expect(service.getEvaluationChecklistDetails(1001)).rejects.toThrow(
-        new ForbiddenException('el protocolo aún no está en una convocatoria'),
-      );
-      expect(
-        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
-      ).toHaveBeenCalledWith([50]);
-    });
-
-    it('N43-U-05: con convocatoria activa -> pasa el guard y retorna estructura con hasDraft: false si no hay evaluación', async () => {
-      mockEvalRepo.findEvaluationById.mockResolvedValue(null);
-      mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
-      mockEvalRepo.findAssignmentById.mockResolvedValue({
-        ...sampleAssignment,
-      });
-      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([50]); // activa
 
       const result = await service.getEvaluationChecklistDetails(1001);
       expect(result).toEqual({
@@ -607,70 +523,43 @@ describe('TSK-002-N43: Guard de convocatoria activa en acciones de evaluador', (
         items: [],
         stats: {},
       });
+      expect(
+        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
+      ).not.toHaveBeenCalled();
     });
   });
 
   describe('getEvaluationDocumentUrl (GET /evaluations/:id/document)', () => {
-    it('N43-U-06: sin convocatoria activa -> lanza ForbiddenException con mensaje exacto', async () => {
+    it('N52-U-19 (antes N43-U-06): sin convocatoria -> no hay 403 (NotFoundException si no existe evaluación o pdf)', async () => {
       mockEvalRepo.findEvaluationById.mockResolvedValue(null);
       mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
       mockEvalRepo.findAssignmentById.mockResolvedValue({
         ...sampleAssignment,
       });
-      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([]); // sin convocatoria activa
 
-      await expect(service.getEvaluationDocumentUrl(1001)).rejects.toThrow(
-        new ForbiddenException('el protocolo aún no está en una convocatoria'),
-      );
-      expect(
-        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
-      ).toHaveBeenCalledWith([50]);
-    });
-
-    it('N43-U-07: con convocatoria activa -> pasa el guard (lanza NotFoundException si no existe evaluación o pdf)', async () => {
-      mockEvalRepo.findEvaluationById.mockResolvedValue(null);
-      mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
-      mockEvalRepo.findAssignmentById.mockResolvedValue({
-        ...sampleAssignment,
-      });
-      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([50]); // activa
-
-      // Pasa el guard de convocatoria y luego no encuentra evaluación (404)
       await expect(service.getEvaluationDocumentUrl(1001)).rejects.toThrow(
         NotFoundException,
       );
+      expect(
+        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
+      ).not.toHaveBeenCalled();
     });
   });
 
   describe('getEvaluationDocxUrl (GET /evaluations/:id/document/docx)', () => {
-    it('N43-U-08: sin convocatoria activa -> lanza ForbiddenException con mensaje exacto', async () => {
+    it('N52-U-20 (antes N43-U-08): sin convocatoria -> no hay 403 (NotFoundException si no existe evaluación o docx)', async () => {
       mockEvalRepo.findEvaluationById.mockResolvedValue(null);
       mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
       mockEvalRepo.findAssignmentById.mockResolvedValue({
         ...sampleAssignment,
       });
-      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([]); // sin convocatoria activa
 
-      await expect(service.getEvaluationDocxUrl(1001)).rejects.toThrow(
-        new ForbiddenException('el protocolo aún no está en una convocatoria'),
-      );
-      expect(
-        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
-      ).toHaveBeenCalledWith([50]);
-    });
-
-    it('N43-U-09: con convocatoria activa -> pasa el guard (lanza NotFoundException si no existe evaluación o docx)', async () => {
-      mockEvalRepo.findEvaluationById.mockResolvedValue(null);
-      mockEvalRepo.findEvaluationByAssignmentId.mockResolvedValue(null);
-      mockEvalRepo.findAssignmentById.mockResolvedValue({
-        ...sampleAssignment,
-      });
-      mockEvalRepo.filterVersionIdsInActiveConvocatoria.mockResolvedValue([50]); // activa
-
-      // Pasa el guard de convocatoria y luego no encuentra evaluación (404)
       await expect(service.getEvaluationDocxUrl(1001)).rejects.toThrow(
         NotFoundException,
       );
+      expect(
+        mockEvalRepo.filterVersionIdsInActiveConvocatoria,
+      ).not.toHaveBeenCalled();
     });
   });
 });

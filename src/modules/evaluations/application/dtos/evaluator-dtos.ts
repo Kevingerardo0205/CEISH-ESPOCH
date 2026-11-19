@@ -3,7 +3,8 @@ import {
   IsArray,
   ValidateNested,
   ArrayMinSize,
-  ArrayMaxSize,
+  IsEmpty,
+  IsIn,
   IsString,
   IsOptional,
   IsNotEmpty,
@@ -30,31 +31,38 @@ export class EvaluatorItemDto {
   profile: EvaluatorProfile;
 }
 
+/** Mensaje del 400 para el cuerpo antiguo { evaluatorIds } (TSK-002-N52). */
+export const LEGACY_EVALUATOR_IDS_MESSAGE =
+  'El formato { evaluatorIds } ya no se acepta; envíe { reviewType, evaluators: [{ evaluatorId, profile }] }.';
+
 export class AssignEvaluatorsDto {
+  /** Obligatorio en POST /evaluations/assign; en assign-peer-evaluators manda el de la ruta. */
+  @IsOptional()
   @IsNotEmpty({
     message: 'El ID del protocolo es obligatorio.',
   })
-  protocolId: number | string;
+  protocolId?: number | string;
 
   @IsOptional()
   versionId?: number;
 
-  @IsOptional()
-  @IsEnum(ReviewType, {
-    message: 'El tipo de revisión no es válido.',
+  /** RF-12.REV: la Presidente elige primero el tipo de revisión; ENSAYO_CLINICO no es opción. */
+  @IsIn([ReviewType.EXPEDITA, ReviewType.PLENO], {
+    message: 'El tipo de revisión es obligatorio y debe ser EXPEDITA o PLENO.',
   })
-  reviewType?: ReviewType;
+  reviewType: ReviewType.EXPEDITA | ReviewType.PLENO;
 
   @IsArray({ message: 'La lista de evaluadores debe ser un arreglo.' })
-  @ArrayMinSize(4, {
-    message: 'Se debe proporcionar exactamente 4 evaluadores.',
-  })
-  @ArrayMaxSize(4, {
-    message: 'Se debe proporcionar exactamente 4 evaluadores.',
+  @ArrayMinSize(2, {
+    message: 'Se deben asignar al menos 2 evaluadores.',
   })
   @ValidateNested({ each: true })
   @Type(() => EvaluatorItemDto)
   evaluators: EvaluatorItemDto[];
+
+  /** Formato antiguo: ya no se acepta (400 en español). */
+  @IsEmpty({ message: LEGACY_EVALUATOR_IDS_MESSAGE })
+  evaluatorIds?: unknown;
 }
 
 export class DesignatePlenumRiskDto {

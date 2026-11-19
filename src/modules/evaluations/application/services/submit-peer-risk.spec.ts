@@ -1,10 +1,6 @@
 import { DataSource, In } from 'typeorm';
 import { Test, TestingModule } from '@nestjs/testing';
-import {
-  BadRequestException,
-  ForbiddenException,
-  NotFoundException,
-} from '@nestjs/common';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EvaluationsService } from './evaluations.service';
 import { EvaluationAssignmentOrmEntity } from '../../infrastructure/database/evaluation-assignment.entity.orm';
@@ -780,7 +776,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
     userRepoFindSpy.mockRestore();
   });
 
-  describe('TSK-002-N48: guard de convocatoria activa en submit-risk', () => {
+  describe('TSK-002-N52: submit-risk sin convocatoria (deroga el guard de N48, RF-12.7 (4b))', () => {
     const canonicalAssignment48: Partial<EvaluationAssignmentOrmEntity> = {
       id: 301,
       evaluatorId: 901,
@@ -799,21 +795,9 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       protocol: { id: 50 },
     };
 
-    it('N48-U-01: camino canónico sin convocatoria activa -> ForbiddenException con mensaje exacto', async () => {
+    it('N52-U-21 (antes N48-U-01/02): camino canónico sin convocatoria -> no hay 403 (falla luego en propuesta ya enviada)', async () => {
       mockEvalAssignmentRepo.findOne.mockResolvedValue(canonicalAssignment48);
-      mockFilterVersionIds.mockResolvedValue([]); // sin convocatoria activa
-
-      await expect(
-        service.submitPeerRiskLevel(301, 901, { riskLevelId: 2 }),
-      ).rejects.toThrow(
-        new ForbiddenException('el protocolo aún no está en una convocatoria'),
-      );
-      expect(mockFilterVersionIds).toHaveBeenCalledWith([100]);
-    });
-
-    it('N48-U-02: camino canónico con convocatoria activa -> pasa el guard (falla luego en propuesta ya enviada)', async () => {
-      mockEvalAssignmentRepo.findOne.mockResolvedValue(canonicalAssignment48);
-      mockFilterVersionIds.mockResolvedValue([100]); // activa
+      mockFilterVersionIds.mockResolvedValue([]); // sin convocatoria
       mockRiskProposalRepo.findOne.mockResolvedValue({
         id: 900,
         assignmentId: 301,
@@ -827,9 +811,10 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
           'Esta asignación ya ha sido evaluada y enviada para la ronda actual.',
         ),
       );
+      expect(mockFilterVersionIds).not.toHaveBeenCalled();
     });
 
-    it('N48-U-03: no-dueño camino canónico -> BadRequestException de propiedad antes del guard', async () => {
+    it('N48-U-03: no-dueño camino canónico -> BadRequestException de propiedad', async () => {
       mockEvalAssignmentRepo.findOne.mockResolvedValue(canonicalAssignment48);
       mockFilterVersionIds.mockResolvedValue([]); // sin convocatoria
 
@@ -843,23 +828,10 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       expect(mockFilterVersionIds).not.toHaveBeenCalled();
     });
 
-    it('N48-U-04: camino legacy sin convocatoria activa -> ForbiddenException con mensaje exacto', async () => {
+    it('N52-U-22 (antes N48-U-04/05): camino legacy sin convocatoria -> no hay 403 (falla luego en nivel de riesgo)', async () => {
       mockEvalAssignmentRepo.findOne.mockResolvedValue(null);
       mockPeerRiskRepo.findOne.mockResolvedValue(legacyAssignment48);
-      mockFilterProtocolIds.mockResolvedValue([]); // sin convocatoria activa
-
-      await expect(
-        service.submitPeerRiskLevel(302, 901, { riskLevelId: 2 }),
-      ).rejects.toThrow(
-        new ForbiddenException('el protocolo aún no está en una convocatoria'),
-      );
-      expect(mockFilterProtocolIds).toHaveBeenCalledWith([50]);
-    });
-
-    it('N48-U-05: camino legacy con convocatoria activa -> pasa el guard (falla luego en nivel de riesgo)', async () => {
-      mockEvalAssignmentRepo.findOne.mockResolvedValue(null);
-      mockPeerRiskRepo.findOne.mockResolvedValue(legacyAssignment48);
-      mockFilterProtocolIds.mockResolvedValue([50]); // activa
+      mockFilterProtocolIds.mockResolvedValue([]); // sin convocatoria
       mockRiskLevelRepo.findOne.mockResolvedValue(null);
 
       await expect(
@@ -869,9 +841,10 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
           'Nivel de riesgo con ID 2 no encontrado o inactivo.',
         ),
       );
+      expect(mockFilterProtocolIds).not.toHaveBeenCalled();
     });
 
-    it('N48-U-06: no-dueño camino legacy -> BadRequestException de propiedad antes del guard', async () => {
+    it('N48-U-06: no-dueño camino legacy -> BadRequestException de propiedad', async () => {
       mockEvalAssignmentRepo.findOne.mockResolvedValue(null);
       mockPeerRiskRepo.findOne.mockResolvedValue(legacyAssignment48);
       mockFilterProtocolIds.mockResolvedValue([]); // sin convocatoria

@@ -88,6 +88,15 @@ export class EvaluationAssignmentOrmEntity {
   })
   deadlineTimestamp?: Date | null;
 
+  /** Fecha límite del plazo de evaluación (RF-12.7 c.1, TSK-002-N52): día de la asignación en
+   * America/Guayaquil + plazo_revision_oficio_dias días laborables, 23:59:59.999 de Ecuador. */
+  @Column({
+    name: 'fecha_limite_revision',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  reviewDeadline?: Date | null;
+
   @CreateDateColumn({ name: 'fecha_asignacion', type: 'timestamp' })
   assignedAt!: Date;
 

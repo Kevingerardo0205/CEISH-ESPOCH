@@ -287,4 +287,67 @@ describe('MailerNotificationAdapter (TSK-002-16)', () => {
 
     expect(mailOptions.html).toContain('12 de marzo de 2026');
   });
+  describe('Oficio al asignar (TSK-002-N52, RF-12.6)', () => {
+    const base = {
+      assignmentId: '1001',
+      protocolId: '50',
+      evaluatorId: '15',
+      evaluatorEmail: 'zz_test_evaluador@example.test',
+      evaluatorFullName: 'ZZ_TEST_ Evaluador',
+      protocolCode: 'ZZ_TEST_CODE',
+      protocolTitle: 'ZZ_TEST_ Título del protocolo',
+      evaluatorProfile: EvaluatorProfile.SOCIEDAD_CIVIL,
+      isAssignedForAnnex10: false,
+      deadlineDate: null,
+      reviewBusinessDays: 8,
+      reviewDeadlineDate: '2026-11-30',
+    };
+    const htmlOf = (): string =>
+      (
+        mailerServiceMock.sendMail.mock.calls as Array<
+          [{ to: string; subject: string; html: string }]
+        >
+      )[0][0].html;
+
+    it('N52-M-01: sin convocatoria → plazo de 8 días laborables con su fecha límite dd/mm/aaaa, título y Anexo 10 = no', async () => {
+      await adapter.handleEvaluatorAssignedEvent(base);
+      const html = htmlOf();
+      expect(html).toContain(
+        '8 días laborables desde el día de la asignación; fecha límite: <strong>30/11/2026</strong>',
+      );
+      expect(html).toContain(
+        'La fecha de entrega del informe será la fecha de entrega de la convocatoria en que se agende el protocolo.',
+      );
+      expect(html).toContain('ZZ_TEST_ Título del protocolo');
+      expect(html).toContain('No debe diligenciar el <strong>Anexo 10');
+      expect(html).not.toContain('comunicada por la Secretaría');
+    });
+
+    it('N52-M-02: ya agendado → fecha de entrega de la convocatoria en dd/mm/aaaa; Anexo 10 = sí', async () => {
+      await adapter.handleEvaluatorAssignedEvent({
+        ...base,
+        evaluatorProfile: EvaluatorProfile.SALUD,
+        isAssignedForAnnex10: true,
+        deadlineDate: '2026-12-10',
+      });
+      const html = htmlOf();
+      expect(html).toContain(
+        'Fecha de entrega del informe (convocatoria):</strong> 10/12/2026',
+      );
+      expect(html).toContain('RESPONSABILIDAD ADICIONAL');
+      expect(html).not.toContain('No debe diligenciar');
+    });
+
+    it('N52-M-03: sin los datos del plazo (reasignación, aviso al agendar) el correo no cambia', async () => {
+      await adapter.handleEvaluatorAssignedEvent({
+        ...base,
+        reviewBusinessDays: undefined,
+        reviewDeadlineDate: undefined,
+      });
+      const html = htmlOf();
+      expect(html).not.toContain('Plazo de evaluación');
+      expect(html).not.toContain('No debe diligenciar');
+      expect(html).toContain('comunicada por la Secretaría');
+    });
+  });
 });

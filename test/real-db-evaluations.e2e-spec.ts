@@ -89,6 +89,33 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     return convId;
   };
 
+  // TSK-002-N52: la asignación exige recepción COMPLETO de la versión activa y
+  // tiempos aceptados (RF-12.1 d); los evaluadores 901–905 tienen el rol EVALUADOR.
+  const makeAssignable = async (
+    protocoloId: number,
+    versionId: number,
+  ): Promise<void> => {
+    await dataSource.query(
+      `INSERT INTO recepcion.recepciones (version_id, estado_id) VALUES ($1, 10)`,
+      [versionId],
+    );
+    await dataSource.query(
+      `UPDATE public.protocolos SET sometimiento_tiempos_aceptado = true WHERE id = $1`,
+      [protocoloId],
+    );
+  };
+
+  // TSK-002-N52: cuerpo { reviewType, evaluators } (el formato { evaluatorIds } ya no se acepta)
+  const n52Body = (reviewType: 'EXPEDITA' | 'PLENO') => ({
+    reviewType,
+    evaluators: [
+      { evaluatorId: 901, profile: EvaluatorProfile.SALUD },
+      { evaluatorId: 902, profile: EvaluatorProfile.METODOLOGICO },
+      { evaluatorId: 903, profile: EvaluatorProfile.JURIDICO },
+      { evaluatorId: 904, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
+    ],
+  });
+
   const cleanupConvocatoria = async (
     convId: string | undefined,
   ): Promise<void> => {
@@ -354,6 +381,14 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         (905, ${saludProfileId}, true)
       ON CONFLICT (usuario_id, perfil_id) DO NOTHING;
 
+      -- TSK-002-N52: los evaluadores de prueba tienen el rol EVALUADOR (se borra en cascada con el usuario)
+      INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id)
+      SELECT u.id, r.id
+        FROM (VALUES (901), (902), (903), (904), (905)) AS u(id)
+        CROSS JOIN catalogos.roles r
+       WHERE r.codigo = 'EVALUADOR'
+      ON CONFLICT (usuario_id, rol_id) DO NOTHING;
+
       -- Protocolo 991 EXPEDITA
       INSERT INTO public.protocolos (id, titulo, investigador_principal_id, nivel_riesgo_id, estado_id, tipo_revision)
       VALUES (991, 'Protocolo Expedita Test', 901, ${expeditaRiskId}, 10, 'EXPEDITA')
@@ -372,6 +407,8 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       ON CONFLICT (id) DO NOTHING;
       UPDATE public.protocolos SET version_actual_id = 992 WHERE id = 992;
     `);
+    await makeAssignable(991, 991);
+    await makeAssignable(992, 992);
   }, 60000);
 
   afterAll(async () => {
@@ -442,14 +479,14 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         const resExpedita = await request(app.getHttpServer())
           .post('/api/evaluations/protocols/991/assign-peer-evaluators')
           .set('x-user-id', '901')
-          .send({ evaluatorIds: [901, 902, 903, 904] });
+          .send(n52Body('EXPEDITA'));
         expect(resExpedita.status).toBe(201);
 
         // Asignar PLENO (Protocolo 992)
         const resPleno = await request(app.getHttpServer())
           .post('/api/evaluations/protocols/992/assign-peer-evaluators')
           .set('x-user-id', '901')
-          .send({ evaluatorIds: [901, 902, 903, 904] });
+          .send(n52Body('PLENO'));
         expect(resPleno.status).toBe(201);
 
         // Verificación SQL directa contra PostgreSQL
@@ -1028,6 +1065,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         UPDATE public.protocolos SET version_actual_id = 997 WHERE id = 997;
         DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 997;
       `);
+      await makeAssignable(997, 997);
 
       // 1. Asignar evaluadores vía endpoint legacy
       let meetingId: string | undefined;
@@ -1035,7 +1073,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         const resAssign = await request(app.getHttpServer())
           .post('/api/evaluations/protocols/997/assign-peer-evaluators')
           .set('x-user-id', '901')
-          .send({ evaluatorIds: [901, 902, 903, 904] });
+          .send(n52Body('PLENO'));
         expect(resAssign.status).toBe(201);
 
         // 2. Verificar que fecha_limite es NULL en la BD (RF-12.7(a))
@@ -1139,10 +1177,11 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         UPDATE public.protocolos SET version_actual_id = 996 WHERE id = 996;
         DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 996;
       `);
+      await makeAssignable(996, 996);
       const resAssign = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/996/assign-peer-evaluators')
         .set('x-user-id', '901')
-        .send({ evaluatorIds: [901, 902, 903, 904] });
+        .send(n52Body('PLENO'));
       if (resAssign.status !== 201) {
         throw new Error(
           `Seed 996: asignación falló ${resAssign.status} ${JSON.stringify(resAssign.body)}`,
@@ -1169,6 +1208,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
             WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 996)
                OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = 996);
           DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 996;
+          DELETE FROM recepcion.recepciones WHERE version_id = 996;
           DELETE FROM public.versiones_protocolo WHERE id = 996;
           DELETE FROM public.protocolos WHERE id = 996;
         `);
@@ -2851,6 +2891,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (993, 994));
         DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (993, 994)) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (993, 994));
         DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (993, 994);
+        DELETE FROM recepcion.recepciones WHERE version_id IN (993, 994);
         UPDATE public.protocolos SET version_actual_id = NULL WHERE id IN (993, 994);
         DELETE FROM public.versiones_protocolo WHERE id IN (993, 994);
         DELETE FROM public.protocolos WHERE id IN (993, 994);
@@ -2865,6 +2906,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         ON CONFLICT (id) DO NOTHING;
         UPDATE public.protocolos SET version_actual_id = ${PA} WHERE id = ${PA};
       `);
+      await makeAssignable(PA, PA);
       // 12b: protocolo con codigo_ceish conocido y asignación sembrada (perfil_id explícito para reassign)
       await dataSource.query(`
         INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision, codigo_ceish)
@@ -2891,6 +2933,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           DELETE FROM evaluacion.propuestas_riesgo WHERE asignacion_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${V});
           DELETE FROM evaluacion.asignacion_historial WHERE asignacion_anterior_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${V}) OR asignacion_nueva_id IN (SELECT id FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${V});
           DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${V};
+          DELETE FROM recepcion.recepciones WHERE version_id = ${V};
           DELETE FROM evaluacion.convocatorias WHERE id IN (SELECT convocatoria_id FROM evaluacion.convocatoria_protocolos WHERE version_id = ${V});
           UPDATE public.protocolos SET version_actual_id = NULL WHERE id = ${V};
           DELETE FROM public.versiones_protocolo WHERE id = ${V};
@@ -2899,7 +2942,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       }
     });
 
-    it('12a (N41). POST /assign SIN convocatoria → NO emite correo (deadline null)', async () => {
+    it('12a (N52). POST /assign SIN convocatoria → emite el oficio a cada evaluador al asignar (RF-12.6)', async () => {
       sendHtmlMock.mockClear();
       const handleSpy = jest.spyOn(
         mailerAdapter,
@@ -2909,29 +2952,39 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/assign')
         .set('x-user-id', '901')
-        .send({
-          protocolId: PA,
-          evaluators: [
-            { evaluatorId: 901, profile: EvaluatorProfile.SALUD },
-            { evaluatorId: 902, profile: EvaluatorProfile.METODOLOGICO },
-            { evaluatorId: 903, profile: EvaluatorProfile.JURIDICO },
-            { evaluatorId: 904, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
-          ],
-        });
+        .send({ protocolId: PA, ...n52Body('PLENO') });
 
       expect(res.status).toBe(201);
-      // N41: versión PA no está en ninguna convocatoria → handleEvaluatorAssignedEvent NO se invoca
-      expect(handleSpy).not.toHaveBeenCalled();
-      expect(sendHtmlMock).not.toHaveBeenCalled();
-
-      // Verificar en BD: fecha_limite IS NULL para las 4 asignaciones recién creadas
-      const rows: Array<{ fecha_limite: string | null }> =
-        await dataSource.query(
-          `SELECT fecha_limite FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PA} AND estado_id = ${AssignmentStatus.ASSIGNED}`,
+      // N52: el oficio sale al asignar, aunque la versión no esté en una convocatoria
+      expect(handleSpy).toHaveBeenCalledTimes(4);
+      await Promise.allSettled(
+        handleSpy.mock.results
+          .filter((r) => r.type === 'return')
+          .map((r) => r.value),
+      );
+      const payloads = handleSpy.mock.calls.map((c) => c[0]);
+      for (const p of payloads) {
+        expect(p.reviewBusinessDays).toBe(8);
+        expect(p.reviewDeadlineDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+        expect(p.deadlineDate).toBeNull();
+        expect(p.protocolCode).toBe('CEISH-ESPOCH-EI-993-2099');
+        expect(p.protocolTitle).toBe(
+          'Protocolo N17-A Enriquecimiento Assign E2E',
         );
+      }
+      expect(sendHtmlMock).toHaveBeenCalledTimes(4);
+
+      // Verificar en BD: fecha_limite (entrega de la convocatoria) IS NULL y fecha_limite_revision guardada
+      const rows: Array<{
+        fecha_limite: string | null;
+        fecha_limite_revision: Date | null;
+      }> = await dataSource.query(
+        `SELECT fecha_limite, fecha_limite_revision FROM evaluacion.asignaciones_evaluacion WHERE version_id = ${PA} AND estado_id = ${AssignmentStatus.ASSIGNED}`,
+      );
       expect(rows.length).toBe(4);
       for (const row of rows) {
         expect(row.fecha_limite).toBeNull();
+        expect(row.fecha_limite_revision).not.toBeNull();
       }
 
       handleSpy.mockRestore();
@@ -3060,15 +3113,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/assign')
         .set('x-user-id', '901')
-        .send({
-          protocolId: PA,
-          evaluators: [
-            { evaluatorId: 901, profile: EvaluatorProfile.SALUD },
-            { evaluatorId: 902, profile: EvaluatorProfile.METODOLOGICO },
-            { evaluatorId: 903, profile: EvaluatorProfile.JURIDICO },
-            { evaluatorId: 904, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
-          ],
-        });
+        .send({ protocolId: PA, ...n52Body('PLENO') });
 
       expect(res.status).toBe(201);
       // N41: versión PA ya está en convocatoria PROGRAMADA → handleEvaluatorAssignedEvent invocado 4 veces
@@ -3301,7 +3346,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     });
   }); // end describe('13. TSK-002-N36')
 
-  describe('14. N42 — Filtrar my-assignments y peer-pending por convocatoria vigente (TSK-002-N42)', () => {
+  describe('14. N52 — my-assignments y peer-pending sin filtro de convocatoria (deroga TSK-002-N42)', () => {
     const PROTO_N42 = 990;
     const VER_N42 = 990;
     const ASG_NORMAL = 9901;
@@ -3345,7 +3390,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       }
     });
 
-    it('N42-E2E-01: sin convocatoria → my-assignments y peer-pending excluyen version 990 [TSK-002-N42]', async () => {
+    it('N52-E2E-01 (antes N42-E2E-01): sin convocatoria → my-assignments y peer-pending incluyen version 990', async () => {
       const resMy = await request(app.getHttpServer())
         .get('/api/evaluations/my-assignments')
         .set('x-user-id', '901');
@@ -3353,7 +3398,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(Array.isArray(resMy.body)).toBe(true);
       expect(
         (resMy.body as any[]).find((a: any) => a.id === ASG_NORMAL),
-      ).toBeUndefined();
+      ).toBeDefined();
 
       const resPeer = await request(app.getHttpServer())
         .get('/api/evaluations/peer-assignments/my-pending')
@@ -3362,7 +3407,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(Array.isArray(resPeer.body)).toBe(true);
       expect(
         (resPeer.body as any[]).find((a: any) => a.id === ASG_PEER),
-      ).toBeUndefined();
+      ).toBeDefined();
 
       // Secretaría sigue viendo todo (GetActiveAssignmentsUseCase sin filtro N42)
       const resActive = await request(app.getHttpServer())
@@ -3403,7 +3448,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       ).toBeDefined();
     });
 
-    it('N42-E2E-03: al pasar convocatoria a CONCLUIDA → my-assignments y peer-pending vuelven a excluir version 990 [TSK-002-N42]', async () => {
+    it('N52-E2E-03 (antes N42-E2E-03): con la convocatoria CONCLUIDA → my-assignments y peer-pending siguen incluyendo version 990', async () => {
       await dataSource.query(
         `UPDATE evaluacion.convocatorias SET estado = 'CONCLUIDA' WHERE id = $1`,
         [convN42Id],
@@ -3415,7 +3460,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(resMy.status).toBe(200);
       expect(
         (resMy.body as any[]).find((a: any) => a.id === ASG_NORMAL),
-      ).toBeUndefined();
+      ).toBeDefined();
 
       const resPeer = await request(app.getHttpServer())
         .get('/api/evaluations/peer-assignments/my-pending')
@@ -3423,7 +3468,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(resPeer.status).toBe(200);
       expect(
         (resPeer.body as any[]).find((a: any) => a.id === ASG_PEER),
-      ).toBeUndefined();
+      ).toBeDefined();
 
       // Secretaría sigue viendo todo incluso con convocatoria CONCLUIDA
       const resActive = await request(app.getHttpServer())
@@ -3435,7 +3480,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     });
   }); // end describe('14. N42')
 
-  describe('15. N43 — Guard de convocatoria activa en acciones de evaluador (TSK-002-N43)', () => {
+  describe('15. N52 — acciones del evaluador sin guard de convocatoria (deroga TSK-002-N43)', () => {
     const PROTO_N43 = 980;
     const VER_N43 = 980;
     const ASG_N43_A = 9801;
@@ -3485,22 +3530,49 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       `);
     });
 
-    it('15a. Sin convocatoria activa → 4 endpoints devuelven 403 con mensaje exacto; no-dueño devuelve 400; Secretaría 200', async () => {
-      // 1. submitEvaluation (POST /evaluations/submit)
-      const resSubmit = await request(app.getHttpServer())
-        .post('/api/evaluations/submit')
-        .set('x-user-id', '901')
-        .send({
-          assignmentId: ASG_N43_A,
-          result: 1,
-          observations: 'Observaciones de prueba',
-        });
-      expect(resSubmit.status).toBe(403);
-      expect(resSubmit.body.message).toBe(
-        'el protocolo aún no está en una convocatoria',
-      );
+    const fullSubmitBody = {
+      assignmentId: ASG_N43_A,
+      result: 1,
+      observations: 'Informe ético aprobado sin convocatoria (N52)',
+      reportPath: '/storage/evaluaciones/informe-980.pdf',
+      annex9: {
+        etica: {
+          resultado: 'APROBADO',
+          items: [{ itemCodigo: 'ET-1', estado: 'C', observaciones: 'OK' }],
+        },
+        metodologia: {
+          resultado: 'APROBADO',
+          items: [{ itemCodigo: 'MET-1', estado: 'C', observaciones: 'OK' }],
+        },
+        juridica: {
+          resultado: 'APROBADO',
+          items: [{ itemCodigo: 'JUR-1', estado: 'C', observaciones: 'OK' }],
+        },
+      },
+    };
 
-      // No-dueño (user 903 no es el evaluador asignado a ASG_N43_A) -> debe dar 400 Bad Request por propiedad antes que 403
+    const expectDocumentsAvailable = async (
+      assignmentId: number,
+      userId: string,
+    ): Promise<void> => {
+      const resChecklist = await request(app.getHttpServer())
+        .get(`/api/evaluations/${assignmentId}/checklist-details`)
+        .set('x-user-id', userId);
+      expect(resChecklist.status).toBe(200);
+      const resDoc = await request(app.getHttpServer())
+        .get(`/api/evaluations/${assignmentId}/document`)
+        .set('x-user-id', userId);
+      expect(resDoc.status).toBe(200);
+      expect(resDoc.body.downloadUrl).toBeDefined();
+      const resDocx = await request(app.getHttpServer())
+        .get(`/api/evaluations/${assignmentId}/document/docx`)
+        .set('x-user-id', userId);
+      expect(resDocx.status).toBe(200);
+      expect(resDocx.body.downloadUrl).toBeDefined();
+    };
+
+    it('15a (N52). Sin convocatoria → submit 201, checklist/document/docx 200 (sin 403); no-dueño 400; Secretaría 200', async () => {
+      // No-dueño (user 903 no es el evaluador asignado a ASG_N43_A) → 400 por propiedad
       const resNonOwner = await request(app.getHttpServer())
         .post('/api/evaluations/submit')
         .set('x-user-id', '903')
@@ -3514,34 +3586,14 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         'No tiene permisos para evaluar esta asignación.',
       );
 
-      // 2. getEvaluationChecklistDetails (GET /evaluations/:id/checklist-details)
-      const resChecklist = await request(app.getHttpServer())
-        .get(`/api/evaluations/${ASG_N43_A}/checklist-details`)
-        .set('x-user-id', '901');
-      expect(resChecklist.status).toBe(403);
-      expect(resChecklist.body.message).toBe(
-        'el protocolo aún no está en una convocatoria',
-      );
+      const resSubmit = await request(app.getHttpServer())
+        .post('/api/evaluations/submit')
+        .set('x-user-id', '901')
+        .send(fullSubmitBody);
+      expect(resSubmit.status).toBe(201);
 
-      // 3. getEvaluationDocumentUrl (GET /evaluations/:id/document)
-      const resDoc = await request(app.getHttpServer())
-        .get(`/api/evaluations/${ASG_N43_A}/document`)
-        .set('x-user-id', '901');
-      expect(resDoc.status).toBe(403);
-      expect(resDoc.body.message).toBe(
-        'el protocolo aún no está en una convocatoria',
-      );
+      await expectDocumentsAvailable(ASG_N43_A, '901');
 
-      // 4. getEvaluationDocxUrl (GET /evaluations/:id/document/docx)
-      const resDocx = await request(app.getHttpServer())
-        .get(`/api/evaluations/${ASG_N43_A}/document/docx`)
-        .set('x-user-id', '901');
-      expect(resDocx.status).toBe(403);
-      expect(resDocx.body.message).toBe(
-        'el protocolo aún no está en una convocatoria',
-      );
-
-      // Secretaría sigue viendo la asignación activa (sin filtro de convocatoria)
       const resActive = await request(app.getHttpServer())
         .get(`/api/evaluations/protocol/${PROTO_N43}/active-assignments`)
         .set('x-user-id', '901');
@@ -3550,134 +3602,32 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(resActive.body.assignments.length).toBeGreaterThanOrEqual(2);
     });
 
-    it('15b. Con convocatoria PROGRAMADA → pasan el guard (esperando status existente); Secretaría 200', async () => {
+    it('15b (N52). Con convocatoria PROGRAMADA → mismos accesos (200)', async () => {
       convN43Id = await seedConvocatoriaForVersion(
         PROTO_N43,
         VER_N43,
         'TEST-N43-980',
         'PROGRAMADA',
       );
-
-      // 1. submitEvaluation -> pasa el guard (status 201 con datos completos)
-      const resSubmit = await request(app.getHttpServer())
-        .post('/api/evaluations/submit')
-        .set('x-user-id', '901')
-        .send({
-          assignmentId: ASG_N43_A,
-          result: 1,
-          observations: 'Informe ético aprobado en convocatoria PROGRAMADA',
-          reportPath: '/storage/evaluaciones/informe-980.pdf',
-          annex9: {
-            etica: {
-              resultado: 'APROBADO',
-              items: [{ itemCodigo: 'ET-1', estado: 'C', observaciones: 'OK' }],
-            },
-            metodologia: {
-              resultado: 'APROBADO',
-              items: [
-                { itemCodigo: 'MET-1', estado: 'C', observaciones: 'OK' },
-              ],
-            },
-            juridica: {
-              resultado: 'APROBADO',
-              items: [
-                { itemCodigo: 'JUR-1', estado: 'C', observaciones: 'OK' },
-              ],
-            },
-          },
-        });
-      expect(resSubmit.status).toBe(201);
-
-      // 2. getEvaluationChecklistDetails -> pasa el guard (status 200)
-      const resChecklist = await request(app.getHttpServer())
-        .get(`/api/evaluations/${ASG_N43_A}/checklist-details`)
-        .set('x-user-id', '901');
-      expect(resChecklist.status).toBe(200);
-      expect(resChecklist.body).toBeDefined();
-
-      // 3. getEvaluationDocumentUrl -> pasa el guard (status 200 con downloadUrl)
-      const resDoc = await request(app.getHttpServer())
-        .get(`/api/evaluations/${ASG_N43_A}/document`)
-        .set('x-user-id', '901');
-      expect(resDoc.status).toBe(200);
-      expect(resDoc.body.downloadUrl).toBeDefined();
-
-      // 4. getEvaluationDocxUrl -> pasa el guard (404 porque no hay docx físico generado, no 403)
-      const resDocx = await request(app.getHttpServer())
-        .get(`/api/evaluations/${ASG_N43_A}/document/docx`)
-        .set('x-user-id', '901');
-      expect(resDocx.status).toBe(200);
-      expect(resDocx.body.downloadUrl).toBeDefined();
-
-      // Secretaría sigue viendo la asignación
-      const resActive = await request(app.getHttpServer())
-        .get(`/api/evaluations/protocol/${PROTO_N43}/active-assignments`)
-        .set('x-user-id', '901');
-      expect(resActive.status).toBe(200);
-      expect(Array.isArray(resActive.body.assignments)).toBe(true);
-      expect(resActive.body.assignments.length).toBeGreaterThanOrEqual(2);
+      await expectDocumentsAvailable(ASG_N43_A, '901');
     });
 
-    it('15c. Con convocatoria CANCELADA → los 4 endpoints vuelven a responder 403; Secretaría 200', async () => {
-      // Cambiar estado a CANCELADA
+    it('15c (N52). Con convocatoria CANCELADA → sin 403: checklist del evaluador 902 200 y documentos del 901 200', async () => {
       await dataSource.query(
         `UPDATE evaluacion.convocatorias SET estado = 'CANCELADA' WHERE id = $1`,
         [convN43Id],
       );
-
-      // Para evaluar sin interferencia del estado COMPLETED de ASG_N43_A, usamos ASG_N43_B (evaluador 902, ASSIGNED)
-      // 1. submitEvaluation -> 403
-      const resSubmit = await request(app.getHttpServer())
-        .post('/api/evaluations/submit')
-        .set('x-user-id', '902')
-        .send({
-          assignmentId: ASG_N43_B,
-          result: 1,
-          observations: 'Intento sobre convocatoria cancelada',
-        });
-      expect(resSubmit.status).toBe(403);
-      expect(resSubmit.body.message).toBe(
-        'el protocolo aún no está en una convocatoria',
-      );
-
-      // 2. getEvaluationChecklistDetails -> 403
-      const resChecklist = await request(app.getHttpServer())
+      const resChecklistB = await request(app.getHttpServer())
         .get(`/api/evaluations/${ASG_N43_B}/checklist-details`)
         .set('x-user-id', '902');
-      expect(resChecklist.status).toBe(403);
-      expect(resChecklist.body.message).toBe(
-        'el protocolo aún no está en una convocatoria',
-      );
+      expect(resChecklistB.status).toBe(200);
+      expect(resChecklistB.body.hasDraft).toBe(false);
 
-      // 3. getEvaluationDocumentUrl -> 403
-      const resDoc = await request(app.getHttpServer())
-        .get(`/api/evaluations/${ASG_N43_B}/document`)
-        .set('x-user-id', '902');
-      expect(resDoc.status).toBe(403);
-      expect(resDoc.body.message).toBe(
-        'el protocolo aún no está en una convocatoria',
-      );
-
-      // 4. getEvaluationDocxUrl -> 403
-      const resDocx = await request(app.getHttpServer())
-        .get(`/api/evaluations/${ASG_N43_B}/document/docx`)
-        .set('x-user-id', '902');
-      expect(resDocx.status).toBe(403);
-      expect(resDocx.body.message).toBe(
-        'el protocolo aún no está en una convocatoria',
-      );
-
-      // Secretaría sigue viendo la asignación incluso con convocatoria cancelada
-      const resActive = await request(app.getHttpServer())
-        .get(`/api/evaluations/protocol/${PROTO_N43}/active-assignments`)
-        .set('x-user-id', '901');
-      expect(resActive.status).toBe(200);
-      expect(Array.isArray(resActive.body.assignments)).toBe(true);
-      expect(resActive.body.assignments.length).toBeGreaterThanOrEqual(2);
+      await expectDocumentsAvailable(ASG_N43_A, '901');
     });
   });
 
-  describe('16. N48 — Guard de convocatoria activa en submit-risk (TSK-002-N48)', () => {
+  describe('16. N52 — submit-risk sin guard de convocatoria (deroga TSK-002-N48, RF-12.7 (4b))', () => {
     const PROTO_N48 = 970;
     const VER_N48 = 971;
     const ASG_N48_A = 9701; // evaluador 901, Anexo 10
@@ -3738,22 +3688,25 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(Number(residuosConvProt[0].count)).toBe(0);
     });
 
-    it('16a1. Sin convocatoria activa, dueño → submit-risk 403 con mensaje exacto', async () => {
+    it('16a1 (N52). Sin convocatoria, dueño → submit-risk 201 y persiste la propuesta', async () => {
       const resOwner = await request(app.getHttpServer())
         .post(`/api/evaluations/peer-assignments/${ASG_N48_A}/submit-risk`)
         .set('x-user-id', '901')
         .send({
           riskLevelId: expeditaRiskId,
-          observations: 'Intento sin convocatoria',
+          observations: 'Propuesta sin convocatoria N52',
         });
-      expect(resOwner.status).toBe(403);
-      expect(resOwner.body.message).toBe(
-        'el protocolo aún no está en una convocatoria',
-      );
+      expect(resOwner.status).toBe(201);
+
+      const proposals: Array<{ asignacion_id: string }> =
+        await dataSource.query(
+          `SELECT asignacion_id::text FROM evaluacion.propuestas_riesgo WHERE asignacion_id = ${ASG_N48_A} AND es_vigente = true`,
+        );
+      expect(proposals.length).toBe(1);
     });
 
-    it('16a2. Sin convocatoria activa, no-dueño → 400 propiedad antes del guard', async () => {
-      // 902 intenta sobre ASG_N48_A (asignado a 901) → 400 por propiedad antes del guard
+    it('16a2. Sin convocatoria, no-dueño → 400 por propiedad', async () => {
+      // 902 intenta sobre ASG_N48_A (asignado a 901) → 400 por propiedad
       const resNonOwner = await request(app.getHttpServer())
         .post(`/api/evaluations/peer-assignments/${ASG_N48_A}/submit-risk`)
         .set('x-user-id', '902')
@@ -3764,55 +3717,6 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(resNonOwner.status).toBe(400);
       expect(resNonOwner.body.message).toBe(
         'No tiene permisos para responder esta asignación.',
-      );
-    });
-
-    it('16b. Con convocatoria PROGRAMADA → submit-risk pasa el guard (201) y persiste la propuesta', async () => {
-      convN48Id = await seedConvocatoriaForVersion(
-        PROTO_N48,
-        VER_N48,
-        'TEST-N48-970',
-        'PROGRAMADA',
-      );
-
-      const res = await request(app.getHttpServer())
-        .post(`/api/evaluations/peer-assignments/${ASG_N48_A}/submit-risk`)
-        .set('x-user-id', '901')
-        .send({
-          riskLevelId: expeditaRiskId,
-          observations: 'Propuesta riesgoPROGRAMADA N48',
-        });
-      expect(res.status).toBe(201);
-
-      const proposals: Array<{ asignacion_id: string }> =
-        await dataSource.query(
-          `SELECT asignacion_id::text FROM evaluacion.propuestas_riesgo WHERE asignacion_id = ${ASG_N48_A} AND es_vigente = true`,
-        );
-      expect(proposals.length).toBe(1);
-    });
-
-    it('16c. Con convocatoria CANCELADA → submit-risk 403 con mensaje exacto', async () => {
-      expect(convN48Id).toBeDefined();
-      await dataSource.query(
-        `UPDATE evaluacion.convocatorias SET estado = 'CANCELADA' WHERE id = $1`,
-        [convN48Id],
-      );
-      const canceledCheck: Array<{ count: string }> = await dataSource.query(
-        `SELECT COUNT(*) AS count FROM evaluacion.convocatorias WHERE id = $1 AND estado = 'CANCELADA'`,
-        [convN48Id],
-      );
-      expect(Number(canceledCheck[0].count)).toBe(1);
-
-      const res = await request(app.getHttpServer())
-        .post(`/api/evaluations/peer-assignments/${ASG_N48_B}/submit-risk`)
-        .set('x-user-id', '902')
-        .send({
-          riskLevelId: expeditaRiskId,
-          observations: 'Intento con convocatoria cancelada',
-        });
-      expect(res.status).toBe(403);
-      expect(res.body.message).toBe(
-        'el protocolo aún no está en una convocatoria',
       );
     });
   });

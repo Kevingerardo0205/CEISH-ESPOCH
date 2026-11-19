@@ -55,29 +55,12 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
     adaptAndAssign: jest
       .fn()
       .mockImplementation((protocolId: number, dto: any) => {
-        if ('evaluators' in dto && Array.isArray(dto.evaluators)) {
-          return mockAssignEvaluatorsUseCase.execute({
-            protocolId,
-            evaluators: dto.evaluators,
-          });
-        }
-        if ('evaluatorIds' in dto && Array.isArray(dto.evaluatorIds)) {
-          const profiles = [
-            EvaluatorProfile.JURIDICO,
-            EvaluatorProfile.SOCIEDAD_CIVIL,
-            EvaluatorProfile.METODOLOGICO,
-            EvaluatorProfile.SALUD,
-          ];
-          const adapted = dto.evaluatorIds.map((id: number, idx: number) => ({
-            evaluatorId: id,
-            profile: profiles[idx],
-          }));
-          return mockAssignEvaluatorsUseCase.execute({
-            protocolId,
-            evaluators: adapted,
-          });
-        }
-        return Promise.resolve([]);
+        // TSK-002-N52: solo el formato canónico { reviewType, evaluators }
+        return mockAssignEvaluatorsUseCase.execute({
+          protocolId,
+          reviewType: dto.reviewType,
+          evaluators: dto.evaluators,
+        });
       }),
   };
 
@@ -449,6 +432,7 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
   describe('Contract 1: POST /api/evaluations/assign (Authorization & Functionality)', () => {
     const validPayload = {
       protocolId: 100,
+      reviewType: 'EXPEDITA',
       evaluators: [
         { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
         { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
@@ -473,11 +457,11 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
         .expect(403);
     });
 
-    it('debe responder HTTP 201 y asignar evaluadores cuando el rol es SECRETARIA o PRESIDENTE', async () => {
+    it('debe responder HTTP 201 y asignar evaluadores cuando el rol es PRESIDENTE (TSK-002-N52)', async () => {
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/assign')
         .set('Authorization', 'Bearer valid-token')
-        .set('x-test-role', 'SECRETARIA')
+        .set('x-test-role', 'PRESIDENTE')
         .send(validPayload)
         .expect(201);
 
@@ -494,10 +478,11 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       await request(app.getHttpServer())
         .post('/api/evaluations/assign')
         .set('Authorization', 'Bearer valid-token')
-        .set('x-test-role', 'SECRETARIA')
+        .set('x-test-role', 'PRESIDENTE')
         .send({
           protocolId: 100,
           versionId: 9999,
+          reviewType: 'EXPEDITA',
           evaluators: [
             { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
             { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
@@ -517,9 +502,10 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       await request(app.getHttpServer())
         .post('/api/evaluations/assign')
         .set('Authorization', 'Bearer valid-token')
-        .set('x-test-role', 'SECRETARIA')
+        .set('x-test-role', 'PRESIDENTE')
         .send({
           protocolId: 'abc',
+          reviewType: 'EXPEDITA',
           evaluators: [
             { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
             { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
@@ -533,6 +519,7 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
     it('debe rechazar con HTTP 400 si el body incluye profileId (campo no permitido en el contrato público)', async () => {
       const payloadWithProfileId = {
         protocolId: 100,
+        reviewType: 'EXPEDITA',
         evaluators: [
           {
             evaluatorId: 1,
@@ -547,7 +534,7 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       await request(app.getHttpServer())
         .post('/api/evaluations/assign')
         .set('Authorization', 'Bearer valid-token')
-        .set('x-test-role', 'SECRETARIA')
+        .set('x-test-role', 'PRESIDENTE')
         .send(payloadWithProfileId)
         .expect(400);
     });
@@ -616,6 +603,7 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
 
   describe('Contract 4: POST /api/evaluations/protocols/:id/assign-peer-evaluators', () => {
     const canonicalPayload = {
+      reviewType: 'EXPEDITA',
       evaluators: [
         { evaluatorId: 1, profile: EvaluatorProfile.JURIDICO },
         { evaluatorId: 2, profile: EvaluatorProfile.SOCIEDAD_CIVIL },
@@ -648,7 +636,7 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/100/assign-peer-evaluators')
         .set('Authorization', 'Bearer valid-token')
-        .set('x-test-role', 'SECRETARIA')
+        .set('x-test-role', 'PRESIDENTE')
         .send(canonicalPayload)
         .expect(201);
 
@@ -658,18 +646,19 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
       expect(mockAssignEvaluatorsUseCase.execute).toHaveBeenCalled();
     });
 
-    it('debe soportar payload legacy con array evaluatorIds y resolver hacia AssignEvaluatorsUseCase', async () => {
+    it('TSK-002-N52: el payload legacy { evaluatorIds } se rechaza con 400 y el mensaje en español', async () => {
+      mockAssignEvaluatorsUseCase.execute.mockClear();
       const res = await request(app.getHttpServer())
         .post('/api/evaluations/protocols/100/assign-peer-evaluators')
         .set('Authorization', 'Bearer valid-token')
-        .set('x-test-role', 'SECRETARIA')
+        .set('x-test-role', 'PRESIDENTE')
         .send(legacyPayload)
-        .expect(201);
+        .expect(400);
 
-      const data = res.body.data || res.body;
-      expect(Array.isArray(data)).toBe(true);
-      expect(mockAssignmentAdapterService.adaptAndAssign).toHaveBeenCalled();
-      expect(mockAssignEvaluatorsUseCase.execute).toHaveBeenCalled();
+      expect(JSON.stringify(res.body)).toContain(
+        'El formato { evaluatorIds } ya no se acepta; envíe { reviewType, evaluators: [{ evaluatorId, profile }] }.',
+      );
+      expect(mockAssignEvaluatorsUseCase.execute).not.toHaveBeenCalled();
     });
   });
 

@@ -1,191 +1,40 @@
 import { Injectable, BadRequestException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
-import { EvaluatorProfileUserOrmEntity } from '../../infrastructure/database/evaluator-profile-user.entity.orm';
-import { EvaluatorProfileOrmEntity } from '../../infrastructure/database/evaluator-profile.entity.orm';
-import {
-  AssignEvaluatorsUseCase,
-  ResolvedEvaluatorItem,
-} from '../use-cases/assign-evaluators.use-case';
+import { AssignEvaluatorsUseCase } from '../use-cases/assign-evaluators.use-case';
 import { AssignEvaluatorsDto } from '../dtos/evaluator-dtos';
-import { AssignPeerEvaluatorsDto } from '../dtos/assign-peer-evaluators.dto';
-import {
-  EvaluatorProfile,
-  toEvaluatorProfile,
-} from '../../../../shared/enums/evaluator-enums';
 import { EvaluationAssignmentEntity } from '../../domain/entities/evaluation-assignment.entity';
-
-import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 
 @Injectable()
 export class EvaluatorAssignmentAdapterService {
   constructor(
-    @InjectRepository(EvaluatorProfileUserOrmEntity)
-    private readonly evaluatorProfileUserRepo: Repository<EvaluatorProfileUserOrmEntity>,
-    @InjectRepository(EvaluatorProfileOrmEntity)
-    private readonly profileRepo: Repository<EvaluatorProfileOrmEntity>,
-    @InjectRepository(ProtocolOrmEntity)
-    private readonly protocolOrmRepo: Repository<ProtocolOrmEntity>,
     private readonly assignEvaluatorsUseCase: AssignEvaluatorsUseCase,
   ) {}
 
   /**
-   * Adapta y unifica la asignación de evaluadores (payload legacy o canónico)
-   * delegando siempre en el caso de uso canónico AssignEvaluatorsUseCase.
+   * POST /evaluations/protocols/:id/assign-peer-evaluators (TSK-002-N52): el protocolo
+   * es el de la ruta; si el cuerpo trae otro, 400. Delega en el caso de uso canónico.
+   * El formato antiguo { evaluatorIds } lo rechaza el DTO (400).
    */
   async adaptAndAssign(
     protocolId: number,
-    dto: AssignEvaluatorsDto | AssignPeerEvaluatorsDto,
+    dto: AssignEvaluatorsDto,
+    assignedByUserId: number,
   ): Promise<EvaluationAssignmentEntity[]> {
-    // Consultar el reviewType del protocolo si no viene especificado en el DTO
-    const protocol = await this.protocolOrmRepo.findOne({
-      where: { id: protocolId },
-      select: { id: true, reviewType: true },
-    });
-
-    // 1. Si ya viene con el formato canónico (array de evaluators con perfiles)
-    if ('evaluators' in dto && Array.isArray(dto.evaluators)) {
-      return this.assignEvaluatorsUseCase.execute({
-        protocolId,
-        reviewType: dto.reviewType ?? protocol?.reviewType,
-        evaluators: dto.evaluators,
-      });
-    }
-
-    // 2. Si viene con el formato legacy ({ evaluatorIds: number[] })
-    const legacyDto = dto as AssignPeerEvaluatorsDto;
-    const evaluatorIds = legacyDto.evaluatorIds;
-
     if (
-      !evaluatorIds ||
-      !Array.isArray(evaluatorIds) ||
-      evaluatorIds.length !== 4
+      dto.protocolId !== undefined &&
+      dto.protocolId !== null &&
+      String(dto.protocolId).trim() !== String(protocolId)
     ) {
       throw new BadRequestException(
-        'La cuota de evaluación debe estar integrada por exactamente 4 evaluadores pares.',
+        `El protocolId del cuerpo (${String(dto.protocolId)}) no coincide con el de la ruta (${protocolId}).`,
       );
     }
 
-    const uniqueIds = new Set(evaluatorIds);
-    if (uniqueIds.size !== 4) {
-      throw new BadRequestException(
-        'No se permiten evaluadores duplicados en la asignación.',
-      );
-    }
-
-    // Consultar los perfiles activos de cada evaluador en catalogos.evaluadores_perfil
-    const userProfilesMap = new Map<number, EvaluatorProfile[]>();
-    // key: `${userId}-${EvaluatorProfile}` → catalog perfil_id for DB persistence
-    const profileIdByKey = new Map<string, number>();
-
-    for (const userId of evaluatorIds) {
-      const activeAssignments = await this.evaluatorProfileUserRepo.find({
-        where: { userId, isActive: true },
-        relations: ['profile'],
-      });
-
-      if (!activeAssignments || activeAssignments.length === 0) {
-        throw new BadRequestException(
-          `El evaluador con ID ${userId} no cuenta con un perfil activo asignado (Jurídico, Salud, Metodológico o Sociedad Civil).`,
-        );
-      }
-
-      const profiles: EvaluatorProfile[] = [];
-      for (const asg of activeAssignments) {
-        const canonicalProfile = toEvaluatorProfile(asg.profile?.name);
-        if (canonicalProfile && !profiles.includes(canonicalProfile)) {
-          profiles.push(canonicalProfile);
-          profileIdByKey.set(`${userId}-${canonicalProfile}`, asg.profileId);
-        }
-      }
-
-      if (profiles.length === 0) {
-        throw new BadRequestException(
-          `El perfil asignado al evaluador con ID ${userId} no es reconocido como un perfil canónico válido.`,
-        );
-      }
-
-      userProfilesMap.set(userId, profiles);
-    }
-
-    // Resolver asignación biyectiva única de los 4 perfiles requeridos
-    const requiredProfiles: EvaluatorProfile[] = [
-      EvaluatorProfile.JURIDICO,
-      EvaluatorProfile.SOCIEDAD_CIVIL,
-      EvaluatorProfile.METODOLOGICO,
-      EvaluatorProfile.SALUD,
-    ];
-
-    const resolvedMatching = this.resolveDistinctProfilesMatching(
-      evaluatorIds,
-      userProfilesMap,
-      requiredProfiles,
-    );
-
-    if (!resolvedMatching) {
-      throw new BadRequestException(
-        'La cuota exige exactamente 1 evaluador por cada uno de los 4 perfiles obligatorios: JURIDICO, SOCIEDAD_CIVIL, METODOLOGICO y SALUD.',
-      );
-    }
-
-    // Attach catalog profileId to each resolved item so the use case can persist perfil_id.
-    const resolvedMatchingWithIds: ResolvedEvaluatorItem[] =
-      resolvedMatching.map((item) => ({
-        ...item,
-        profileId: profileIdByKey.get(`${item.evaluatorId}-${item.profile}`),
-      }));
-
-    // NOTA DE POLÍTICA: Si el protocolo no tiene reviewType definido, se delega al caso de uso
-    // que aplicará fallback a ReviewType.PLENO (15 días hábiles). Esta regla opera como política
-    // de precaución institucional pendiente de confirmación formal por parte del comité CEISH.
     return this.assignEvaluatorsUseCase.execute({
       protocolId,
-      reviewType: protocol?.reviewType,
-      evaluators: resolvedMatchingWithIds,
+      versionId: dto.versionId,
+      reviewType: dto.reviewType,
+      evaluators: dto.evaluators,
+      assignedByUserId,
     });
-  }
-
-  /**
-   * Encuentra una correspondencia válida 1:1 entre evaluadores y perfiles requeridos
-   */
-  private resolveDistinctProfilesMatching(
-    evaluatorIds: number[],
-    userProfilesMap: Map<number, EvaluatorProfile[]>,
-    requiredProfiles: EvaluatorProfile[],
-  ): Array<{ evaluatorId: number; profile: EvaluatorProfile }> | null {
-    const result: Array<{ evaluatorId: number; profile: EvaluatorProfile }> =
-      [];
-    const usedProfiles = new Set<EvaluatorProfile>();
-
-    const backtrack = (index: number): boolean => {
-      if (index === evaluatorIds.length) {
-        return result.length === 4;
-      }
-
-      const userId = evaluatorIds[index];
-      const availableProfiles = userProfilesMap.get(userId) || [];
-
-      for (const profile of availableProfiles) {
-        if (requiredProfiles.includes(profile) && !usedProfiles.has(profile)) {
-          usedProfiles.add(profile);
-          result.push({ evaluatorId: userId, profile });
-
-          if (backtrack(index + 1)) {
-            return true;
-          }
-
-          usedProfiles.delete(profile);
-          result.pop();
-        }
-      }
-
-      return false;
-    };
-
-    if (backtrack(0)) {
-      return result;
-    }
-
-    return null;
   }
 }
