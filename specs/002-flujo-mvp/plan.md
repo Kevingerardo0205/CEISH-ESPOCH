@@ -444,8 +444,8 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 | 0 | Spec v1.3.0 (esta) | `docs/spec-002-asignacion-presidenta` | — |
 | 0b | Spec v1.3.1 (PET: Bioético, plazo de evaluación, conflicto de interés) | `docs/spec-002-plazo-bioetico` | — |
 | 1 | TSK-002-N50 renombre Ético → Bioético | `feat/tsk-002-n50-perfil-bioetico` | — |
-| 2 | TSK-002-N51 permiso PRESIDENTE | `feat/tsk-002-n51-permiso-presidente` | — |
-| 3 | TSK-002-N52 asignación por la PRESIDENTE (con la fecha límite del plazo de evaluación) | `feat/tsk-002-n52-asignacion-presidente` | N50, N51 |
+| 2 | TSK-002-N51 permiso PRESIDENTE (solo el permiso; sin cambios de `@Roles`, decisión 18/11/2026) | `feat/tsk-002-n51-permiso-presidente` | — |
+| 3 | TSK-002-N52 asignación por la PRESIDENTE (con la fecha límite del plazo de evaluación) y `@Roles('PRESIDENTE')` con el `403` a la SECRETARIA (movido desde N51) | `feat/tsk-002-n52-asignacion-presidente` | N50, N51; se fusiona solo con la pantalla de la Presidenta en el frontend y sin las acciones de asignar de la Secretaría (§17.4) |
 | 3b | TSK-002-N57 candidatos para convocatoria solo con el plazo vencido (nueva 18/11/2026) | `feat/tsk-002-n57-candidatos-plazo-evaluacion` | N52 |
 | 3c | TSK-002-N58 alerta sin convocatoria desde el vencimiento del plazo (nueva 18/11/2026) | `feat/tsk-002-n58-alerta-sin-convocatoria` | N52, N57 |
 | 4 | TSK-002-N53 riesgo por N pares | `feat/tsk-002-n53-riesgo-n-pares` | N52 |
@@ -458,6 +458,8 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 | Riesgo | Mitigación |
 |---|---|
 | El frontend aún envía `{ evaluatorIds }` o asigna como SECRETARIA | Coordinar con el repo FRONTEND-CEISH antes de fusionar N52; mensaje 400 explícito para el formato antiguo |
+| Con el `403` a la SECRETARIA nadie podría asignar desde la interfaz: hoy el frontend asigna solo como SECRETARIA y la Presidenta no tiene pantalla (Paso 0 de N51, 18/11/2026) | Decisión de la usuaria (18/11/2026): N51 solo concede el permiso; `@Roles('PRESIDENTE')` y el `403` van en N52, que se fusiona solo cuando el frontend tenga la pantalla de asignación de la Presidenta y haya quitado a la Secretaría: el modal `AssignPeersModalComponent` (`assign-peers-modal.component.ts:670`) abierto desde `PeerRiskPendingTableComponent` en `dashboard-secretaria.page.ts:91`, el botón «Asignar Pares» del espacio del protocolo (`ASSIGN_EVALUATORS: ['SECRETARIA']`, `workspace-tab-roles.ts:35`) y la acción rápida «Oficializar Asignaciones» (`dashboard-home.page.ts:726-728`) |
+| Caché de 5 minutos de `PermissionsGuard` al aplicar N51 en `ceish_db` | El guard da paso a la PRESIDENTE como mucho 5 minutos después de la migración (la caché está en memoria por usuario y ni el login la invalida), o al reiniciar el backend; volver a iniciar sesión actualiza solo la lista `permissions` del login para el frontend |
 | Asignaciones duplicadas por peticiones simultáneas | Bloqueo de la fila del protocolo y comprobación «sin asignaciones activas» dentro de la misma transacción (N52) |
 | El renombre de Ético a Bioético encuentra en `ceish_db` un catálogo distinto al de `ceish_test_db` (p. ej. una fila «BIOETICA» vieja) | La migración de N50 comprueba el nombre del id 7 y los duplicados, y aborta con un error en español sin cambiar nada |
 | Tras el renombre, la reasignación rechaza a los miembros Bioético con el mensaje «perfil Ético» (`reassign-evaluator.use-case.ts:84-88`) | Riesgo anotado en N50; se corrige en la tarea futura de reasignación |
