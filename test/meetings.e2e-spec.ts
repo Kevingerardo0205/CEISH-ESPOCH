@@ -132,7 +132,7 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
         }),
     ),
     deletePlace: jest.fn().mockResolvedValue(undefined),
-    getOldestAssignedDates: jest.fn().mockResolvedValue([]),
+    findVersionsWithReviewDeadlinePending: jest.fn().mockResolvedValue([]),
     findNormativeDeadlineInputs: jest.fn().mockResolvedValue([]),
     findAssignedVersionsWithoutScheduledMeeting: jest
       .fn()

@@ -9,7 +9,7 @@ import {
   CreateMeetingParams,
   FindMeetingsOptions,
   FindPlacesOptions,
-  AssignmentDeadlineSnapshot,
+  ReviewDeadlinePendingVersion,
   NormativeDeadlineInput,
   UnscheduledVersionInfo,
   AssignedEvaluatorInfo,
@@ -44,6 +44,38 @@ import {
   ENTREGA_EVALUACION_ZONA_HORARIA,
 } from '../../../../shared/deadlines/deadline-rules';
 import { toSafeDate } from '../../../../shared/utils/to-safe-date.util';
+
+/** Asignaciones activas de una versión (RF-12.7 c.2): SUGERIDO, ASIGNADO, COMPLETADO. */
+const ACTIVE_ASSIGNMENT_STATES = [
+  AssignmentStatus.SUGGESTED,
+  AssignmentStatus.ASSIGNED,
+  AssignmentStatus.COMPLETED,
+].join(', ');
+
+/** Asignaciones que fijan la fecha límite de la versión: las activas y las reasignadas (RF-12.7 c.2 y c.5). */
+const REVIEW_DEADLINE_ASSIGNMENT_STATES = [
+  AssignmentStatus.SUGGESTED,
+  AssignmentStatus.ASSIGNED,
+  AssignmentStatus.COMPLETED,
+  AssignmentStatus.REASIGNED_VENCIMIENTO,
+  AssignmentStatus.REASIGNED_COI,
+].join(', ');
+
+/**
+ * Plazo de evaluación por versión (RF-12.7 c.2, TSK-002-N57; decisión de la usuaria 20/11/2026):
+ * `review_deadline` = MAX(fecha_limite_revision) de las asignaciones en 5, 6, 7, 26 y 27;
+ * `has_active` = al menos una asignación en 5, 6 o 7. Alias de uso: `rd`.
+ */
+const VERSION_REVIEW_DEADLINE_SQL = `
+  SELECT a.version_id,
+         bool_or(a.estado_id IN (${ACTIVE_ASSIGNMENT_STATES})) AS has_active,
+         MAX(a.fecha_limite_revision) AS review_deadline
+    FROM evaluacion.asignaciones_evaluacion a
+   WHERE a.estado_id IN (${REVIEW_DEADLINE_ASSIGNMENT_STATES})
+   GROUP BY a.version_id`;
+
+/** Predicado único «plazo de evaluación vencido» sobre `rd` (lista y 409 al agendar). */
+const REVIEW_DEADLINE_EXPIRED_SQL = `COALESCE(rd.has_active AND NOW() > rd.review_deadline, false)`;
 
 /** Fila cruda de findNextMeeting (RF-ALR.f.7). */
 interface NextMeetingRow {
@@ -288,31 +320,33 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
     );
   }
 
-  async getOldestAssignedDates(
+  async findVersionsWithReviewDeadlinePending(
     protocolVersionIds: number[],
-  ): Promise<AssignmentDeadlineSnapshot[]> {
+  ): Promise<ReviewDeadlinePendingVersion[]> {
     if (!protocolVersionIds.length) return [];
     const rows: Array<{
       protocolVersionId: string | number;
       protocolCode: string;
-      oldestAssignmentDate: string | Date;
+      hasActiveAssignments: boolean | null;
+      reviewDeadline: string | Date | null;
     }> = await this.dataSource.query(
-      `SELECT
-         ae.version_id        AS "protocolVersionId",
-         COALESCE(p.codigo_ceish, p.id::text) AS "protocolCode",
-         MIN(ae.fecha_asignacion) AS "oldestAssignmentDate"
-       FROM evaluacion.asignaciones_evaluacion ae
-       JOIN public.versiones_protocolo vp ON vp.id = ae.version_id
-       JOIN public.protocolos p          ON p.id  = vp.protocolo_id
-       WHERE ae.version_id = ANY($1)
-         AND ae.estado_id  = $2
-       GROUP BY ae.version_id, p.codigo_ceish, p.id`,
-      [protocolVersionIds, AssignmentStatus.ASSIGNED],
+      `SELECT vp.id AS "protocolVersionId",
+              COALESCE(p.codigo_ceish, p.id::text) AS "protocolCode",
+              COALESCE(rd.has_active, false) AS "hasActiveAssignments",
+              rd.review_deadline AS "reviewDeadline"
+         FROM public.versiones_protocolo vp
+         JOIN public.protocolos p ON p.id = vp.protocolo_id
+         LEFT JOIN (${VERSION_REVIEW_DEADLINE_SQL}) rd ON rd.version_id = vp.id
+        WHERE vp.id = ANY($1)
+          AND NOT ${REVIEW_DEADLINE_EXPIRED_SQL}
+        ORDER BY array_position($1, vp.id)`,
+      [protocolVersionIds],
     );
     return rows.map((row) => ({
       protocolVersionId: Number(row.protocolVersionId),
       protocolCode: String(row.protocolCode),
-      oldestAssignmentDate: new Date(row.oldestAssignmentDate),
+      hasActiveAssignments: row.hasActiveAssignments === true,
+      reviewDeadline: row.reviewDeadline ? new Date(row.reviewDeadline) : null,
     }));
   }
 
@@ -512,6 +546,10 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
         {
           resolvedStatuses: [ProtocolStatus.APROBADO, ProtocolStatus.RECHAZADO],
         },
+      )
+      // RF-12.7 c.2 (TSK-002-N57): solo con el plazo de evaluación vencido
+      .andWhere(
+        `av.id IN (SELECT rd.version_id FROM (${VERSION_REVIEW_DEADLINE_SQL}) rd WHERE ${REVIEW_DEADLINE_EXPIRED_SQL})`,
       )
       .getMany();
 

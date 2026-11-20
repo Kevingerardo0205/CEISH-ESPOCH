@@ -6,14 +6,12 @@ import {
 import {
   SystemParamsService,
   SP_ENTREGA_EVALUACION_DIAS,
-  SP_PLAZO_REVISION_OFICIO,
 } from '../../../sistema/application/services/system-params.service';
 import {
   PLAZO_NORMATIVO_EXPEDITA_DIAS,
   PLAZO_NORMATIVO_PLENO_DIAS,
 } from '../../../../shared/deadlines/deadline-rules';
 import { ReviewType } from '../../../protocols/domain/enums/review-type.enum';
-import type { AssignmentDeadlineSnapshot } from '../../domain/ports/meeting-repository.port';
 
 export interface ProtocolNormativeSnapshot {
   protocolCode: string;
@@ -74,17 +72,14 @@ export class CalculateMeetingDatesService {
   /**
    * Evalúa advertencias suaves no bloqueantes:
    * - Si evalDeadline excede el plazo normativo de algún protocolo (TSK-009-N06).
-   * - Si el número de días hábiles desde la asignación más antigua es menor que
-   *   PLAZO_REVISION_OFICIO_DIAS (TSK-002-N05).
+   * La advertencia ADVERTENCIA_PLAZO_REVISION (TSK-002-N05) se retiró en TSK-002-N57: el
+   * plazo de evaluación ahora bloquea el agendamiento (RF-12.7 c.2, 409 PLAZO_EVALUACION_NO_VENCIDO).
    */
   evaluateSoftWarnings(
-    meetingDate: Date,
     protocols: ProtocolNormativeSnapshot[],
-    assignments: AssignmentDeadlineSnapshot[] | undefined,
     evalDeadline: Date,
   ): string[] {
     const warnings: string[] = [];
-    const plazoRevision = this.systemParams.get(SP_PLAZO_REVISION_OFICIO);
     const formatECT = (d: Date): string =>
       new Intl.DateTimeFormat('en-CA', {
         timeZone: 'America/Guayaquil',
@@ -98,20 +93,6 @@ export class CalculateMeetingDatesService {
         warnings.push(
           `ADVERTENCIA_PLAZO_NORMATIVO: El protocolo ${protocol.protocolCode} tiene fecha de entrega (${formatECT(evalDeadline)}) posterior a su plazo normativo (${formatECT(protocol.normativeDeadline)}).`,
         );
-      }
-    }
-
-    if (assignments) {
-      for (const assignment of assignments) {
-        const businessDays = BusinessDayCalculator.countBusinessDays(
-          assignment.oldestAssignmentDate,
-          meetingDate,
-        );
-        if (businessDays < plazoRevision) {
-          warnings.push(
-            `ADVERTENCIA_PLAZO_REVISION: El protocolo ${assignment.protocolCode} (versión ${assignment.protocolVersionId}) tiene solo ${businessDays} días hábiles de revisión antes de la reunión (mínimo requerido: ${plazoRevision}).`,
-          );
-        }
       }
     }
 

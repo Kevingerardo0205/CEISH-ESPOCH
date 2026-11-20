@@ -1,7 +1,29 @@
 import {
   endOfDayGuayaquil,
   BusinessDayCalculator,
+  toCalendarDateString,
+  toDayMonthYear,
 } from './deadline-calculator.service';
+
+describe('toDayMonthYear (TSK-002-N57, movida desde el oficio)', () => {
+  it('YYYY-MM-DD → dd/mm/aaaa', () => {
+    expect(toDayMonthYear('2026-11-30')).toBe('30/11/2026');
+  });
+
+  it('null si no tiene formato YYYY-MM-DD', () => {
+    expect(toDayMonthYear(null)).toBeNull();
+    expect(toDayMonthYear(undefined)).toBeNull();
+    expect(toDayMonthYear('30/11/2026')).toBeNull();
+  });
+
+  it('con toCalendarDateString usa el día de Ecuador (23:59:59.999 ECT = 04:59:59.999Z del día siguiente)', () => {
+    expect(
+      toDayMonthYear(
+        toCalendarDateString(new Date('2026-12-01T04:59:59.999Z')),
+      ),
+    ).toBe('30/11/2026');
+  });
+});
 
 describe('endOfDayGuayaquil', () => {
   it('converts 2026-03-12 to 2026-03-13T04:59:59.999Z (23:59:59.999 ECT)', () => {

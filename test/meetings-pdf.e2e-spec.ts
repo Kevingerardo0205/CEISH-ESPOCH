@@ -68,7 +68,7 @@ const meetingRepositoryMock: IMeetingRepositoryPort = {
   createPlace: jest.fn().mockResolvedValue(null),
   updatePlace: jest.fn().mockResolvedValue(null),
   deletePlace: jest.fn().mockResolvedValue(undefined),
-  getOldestAssignedDates: jest.fn().mockResolvedValue([]),
+  findVersionsWithReviewDeadlinePending: jest.fn().mockResolvedValue([]),
   findNormativeDeadlineInputs: jest.fn().mockResolvedValue([]),
   findAssignedVersionsWithoutScheduledMeeting: jest.fn().mockResolvedValue([]),
   findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),

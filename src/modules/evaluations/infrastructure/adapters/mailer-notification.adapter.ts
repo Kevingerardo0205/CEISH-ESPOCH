@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { EvaluatorProfile } from '../../../../shared/enums/evaluator-enums';
+import { toDayMonthYear } from '../../../../shared/services/deadline-calculator.service';
 
 export interface EvaluatorAssignedEventPayload {
   assignmentId: string;
@@ -17,12 +18,6 @@ export interface EvaluatorAssignedEventPayload {
   /** Fecha límite del plazo de evaluación (YYYY-MM-DD, America/Guayaquil). */
   reviewDeadlineDate?: string | null;
   protocolTitle?: string | null;
-}
-
-/** YYYY-MM-DD → dd/mm/aaaa; null si no tiene ese formato. */
-function toDayMonthYear(calendarDate?: string | null): string | null {
-  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(calendarDate ?? '');
-  return match ? `${match[3]}/${match[2]}/${match[1]}` : null;
 }
 
 export interface IMailerService {
