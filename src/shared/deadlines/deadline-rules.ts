@@ -38,7 +38,7 @@ export const ENTREGA_EVALUACION_ZONA_HORARIA = 'America/Guayaquil' as const;
  */
 export const EVALUADOR_URGENTE_UMBRAL_DIAS = 2 as const;
 
-/** RF-12.7(d) (spec-002): días máximos desde la fecha de asignación más antigua activa sin convocatoria antes de alertar. */
+/** RF-12.7(d) (spec-002, TSK-002-N58): días hábiles máximos desde el vencimiento del plazo de evaluación sin convocatoria antes de alertar. */
 export const DIAS_MAX_SIN_CONVOCATORIA = 8 as const;
 
 /** RF-12.7(d) (spec-002): días hábiles restantes de plazo normativo que activan la segunda condición de alerta. Provisional; a confirmar con secretaría. */
