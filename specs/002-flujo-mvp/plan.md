@@ -445,7 +445,7 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 | 0b | Spec v1.3.1 (PET: Bioético, plazo de evaluación, conflicto de interés) | `docs/spec-002-plazo-bioetico` | — |
 | 1 | TSK-002-N50 renombre Ético → Bioético | `feat/tsk-002-n50-perfil-bioetico` | — |
 | 2 | TSK-002-N51 permiso PRESIDENTE (solo el permiso; sin cambios de `@Roles`, decisión 18/11/2026) | `feat/tsk-002-n51-permiso-presidente` | — |
-| 3 | TSK-002-N52 asignación por la PRESIDENTE (con la fecha límite del plazo de evaluación) y `@Roles('PRESIDENTE')` con el `403` a la SECRETARIA (movido desde N51) | `feat/tsk-002-n52-asignacion-presidente` | N50, N51; se fusiona solo con la pantalla de la Presidenta en el frontend y sin las acciones de asignar de la Secretaría (§17.4) |
+| 3 | TSK-002-N52 asignación por la PRESIDENTE (con la fecha límite del plazo de evaluación) y `@Roles('PRESIDENTE')` con el `403` a la SECRETARIA (movido desde N51) | `feat/tsk-002-n52-asignacion-presidente` | N50, N51; se fusiona solo con la pantalla de la Presidenta en el frontend y sin las acciones de asignar de la Secretaría (§17.4). **Hecha:** condición cumplida el 20/11/2026 (FRONTEND-CEISH fusionó F03 AP1, pantalla de asignación de la Presidenta sin asignación para la Secretaría, y EP1b) |
 | 3b | TSK-002-N57 candidatos para convocatoria solo con el plazo vencido (nueva 18/11/2026) | `feat/tsk-002-n57-candidatos-plazo-evaluacion` | N52 |
 | 3c | TSK-002-N58 alerta sin convocatoria desde el vencimiento del plazo (nueva 18/11/2026) | `feat/tsk-002-n58-alerta-sin-convocatoria` | N52, N57 |
 | 4 | TSK-002-N53 riesgo por N pares | `feat/tsk-002-n53-riesgo-n-pares` | N52 |
