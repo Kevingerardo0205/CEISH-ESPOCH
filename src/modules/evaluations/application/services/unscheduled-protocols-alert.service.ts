@@ -116,11 +116,7 @@ export class UnscheduledProtocolsAlertService {
     const alerts: EligibleVersionAlert[] = [];
 
     for (const snap of snapshots) {
-      const cond1 = this.checkCondition1(
-        snap.oldestAssignmentDate,
-        now,
-        diasMax,
-      );
+      const cond1 = this.checkCondition1(snap, now, diasMax);
       const cond2 = this.checkCondition2(
         snap.reviewType,
         snap.receptionDate,
@@ -132,9 +128,9 @@ export class UnscheduledProtocolsAlertService {
 
       let reason: string;
       if (cond1 && cond2) {
-        reason = `antigüedad ≥ ${diasMax} días hábiles y plazo normativo en ≤ ${diasAlerta} días hábiles`;
+        reason = `≥ ${diasMax} días hábiles desde el vencimiento del plazo de evaluación y plazo normativo en ≤ ${diasAlerta} días hábiles`;
       } else if (cond1) {
-        reason = `antigüedad de asignación ≥ ${diasMax} días hábiles sin convocatoria`;
+        reason = `≥ ${diasMax} días hábiles desde el vencimiento del plazo de evaluación sin convocatoria`;
       } else {
         reason = `plazo normativo vence en ≤ ${diasAlerta} días hábiles`;
       }
@@ -149,13 +145,18 @@ export class UnscheduledProtocolsAlertService {
     return alerts;
   }
 
+  /**
+   * RF-12.7 d (TSK-002-N58): días hábiles desde el vencimiento del plazo de evaluación; sin alerta
+   * por antigüedad mientras ese plazo no haya vencido.
+   */
   private checkCondition1(
-    oldestAssignmentDate: Date,
+    snap: UnscheduledVersionInfo,
     now: Date,
     diasMax: number,
   ): boolean {
+    if (!snap.reviewDeadlineExpired || !snap.reviewDeadline) return false;
     const businessDays = BusinessDayCalculator.countBusinessDays(
-      oldestAssignmentDate,
+      snap.reviewDeadline,
       now,
     );
     return businessDays >= diasMax;

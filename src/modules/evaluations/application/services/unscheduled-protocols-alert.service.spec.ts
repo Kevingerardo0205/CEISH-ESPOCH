@@ -14,11 +14,16 @@ const makeDate = (isoStr: string): Date => new Date(isoStr);
 
 const TODAY = makeDate('2026-10-13T12:00:00Z'); // martes
 
-// Versión con asignación hace 9 días hábiles (lunes-viernes × 2 semanas = ~10 cal → Cond1)
+/** Fecha límite del plazo de evaluación como se guarda: 23:59:59.999 del día en Ecuador (N52). */
+const deadlineEct = (day: string): Date =>
+  new Date(`${day}T23:59:59.999-05:00`);
+
+// Versión con el plazo de evaluación vencido hace 9 días hábiles → Cond1
 const SNAP_COND1: UnscheduledVersionInfo = {
   versionId: 1,
   protocolCode: 'CEISH-001-2026',
-  oldestAssignmentDate: makeDate('2026-09-29T08:00:00Z'), // ~10 días calendario antes
+  reviewDeadline: deadlineEct('2026-09-29'), // vencido hace 9 días hábiles
+  reviewDeadlineExpired: true,
   reviewType: undefined,
   receptionDate: undefined,
 };
@@ -29,7 +34,8 @@ const SNAP_COND1: UnscheduledVersionInfo = {
 const SNAP_COND2: UnscheduledVersionInfo = {
   versionId: 2,
   protocolCode: 'CEISH-002-2026',
-  oldestAssignmentDate: makeDate('2026-10-12T08:00:00Z'), // ayer (1 día hábil → Cond1 = false)
+  reviewDeadline: deadlineEct('2026-10-12'), // venció ayer (0 días hábiles → Cond1 = false)
+  reviewDeadlineExpired: true,
   reviewType: 'EXPEDITA',
   receptionDate: makeDate('2026-08-15T08:00:00Z'),
 };
@@ -38,7 +44,8 @@ const SNAP_COND2: UnscheduledVersionInfo = {
 const SNAP_BOTH: UnscheduledVersionInfo = {
   versionId: 3,
   protocolCode: 'CEISH-003-2026',
-  oldestAssignmentDate: makeDate('2026-09-29T08:00:00Z'),
+  reviewDeadline: deadlineEct('2026-09-29'),
+  reviewDeadlineExpired: true,
   reviewType: 'EXPEDITA',
   receptionDate: makeDate('2026-08-15T08:00:00Z'),
 };
@@ -47,7 +54,8 @@ const SNAP_BOTH: UnscheduledVersionInfo = {
 const SNAP_NONE: UnscheduledVersionInfo = {
   versionId: 4,
   protocolCode: 'CEISH-004-2026',
-  oldestAssignmentDate: makeDate('2026-10-12T08:00:00Z'), // ayer
+  reviewDeadline: deadlineEct('2026-10-12'), // venció ayer
+  reviewDeadlineExpired: true,
   reviewType: 'PLENO',
   receptionDate: makeDate('2026-09-01T08:00:00Z'), // plazo PLENO = 60 días → aún lejos
 };
@@ -56,7 +64,8 @@ const SNAP_NONE: UnscheduledVersionInfo = {
 const SNAP_NO_RECEPTION: UnscheduledVersionInfo = {
   versionId: 5,
   protocolCode: 'CEISH-005-2026',
-  oldestAssignmentDate: makeDate('2026-09-29T08:00:00Z'), // Cond1 = true
+  reviewDeadline: deadlineEct('2026-09-29'), // Cond1 = true
+  reviewDeadlineExpired: true,
   reviewType: undefined,
   receptionDate: undefined,
 };
@@ -122,7 +131,9 @@ describe('UnscheduledProtocolsAlertService', () => {
       const result = service.evaluateEligibility([SNAP_COND1], TODAY, 8, 5);
       expect(result).toHaveLength(1);
       expect(result[0].versionId).toBe(1);
-      expect(result[0].reason).toContain('antigüedad');
+      expect(result[0].reason).toContain(
+        'desde el vencimiento del plazo de evaluación',
+      );
     });
 
     it('detecta condición 2: plazo normativo inminente', () => {
@@ -135,7 +146,9 @@ describe('UnscheduledProtocolsAlertService', () => {
     it('detecta ambas condiciones y concatena razón', () => {
       const result = service.evaluateEligibility([SNAP_BOTH], TODAY, 8, 5);
       expect(result).toHaveLength(1);
-      expect(result[0].reason).toContain('antigüedad');
+      expect(result[0].reason).toContain(
+        'desde el vencimiento del plazo de evaluación',
+      );
       expect(result[0].reason).toContain('plazo normativo');
     });
 
@@ -152,7 +165,9 @@ describe('UnscheduledProtocolsAlertService', () => {
         5,
       );
       expect(result).toHaveLength(1);
-      expect(result[0].reason).toContain('antigüedad');
+      expect(result[0].reason).toContain(
+        'desde el vencimiento del plazo de evaluación',
+      );
     });
 
     it(
@@ -165,7 +180,8 @@ describe('UnscheduledProtocolsAlertService', () => {
         const snapExacto: UnscheduledVersionInfo = {
           versionId: 99,
           protocolCode: 'COND1-EXACTO',
-          oldestAssignmentDate: makeDate('2026-09-30T12:00:00Z'),
+          reviewDeadline: deadlineEct('2026-09-30'),
+          reviewDeadlineExpired: true,
           reviewType: undefined,
           receptionDate: undefined,
         };
@@ -182,7 +198,8 @@ describe('UnscheduledProtocolsAlertService', () => {
         const snapMenos: UnscheduledVersionInfo = {
           versionId: 100,
           protocolCode: 'COND1-MENOS',
-          oldestAssignmentDate: makeDate('2026-10-01T12:00:00Z'),
+          reviewDeadline: deadlineEct('2026-10-01'),
+          reviewDeadlineExpired: true,
           reviewType: undefined,
           receptionDate: undefined,
         };
@@ -201,11 +218,12 @@ describe('UnscheduledProtocolsAlertService', () => {
         'countBusinessDays(now, vencido) devuelve 0, y 0 <= diasAlerta',
       () => {
         // EXPEDITA 45 días hábiles desde 2026-06-01 ≈ 2026-08: vencido para 2026-10-13.
-        // oldestAssignmentDate = now → Cond1 = 0 < 8 = false, para aislar Cond2.
+        // Plazo de evaluación sin vencer → Cond1 = false, para aislar Cond2.
         const snapVencido: UnscheduledVersionInfo = {
           versionId: 101,
           protocolCode: 'COND2-VENCIDO',
-          oldestAssignmentDate: makeDate('2026-10-13T12:00:00Z'),
+          reviewDeadline: deadlineEct('2026-10-20'),
+          reviewDeadlineExpired: false,
           reviewType: 'EXPEDITA',
           receptionDate: makeDate('2026-06-01T12:00:00Z'),
         };
@@ -224,7 +242,8 @@ describe('UnscheduledProtocolsAlertService', () => {
         const snapFinde: UnscheduledVersionInfo = {
           versionId: 102,
           protocolCode: 'COND1-FINDE',
-          oldestAssignmentDate: makeDate('2026-10-09T12:00:00Z'),
+          reviewDeadline: deadlineEct('2026-10-09'),
+          reviewDeadlineExpired: true,
           reviewType: undefined,
           receptionDate: undefined,
         };
@@ -241,6 +260,65 @@ describe('UnscheduledProtocolsAlertService', () => {
         expect(resAlerta).toHaveLength(1);
       },
     );
+
+    it('TSK-002-N58: asignado hace 10 días hábiles con el plazo de evaluación vencido hace 2 → sin alerta por antigüedad', () => {
+      // Asignación 2026-09-28 (lun): 10 días hábiles abiertos hasta 2026-10-13. Plazo vencido el
+      // 2026-10-08 (jue): días hábiles abiertos (10-08, 10-13) = 10-09 vie y 10-12 lun = 2 < 8.
+      const snap: UnscheduledVersionInfo = {
+        versionId: 110,
+        protocolCode: 'N58-VENCIDO-HACE-2',
+        reviewDeadline: deadlineEct('2026-10-08'),
+        reviewDeadlineExpired: true,
+        reviewType: undefined,
+        receptionDate: undefined,
+      };
+      expect(service.evaluateEligibility([snap], TODAY, 8, 5)).toHaveLength(0);
+    });
+
+    it('TSK-002-N58: plazo de evaluación vencido hace dias_max días hábiles → alerta por antigüedad', () => {
+      // Plazo vencido el 2026-09-30 (mié): (09-30, 10-13) = 8 días hábiles = diasMax.
+      const snap: UnscheduledVersionInfo = {
+        versionId: 111,
+        protocolCode: 'N58-VENCIDO-HACE-8',
+        reviewDeadline: deadlineEct('2026-09-30'),
+        reviewDeadlineExpired: true,
+        reviewType: undefined,
+        receptionDate: undefined,
+      };
+      const result = service.evaluateEligibility([snap], TODAY, 8, 5);
+      expect(result).toHaveLength(1);
+      expect(result[0].reason).toBe(
+        '≥ 8 días hábiles desde el vencimiento del plazo de evaluación sin convocatoria',
+      );
+    });
+
+    it('TSK-002-N58: plazo de evaluación sin vencer y plazo normativo cerca → solo alerta normativa', () => {
+      const snap: UnscheduledVersionInfo = {
+        versionId: 112,
+        protocolCode: 'N58-SIN-VENCER-NORMATIVO',
+        reviewDeadline: deadlineEct('2026-10-20'),
+        reviewDeadlineExpired: false,
+        reviewType: 'EXPEDITA',
+        receptionDate: makeDate('2026-08-15T08:00:00Z'),
+      };
+      const result = service.evaluateEligibility([snap], TODAY, 8, 5);
+      expect(result).toHaveLength(1);
+      expect(result[0].reason).toBe(
+        'plazo normativo vence en ≤ 5 días hábiles',
+      );
+    });
+
+    it('TSK-002-N58: plazo de evaluación sin vencer con dias_max 0 → sin alerta por antigüedad', () => {
+      const snap: UnscheduledVersionInfo = {
+        versionId: 113,
+        protocolCode: 'N58-SIN-VENCER-DIAS-0',
+        reviewDeadline: deadlineEct('2026-10-20'),
+        reviewDeadlineExpired: false,
+        reviewType: undefined,
+        receptionDate: undefined,
+      };
+      expect(service.evaluateEligibility([snap], TODAY, 0, 5)).toHaveLength(0);
+    });
   });
 
   describe('checkAndNotify', () => {

@@ -372,57 +372,43 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
   async findAssignedVersionsWithoutScheduledMeeting(): Promise<
     UnscheduledVersionInfo[]
   > {
-    // Effective states that contribute to the oldest-assignment date:
-    // ASSIGNED(6) = active; REASIGNED_VENCIMIENTO(26)/REASIGNED_COI(27) = replaced but still count
-    // (reassignment must NOT reset the elapsed-days clock per spec)
-    const effectiveStates = [
-      AssignmentStatus.ASSIGNED,
-      AssignmentStatus.REASIGNED_VENCIMIENTO,
-      AssignmentStatus.REASIGNED_COI,
-    ];
+    // RF-12.7 d (TSK-002-N58): mismo plazo de evaluación por versión que N57 (`rd`); la
+    // reasignación no cambia la fecha límite porque la asignación nueva nace sin ella.
     const rows: Array<{
       versionId: string | number;
       protocolCode: string;
-      oldestAssignmentDate: string | Date;
+      reviewDeadline: string | Date | null;
+      reviewDeadlineExpired: boolean | null;
       reviewType: string | null;
       receptionDate: string | Date | null;
     }> = await this.dataSource.query(
       `SELECT
-         ae.version_id                            AS "versionId",
+         rd.version_id                            AS "versionId",
          COALESCE(p.codigo_ceish, p.id::text)     AS "protocolCode",
-         MIN(ae.fecha_asignacion)                 AS "oldestAssignmentDate",
+         rd.review_deadline                       AS "reviewDeadline",
+         ${REVIEW_DEADLINE_EXPIRED_SQL}           AS "reviewDeadlineExpired",
          p.tipo_revision::text                    AS "reviewType",
          r.fecha_recepcion                        AS "receptionDate"
-       FROM evaluacion.asignaciones_evaluacion ae
-       JOIN public.versiones_protocolo pv ON pv.id = ae.version_id
+       FROM (${VERSION_REVIEW_DEADLINE_SQL}) rd
+       JOIN public.versiones_protocolo pv ON pv.id = rd.version_id
        JOIN public.protocolos p           ON p.id  = pv.protocolo_id
        LEFT JOIN recepcion.recepciones r  ON r.version_id = pv.id
-       WHERE ae.estado_id = ANY($1)
-         AND EXISTS (
-           SELECT 1
-           FROM evaluacion.asignaciones_evaluacion ae2
-           WHERE ae2.version_id = ae.version_id
-             AND ae2.estado_id  = $2
-         )
+       WHERE rd.has_active
          AND NOT EXISTS (
            SELECT 1
            FROM evaluacion.convocatoria_protocolos cp
            JOIN evaluacion.convocatorias c ON c.id = cp.convocatoria_id
            -- "agendado" = estado <> CANCELADA (cubre PROGRAMADA, EN_CURSO y CONCLUIDA)
-           WHERE c.estado <> $3
-             AND cp.version_id = ae.version_id
-         )
-       GROUP BY ae.version_id, p.codigo_ceish, p.id, p.tipo_revision, r.fecha_recepcion`,
-      [
-        effectiveStates,
-        AssignmentStatus.ASSIGNED,
-        ConvocatoriaStatus.CANCELADA,
-      ],
+           WHERE c.estado <> $1
+             AND cp.version_id = rd.version_id
+         )`,
+      [ConvocatoriaStatus.CANCELADA],
     );
     return rows.map((row) => ({
       versionId: Number(row.versionId),
       protocolCode: String(row.protocolCode),
-      oldestAssignmentDate: new Date(row.oldestAssignmentDate),
+      reviewDeadline: row.reviewDeadline ? new Date(row.reviewDeadline) : null,
+      reviewDeadlineExpired: row.reviewDeadlineExpired === true,
       reviewType: row.reviewType ?? undefined,
       receptionDate: row.receptionDate
         ? new Date(row.receptionDate)

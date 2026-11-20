@@ -2178,23 +2178,30 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     const P_REA = 9903; // protocolo/versión para verificar MIN de fecha de reasignación
     const P_CONC = 9904; // protocolo/versión en convocatoria CONCLUIDA (11e)
     const P_CXL = 9905; // protocolo/versión en convocatoria CANCELADA (11f)
+    const P_FUT = 9906; // TSK-002-N58: plazo de evaluación sin vencer (11g)
+    const P_COMP = 9907; // TSK-002-N58: solo asignaciones COMPLETADO (11h)
+    const IDS = `${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL}, ${P_FUT}, ${P_COMP}`;
+    // TSK-002-N58: fechas fijas a las 12:00 de Ecuador (17:00 UTC), lejos de ambas medianoches.
+    const DEADLINE_PAST_OLD = '2026-01-10T12:00:00-05:00';
+    const DEADLINE_PAST = '2026-01-15T12:00:00-05:00';
+    const DEADLINE_FUTURE = '2099-06-15T12:00:00-05:00';
 
     const fixtureCleanup = async () => {
       await dataSource.query(`
         UPDATE public.protocolos SET version_actual_id = NULL
-          WHERE id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+          WHERE id IN (${IDS});
         DELETE FROM evaluacion.convocatoria_protocolos
-          WHERE version_id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+          WHERE version_id IN (${IDS});
         DELETE FROM evaluacion.convocatorias
           WHERE numero_convocatoria IN ('TEST-N03-CON', 'TEST-N03-CONC', 'TEST-N03-CXL');
         DELETE FROM evaluacion.asignaciones_evaluacion
-          WHERE version_id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+          WHERE version_id IN (${IDS});
         DELETE FROM recepcion.recepciones
-          WHERE version_id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+          WHERE version_id IN (${IDS});
         DELETE FROM public.versiones_protocolo
-          WHERE id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+          WHERE id IN (${IDS});
         DELETE FROM public.protocolos
-          WHERE id IN (${P_SIN}, ${P_CON}, ${P_REA}, ${P_CONC}, ${P_CXL});
+          WHERE id IN (${IDS});
       `);
     };
 
@@ -2272,7 +2279,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       }
     });
 
-    it('11c. versión con reasignación devuelve la fecha de asignación más antigua', async () => {
+    it('11c. TSK-002-N58: con reasignación devuelve la fecha límite MAX de 5, 6, 7, 26 y 27 y vencido', async () => {
       try {
         await dataSource.query(`
           INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
@@ -2282,14 +2289,21 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           VALUES (${P_REA}, ${P_REA}, 1, 10) ON CONFLICT (id) DO NOTHING;
           UPDATE public.protocolos SET version_actual_id = ${P_REA} WHERE id = ${P_REA};
         `);
-        // Asignación original (ahora reasignada) — fecha más antigua
+        // Evaluador que ya entregó, con una fecha límite anterior
         await dataSource.query(
           `INSERT INTO evaluacion.asignaciones_evaluacion
-             (version_id, evaluador_id, estado_id, fecha_asignacion)
-           VALUES ($1, 902, $2, NOW() - INTERVAL '15 days')`,
-          [P_REA, AssignmentStatus.REASIGNED_VENCIMIENTO],
+             (version_id, evaluador_id, estado_id, fecha_asignacion, fecha_limite_revision)
+           VALUES ($1, 903, $2, NOW() - INTERVAL '40 days', $3::timestamptz)`,
+          [P_REA, AssignmentStatus.COMPLETED, DEADLINE_PAST_OLD],
         );
-        // Reasignación actual (ASSIGNED) — fecha más reciente
+        // Asignación original (ahora reasignada): fija la fecha límite más tardía
+        await dataSource.query(
+          `INSERT INTO evaluacion.asignaciones_evaluacion
+             (version_id, evaluador_id, estado_id, fecha_asignacion, fecha_limite_revision)
+           VALUES ($1, 902, $2, NOW() - INTERVAL '40 days', $3::timestamptz)`,
+          [P_REA, AssignmentStatus.REASIGNED_VENCIMIENTO, DEADLINE_PAST],
+        );
+        // Reasignación actual (ASSIGNED): nace sin fecha límite y no la cambia
         await dataSource.query(
           `INSERT INTO evaluacion.asignaciones_evaluacion
              (version_id, evaluador_id, estado_id, fecha_asignacion)
@@ -2301,12 +2315,10 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         const result = await repo.findAssignedVersionsWithoutScheduledMeeting();
         const found = result.find((r) => r.versionId === P_REA);
         expect(found).toBeDefined();
-        // La fecha más antigua (≥ 14 días) debe ser la que se reporta, no los 3 días de la reasignación
-        const daysSince = Math.floor(
-          (Date.now() - new Date(found!.oldestAssignmentDate).getTime()) /
-            86_400_000,
+        expect(found?.reviewDeadline?.getTime()).toBe(
+          new Date(DEADLINE_PAST).getTime(),
         );
-        expect(daysSince).toBeGreaterThanOrEqual(14);
+        expect(found?.reviewDeadlineExpired).toBe(true);
       } finally {
         await fixtureCleanup();
       }
@@ -2411,6 +2423,67 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
             [convocatoriaId],
           );
         }
+        await fixtureCleanup();
+      }
+    });
+
+    it('11g. TSK-002-N58: plazo de evaluación sin vencer → aparece con reviewDeadlineExpired false', async () => {
+      try {
+        await dataSource.query(`
+          INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+          VALUES (${P_FUT}, 'ZZ_TEST_N58 FUT', 901, 10, 'EXPEDITA')
+          ON CONFLICT (id) DO NOTHING;
+          INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+          VALUES (${P_FUT}, ${P_FUT}, 1, 10) ON CONFLICT (id) DO NOTHING;
+          UPDATE public.protocolos SET version_actual_id = ${P_FUT} WHERE id = ${P_FUT};
+        `);
+        await dataSource.query(
+          `INSERT INTO evaluacion.asignaciones_evaluacion
+             (version_id, evaluador_id, estado_id, fecha_asignacion, fecha_limite_revision)
+           VALUES ($1, 901, $2, NOW() - INTERVAL '40 days', $3::timestamptz)`,
+          [P_FUT, AssignmentStatus.ASSIGNED, DEADLINE_FUTURE],
+        );
+
+        const repo = app.get<IMeetingRepositoryPort>('IMeetingRepositoryPort');
+        const result = await repo.findAssignedVersionsWithoutScheduledMeeting();
+        const found = result.find((r) => r.versionId === P_FUT);
+        expect(found).toBeDefined();
+        expect(found?.reviewDeadline?.getTime()).toBe(
+          new Date(DEADLINE_FUTURE).getTime(),
+        );
+        expect(found?.reviewDeadlineExpired).toBe(false);
+      } finally {
+        await fixtureCleanup();
+      }
+    });
+
+    it('11h. TSK-002-N58: versión solo con asignaciones COMPLETADO (sin ASIGNADO) aparece', async () => {
+      try {
+        await dataSource.query(`
+          INSERT INTO public.protocolos (id, titulo, investigador_principal_id, estado_id, tipo_revision)
+          VALUES (${P_COMP}, 'ZZ_TEST_N58 COMP', 901, 10, 'EXPEDITA')
+          ON CONFLICT (id) DO NOTHING;
+          INSERT INTO public.versiones_protocolo (id, protocolo_id, numero_version, estado_id)
+          VALUES (${P_COMP}, ${P_COMP}, 1, 10) ON CONFLICT (id) DO NOTHING;
+          UPDATE public.protocolos SET version_actual_id = ${P_COMP} WHERE id = ${P_COMP};
+        `);
+        await dataSource.query(
+          `INSERT INTO evaluacion.asignaciones_evaluacion
+             (version_id, evaluador_id, estado_id, fecha_asignacion, fecha_limite_revision)
+           VALUES ($1, 901, $2, NOW() - INTERVAL '40 days', $3::timestamptz),
+                  ($1, 902, $2, NOW() - INTERVAL '40 days', $3::timestamptz)`,
+          [P_COMP, AssignmentStatus.COMPLETED, DEADLINE_PAST],
+        );
+
+        const repo = app.get<IMeetingRepositoryPort>('IMeetingRepositoryPort');
+        const result = await repo.findAssignedVersionsWithoutScheduledMeeting();
+        const found = result.find((r) => r.versionId === P_COMP);
+        expect(found).toBeDefined();
+        expect(found?.reviewDeadline?.getTime()).toBe(
+          new Date(DEADLINE_PAST).getTime(),
+        );
+        expect(found?.reviewDeadlineExpired).toBe(true);
+      } finally {
         await fixtureCleanup();
       }
     });

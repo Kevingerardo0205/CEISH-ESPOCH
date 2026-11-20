@@ -40,13 +40,17 @@ export interface AssignedEvaluatorInfo {
 }
 
 /**
- * Versión con asignación ASSIGNED activa y sin convocatoria "agendada"
- * (cualquier estado salvo CANCELADA). Usada por UnscheduledProtocolsAlertService (TSK-002-N03).
+ * Versión con al menos una asignación activa (SUGERIDO, ASIGNADO o COMPLETADO) y sin convocatoria
+ * "agendada" (cualquier estado salvo CANCELADA). Usada por UnscheduledProtocolsAlertService
+ * (TSK-002-N03; antigüedad desde el vencimiento del plazo de evaluación, RF-12.7 d, TSK-002-N58).
  */
 export interface UnscheduledVersionInfo {
   versionId: number;
   protocolCode: string;
-  oldestAssignmentDate: Date;
+  /** Fecha límite del plazo de evaluación de la versión (RF-12.7 c.2, mismo criterio que N57). */
+  reviewDeadline: Date | null;
+  /** Plazo de evaluación vencido según `NOW()` de la base (mismo predicado que N57). */
+  reviewDeadlineExpired: boolean;
   reviewType: string | undefined;
   receptionDate: Date | undefined;
 }
@@ -96,10 +100,10 @@ export interface IMeetingRepositoryPort {
   ): Promise<NormativeDeadlineInput[]>;
 
   /**
-   * Devuelve versiones con al menos una asignación ASSIGNED que NO están en ninguna
+   * Devuelve versiones con al menos una asignación activa (5, 6 o 7) que NO están en ninguna
    * convocatoria "agendada" (agendada = estado <> CANCELADA; cubre PROGRAMADA, EN_CURSO y CONCLUIDA).
-   * Incluye fecha de asignación más antigua, reviewType y
-   * receptionDate para evaluar las dos condiciones de alerta (TSK-002-N03).
+   * Incluye la fecha límite del plazo de evaluación y si venció, reviewType y receptionDate para
+   * evaluar las dos condiciones de alerta (TSK-002-N03, TSK-002-N58).
    */
   findAssignedVersionsWithoutScheduledMeeting(): Promise<
     UnscheduledVersionInfo[]
