@@ -1263,7 +1263,7 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
 
       **M5 no es estable a toda hora:** la sesión de la base está en UTC, así que `CURRENT_DATE` es la medianoche UTC del día UTC. Con una fecha límite a las 23:59:59.999 de ayer en Ecuador, la mutación solo cambia el resultado cuando el día UTC coincide con el de Ecuador (de 00:00 a 19:00 de Ecuador). Entre las 19:00 y las 23:59 de Ecuador, C9 pasa igual con la mutación: en esa franja M5 es «no detectable».
 
-- [ ] **TSK-002-N58** (Por hacer; nueva 18/11/2026, spec v1.3.1; depende de N52; después de N57): la alerta por falta de convocatoria cuenta desde el vencimiento del plazo de evaluación.
+- [x] **TSK-002-N58** (Hecha 20/11/2026, spec v1.3.4; nueva 18/11/2026, spec v1.3.1; depende de N52; después de N57): la alerta por falta de convocatoria cuenta desde el vencimiento del plazo de evaluación.
   - **Requisitos:** RF-12.7 d; EARS 7b.
   - **EARS:** los de EARS 7b.
   - **Conciliación (18/11/2026):** con el plazo de RF-12.7 c el protocolo solo puede agendarse desde que vence ese plazo (8 días laborables); si la antigüedad siguiera contando desde la `fecha_asignacion` con `dias_max_sin_convocatoria` = 8, la alerta saltaría justo cuando el protocolo recién puede agendarse. Por eso la antigüedad cuenta desde el vencimiento del plazo de evaluación. La condición del plazo normativo (`dias_alerta_normativo_sin_convocatoria`) no cambia.
@@ -1279,6 +1279,22 @@ Los siguientes parámetros deben leerse de la configuración del sistema (no har
   - **Pruebas:** no hay E2E del proceso diario (confirmado en el Paso 0); sí de la consulta (`real-db-evaluations` §11). Unitarias: asignado hace 10 días laborables con el plazo vencido hace 2 → sin alerta por antigüedad; plazo vencido hace `dias_max_sin_convocatoria` días laborables → alerta; plazo sin vencer y plazo normativo cerca → alerta normativa (sin cambio). E2E: 11c (devuelve la fecha límite = MAX en 5, 6, 7, 26 y 27 y vencido), 11g (plazo sin vencer → `reviewDeadlineExpired` false), 11h (versión solo con asignaciones COMPLETADO aparece). Fechas lejos de la medianoche de Ecuador y de UTC.
   - **Mutaciones:** (M1) volver a contar desde la fecha de asignación más antigua → falla «vencido hace 2 → sin alerta»; (M2) quitar la condición normativa → falla su unitaria; (M3) volver a exigir una asignación en 6 → falla 11h; (M4) quitar la comprobación «vencido» → se prueba con `diasMax` 0.
   - **Hecho cuando:** unitarias en verde dos veces; `tsc` 0; eslint sin empeorar.
+  - **Resultados (20/11/2026, `ceish_test_db`):**
+    - Línea base en `dev` (`a915667`): `tsc` 0; unitarias 706/706 (70 suites); `real-db-evaluations` 59/59; eslint de los archivos tocados sin errores.
+    - Después: `tsc` 0; unitarias 710/710 (70 suites) dos veces; `unscheduled-protocols-alert.service.spec.ts` 19/19 (4 nuevas); `real-db-evaluations` 61/61 dos veces (11c reescrita, 11g y 11h nuevas); suite E2E completa con `--runInBand` 492/492 (30 suites); eslint de los 6 archivos tocados sin errores.
+    - Residuos: protocolos `ZZ_TEST_` 0; protocolos y asignaciones con id/versión 9901-9907 0; convocatorias huérfanas 57 (igual que antes).
+    - Sin migración (ver «Archivos afectados»).
+  - **Mutaciones (revertidas editando; `git diff --stat` igual después de cada una):**
+
+    | Mutación | Qué se rompió | Prueba que falla | Resultado |
+    |---|---|---|---|
+    | M1 | `reviewDeadline` = `MIN(fecha_asignacion)` en 6, 26 y 27 y vencido siempre (código anterior) | `11c. TSK-002-N58: con reasignación devuelve la fecha límite MAX…`, `11g. …sin vencer…`, `11h. …solo con asignaciones COMPLETADO…` | `Tests: 3 failed, 53 skipped, 5 passed, 61 total` |
+    | M2 | condición del plazo normativo siempre falsa | `detecta condición 2: plazo normativo inminente`, `detecta ambas condiciones y concatena razón`, `condición 2: plazo normativo vencido (< now) activa alerta…`, `TSK-002-N58: plazo de evaluación sin vencer y plazo normativo cerca → solo alerta normativa` | `Tests: 4 failed, 15 passed, 19 total` |
+    | M3 | volver a exigir una asignación en ASIGNADO (6) | `11h. TSK-002-N58: versión solo con asignaciones COMPLETADO (sin ASIGNADO) aparece` | `Tests: 1 failed, 53 skipped, 7 passed, 61 total` |
+    | M4 | quitar la comprobación «vencido» | `TSK-002-N58: plazo de evaluación sin vencer con dias_max 0 → sin alerta por antigüedad` | `Tests: 1 failed, 18 passed, 19 total` |
+
+    - Nota M1: la unitaria «asignado hace 10 días hábiles con el plazo vencido hace 2 → sin alerta» no la detecta (unitarias 19/19 con M1), porque el servicio ya no recibe la fecha de asignación; la detectan las E2E de la consulta (11c, 11g y 11h).
+  - **Notas:** el motivo combinado del correo también cambió a «≥ N días hábiles desde el vencimiento del plazo de evaluación y plazo normativo en ≤ M días hábiles». Con `dias_max_sin_convocatoria` = 8, la alerta sale el 9.º día hábil después del día del vencimiento (`countBusinessDays` no cuenta los dos extremos). Prettier dejó los archivos en LF; se devolvieron a CRLF antes del commit.
 
 - [ ] **TSK-002-N59** (Por hacer — **más adelante**; nueva 18/11/2026): **conflicto de interés del PET** al asignar.
   - **Regla del PET:** no asignar como evaluador a colaboradores del promotor o del investigador principal, ni a quien trabaje en su misma unidad administrativa. Aún no es un RF de la spec (anotado en §10); se redacta cuando se retome.
