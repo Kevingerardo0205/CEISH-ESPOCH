@@ -2,12 +2,14 @@ import {
   Injectable,
   Inject,
   BadRequestException,
+  ConflictException,
   Logger,
 } from '@nestjs/common';
 import type {
   CreateMeetingParams,
   IMeetingRepositoryPort,
   AssignedEvaluatorInfo,
+  ReviewDeadlinePendingVersion,
 } from '../../domain/ports/meeting-repository.port';
 import type { MeetingEntity } from '../../domain/entities/meeting.entity';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
@@ -21,7 +23,24 @@ import { meetingPdfUrl } from '../../../../shared/utils/meeting-pdf-url.helper';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { IUserRepository } from '../../../auth/domain/ports/user.repository.port';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
-import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
+import {
+  toCalendarDateString,
+  toDayMonthYear,
+} from '../../../../shared/services/deadline-calculator.service';
+
+/** Una línea del 409 PLAZO_EVALUACION_NO_VENCIDO por versión (RF-12.7 c.2, TSK-002-N57). */
+function describeReviewDeadlinePending(
+  version: ReviewDeadlinePendingVersion,
+): string {
+  if (!version.hasActiveAssignments) {
+    return `El protocolo ${version.protocolCode} no tiene evaluadores asignados; no se puede agendar.`;
+  }
+  if (!version.reviewDeadline) {
+    return `El protocolo ${version.protocolCode} no tiene fecha límite del plazo de evaluación; no se puede agendar.`;
+  }
+  const deadline = toDayMonthYear(toCalendarDateString(version.reviewDeadline));
+  return `El plazo de evaluación de los pares vence el ${deadline} (hora de Ecuador); el protocolo ${version.protocolCode} se podrá agendar desde el día siguiente.`;
+}
 
 interface IEvaluatorEventEmitter {
   emit(event: string, payload: Record<string, unknown>): void;
@@ -102,12 +121,18 @@ export class CreateMeetingUseCase {
       evalDeadline,
     );
 
-    // 4. Obtener snapshots de asignación activa más antigua por versión (TSK-002-N05)
-    const assignmentSnapshots = hasProtocols
-      ? await this.meetingRepository.getOldestAssignedDates(
+    // 4. RF-12.7 c.2 (TSK-002-N57): solo se agendan versiones con el plazo de evaluación vencido
+    if (hasProtocols) {
+      const pending =
+        await this.meetingRepository.findVersionsWithReviewDeadlinePending(
           params.protocolVersionIds!,
-        )
-      : [];
+        );
+      if (pending.length > 0) {
+        throw new ConflictException(
+          `PLAZO_EVALUACION_NO_VENCIDO: ${pending.map(describeReviewDeadlinePending).join('\n')}`,
+        );
+      }
+    }
 
     // 4b. Obtener datos crudos para calcular plazos normativos (TSK-009-N06)
     const normativeInputs = hasProtocols
@@ -136,11 +161,9 @@ export class CreateMeetingUseCase {
       })
       .filter((s): s is ProtocolNormativeSnapshot => s !== null);
 
-    // 5. Evaluar advertencias no bloqueantes (plazo normativo y plazo de revisión de oficio)
+    // 5. Evaluar advertencias no bloqueantes (plazo normativo)
     const warnings = this.calculateDatesService.evaluateSoftWarnings(
-      params.meetingDate,
       normativeSnapshots,
-      assignmentSnapshots,
       evalDeadline,
     );
 

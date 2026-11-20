@@ -116,6 +116,27 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     ],
   });
 
+  // TSK-002-N57 (RF-12.7 c.2): solo se agenda una versión con el plazo de evaluación vencido.
+  // Adelanta la fecha límite de sus asignaciones de prueba; si no tiene ninguna, crea una
+  // ASIGNADO del evaluador de prueba 905 con la fecha límite en el pasado.
+  const expireReviewDeadline = async (versionId: number): Promise<void> => {
+    const updated: [unknown[], number] = await dataSource.query(
+      `UPDATE evaluacion.asignaciones_evaluacion
+          SET fecha_limite_revision = NOW() - INTERVAL '1 day'
+        WHERE version_id = $1
+          AND estado_id IN (${AssignmentStatus.SUGGESTED}, ${AssignmentStatus.ASSIGNED}, ${AssignmentStatus.COMPLETED})`,
+      [versionId],
+    );
+    if (updated[1] === 0) {
+      await dataSource.query(
+        `INSERT INTO evaluacion.asignaciones_evaluacion
+           (version_id, evaluador_id, estado_id, es_asignado_anexo_10, fecha_asignacion, fecha_limite_revision)
+         VALUES ($1, 905, ${AssignmentStatus.ASSIGNED}, false, NOW() - INTERVAL '15 days', NOW() - INTERVAL '1 day')`,
+        [versionId],
+      );
+    }
+  };
+
   const cleanupConvocatoria = async (
     convId: string | undefined,
   ): Promise<void> => {
@@ -1011,6 +1032,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
       let meetingId: string | undefined;
       try {
+        await expireReviewDeadline(991);
         const resCreate = await request(app.getHttpServer())
           .post('/api/evaluations/meetings')
           .set('x-user-id', '901')
@@ -1105,6 +1127,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         expect(suggestedPre[0].fecha_limite_ts).toBeNull();
 
         // 3. Crear convocatoria que incluye versión 997
+        await expireReviewDeadline(997);
         const resMeeting = await request(app.getHttpServer())
           .post('/api/evaluations/meetings')
           .set('x-user-id', '901')
@@ -1229,6 +1252,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
     });
 
     it('7b. POST /meetings con versión 996 → GET /submit/protocol/996 → estadoConvocatoria "Con plazo asignado"', async () => {
+      await expireReviewDeadline(996);
       const resMeeting = await request(app.getHttpServer())
         .post('/api/evaluations/meetings')
         .set('x-user-id', '901')
@@ -1425,6 +1449,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
       expect(Array.isArray(pendingData)).toBe(true);
 
       // 3. POST /api/evaluations/meetings
+      await expireReviewDeadline(991);
       const resCreateMeeting = await request(app.getHttpServer())
         .post('/api/evaluations/meetings')
         .set('x-user-id', '901')
@@ -1517,6 +1542,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         let createdMeetingId: string | undefined;
         try {
           // Crear convocatoria con versionId 991
+          await expireReviewDeadline(991);
           const resCreate = await request(app.getHttpServer())
             .post('/api/evaluations/meetings')
             .set('x-user-id', '901')
@@ -1866,6 +1892,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
 
       let meetingId: string | undefined;
       try {
+        await expireReviewDeadline(991);
         const res = await request(app.getHttpServer())
           .post('/api/evaluations/meetings')
           .set('x-user-id', '901')
@@ -1915,6 +1942,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         expect(systemParams.get(SP_ENTREGA_EVALUACION_DIAS)).toBe(3);
 
         // Lunes 2026-11-16 + 3 días hábiles = Jueves 2026-11-19 a las 12:00 ECT (17:00 UTC)
+        await expireReviewDeadline(991);
         const res = await request(app.getHttpServer())
           .post('/api/evaluations/meetings')
           .set('x-user-id', '901')
@@ -2050,6 +2078,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
            ON CONFLICT (version_id) DO UPDATE SET fecha_recepcion = '2025-01-01 00:00:00'`,
         );
 
+        await expireReviewDeadline(993);
         const res = await request(app.getHttpServer())
           .post('/api/evaluations/meetings')
           .set('x-user-id', '901')
@@ -2077,6 +2106,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         }
         await dataSource.query(`
           DELETE FROM recepcion.recepciones WHERE version_id = 993;
+          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 993;
           UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 993;
           DELETE FROM public.versiones_protocolo WHERE id = 993;
           DELETE FROM public.protocolos WHERE id = 993;
@@ -2103,6 +2133,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
            ON CONFLICT (version_id) DO UPDATE SET fecha_recepcion = '2026-12-01 00:00:00'`,
         );
 
+        await expireReviewDeadline(994);
         const res = await request(app.getHttpServer())
           .post('/api/evaluations/meetings')
           .set('x-user-id', '901')
@@ -2129,6 +2160,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         }
         await dataSource.query(`
           DELETE FROM recepcion.recepciones WHERE version_id = 994;
+          DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id = 994;
           UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 994;
           DELETE FROM public.versiones_protocolo WHERE id = 994;
           DELETE FROM public.protocolos WHERE id = 994;
@@ -2656,6 +2688,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
           protocolVersionIds: [991],
         };
 
+        await expireReviewDeadline(991);
         const res = await request(app.getHttpServer())
           .post('/api/evaluations/meetings')
           .send(payload)
@@ -3042,6 +3075,7 @@ describe('Real Database Production E2E Tests (ceish_test_db on localhost:3100)',
         'handleEvaluatorAssignedEvent',
       );
 
+      await expireReviewDeadline(PA);
       const resMeeting = await request(app.getHttpServer())
         .post('/api/evaluations/meetings')
         .set('x-user-id', '901')

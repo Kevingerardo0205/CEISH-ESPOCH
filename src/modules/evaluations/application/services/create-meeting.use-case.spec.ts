@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/unbound-method, @typescript-eslint/no-unnecessary-type-assertion */
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ConflictException } from '@nestjs/common';
 import { CreateMeetingUseCase } from './create-meeting.use-case';
 import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-repository.port';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
@@ -35,7 +35,7 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
   beforeEach(() => {
     repositoryMock = {
       saveMeetingWithAtomicNumber: jest.fn(),
-      getOldestAssignedDates: jest.fn().mockResolvedValue([]),
+      findVersionsWithReviewDeadlinePending: jest.fn().mockResolvedValue([]),
       findNormativeDeadlineInputs: jest.fn().mockResolvedValue([]),
       findAssignedVersionsWithoutScheduledMeeting: jest
         .fn()
@@ -514,46 +514,93 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
     ).toBe(0);
   });
 
-  it('should include soft warning when assignment review time is less than PLAZO_REVISION_OFICIO_DIAS', async () => {
-    const meetingDate = new Date('2026-10-15T09:00:00.000Z');
-    // 3 días hábiles de revisión disponibles (12, 13, 14 oct — se excluye el día de reunión 15)
-    const recentAssignment = new Date('2026-10-10T14:00:00.000Z');
+  describe('TSK-002-N57: solo se agendan versiones con el plazo de evaluación vencido (RF-12.7 c.2)', () => {
     const params = {
       sessionType: SessionType.ORDINARIA,
-      meetingDate,
-      protocolVersionIds: [137],
+      meetingDate: new Date('2026-12-03T14:00:00.000Z'),
+      protocolVersionIds: [137, 138],
     };
+    // 30/11/2026 23:59:59.999 en Ecuador
+    const reviewDeadline = new Date('2026-12-01T04:59:59.999Z');
 
-    repositoryMock.getOldestAssignedDates.mockResolvedValueOnce([
-      {
-        protocolVersionId: 137,
-        protocolCode: 'PROT-001',
-        oldestAssignmentDate: recentAssignment,
-      },
-    ]);
+    it('N57-U-01: plazo sin vencer → 409 PLAZO_EVALUACION_NO_VENCIDO con la fecha dd/mm/aaaa y no guarda', async () => {
+      repositoryMock.findVersionsWithReviewDeadlinePending.mockResolvedValueOnce(
+        [
+          {
+            protocolVersionId: 137,
+            protocolCode: 'CEISH-2026-137',
+            hasActiveAssignments: true,
+            reviewDeadline,
+          },
+        ],
+      );
 
-    const savedEntity: MeetingEntity = {
-      id: 'meet-003',
-      numeroConvocatoria: '003-2026',
-      anioLectivo: 2026,
-      tipoSession: SessionType.ORDINARIA,
-      fechaReunion: meetingDate,
-      fechaEntregaEvaluacion: new Date('2026-10-19T17:00:00.000Z'),
-      estado: ConvocatoriaStatus.PROGRAMADA,
-    };
+      const error = await useCase.execute(params).catch((e: unknown) => e);
 
-    repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue(savedEntity);
-    pdfGeneratorMock.generateAgendaPdf.mockResolvedValue({
-      url: '/api/evaluations/meetings/meet-003/pdf',
-      buffer: Buffer.from('PDF'),
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).message).toBe(
+        'PLAZO_EVALUACION_NO_VENCIDO: El plazo de evaluación de los pares vence el 30/11/2026 (hora de Ecuador); el protocolo CEISH-2026-137 se podrá agendar desde el día siguiente.',
+      );
+      expect(
+        repositoryMock.findVersionsWithReviewDeadlinePending,
+      ).toHaveBeenCalledWith([137, 138]);
+      expect(repositoryMock.saveMeetingWithAtomicNumber).not.toHaveBeenCalled();
     });
 
-    const result = await useCase.execute(params);
+    it('N57-U-02: varias versiones → una línea por protocolo (sin asignaciones activas y sin fecha límite)', async () => {
+      repositoryMock.findVersionsWithReviewDeadlinePending.mockResolvedValueOnce(
+        [
+          {
+            protocolVersionId: 137,
+            protocolCode: 'CEISH-2026-137',
+            hasActiveAssignments: true,
+            reviewDeadline,
+          },
+          {
+            protocolVersionId: 138,
+            protocolCode: '138',
+            hasActiveAssignments: false,
+            reviewDeadline: null,
+          },
+          {
+            protocolVersionId: 139,
+            protocolCode: 'CEISH-2026-139',
+            hasActiveAssignments: true,
+            reviewDeadline: null,
+          },
+        ],
+      );
 
-    expect(result.meetingNumber).toBe('003-2026');
-    expect(result.warnings.length).toBeGreaterThan(0);
-    expect(result.warnings[0]).toContain('ADVERTENCIA_PLAZO_REVISION');
-    expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalled();
+      const error = await useCase.execute(params).catch((e: unknown) => e);
+
+      expect(error).toBeInstanceOf(ConflictException);
+      expect((error as ConflictException).message.split('\n')).toEqual([
+        'PLAZO_EVALUACION_NO_VENCIDO: El plazo de evaluación de los pares vence el 30/11/2026 (hora de Ecuador); el protocolo CEISH-2026-137 se podrá agendar desde el día siguiente.',
+        'El protocolo 138 no tiene evaluadores asignados; no se puede agendar.',
+        'El protocolo CEISH-2026-139 no tiene fecha límite del plazo de evaluación; no se puede agendar.',
+      ]);
+      expect(repositoryMock.saveMeetingWithAtomicNumber).not.toHaveBeenCalled();
+    });
+
+    it('N57-U-03: todas vencidas → guarda y no trae ADVERTENCIA_PLAZO_REVISION', async () => {
+      repositoryMock.saveMeetingWithAtomicNumber.mockResolvedValue({
+        id: 'meet-n57',
+        numeroConvocatoria: '090-2026',
+        anioLectivo: 2026,
+        tipoSession: SessionType.ORDINARIA,
+        fechaReunion: params.meetingDate,
+        fechaEntregaEvaluacion: new Date('2026-12-07T17:00:00.000Z'),
+        estado: ConvocatoriaStatus.PROGRAMADA,
+      });
+
+      const result = await useCase.execute(params);
+
+      expect(result.meetingNumber).toBe('090-2026');
+      expect(
+        result.warnings.filter((w) => w.includes('ADVERTENCIA_PLAZO_REVISION')),
+      ).toEqual([]);
+      expect(repositoryMock.saveMeetingWithAtomicNumber).toHaveBeenCalled();
+    });
   });
 
   describe('TSK-009-N08: notificación por correo con PDF (fire-and-forget)', () => {

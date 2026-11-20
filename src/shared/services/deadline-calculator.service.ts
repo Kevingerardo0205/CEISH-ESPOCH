@@ -14,6 +14,12 @@ export function toCalendarDateString(date: Date): string {
   return ectFormatter.format(date);
 }
 
+/** YYYY-MM-DD → dd/mm/aaaa; null si no tiene ese formato (RF-12.6 oficio, RF-12.7 c.2 409). */
+export function toDayMonthYear(calendarDate?: string | null): string | null {
+  const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(calendarDate ?? '');
+  return match ? `${match[3]}/${match[2]}/${match[1]}` : null;
+}
+
 export interface DeadlineCalculationResult {
   /**
    * Instante exacto de fin de día en hora de Ecuador (23:59:59.999 ECT = 04:59:59.999Z día siguiente)

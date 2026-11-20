@@ -34,6 +34,7 @@ import { AuditService } from '../src/modules/audit/application/services/audit.se
 import { IStorageService } from '../src/shared/storage/domain/ports/storage.service.port';
 import { DocxGeneratorService } from '../src/shared/utils/docx-generator.service';
 import { PdfGeneratorService } from '../src/shared/utils/pdf-generator.service';
+import { AssignmentStatus } from '../src/modules/evaluations/domain/enums/assignment-status.enum';
 
 // IP exclusiva para TEST-M4 — evita el límite de DosDefenseMiddleware (TSK-SEC-01)
 const TEST_M4_IP = '10.0.4.1';
@@ -162,7 +163,7 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
       UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 988;
       DELETE FROM public.versiones_protocolo WHERE id = 988;
       DELETE FROM public.protocolos WHERE id = 988;
-      DELETE FROM catalogos.usuarios WHERE id = 910;
+      DELETE FROM catalogos.usuarios WHERE id IN (910, 911);
     `);
 
     // Sembrar datos de TEST-M4
@@ -184,6 +185,15 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
       VALUES (988, 988, 1, 10) ON CONFLICT (id) DO NOTHING;
 
       UPDATE public.protocolos SET version_actual_id = 988 WHERE id = 988;
+
+      -- TSK-002-N57 (RF-12.7 c.2): solo se agenda con el plazo de evaluación vencido
+      INSERT INTO catalogos.usuarios (id, email_institucional, nombres_completos, cedula)
+      VALUES (911, 'm4-evaluador@test.com', 'ZZ_TEST_M4 Evaluador', '9110000001')
+      ON CONFLICT (id) DO NOTHING;
+
+      INSERT INTO evaluacion.asignaciones_evaluacion
+        (version_id, evaluador_id, estado_id, es_asignado_anexo_10, fecha_asignacion, fecha_limite_revision)
+      VALUES (988, 911, ${AssignmentStatus.ASSIGNED}, false, NOW() - INTERVAL '15 days', NOW() - INTERVAL '1 day');
     `);
   }, 60000);
 
@@ -202,7 +212,7 @@ describe('TEST-M4: MeetingPdfGeneratorAdapter real — TSK-009-N21 (ceish_test_d
           UPDATE public.protocolos SET version_actual_id = NULL WHERE id = 988;
           DELETE FROM public.versiones_protocolo WHERE id = 988;
           DELETE FROM public.protocolos WHERE id = 988;
-          DELETE FROM catalogos.usuarios WHERE id = 910;
+          DELETE FROM catalogos.usuarios WHERE id IN (910, 911);
         `);
       }
     } finally {

@@ -7,11 +7,16 @@ import {
   NextMeetingEntity,
 } from '../entities/meeting.entity';
 
-/** Datos mínimos de asignación activa por protocolo-versión para evaluar el plazo de revisión (TSK-002-N05). */
-export interface AssignmentDeadlineSnapshot {
+/**
+ * Versión enviada a una convocatoria cuyo plazo de evaluación aún no vence (RF-12.7 c.2, TSK-002-N57).
+ * `reviewDeadline` = MAX(fecha_limite_revision) de sus asignaciones en estados 5, 6, 7, 26 y 27;
+ * `hasActiveAssignments` = tiene al menos una asignación en 5, 6 o 7.
+ */
+export interface ReviewDeadlinePendingVersion {
   protocolVersionId: number;
   protocolCode: string;
-  oldestAssignmentDate: Date;
+  hasActiveAssignments: boolean;
+  reviewDeadline: Date | null;
 }
 
 /** Datos crudos por versión para calcular el plazo normativo de respuesta (TSK-009-N06). */
@@ -77,12 +82,13 @@ export interface IMeetingRepositoryPort {
   ): Promise<MeetingEntity>;
 
   /**
-   * Devuelve la fecha de asignación más antigua por versión de protocolo para
-   * las asignaciones en estado ASIGNADO. Usa solo versiones con asignaciones activas.
+   * De las versiones dadas, devuelve las que NO son candidatas para una convocatoria porque su
+   * plazo de evaluación no venció o no tienen asignaciones activas (RF-12.7 c.2, TSK-002-N57).
+   * Mismo predicado que `findPendingProtocols`. Las versiones inexistentes no se devuelven.
    */
-  getOldestAssignedDates(
+  findVersionsWithReviewDeadlinePending(
     protocolVersionIds: number[],
-  ): Promise<AssignmentDeadlineSnapshot[]>;
+  ): Promise<ReviewDeadlinePendingVersion[]>;
 
   /** Devuelve datos crudos para calcular plazos normativos en application (TSK-009-N06). */
   findNormativeDeadlineInputs(
@@ -108,6 +114,7 @@ export interface IMeetingRepositoryPort {
     limit: number;
   }>;
 
+  /** Protocolos listos para tratar: solo versiones con el plazo de evaluación vencido (RF-12.7 c.2). */
   findPendingProtocols(): Promise<PendingProtocolEntity[]>;
 
   /**

@@ -623,6 +623,14 @@ describe('TSK-002-N52 — asignación por la PRESIDENTE (ceish_test_db)', () => 
     });
 
     it('A5. al agendar la convocatoria, cada evaluador ya asignado recibe el correo con la fecha de entrega', async () => {
+      // TSK-002-N57 (RF-12.7 c.2): solo se agenda con el plazo de evaluación vencido;
+      // se adelanta la fecha límite de las asignaciones ZZ_TEST_PRES_ de esta versión.
+      await ds.query(
+        `UPDATE evaluacion.asignaciones_evaluacion
+            SET fecha_limite_revision = NOW() - INTERVAL '1 day'
+          WHERE version_id = $1`,
+        [expedita.versionId],
+      );
       const handleSpy = jest.spyOn(mailer, 'handleEvaluatorAssignedEvent');
       const res = await asUser(
         request(app.getHttpServer())

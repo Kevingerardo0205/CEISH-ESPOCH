@@ -1,8 +1,6 @@
 import { Test, TestingModule } from '@nestjs/testing';
 import { CalculateMeetingDatesService } from './calculate-meeting-dates.service';
-import type { AssignmentDeadlineSnapshot } from '../../domain/ports/meeting-repository.port';
 import {
-  PLAZO_REVISION_OFICIO_DIAS,
   PLAZO_NORMATIVO_EXPEDITA_DIAS,
   PLAZO_NORMATIVO_PLENO_DIAS,
 } from '../../../../shared/deadlines/deadline-rules';
@@ -100,9 +98,7 @@ describe('CalculateMeetingDatesService', () => {
 
   describe('evaluateSoftWarnings', () => {
     it('con evalDeadline: no advertencia cuando evalDeadline < normativeDeadline (TSK-009-N06)', () => {
-      // La comparacion correcta usa evalDeadline, no meetingDate
-      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
-      // evalDeadline = 2 dias habiles despues = 2026-10-19
+      // La comparacion correcta usa evalDeadline (reunión 2026-10-15 + 2 dias habiles = 2026-10-19)
       const evalDeadline = new Date('2026-10-19T17:00:00.000Z');
       const protocols = [
         {
@@ -111,20 +107,14 @@ describe('CalculateMeetingDatesService', () => {
         },
       ];
 
-      const warnings = service.evaluateSoftWarnings(
-        meetingDate,
-        protocols,
-        undefined,
-        evalDeadline,
-      );
+      const warnings = service.evaluateSoftWarnings(protocols, evalDeadline);
       expect(warnings).toEqual([]);
     });
 
     it('con evalDeadline: advertencia ADVERTENCIA_PLAZO_NORMATIVO cuando evalDeadline > normativeDeadline (TSK-009-N06)', () => {
       // Cambia la comparacion: antes era meetingDate > normativeDeadline,
       // ahora es evalDeadline > normativeDeadline (mas preciso segun spec RF-09.1)
-      const meetingDate = new Date('2026-10-29T09:00:00.000Z');
-      // evalDeadline = 2 dias habiles despues = 2026-11-04
+      // evalDeadline = reunión 2026-10-29 + 2 dias habiles = 2026-11-04
       const evalDeadline = new Date('2026-11-04T17:00:00.000Z');
       const protocols = [
         {
@@ -133,19 +123,13 @@ describe('CalculateMeetingDatesService', () => {
         },
       ];
 
-      const warnings = service.evaluateSoftWarnings(
-        meetingDate,
-        protocols,
-        undefined,
-        evalDeadline,
-      );
+      const warnings = service.evaluateSoftWarnings(protocols, evalDeadline);
       expect(warnings.length).toBe(1);
       expect(warnings[0]).toContain('ADVERTENCIA_PLAZO_NORMATIVO');
       expect(warnings[0]).toContain('PROT-002');
     });
 
     it('varios protocolos: solo el que supera genera advertencia', () => {
-      const meetingDate = new Date('2026-10-20T09:00:00.000Z');
       const evalDeadline = new Date('2026-10-22T17:00:00.000Z');
       const protocols = [
         {
@@ -158,62 +142,10 @@ describe('CalculateMeetingDatesService', () => {
         },
       ];
 
-      const warnings = service.evaluateSoftWarnings(
-        meetingDate,
-        protocols,
-        undefined,
-        evalDeadline,
-      );
+      const warnings = service.evaluateSoftWarnings(protocols, evalDeadline);
       expect(warnings.length).toBe(1);
       expect(warnings[0]).toContain('PROT-VENCIDO');
       expect(warnings[0]).not.toContain('PROT-VIGENTE');
-    });
-
-    it('should warn when assignment review time is less than PLAZO_REVISION_OFICIO_DIAS (TSK-002-N05)', () => {
-      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
-      // evalDeadline = +2 días hábiles (no afecta warnings de asignación; protocolos vacíos)
-      const evalDeadline = new Date('2026-10-19T17:00:00.000Z');
-      // 3 días hábiles de revisión disponibles (12, 13, 14 oct — se excluye el día de reunión 15)
-      const recentAssignment = new Date('2026-10-10T14:00:00.000Z');
-      const assignments: AssignmentDeadlineSnapshot[] = [
-        {
-          protocolVersionId: 137,
-          protocolCode: 'PROT-003',
-          oldestAssignmentDate: recentAssignment,
-        },
-      ];
-
-      const warnings = service.evaluateSoftWarnings(
-        meetingDate,
-        [],
-        assignments,
-        evalDeadline,
-      );
-      expect(warnings.length).toBe(1);
-      expect(warnings[0]).toContain('ADVERTENCIA_PLAZO_REVISION');
-      expect(warnings[0]).toContain(String(PLAZO_REVISION_OFICIO_DIAS));
-    });
-
-    it('should not warn when assignment review time meets PLAZO_REVISION_OFICIO_DIAS', () => {
-      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
-      const evalDeadline = new Date('2026-10-19T17:00:00.000Z');
-      // Asignada 10 días hábiles antes (suficiente — PLAZO_REVISION_OFICIO_DIAS = 8)
-      const earlyAssignment = new Date('2026-10-01T14:00:00.000Z');
-      const assignments: AssignmentDeadlineSnapshot[] = [
-        {
-          protocolVersionId: 140,
-          protocolCode: 'PROT-004',
-          oldestAssignmentDate: earlyAssignment,
-        },
-      ];
-
-      const warnings = service.evaluateSoftWarnings(
-        meetingDate,
-        [],
-        assignments,
-        evalDeadline,
-      );
-      expect(warnings).toEqual([]);
     });
   });
 
@@ -350,42 +282,6 @@ describe('CalculateMeetingDatesService', () => {
       const thursdayMeeting = new Date('2026-10-16T01:00:00.000Z');
       const deadline = svc.calculateSuggestedEvalDeadline(thursdayMeeting);
       expect(deadline.toISOString()).toBe('2026-10-20T17:00:00.000Z');
-    });
-
-    it('PLAZO_REVISION=10: warning text mentions 10 and fires when < 10 biz days', async () => {
-      const mockWith10 = {
-        get: (clave: SystemParamKey) =>
-          clave === 'plazo_revision_oficio_dias'
-            ? 10
-            : SYSTEM_PARAM_FALLBACKS[clave],
-      } as unknown as SystemParamsService;
-      const module = await Test.createTestingModule({
-        providers: [
-          CalculateMeetingDatesService,
-          { provide: SystemParamsService, useValue: mockWith10 },
-        ],
-      }).compile();
-      const svc = module.get(CalculateMeetingDatesService);
-
-      // 3 biz days available — would NOT warn with default 8, DOES warn with 10
-      const meetingDate = new Date('2026-10-15T09:00:00.000Z');
-      const evalDeadline = new Date('2026-10-19T17:00:00.000Z');
-      const recentAssignment = new Date('2026-10-10T14:00:00.000Z');
-      const assignments: AssignmentDeadlineSnapshot[] = [
-        {
-          protocolVersionId: 200,
-          protocolCode: 'PROT-X',
-          oldestAssignmentDate: recentAssignment,
-        },
-      ];
-      const warnings = svc.evaluateSoftWarnings(
-        meetingDate,
-        [],
-        assignments,
-        evalDeadline,
-      );
-      expect(warnings.length).toBe(1);
-      expect(warnings[0]).toContain('10');
     });
   });
 });
