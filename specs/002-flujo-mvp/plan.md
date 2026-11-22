@@ -455,6 +455,19 @@ Los siguientes parámetros son leídos de la configuración del sistema y no deb
 
 ### 17.4 Riesgos
 
+#### TSK-002-N53 — consolidacion N y desbloqueo individual
+
+La implementacion conserva el flujo canonico de `EvaluationsService` y separa dos decisiones:
+
+- `submitPeerRiskLevel` consulta las asignaciones de la version con `isAssignedForAnnex10 = true` y estado `SUGGESTED`, `ASSIGNED` o `COMPLETED`; excluye las reasignadas o archivadas. Sea N el total de esas asignaciones (N >= 1): espera exactamente N propuestas vigentes, una por asignacion, antes de consolidar. Una coincidencia fija el riesgo y conserva el `reviewType`; una discrepancia archiva toda la ronda y deja `DISCREPANCIA_RIESGO`.
+- La misma propuesta individual habilita el Anexo 9 mediante el campo aditivo `isAnnex9Unlocked`; Sociedad civil queda habilitada desde el inicio. Esta bandera no depende de `isRiskLevelDesignated`.
+- `getSubmitProtocolInfo` usa las asignaciones canonicas, no la tabla legacy, para identificar participantes y exponer el desbloqueo.
+- `designatePlenumRiskLevel` conserva el tipo elegido, valida que la version este en la convocatoria y aplica una consulta con `NOW()` y America/Guayaquil para impedir registros antes del dia de la reunion.
+
+El adaptador frontend `evaluation-api.adapter.ts` consume `isAnnex9Unlocked` y calcula la suspension solo cuando no existe anexo habilitado ni desbloqueo individual. No se requiere migracion: se usa el esquema existente y el nuevo campo es una ampliacion de respuesta.
+
+La matriz de validacion cubre N=1, N=3/N=4, propuestas incompletas, coincidencia, discrepancia, propuestas no vigentes, reasignacion, duplicados, Sociedad civil, fecha futura de convocatoria y ausencia de regresiones. Las pruebas y su estado se registran en TSK-002-N53.
+
 | Riesgo | Mitigación |
 |---|---|
 | El frontend aún envía `{ evaluatorIds }` o asigna como SECRETARIA | Coordinar con el repo FRONTEND-CEISH antes de fusionar N52; mensaje 400 explícito para el formato antiguo |

@@ -311,7 +311,7 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
     const mockProtocol: Partial<ProtocolOrmEntity> = {
       id: 50,
       riskLevelId: undefined,
-      reviewType: undefined,
+      reviewType: ReviewType.EXPEDITA,
       isRiskLevelDesignated: false,
       statusId: 12,
     };
@@ -504,6 +504,16 @@ describe('EvaluationsService - submitPeerRiskLevel', () => {
       'Propuesta de nivel de riesgo enviada exitosamente.',
     );
     expect(mockQueryBuilder.setLock).toHaveBeenCalledWith('pessimistic_write');
+    expect(mockQueryBuilder.andWhere).toHaveBeenCalledWith(
+      'asg.statusId IN (:...activeStatuses)',
+      {
+        activeStatuses: [
+          AssignmentStatus.SUGGESTED,
+          AssignmentStatus.ASSIGNED,
+          AssignmentStatus.COMPLETED,
+        ],
+      },
+    );
     expect(mockProtocol.isRiskLevelDesignated).toBe(true);
     expect(mockProtocol.statusId).toBe(13);
   });
@@ -983,7 +993,7 @@ describe('EvaluationsService - designatePlenumRiskLevel', () => {
     ceishCode: 'CEISH-2025-169',
     riskLevelId: undefined,
     isRiskLevelDesignated: false,
-    reviewType: undefined,
+    reviewType: ReviewType.EXPEDITA,
   });
 
   const baseRiskLevel = () => ({
