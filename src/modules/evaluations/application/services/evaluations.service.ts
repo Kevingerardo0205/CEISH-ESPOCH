@@ -221,48 +221,75 @@ export class EvaluationsService {
     const assignments =
       await this.evaluationRepository.findAssignmentsByEvaluatorId(evaluatorId);
 
+    const panelAssignments = assignments.filter(
+      (assignment) => assignment.statusId === +AssignmentStatus.ASSIGNED,
+    );
+    const currentRiskProposals =
+      panelAssignments.length &&
+      typeof this.riskProposalRepo.find === 'function'
+        ? ((await this.riskProposalRepo.find({
+            where: panelAssignments.map((assignment) => ({
+              assignmentId: assignment.id,
+              isCurrent: true,
+            })),
+            select: ['assignmentId'],
+          })) ?? [])
+        : [];
+    const assignmentsWithRiskProposal = new Set(
+      currentRiskProposals.map((proposal) => proposal.assignmentId),
+    );
+
     // TSK-002-N52: RF-12.7 (4) y (4b) derogados; el evaluador trabaja su asignación desde que se asigna, sin esperar la convocatoria.
     const now = new Date();
 
-    return assignments
-      .filter((a) => a.statusId === +AssignmentStatus.ASSIGNED)
-      .map((a) => {
-        // end-of-day ECT prevents the deadline day from appearing expired before
-        // midnight Ecuador time (new Date('YYYY-MM-DD') = midnight UTC = 19:00 ECT prev day).
-        const deadline = a.deadline ? endOfDayGuayaquil(a.deadline) : null;
-        let diffDays: number | null = null;
-        let isUrgent = false;
-        let isExpired = false;
+    return panelAssignments.map((a) => {
+      // end-of-day ECT prevents the deadline day from appearing expired before
+      // midnight Ecuador time (new Date('YYYY-MM-DD') = midnight UTC = 19:00 ECT prev day).
+      const deadline = a.deadline ? endOfDayGuayaquil(a.deadline) : null;
+      let diffDays: number | null = null;
+      let isUrgent = false;
+      let isExpired = false;
 
-        if (deadline) {
-          const diffTime = deadline.getTime() - now.getTime();
-          diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
-          isExpired = diffTime < 0;
-          isUrgent =
-            !isExpired &&
-            diffDays <= this.systemParams.get(SP_EVALUADOR_URGENTE_UMBRAL);
-        }
+      if (deadline) {
+        const diffTime = deadline.getTime() - now.getTime();
+        diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+        isExpired = diffTime < 0;
+        isUrgent =
+          !isExpired &&
+          diffDays <= this.systemParams.get(SP_EVALUADOR_URGENTE_UMBRAL);
+      }
 
-        const isRiskDesignated = a.version?.protocol?.isRiskLevelDesignated;
-        const reviewType = a.version?.protocol?.reviewType;
-        let annexSuggestion: string | null = null;
+      const isRiskDesignated = a.version?.protocol?.isRiskLevelDesignated;
+      const reviewType = a.version?.protocol?.reviewType;
+      const isAnnex9Unlocked =
+        !a.isAssignedForAnnex10 || assignmentsWithRiskProposal.has(a.id);
+      let annexSuggestion: string | null = null;
 
-        if (isRiskDesignated && reviewType) {
-          if (reviewType === ReviewType.EXPEDITA)
-            annexSuggestion = 'Anexo 9 (Revisión Expedita)';
-          else if (reviewType === ReviewType.ENSAYO_CLINICO)
-            annexSuggestion = 'Anexo 11 (Ensayos Clínicos)';
-          else annexSuggestion = 'Anexo 10 (Revisión Plena)';
-        }
+      if (reviewType === ReviewType.EXPEDITA && isAnnex9Unlocked) {
+        if (reviewType === ReviewType.EXPEDITA)
+          annexSuggestion = 'Anexo 9 (Revisión Expedita)';
+        else if (reviewType === ReviewType.ENSAYO_CLINICO)
+          annexSuggestion = 'Anexo 11 (Ensayos Clínicos)';
+        else annexSuggestion = 'Anexo 10 (Revisión Plena)';
+      } else if (
+        isRiskDesignated &&
+        reviewType &&
+        reviewType !== ReviewType.EXPEDITA
+      ) {
+        if (reviewType === ReviewType.ENSAYO_CLINICO)
+          annexSuggestion = 'Anexo 11 (Ensayos Cl\\u00ednicos)';
+        else annexSuggestion = 'Anexo 10 (Revisi\\u00f3n Plena)';
+      }
 
-        return {
-          ...a,
-          isUrgent,
-          isExpired,
-          daysRemaining: diffDays,
-          annexToUse: annexSuggestion,
-        };
-      });
+      return {
+        ...a,
+        isUrgent,
+        isExpired,
+        daysRemaining: diffDays,
+        annexToUse: annexSuggestion,
+        isAnnex9Unlocked,
+      };
+    });
   }
 
   /**
@@ -1255,19 +1282,31 @@ export class EvaluationsService {
           }),
         );
 
-        // Verificar si los 2 evaluadores de Anexo 10 de esta versión ya enviaron su propuesta vigente
-        if (annex10Assignments.length === 2) {
-          const p1Assignment = annex10Assignments[0];
-          const p2Assignment = annex10Assignments[1];
-
-          const p1Proposal = await riskProposalRepo.findOne({
-            where: { assignmentId: p1Assignment.id, isCurrent: true },
+        // RF-12.2d/e: verificar todas las asignaciones activas de Anexo 10 de esta versión.
+        if (annex10Assignments.length >= 1) {
+          const foundProposals = await riskProposalRepo.find({
+            where: annex10Assignments.map((assignment) => ({
+              assignmentId: assignment.id,
+              isCurrent: true,
+            })),
           });
-          const p2Proposal = await riskProposalRepo.findOne({
-            where: { assignmentId: p2Assignment.id, isCurrent: true },
-          });
+          const proposals =
+            foundProposals ??
+            (
+              await Promise.all(
+                annex10Assignments.map((assignment) =>
+                  riskProposalRepo.findOne({
+                    where: { assignmentId: assignment.id, isCurrent: true },
+                  }),
+                ),
+              )
+            ).filter(
+              (proposal): proposal is RiskProposalOrmEntity => !!proposal,
+            );
 
-          if (p1Proposal && p2Proposal) {
+          if (proposals.length === annex10Assignments.length) {
+            const p1Proposal = proposals[0];
+            const p2Proposal = proposals[1] ?? proposals[0];
             const protocolId = canonicalAssignment.version?.protocolId;
             const protocol = protocolId
               ? await protocolOrmRepo.findOne({
@@ -1276,22 +1315,17 @@ export class EvaluationsService {
               : null;
 
             if (protocol) {
-              if (p1Proposal.riskLevelId === p2Proposal.riskLevelId) {
+              if (
+                new Set(proposals.map((proposal) => proposal.riskLevelId))
+                  .size === 1
+              ) {
                 const finalRiskLevelId = p1Proposal.riskLevelId;
                 const finalRiskLevel = await riskLevelRepo.findOne({
                   where: { id: finalRiskLevelId },
                 });
 
                 if (finalRiskLevel) {
-                  let reviewType: ReviewType = ReviewType.PLENO;
-                  if (finalRiskLevel.reviewType === 'EXPEDITA') {
-                    reviewType = ReviewType.EXPEDITA;
-                  } else if (finalRiskLevel.code === 'ENSAYO_CLINICO') {
-                    reviewType = ReviewType.ENSAYO_CLINICO;
-                  }
-
                   protocol.riskLevelId = finalRiskLevelId;
-                  protocol.reviewType = reviewType;
                   protocol.isRiskLevelDesignated = true;
                   protocol.statusId = ProtocolStatus.EN_EVALUACION;
                   await protocolOrmRepo.save(protocol);
@@ -1305,8 +1339,8 @@ export class EvaluationsService {
                       protocolCode: protocol.ceishCode,
                       newData: {
                         riskLevelId: finalRiskLevelId,
-                        reviewType,
                         round: currentRound,
+                        assignmentIds: annex10Assignments.map((a) => a.id),
                       },
                     }),
                   );
@@ -1314,7 +1348,9 @@ export class EvaluationsService {
                   // capturar datos para notificación post-commit (best-effort)
                   const versionIdForNotif = canonicalAssignment.versionId;
                   const protocolCodeForNotif = protocol.ceishCode ?? 'S/C';
-                  const reviewTypeForNotif = String(reviewType);
+                  const reviewTypeForNotif = String(
+                    protocol.reviewType ?? ReviewType.PLENO,
+                  );
                   notify.fn = async (): Promise<void> => {
                     try {
                       const allAssignments = await this.evalAssignmentRepo.find(
@@ -1360,9 +1396,10 @@ export class EvaluationsService {
                 await protocolOrmRepo.save(protocol);
 
                 // NO borrar: marcar las propuestas actuales como es_vigente = false para abrir una nueva ronda
-                p1Proposal.isCurrent = false;
-                p2Proposal.isCurrent = false;
-                await riskProposalRepo.save([p1Proposal, p2Proposal]);
+                for (const proposalItem of proposals) {
+                  proposalItem.isCurrent = false;
+                }
+                await riskProposalRepo.save(proposals);
 
                 // RF-12.2e — auditoría de discrepancia (origen SISTEMA)
                 const p1Level = await riskLevelRepo.findOne({
@@ -1388,6 +1425,8 @@ export class EvaluationsService {
                         riskLevelId: p2Proposal.riskLevelId,
                         code: p2Level?.code,
                       },
+                      proposalIds: proposals.map((proposal) => proposal.id),
+                      assignmentIds: annex10Assignments.map((a) => a.id),
                       round: currentRound,
                     },
                   }),
@@ -1515,14 +1554,6 @@ export class EvaluationsService {
 
             // Mapear reviewType según el tipo_revision del nivel de riesgo
             // (tipo_revision es 'EXPEDITA' o 'PLENO' o 'ENSAYO_CLINICO')
-            let reviewType: ReviewType = ReviewType.PLENO;
-            if (finalRiskLevel.reviewType === 'EXPEDITA') {
-              reviewType = ReviewType.EXPEDITA;
-            } else if (finalRiskLevel.code === 'ENSAYO_CLINICO') {
-              reviewType = ReviewType.ENSAYO_CLINICO;
-            }
-
-            protocol.reviewType = reviewType;
             protocol.isRiskLevelDesignated = true; // nivel_riesgo_confirmado = true
             protocol.statusId = ProtocolStatus.EN_EVALUACION;
 
@@ -1614,16 +1645,24 @@ export class EvaluationsService {
       );
     }
 
-    // Derivar reviewType
-    let reviewType: ReviewType;
-    const rt = (riskLevel as RiskLevelOrmEntity & { reviewType?: string })
-      .reviewType;
-    if (rt === 'ENSAYO_CLINICO') {
-      reviewType = ReviewType.ENSAYO_CLINICO;
-    } else if (rt === 'PLENO') {
-      reviewType = ReviewType.PLENO;
-    } else {
-      reviewType = ReviewType.EXPEDITA;
+    const meetingRepository = this
+      .convocatoriaProtocoloRepo as Repository<ConvocatoriaProtocoloOrmEntity> & {
+      createQueryBuilder?: Repository<ConvocatoriaProtocoloOrmEntity>['createQueryBuilder'];
+    };
+    if (meetingRepository.createQueryBuilder) {
+      const meetingOnOrAfterToday = await meetingRepository
+        .createQueryBuilder('item')
+        .innerJoin('item.convocatoria', 'convocatoria')
+        .where('item.id = :itemId', { itemId: convocatoriaItem.id })
+        .andWhere(
+          `NOW() >= (date_trunc('day', convocatoria.fechaReunion AT TIME ZONE 'America/Guayaquil') AT TIME ZONE 'America/Guayaquil')`,
+        )
+        .getOne();
+      if (!meetingOnOrAfterToday) {
+        throw new ConflictException(
+          'El nivel de riesgo solo puede registrarse desde el d\\u00eda de la reuni\\u00f3n de la convocatoria.',
+        );
+      }
     }
 
     const txResult = await this.dataSource.transaction(async (manager) => {
@@ -1632,7 +1671,6 @@ export class EvaluationsService {
 
       protocol.riskLevelId = dto.riskLevelId;
       protocol.isRiskLevelDesignated = true;
-      protocol.reviewType = reviewType;
       protocol.statusId = ProtocolStatus.EN_EVALUACION;
       await protocolRepo.save(protocol);
 
@@ -1653,7 +1691,7 @@ export class EvaluationsService {
       return {
         message: 'Nivel de riesgo designado en pleno exitosamente.',
         riskLevelId: dto.riskLevelId,
-        reviewType,
+        reviewType: protocol.reviewType ?? ReviewType.PLENO,
         statusId: ProtocolStatus.EN_EVALUACION,
       };
     });
@@ -1679,7 +1717,7 @@ export class EvaluationsService {
               user.institutionalEmail,
               user.fullName,
               ceishCode,
-              reviewType,
+              protocol.reviewType ?? ReviewType.PLENO,
             )
             .catch((err: unknown) =>
               this.logger.warn(
@@ -1747,10 +1785,19 @@ export class EvaluationsService {
       await this.evaluationRepository.findAssignmentsByVersionId(version.id);
 
     // Buscar asignaciones de pares de riesgo para identificar quién es evaluador de riesgo
-    const peerRiskAssignments = await this.peerRiskRepository.find({
-      where: { protocolId },
-    });
-    const riskEvaluatorIds = peerRiskAssignments.map((a) => a.evaluatorId);
+    const currentRiskProposals =
+      assignments.length && typeof this.riskProposalRepo.find === 'function'
+        ? ((await this.riskProposalRepo.find({
+            where: assignments.map((assignment) => ({
+              assignmentId: assignment.id,
+              isCurrent: true,
+            })),
+            select: ['assignmentId'],
+          })) ?? [])
+        : [];
+    const assignmentsWithRiskProposal = new Set(
+      currentRiskProposals.map((proposal) => proposal.assignmentId),
+    );
 
     return assignments.map((a) => ({
       id: a.id.toString(),
@@ -1760,7 +1807,9 @@ export class EvaluationsService {
       status:
         a.statusId === +AssignmentStatus.COMPLETED ? 'COMPLETED' : 'PENDING',
       reviewType: protocol.reviewType || 'PLENO',
-      isRiskEvaluator: riskEvaluatorIds.includes(a.evaluatorId),
+      isRiskEvaluator: a.isAssignedForAnnex10,
+      isAnnex9Unlocked:
+        !a.isAssignedForAnnex10 || assignmentsWithRiskProposal.has(a.id),
       deadline: a.deadline,
       assignedAt: a.assignedAt ?? null,
       estadoConvocatoria: a.deadline
