@@ -585,7 +585,7 @@
 
 ### Task TSK-015-N22 - [ ] PENDIENTE (dividida en N22a, N22b, N22c; Paso 0 completado 25/11/2026)
 - **ID Único**: `TSK-015-N22`
-- **Requisito Relacionado**: `RF-17.4`, `RF-17.6` (spec-003 v1.6.4); hallazgos B1 (lectura), B2 (escritura) y B3 (Anexo 9 por id) de este Paso 0.
+- **Requisito Relacionado**: `RF-17.4`, `RF-17.6` (spec-003 v1.6.4); hallazgos C (lectura), C (escritura), I (recepción por id) y Evaluador / tarea B7 (Anexo 9 por id) de este Paso 0.
 - **Criterio EARS**: `EARS 5` (RF-17.6): **cuando** un usuario pida una URL de descarga o de subida, **el sistema debe** firmarla solo si puede leer (o escribir) el recurso al que pertenece la clave; **si** no, **el sistema debe** responder `404` en español sin revelar la existencia.
 - **Decisión**: se divide en tres tareas. Orden: **N22a → N22b → N14 → N15 → N09 + N13 → … ; N22c después de N09.**
 - **Dependencias**: TSK-015-N17 (hecha).
@@ -594,7 +594,7 @@
 ### Task TSK-015-N22a - [ ] PENDIENTE (lectura: GET y POST /storage/download-url)
 - **Acción**: `MODIFICAR`
 - **Archivos Afectados**: `src/shared/storage/infrastructure/controllers/storage.controller.ts:46-76`; módulo que aporte la regla por prefijo (nuevo servicio, a confirmar con la usuaria por ser archivo nuevo).
-- **Descripción**: hoy `GET` y `POST /storage/download-url` firman cualquier clave a cualquier usuario autenticado (B1). Reglas por prefijo (tabla de N22a):
+- **Descripción**: hoy `GET` y `POST /storage/download-url` firman cualquier clave a cualquier usuario autenticado (hallazgo C, lectura). Reglas por prefijo (tabla de N22a):
 
 | Prefijo / origen | Quién lee | Fuente de la regla |
 |---|---|---|
@@ -607,7 +607,7 @@
 | Clave de carta de recepción (`recepcion.documentos`) | Según la fila: documento → versión → protocolo, aplicando la regla de ese protocolo | Fila de BD, no la clave |
 | Cualquier otra clave, `..`, prefijo desconocido | `400` | — |
 
-- **Recepción por id** (`GET reception/document/:documentId/download-url` y `…/view`, `reception.controller.ts:185-245`): **sin `@Permissions` en la ruta** (solo `JwtAuthGuard, PermissionsGuard` de clase). Cualquier autenticado obtiene la URL de cualquier documento por id (**mismo agujero, B1 también en esta vía**). Se corrige en N22a: el dueño sale de la fila (documento → versión → protocolo) y se aplica la regla de ese protocolo. Respuesta `404 «Documento no encontrado.»` a quien no puede leer.
+- **Recepción por id** (`GET reception/document/:documentId/download-url` y `…/view`, `reception.controller.ts:185-245`): **sin `@Permissions` en la ruta** (solo `JwtAuthGuard, PermissionsGuard` de clase). Cualquier autenticado obtiene la URL de cualquier documento por id (**hallazgo I**, mismo patrón que el hallazgo C). Se corrige en N22a: el dueño sale de la fila (documento → versión → protocolo) y se aplica la regla de ese protocolo. Respuesta `404 «Documento no encontrado.»` a quien no puede leer.
 - **Consumidores a conservar**: `subsanacion.page.ts:1402` (carta por `letterFilePath`, investigador), `profile-cv.service.ts:78` / `profile.page.ts:1661` (CV propio), `s3-storage.service.ts:40-43` (documentos por id: subsanación, validación de protocolo, evaluación).
 - **Paso 0 pendiente de confirmar**: `evaluation-consolidation.page.ts` (rol que lo usa) y la pantalla de subsanación (rol) antes de cerrar la tabla.
 - **Dependencias**: TSK-015-N17. **Va antes de TSK-015-N09**, en su propia rama.
@@ -618,10 +618,10 @@
   2. `reception/document/:id/download-url` y `/view` no entregan URL a quien no puede leer el protocolo del documento.
   3. Las descargas legítimas de los consumidores listados siguen funcionando.
 
-### Task TSK-015-N22b - [ ] PENDIENTE (escritura: POST /storage/upload-url, hallazgo B2)
+### Task TSK-015-N22b - [ ] PENDIENTE (escritura: POST /storage/upload-url, hallazgo C escritura)
 - **Acción**: `MODIFICAR`
 - **Archivos Afectados**: `src/shared/storage/infrastructure/controllers/storage.controller.ts:23-44`; misma regla por prefijo que N22a (reutilizada, no duplicada).
-- **Descripción (B2)**: `POST /storage/upload-url` firma **una URL PUT para cualquier clave**, sin dueño ni permiso. Cualquier autenticado puede sobrescribir la carta de otro protocolo (`protocols/{id}/resolutions/…`), documentos de requisitos o de evaluación, o plantillas (`templates/…`). **Además**, `create-template.use-case.ts:18` y `upload-template-file.use-case.ts:15` del frontend suben plantillas por esta vía, **evitando el permiso `CONFIG_PLANTILLAS`** que sí protege `POST /documents/templates/:code/file` (`documents.controller.ts:69-70`).
+- **Descripción (hallazgo C, escritura)**: `POST /storage/upload-url` firma **una URL PUT para cualquier clave**, sin dueño ni permiso. Cualquier autenticado puede sobrescribir la carta de otro protocolo (`protocols/{id}/resolutions/…`), documentos de requisitos o de evaluación, o plantillas (`templates/…`). **Además**, `create-template.use-case.ts:18` y `upload-template-file.use-case.ts:15` del frontend suben plantillas por esta vía, **evitando el permiso `CONFIG_PLANTILLAS`** que sí protege `POST /documents/templates/:code/file` (`documents.controller.ts:69-70`).
 - **Reglas de escritura**:
   - `protocols/{id}/resolutions/…`: solo el flujo de SECRETARIA (`RESOLUCION_CREAR`; a confirmar con N09).
   - `protocols/{id}/requirements/…`: investigador principal.
@@ -647,9 +647,10 @@
 - **Criterio de aceptación**: ninguna clave sin dueño identificable se firma; `draft/` → `400`; `/uploads` no existentes → `404`.
 
 ### Hallazgos de seguridad de storage (registrados en Paso 0 de N22, 25/11/2026)
-- **B1 (lectura)**: `GET` y `POST /storage/download-url` firman cualquier clave; `reception/document/:id/download-url` y `/view` no comprueban dueño. → **N22a**.
-- **B2 (escritura)**: `POST /storage/upload-url` firma PUT para cualquier clave, incluidas plantillas sin `CONFIG_PLANTILLAS`. → **N22b**.
-- **B3 (Anexo 9 por id)**: `GET /evaluations/:id/document` y `…/document/docx` (`evaluations.controller.ts:318-338`, con `EVALUATION_VIEW_MINE` = `EVALUACION_PLENO`, que tienen EVALUADOR, SECRETARIA y PRESIDENTE) **no comprueban que la evaluación sea del usuario**: el controlador pasa solo el `id` y `getEvaluationDocumentUrl` (`evaluations.service.ts:1903-1948`) resuelve por id, comprueba solo que exista `rutaPdf`, y firma. Cualquier evaluador ve el Anexo 9 de otro. → **N22a** (regla "dueño de la evaluación").
+- **Hallazgo C (lectura)**: `GET` y `POST /storage/download-url` firman cualquier clave. → **N22a**.
+- **Hallazgo I (recepción por id)**: `reception/document/:id/download-url` y `/view` no comprueban dueño ni permiso. → **N22a**.
+- **Hallazgo C (escritura)**: `POST /storage/upload-url` firma PUT para cualquier clave, incluidas plantillas sin `CONFIG_PLANTILLAS`. → **N22b**.
+- **Hallazgo Evaluador / tarea B7 (Anexo 9 por id)**: `GET /evaluations/:id/document` y `…/document/docx` (`evaluations.controller.ts:318-338`, con `EVALUATION_VIEW_MINE` = `EVALUACION_PLENO`, que tienen EVALUADOR, SECRETARIA y PRESIDENTE) **no comprueban que la evaluación sea del usuario**: el controlador pasa solo el `id` y `getEvaluationDocumentUrl` (`evaluations.service.ts:1903-1948`) resuelve por id, comprueba solo que exista `rutaPdf`, y firma. Cualquier evaluador ve el Anexo 9 de otro. → **N22a** (regla "dueño de la evaluación").
 
 ### Task TSK-015-N23 - [ ] PENDIENTE (frontend, repo aparte)
 - **ID Único**: `TSK-015-N23`
@@ -714,12 +715,12 @@
 2. TSK-015-N11: quitar `RESOLUCION_CREAR` a PRESIDENTE (solo datos).
 3. TSK-015-N17: restringir `GET /resolutions/protocol/:id` (hecha, commit 8ceb016).
 4. TSK-015-N22a: restringir lectura de `/storage/download-url` (GET y POST) y de `reception/document/:id` por la regla de prefijo y dueño (rama propia). Antes de N09.
-5. TSK-015-N22b: restringir escritura de `/storage/upload-url` (B2), con la misma regla. Antes de N09.
+5. TSK-015-N22b: restringir escritura de `/storage/upload-url` (hallazgo C, escritura), con la misma regla. Antes de N09.
 6. TSK-015-N14: sembrar ANEXO_13 a 16 (solo datos).
 7. TSK-015-N15: constante de 96 h.
 8. TSK-015-N09 + TSK-015-N13: mismo PR, commits separados (N09 primero). Incluye N20 si EX se valida en el registro.
 9. TSK-015-N22c: recepción sin prefijo, `/uploads` y `draft/` (después de N09).
-10. TSK-015-N12: correo y Anexo 9 sin datos del evaluador (incluye la auditoría de respuestas del investigador y el hallazgo de N17 sobre columnas de `protocol`). Incluye el cierre de B3 si no se resuelve en N22a.
+10. TSK-015-N12: correo y Anexo 9 sin datos del evaluador (incluye la auditoría de respuestas del investigador y el hallazgo de N17 sobre columnas de `protocol`). Incluye el cierre del hallazgo Evaluador / tarea B7 si no se resuelve en N22a.
 11. TSK-015-N10: fila «Subir resolución firmada».
 12. TSK-015-N18: retirar `POST /resolutions` **cuando el frontend ya use el flujo nuevo**.
 13. TSK-015-N19: carta de exención, en su propia especificación.
