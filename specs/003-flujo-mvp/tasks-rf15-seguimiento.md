@@ -474,6 +474,7 @@
   - `src/modules/resolutions/application/services/resolutions.service.ts:103-130` — MODIFICAR: dejar de adjuntar los informes individuales
   - `src/modules/resolutions/application/services/resolutions.service.ts:317-327` — MODIFICAR: el correo lleva solo la carta firmada
   - Respuestas API del investigador: archivos por confirmar tras auditoría (ver preguntas abiertas). Si la lista crece, detenerse y reportar (AGENTS.md)
+  - **Hallazgo de TSK-015-N17 (25/11/2026)**: la respuesta de `GET /resolutions/protocol/:id` (que el investigador sí consume en `subsanacion.page.ts`) incluye la relación `protocol` con columnas planas de `ProtocolOrmEntity`: `affidavitIp`, `timelineTermsAcceptedIp` y datos de patrocinador (`patrocinador_ruc`, `patrocinador_telefono_institucional`, `patrocinador_direccion`, `patrocinador_pagina_web`, `patrocinador_organo_ejecutor`). No son datos de evaluador, pero no los necesita la pantalla del investigador. Decisión de N17: no recortar en esa tarea; se revisa aquí como parte de la auditoría de respuestas del investigador.
 - **Dependencias**: TSK-015-N08, TSK-015-N11
 - **Descripción**: El investigador nunca recibe nombre, correo ni identificador del evaluador, ni en la API, ni en el Anexo 9, ni en adjuntos ni en el correo. Ve el perfil y el dictamen de cada par.
 - **Paso 0**: resuelve la pregunta 6 (lista de endpoints del investigador a auditar) antes de fijar los archivos de la API.
@@ -552,22 +553,59 @@
 
 ---
 
-### Task TSK-015-N17 - [ ] PENDIENTE
+### Task TSK-015-N17 - [x] COMPLETADO (rama feat/tsk-015-n17-lectura-resolucion, commit 8ceb016)
 - **ID Único**: `TSK-015-N17`
+- **Resultados** (25/11/2026, `ceish_test_db`):
+  - `npx tsc --noEmit`: sin errores. `npm test`: 72 suites, 738 pruebas, en verde.
+  - Unitarias (`resolutions.service.spec.ts`, 10 pruebas en verde): la regla `canReadResolution` y `findByProtocolIdForReader` (dueño, HISTORIAL, otro investigador, inexistente, id no numérico).
+  - E2E `--runInBand` (`resolutions-permisos.e2e-spec.ts`, 11 pruebas): dueño 200, otro investigador 404, evaluador 404, SECRETARIA 200, PRESIDENTE 200, inexistente 404, id no numérico 400, sin sesión 401, y ninguna respuesta con nombre, correo ni `userId` de evaluador. Residuos: 0 usuarios, 0 protocolos `ZZ_TEST_RSP_`, `resolucion.resoluciones` sin cambios (7).
+  - Mutación (a), quitar la regla de acceso del servicio: fallan 2 pruebas (otro investigador y evaluador reciben 200). Restaurada con hash verificado.
+  - Mutación (b), quitar `RESOLUCION_HISTORIAL` de la regla: fallan la prueba unitaria, SECRETARIA y PRESIDENTE (404 en vez de 200), y la de datos del evaluador. Restaurada con hash verificado.
+  - ESLint: sin errores en los archivos nuevos o tocados de esta tarea. `resolutions.service.ts` tiene 30 errores, todos en líneas de código previo a N17 (33 en `HEAD`).
+  - Prettier: aplicado a los archivos tocados.
+  - Una ejecución de la matriz de roles (`fixed-roles-matrix`, 5 pruebas de rutas de asignación con 403 donde se esperaba 200 o «no 403») falló en el orden de ejecución completo, sin cambios en esas rutas. Se repitió el mismo comando tres veces con 124 pruebas en verde y la matriz sola 82 en verde. **Causa no identificada**; queda como intermitencia a vigilar.
 - **Requisito Relacionado**: `RF-17.6` (spec-003 v1.6.4), `RF-02.10` (spec-001 v3.7.7)
 - **Criterio EARS**: `EARS 5` (RF-17.6): **cuando** un usuario consulte la resolución de un protocolo, **el sistema debe** devolverla solo si es el investigador principal o tiene `RESOLUCION_HISTORIAL`; **si** no, **el sistema debe** responder `404` con «Protocolo no encontrado.».
-- **Acción**: `MODIFICAR`
+- **Acción**: `MODIFICAR` y `CREAR` (prueba unitaria)
 - **Archivos Afectados**:
-  - `src/modules/resolutions/infrastructure/controllers/resolutions.controller.ts` — MODIFICAR: `GET protocol/:protocolId` con `@Permissions(RESOLUCION_HISTORIAL)` y comprobación de investigador principal.
-  - `src/modules/resolutions/application/services/resolutions.service.ts` — MODIFICAR: `findByProtocolId` aplica la comprobación y no devuelve datos del evaluador.
-  - Pruebas: unitaria y E2E.
-- **Dependencias**: Ninguna. **Va antes de TSK-015-N09.**
-- **Descripción**: hoy `GET /resolutions/protocol/:protocolId` no tiene `@Permissions` ni `@Roles` (cualquier autenticado lee la clave de la carta y las observaciones de cualquier protocolo). Se restringe como RF-02.10. Verificar antes de codificar el campo del investigador principal en `ProtocolOrmEntity` (por confirmar, no asumido).
-- **Tests**: E2E: investigador principal → `200`; otro investigador → `404` «Protocolo no encontrado.»; SECRETARIA y PRESIDENTE con `RESOLUCION_HISTORIAL` → `200`; respuesta sin datos del evaluador.
+  - `src/modules/resolutions/infrastructure/controllers/resolutions.controller.ts` — MODIFICAR: `GET protocol/:protocolId` sin `@Permissions` (ver «Decoradores»); pasa `req.user` al servicio.
+  - `src/modules/resolutions/application/services/resolutions.service.ts` — MODIFICAR: `findByProtocolIdForReader` y la función pura `canReadResolution` (sustituye a `findByProtocolId`).
+  - `src/modules/resolutions/application/services/resolutions.service.spec.ts` — CREAR: pruebas unitarias de la regla y del método. Archivo nuevo no listado en el plan original; se añade aquí por la exigencia de pruebas unitarias.
+  - `test/resolutions-permisos.e2e-spec.ts` — MODIFICAR: casos de lectura de N17.
+- **Dependencias**: Ninguna. **Va antes de TSK-015-N22 y de TSK-015-N09.**
+- **Decoradores**: la ruta no lleva `@Permissions(RESOLUCION_HISTORIAL)`, porque el investigador principal no tiene ese permiso y recibiría 403 cuando la spec pide 200. La regla va en el servicio, con el permiso leído del token (igual que RF-02.10, con un desfase de hasta 15 minutos al quitar un permiso).
+- **Descripción**: `GET /resolutions/protocol/:protocolId` devolvía la resolución a cualquier autenticado. Ahora la leen el investigador principal y quien tiene `RESOLUCION_HISTORIAL`. El resto y los protocolos inexistentes reciben `404 «Protocolo no encontrado.»`. Id no numérico: `400 «ID de protocolo inválido»`. La forma de la respuesta no cambia (array). **No se recortan columnas** en esta tarea (ver hallazgo en TSK-015-N12).
+- **Tests**: unitarias de la regla y del método; E2E de la matriz de acceso (dueño, otro investigador, evaluador, SECRETARIA, PRESIDENTE, inexistente, id no numérico, sin sesión, y ausencia de datos del evaluador).
 - **Criterio de aceptación**:
-  1. Sin sesión o sin permiso no se revela la existencia del protocolo (`404`).
-  2. La respuesta no contiene nombre, correo ni `userId` de evaluador.
-  3. `POST /resolutions` no cambia en esta tarea.
+  1. Investigador principal → `200`; SECRETARIA y PRESIDENTE → `200`; otro investigador, evaluador o protocolo inexistente → `404` «Protocolo no encontrado.».
+  2. Sin sesión → `401` (lo da `JwtAuthGuard` antes que la regla).
+  3. La respuesta no contiene nombre, correo ni `userId` de evaluador.
+  4. `POST /resolutions` no cambia en esta tarea.
+  5. La descarga de la carta **no** queda cubierta por esta tarea: ver TSK-015-N22.
+
+### Task TSK-015-N22 - [ ] PENDIENTE (Paso 0 propio)
+- **ID Único**: `TSK-015-N22`
+- **Requisito Relacionado**: `RF-17.4`, `RF-17.6` (spec-003 v1.6.4); hallazgo B1 de TSK-015-N17 (Paso 0).
+- **Criterio EARS**: `EARS 5` (RF-17.6): **cuando** un usuario pida una URL de descarga, **el sistema debe** firmarla solo si puede leer el recurso al que pertenece la clave; **si** no, **el sistema debe** responder `404` en español.
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**: `src/shared/storage/infrastructure/controllers/storage.controller.ts:46-69` (`GET` y `POST /storage/download-url`). Lo demás, por el Paso 0 de esta tarea.
+- **Dependencias**: TSK-015-N17. **Va antes de TSK-015-N09**, en su propia rama.
+- **Descripción**: hoy `GET` y `POST /storage/download-url` firman **cualquier clave** para cualquier usuario autenticado (`storage.controller.ts` solo tiene `JwtAuthGuard, RolesGuard, PermissionsGuard` sin metadata). Así, cualquiera puede pedir `protocols/{id}/resolutions/…` y descargar la carta de otro protocolo, aunque N17 cierre la lectura de metadatos. La regla debe ser por prefijo: `protocols/{protocolId}/…` solo para el investigador principal de ese protocolo, para quien tenga `RESOLUCION_HISTORIAL` si es una carta, y los demás prefijos según su dueño (a definir en el Paso 0). Respuesta `404` a quien no puede leer.
+- **Paso 0**: enumerar los prefijos de clave que firma el sistema (protocolos, documentos de recepción, cartas, informes, plantillas), quién los consume en el frontend y qué regla aplica a cada uno. Parar y reportar si la lista crece más de lo previsto (AGENTS.md).
+- **Tests**: E2E: investigador no dueño → `404`; dueño → `200`; SECRETARIA/PRESIDENTE con su permiso → `200`; clave de plantilla pública → `200` según lo que se defina.
+- **Criterio de aceptación**:
+  1. Ninguna clave `protocols/{id}/resolutions/…` se firma para quien no puede leer la resolución.
+  2. Las descargas legítimas del frontend siguen funcionando (verificado con su lista de consumidores).
+
+### Task TSK-015-N23 - [ ] PENDIENTE (frontend, repo aparte)
+- **ID Único**: `TSK-015-N23`
+- **Requisito Relacionado**: `RF-17.6` (spec-003 v1.6.4), hallazgo de TSK-015-N17.
+- **Acción**: `MODIFICAR` en `D:\Frontend-CEISH\ceish-espoch-frontend\src` (fuera de este repo).
+- **Descripción**: `subsanacion.page.ts:1362-1368` hace fallback a la clave fija `protocols/{id}/resolutions/Carta_Resolucion_Consolidada.pdf` cuando falla `GET /resolutions/protocol/:id`. Con N17, un `404` de otro investigador dispara esa descarga. No debe hacer fallback: debe mostrar un mensaje en español («No se encontró la resolución de este protocolo.» o similar, a confirmar con la usuaria).
+- **Dependencias**: TSK-015-N17 (y, para cerrar la descarga, TSK-015-N22).
+- **Criterio de aceptación**:
+  1. Un `404` de `GET /resolutions/protocol/:id` no genera ninguna descarga.
+  2. El mensaje se muestra en español.
 
 ### Task TSK-015-N18 - [ ] PENDIENTE
 - **ID Único**: `TSK-015-N18`
@@ -620,14 +658,17 @@
 
 1. PR de docs (esta rama): spec v1.6.4 y este archivo.
 2. TSK-015-N11: quitar `RESOLUCION_CREAR` a PRESIDENTE (solo datos).
-3. TSK-015-N17: restringir `GET /resolutions/protocol/:id`.
-4. TSK-015-N14: sembrar ANEXO_13 a 16 (solo datos).
-5. TSK-015-N15: constante de 96 h.
-6. TSK-015-N09 + TSK-015-N13: mismo PR, commits separados (N09 primero). Incluye N20 si EX se valida en el registro.
-7. TSK-015-N12: correo y Anexo 9 sin datos del evaluador.
-8. TSK-015-N10: fila «Subir resolución firmada».
-9. TSK-015-N18: retirar `POST /resolutions` **cuando el frontend ya use el flujo nuevo**.
-10. TSK-015-N19: carta de exención, en su propia especificación.
+3. TSK-015-N17: restringir `GET /resolutions/protocol/:id` (hecha, commit 8ceb016).
+4. TSK-015-N22: restringir `/storage/download-url` por clave (rama propia, Paso 0 propio).
+5. TSK-015-N14: sembrar ANEXO_13 a 16 (solo datos).
+6. TSK-015-N15: constante de 96 h.
+7. TSK-015-N09 + TSK-015-N13: mismo PR, commits separados (N09 primero). Incluye N20 si EX se valida en el registro.
+8. TSK-015-N12: correo y Anexo 9 sin datos del evaluador (incluye la auditoría de respuestas del investigador y el hallazgo de N17 sobre columnas de `protocol`).
+9. TSK-015-N10: fila «Subir resolución firmada».
+10. TSK-015-N18: retirar `POST /resolutions` **cuando el frontend ya use el flujo nuevo**.
+11. TSK-015-N19: carta de exención, en su propia especificación.
+
+Frontend (repo aparte, fuera de esta secuencia): TSK-015-N21 (acciones de PRESIDENTE) y TSK-015-N23 (sin fallback a la clave fija en subsanaciones).
 
 Tareas que tocan `resolutions.service.ts`: N09 (no lo modifica, pero N13 sí), N12 (correo), N13 (líneas 203-237), N18 (legacy). Hacerlas en secuencia para evitar conflictos.
 
