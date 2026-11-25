@@ -334,24 +334,42 @@
 
 ### Task TSK-015-N08 - [ ] PENDIENTE
 - **ID Único**: `TSK-015-N08`
-- **Requisito Relacionado**: `RF-17.1` (spec-003 v1.6.1), `RF-ALR.f.8`
+- **Requisito Relacionado**: `RF-17.1` (spec-003 v1.6.2), `RF-09.4`, `RF-ALR.f.8`
 - **Criterio EARS**: `EARS 5` (RF-17.1)
-- **Acción**: `MODIFICAR` y `CREAR` (endpoint nuevo: requiere confirmar ruta y payload antes de implementar, AGENTS.md)
-- **Archivos Afectados**:
-  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` — endpoint nuevo para registrar el resultado por protocolo (ruta y payload propuestos, pendientes de confirmar)
-  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts` — método nuevo `registrarResultadosPleno`
-  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` — escribe `convocatoria_protocolos.dictamen_resultado` (no existe puerto de repositorio propio para `convocatoria_protocolo`; la entidad está en `convocatoria-protocolo.orm-entity.ts:54-55`)
+- **Acción**: `CREAR` y `MODIFICAR`
+- **Archivos Afectados** (tentativos; cada `CREAR` se confirma antes de escribirlo):
+  - `src/migrations/<timestamp>-ConvocatoriaProtocoloResultados.ts` — CREAR, **migración de esquema aditiva**: columnas `dictamen_motivo`, `dictamen_observaciones`, `dictamen_registrado_por` (integer, FK a `catalogos.usuarios(id)`), `dictamen_registrado_en`; CHECK de los tres valores o NULL; CHECK de motivo para `NO_APROBADO`; CHECK de observaciones para `APROBADO_CON_CONDICION`; tabla `evaluacion.convocatoria_protocolo_resultados` (append-only, `registrado_por` NOT NULL con FK, `motivo_correccion`).
+  - `src/migrations/<timestamp>-PermisoPlenoResultadoRegistrar.ts` — CREAR, **migración de datos** separada: inserta `PLENO_RESULTADO_REGISTRAR` en `catalogos.permisos` (`codigo`, `nombre`, `modulo_id` = 10, el mismo módulo que `EVALUACION_PLENO`) y lo concede en `catalogos.rol_permisos` solo al rol SECRETARIA.
+  - `src/shared/enums/permission.enum.ts` — MODIFICAR: añadir `PLENO_RESULTADO_REGISTRAR`.
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` — MODIFICAR: `PATCH :id/protocolos/:convocatoriaProtocoloId/resultado` con `@Roles(SECRETARIA)`, `@Permissions(PLENO_RESULTADO_REGISTRAR)` y `@Audit`.
+  - `src/modules/evaluations/application/dtos/request/registrar-resultado-pleno.dto.ts` — CREAR: DTO con `class-validator` (ubicación de los DTO de entrada a confirmar con el directorio existente).
+  - `src/modules/evaluations/application/use-cases/registrar-resultado-pleno.use-case.ts` — CREAR: ventana, pertenencia, validaciones, escritura del valor vigente y del historial en una transacción.
+  - `src/modules/evaluations/application/use-cases/registrar-resultado-pleno.use-case.spec.ts` — CREAR: pruebas unitarias.
+  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts` — MODIFICAR: método `registrarResultadoPleno`.
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` — MODIFICAR: implementación transaccional (no existe puerto propio para `convocatoria_protocolo`).
+  - `src/modules/evaluations/infrastructure/database/entities/convocatoria-protocolo.orm-entity.ts` — MODIFICAR: mapear las columnas nuevas (`dictamen_resultado` en líneas 54-55).
+  - `src/modules/evaluations/infrastructure/database/entities/convocatoria-protocolo-resultado.orm-entity.ts` — CREAR: entidad del historial.
+  - Mocks de `MeetingRepository` en los specs existentes — MODIFICAR (se listan al implementar, como en N07).
+  - `test/meetings-resultado-pleno.e2e-spec.ts` — CREAR.
 - **Dependencias**: Ninguna
-- **Descripción**: Registrar, por cada protocolo de la Sección II de la sesión, el resultado del pleno (`APROBADO_DEFINITIVO`, `APROBADO_CON_CONDICION` o `NO_APROBADO`) en `dictamen_resultado`. `NO_APROBADO` exige motivo. `SUSPENDIDO` no es resultado del pleno. Esta tarea **no** cambia el estado del protocolo: el estado se aplica al subir la carta firmada (TSK-015-N09).
-- **Paso 0**: resuelve la pregunta 1 (ruta y payload del endpoint) antes de implementar.
+- **Paso 0 (resuelto 24/11/2026)**:
+  - Frontend: solo usa `evaluations/meetings`. Uso en `src/infrastructure/adapters/meeting-api.adapter.ts:34, 41, 48, 56, 73, 81, 90, 96`, constantes en `src/infrastructure/api/endpoints.constant.ts:72-79`. No hay uso de `evaluations/calls` en código no-spec.
+  - Ruta, payload, permiso, ventana, historial y supuesto de Sección II: según RF-17.1 de spec-003 v1.6.2.
+- **Descripción**: Registrar, por protocolo de la Sección II de la convocatoria, el resultado del pleno (`APROBADO_DEFINITIVO`, `APROBADO_CON_CONDICION` o `NO_APROBADO`). Cada registro o corrección inserta una fila en `convocatoria_protocolo_resultados` y actualiza el valor vigente en `convocatoria_protocolos`. Si el protocolo ya tenía resultado, `motivoCorreccion` es obligatorio. `SUSPENDIDO` no es resultado del pleno. **No** cambia `protocolos.estado_id` (lo hace la subida de la carta, TSK-015-N09/N13). **No** cierra la sesión (TSK-015-N16).
+- **Riesgo conocido**: la comparación legacy de `calls.service.ts:483-484` (`'APROBADO_CON_CONDICIONES'` o `'25'`) no reconoce el valor nuevo `APROBADO_CON_CONDICION`. No se toca (AGENTS.md); queda documentada aquí. El CHECK de esquema bloquea los valores legacy si alguien intenta escribirlos.
 - **Riesgo conocido**: la comparación legacy de `calls.service.ts:483-484` (`'APROBADO_CON_CONDICIONES'` o `'25'`) no reconoce el valor nuevo `APROBADO_CON_CONDICION`. No se toca (AGENTS.md); queda documentada aquí.
-- **Tests**: unitarias del caso de uso; E2E de los criterios de aceptación.
+- **Tests**:
+  - Unitarias (`registrar-resultado-pleno.use-case.spec.ts`): DTO (tres valores, `motivo` para `NO_APROBADO`, `observaciones` para `APROBADO_CON_CONDICION`, `motivoCorreccion` en corrección); caso de uso (`404` si el cp no es de la convocatoria, `409` si la convocatoria está `CANCELADA`, `409` si `fecha_reunion` es futura, `400` si falta `motivoCorreccion`, una fila nueva en el historial, valor vigente actualizado, estado del protocolo sin cambios).
+  - E2E (`test/meetings-resultado-pleno.e2e-spec.ts`, datos `ZZ_TEST_`): `200` SECRETARIA; `403` PRESIDENTE, EVALUADOR e INVESTIGADOR; `400` con valor inválido; `400` `NO_APROBADO` sin motivo; `400` `APROBADO_CON_CONDICION` sin observaciones; `404` con cp de otra convocatoria; `409` convocatoria `CANCELADA`; `409` `fecha_reunion` futura; `400` corrección sin `motivoCorreccion`; corrección con motivo: 2 filas en el historial y valor vigente actualizado; el estado del protocolo no cambia; residuos `ZZ_TEST_` = 0 al final. Contraseñas solo por la variable de entorno `E2E_TEST_ACCOUNTS_PASSWORD`; en los reportes aparecerá como `<contraseña de prueba>`. Ejecución con `--runInBand`.
 - **Criterio de aceptación**:
-  1. Cerrar la sesión sin resultado de algún protocolo de la Sección II responde `400` con mensaje en español.
-  2. Un valor fuera de los tres resultados responde `400`.
-  3. `NO_APROBADO` sin motivo responde `400`.
-  4. Registrar el resultado no modifica `protocolos.estado_id`.
-  5. Solo `SECRETARIA` puede registrar el resultado.
+  1. Solo SECRETARIA puede registrar o corregir (`403` para los demás roles).
+  2. Valor fuera de los tres resultados → `400` en español.
+  3. `NO_APROBADO` sin `motivo` → `400`; `APROBADO_CON_CONDICION` sin `observaciones` → `400`.
+  4. cp que no pertenece a la convocatoria → `404`.
+  5. Convocatoria `CANCELADA` o `fecha_reunion` futura → `409` en español.
+  6. Corrección sin `motivoCorreccion` → `400`; con motivo → nueva fila en `convocatoria_protocolo_resultados` (nunca UPDATE ni DELETE) y valor vigente actualizado.
+  7. El registro no modifica `protocolos.estado_id`.
+  8. `calls.service.ts` no cambia.
 
 ### Task TSK-015-N09 - [ ] PENDIENTE
 - **ID Único**: `TSK-015-N09`
@@ -481,11 +499,31 @@
   1. La constante vale `96` y está exportada en `deadline-rules.ts`.
   2. TSK-015-N10 la importa; no hay otra definición.
 
+### Task TSK-015-N16 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N16`
+- **Requisito Relacionado**: `RF-17.1` (spec-003 v1.6.2, cierre), `RF-09.1`, `RF-ALR.f.7` a)
+- **Criterio EARS**: `EARS 5` (RF-17.1): **cuando** la Secretaría cierre la sesión, **el sistema debe** exigir el resultado de cada protocolo; **si** falta alguno, **el sistema debe** impedir el cierre con un mensaje en español.
+- **Acción**: `CREAR` y `MODIFICAR`
+- **Archivos Afectados** (tentativos, a confirmar):
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` — MODIFICAR: `POST :id/cerrar` (ruta propuesta).
+  - `src/modules/evaluations/application/use-cases/cerrar-sesion-pleno.use-case.ts` — CREAR.
+  - `src/modules/evaluations/application/use-cases/cerrar-sesion-pleno.use-case.spec.ts` — CREAR.
+  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts` — MODIFICAR.
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` — MODIFICAR.
+  - Permiso del cierre: por definir (ver preguntas). Si se crea, migración de datos separada.
+- **Dependencias**: TSK-015-N08
+- **Descripción**: Cierre canónico con validación de resultados: lista los protocolos de la convocatoria sin `dictamen_resultado` y, si hay alguno, responde `400` con esa lista en español. No cambia `protocolos.estado_id` (lo hace N09/N13). **No** depende del plazo de 96 h (RF-17.3 se calcula desde `fecha_reunion`). Pendiente: si el cierre pasa la convocatoria a `CONCLUIDA` (hoy solo el legacy lo hace, `calls.service.ts:472`).
+- **Criterio de aceptación**:
+  1. Con algún protocolo sin resultado → `400` con la lista, en español.
+  2. Con todos los resultados → cierre correcto.
+  3. Convocatoria ya cerrada → `409`.
+  4. `calls.service.ts` no cambia.
+
 ---
 
 ## Preguntas abiertas (Paso 0 — confirmar con la usuaria)
 
-1. **Registro del resultado del pleno (TSK-015-N08)**: ruta y payload del endpoint nuevo. AGENTS.md exige consulta previa para payloads nuevos. **Se resuelve en el Paso 0 de TSK-015-N08.**
+1. ~~Registro del resultado (TSK-015-N08)~~ **Cerrada 24/11/2026**: ruta, payload, permiso `PLENO_RESULTADO_REGISTRAR`, ventana, historial y supuesto de Sección II aprobados (RF-17.1 de spec-003 v1.6.2). El frontend usa solo Meetings.
 2. ~~«Aprobado con condición»~~ **Cerrada 24/11/2026**: `dictamen_resultado = APROBADO_CON_CONDICION`; el estado tras el Anexo 15 es 19 (`REQUIERE_SUBSANACION_VERSION`); el 25 queda sin uso.
 3. **Versión de la carta (TSK-015-N09)**: `numero_version` como columna de `resolucion.resoluciones` o tabla propia. Ambas requieren migración aditiva. **Se resuelve en el Paso 0 de TSK-015-N09.**
 4. ~~Plazo de RF-17.5~~ **Cerrada**: se usa `plazo_condicion_dias` = 30 con el cálculo actual; no se cambia (ver pregunta 9).
@@ -494,3 +532,5 @@
 7. ~~SUSPENDIDO en la sección II~~ **Cerrada**: la fila se mantiene en RF-09.2; `SUSPENDIDO` solo aplica a la Sección III y nunca a la Sección II.
 8. **Frontend**: además del rótulo «Anexo 12», ¿hay otras pantallas con rótulos de anexos por corregir?
 9. **Días hábiles (TSK-015-N13)**: AGENTS.md dice que los días hábiles se calculan solo con `BusinessDayCalculator`, pero `protocol-deadline.service.ts` usa un `addBusinessDays` propio (salta fines de semana, sin feriados). Confirmar qué cálculo se usa para `plazo_condicion_dias`.
+10. **Cierre canónico (TSK-015-N16)**: ¿qué permiso protege el cierre (propuesta `PLENO_CERRAR`, solo SECRETARIA) y el cierre pasa la convocatoria a `CONCLUIDA`? Hoy solo el legacy lo hace (`calls.service.ts:472`).
+11. **Conteo previo a la migración de esquema (TSK-015-N08)**: la usuaria corre en `ceish_db` la consulta de conteo de `dictamen_resultado`. Si hay valores no NULL, el CHECK fallaría y se decide antes de aplicar.
