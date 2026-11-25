@@ -185,16 +185,13 @@ export class MeetingsController {
     @Body() dto: RegistrarResultadoPlenoDto,
     @Req() req: Request & { user: JwtPayload },
   ): Promise<{
-    statusCode: number;
-    message: string;
-    data: {
-      convocatoriaProtocoloId: string;
-      resultado: string;
-      motivo: string | null;
-      observaciones: string | null;
-      motivoCorreccion: string | null;
-    };
+    convocatoriaProtocoloId: string;
+    resultado: string;
+    motivo: string | null;
+    observaciones: string | null;
+    motivoCorreccion: string | null;
   }> {
+    // Payload plano: ResponseInterceptor (main.ts:39) añade { data, statusCode, message }.
     const resultado = await this.registrarResultadoPlenoUseCase.execute({
       convocatoriaId: id,
       convocatoriaProtocoloId,
@@ -203,15 +200,11 @@ export class MeetingsController {
       now: new Date(),
     });
     return {
-      statusCode: HttpStatus.OK,
-      message: 'Resultado del pleno registrado exitosamente',
-      data: {
-        convocatoriaProtocoloId: resultado.convocatoriaProtocoloId,
-        resultado: resultado.resultado,
-        motivo: resultado.motivo,
-        observaciones: resultado.observaciones,
-        motivoCorreccion: resultado.motivoCorreccion,
-      },
+      convocatoriaProtocoloId: resultado.convocatoriaProtocoloId,
+      resultado: resultado.resultado,
+      motivo: resultado.motivo,
+      observaciones: resultado.observaciones,
+      motivoCorreccion: resultado.motivoCorreccion,
     };
   }
 

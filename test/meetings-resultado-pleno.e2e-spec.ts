@@ -41,6 +41,7 @@ import request from 'supertest';
 import { DataSource } from 'typeorm';
 import { AppModule } from '../src/app.module';
 import { GlobalValidationPipe } from '../src/shared/pipes/validation.pipe';
+import { ResponseInterceptor } from '../src/shared/interceptors/response.interceptor';
 import { PermissionsGuard } from '../src/shared/guards/permissions.guard';
 import { IEmailServicePort } from '../src/modules/notifications/domain/ports/email.service.port';
 import { AuditService } from '../src/modules/audit/application/services/audit.service';
@@ -110,10 +111,12 @@ describe('TSK-015-N08 — PATCH /api/evaluations/meetings/:id/protocolos/:cpId/r
 
   async function login(email: string, password: string): Promise<string> {
     const res = await api().post('/api/auth/login').send({ email, password });
-    if (res.status !== 201 || !res.body?.access_token) {
+    // Con ResponseInterceptor (aplicado arriba) el token va en body.data.access_token.
+    const token: unknown = res.body?.data?.access_token;
+    if (res.status !== 201 || typeof token !== 'string') {
       throw new Error(`Login de ${email} falló con status ${res.status}`);
     }
-    return res.body.access_token;
+    return token;
   }
 
   async function insertUser(
@@ -253,6 +256,8 @@ describe('TSK-015-N08 — PATCH /api/evaluations/meetings/:id/protocolos/:cpId/r
 
     app = fix.createNestApplication();
     app.setGlobalPrefix('api');
+    // Igual que main.ts:38-39: la envoltura { data, statusCode, message } la pone el interceptor.
+    app.useGlobalInterceptors(new ResponseInterceptor());
     app.useGlobalPipes(new GlobalValidationPipe());
     await app.init();
     ds = app.get(DataSource);
@@ -345,12 +350,15 @@ describe('TSK-015-N08 — PATCH /api/evaluations/meetings/:id/protocolos/:cpId/r
       });
 
       expect(res.status).toBe(200);
+      expect(res.body.statusCode).toBe(200);
       expect(res.body.data).toEqual(
         expect.objectContaining({
           convocatoriaProtocoloId: cpId,
           resultado: 'APROBADO_DEFINITIVO',
         }),
       );
+      expect(res.body.data.resultado).toBe('APROBADO_DEFINITIVO');
+      expect(res.body.data.data).toBeUndefined();
       const filas = await historial(cpId);
       expect(filas).toHaveLength(1);
       expect(filas[0].resultado).toBe('APROBADO_DEFINITIVO');
