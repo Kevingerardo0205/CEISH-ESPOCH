@@ -1,17 +1,23 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-member-access, @typescript-eslint/no-unsafe-return, @typescript-eslint/no-unsafe-argument, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-explicit-any */
 
 /**
- * TSK-015-N11 — spec-003 RF-17.7 (v1.6.4) y specs/001 v3.7.10: solo SECRETARIA crea o
- * sube resoluciones (RESOLUCION_CREAR).
+ * TSK-015-N11 y TSK-015-N17 — spec-003 RF-17.7 y RF-17.6 (v1.6.4).
+ *
+ * - N11: solo SECRETARIA crea o sube resoluciones (POST /api/resolutions).
+ * - N17: GET /api/resolutions/protocol/:id lo leen el investigador principal y quien tiene
+ *   RESOLUCION_HISTORIAL. El resto y los protocolos inexistentes reciben 404
+ *   «Protocolo no encontrado.». Sin datos de evaluadores.
  *
  * Guards reales y login real. Cuentas propias ZZ_TEST_RSP_ con contraseña generada aquí
  * (no se escribe en el código ni se imprime). No usa cuentas reales.
  *
  * Mutaciones que deben hacer fallar esta suite:
- * - quitar el DELETE de 2000000000002 (PRESIDENTE conserva la concesión → 403 no aparece);
- * - quitar @Permissions(RESOLUCION_CREAR) de POST /resolutions (PRESIDENTE pasa el guard).
+ * - N11: quitar el DELETE de 2000000000002 (PRESIDENTE conserva la concesión → sin 403);
+ *   quitar @Permissions de POST /resolutions (PRESIDENTE pasa el guard).
+ * - N17: quitar la regla de acceso del servicio (otros reciben 200), o quitar
+ *   RESOLUCION_HISTORIAL de la regla (SECRETARIA y PRESIDENTE reciben 404).
  *
- * Solo ceish_test_db. Los datos se borran en afterAll y no se crea ninguna resolución.
+ * Solo ceish_test_db. Los datos se borran en afterAll; el conteo de resoluciones vuelve a su valor inicial.
  */
 
 jest.mock('../src/shared/middleware/dos-defense.config', () => ({
@@ -52,25 +58,55 @@ import { IStorageService } from '../src/shared/storage/domain/ports/storage.serv
 
 const PREFIX = 'ZZ_TEST_RSP_';
 const EMAIL_DOMAIN = '@e2e-rsp.test';
+const NOT_FOUND = 'Protocolo no encontrado.';
 
-type Usuario = 'presidente' | 'secretaria';
+type Usuario =
+  | 'presidente'
+  | 'secretaria'
+  | 'investigador'
+  | 'otroInvestigador'
+  | 'evaluador';
 
-describe('TSK-015-N11 — POST /api/resolutions: solo SECRETARIA crea (ceish_test_db)', () => {
+/** Devuelve todas las claves del objeto (en cualquier nivel). */
+function clavesProfundas(valor: unknown, acc: string[] = []): string[] {
+  if (Array.isArray(valor)) {
+    valor.forEach((v) => clavesProfundas(v, acc));
+  } else if (valor && typeof valor === 'object') {
+    for (const [k, v] of Object.entries(valor)) {
+      acc.push(k);
+      clavesProfundas(v, acc);
+    }
+  }
+  return acc;
+}
+
+describe('TSK-015-N11 / TSK-015-N17 — resoluciones: permisos y lectura (ceish_test_db)', () => {
   let app: INestApplication;
   let ds: DataSource;
   const token: Partial<Record<Usuario, string>> = {};
   const userId: Partial<Record<Usuario, number>> = {};
+  const email = (k: Usuario) => `${k.toLowerCase()}${EMAIL_DOMAIN}`;
+  let protocolId: number;
   let resolucionesAntes = 0;
 
   const api = () => request(app.getHttpServer());
 
   async function cleanup(): Promise<void> {
-    // Por si quedara algo de una ejecución anterior: nunca se crean resoluciones aquí,
-    // pero el borrado queda por seguridad y para que el conteo final sea 0.
+    const protocolos = `SELECT id FROM public.protocolos WHERE titulo LIKE '${PREFIX}%'`;
     await ds.query(
       `DELETE FROM resolucion.resoluciones
-        WHERE creado_por IN (SELECT id FROM catalogos.usuarios WHERE email_institucional LIKE $1)`,
+        WHERE protocolo_id IN (${protocolos})
+           OR creado_por IN (SELECT id FROM catalogos.usuarios WHERE email_institucional LIKE $1)`,
       [`%${EMAIL_DOMAIN}`],
+    );
+    await ds.query(
+      `UPDATE public.protocolos SET version_actual_id = NULL WHERE titulo LIKE '${PREFIX}%'`,
+    );
+    await ds.query(
+      `DELETE FROM public.versiones_protocolo WHERE protocolo_id IN (${protocolos})`,
+    );
+    await ds.query(
+      `DELETE FROM public.protocolos WHERE titulo LIKE '${PREFIX}%'`,
     );
     await ds.query(
       `DELETE FROM catalogos.usuarios_roles WHERE usuario_id IN
@@ -84,37 +120,34 @@ describe('TSK-015-N11 — POST /api/resolutions: solo SECRETARIA crea (ceish_tes
   }
 
   async function insertUser(
-    key: string,
+    key: Usuario,
     passwordHash: string,
   ): Promise<number> {
     const [row] = await ds.query(
       `INSERT INTO catalogos.usuarios
          (cedula, nombres_completos, email_institucional, password_hash, activo, email_verificado)
        VALUES ($1, $2, $3, $4, true, true) RETURNING id`,
-      [
-        `ZZRSP${key}`.slice(0, 20),
-        `${PREFIX}${key}`,
-        `${key}${EMAIL_DOMAIN}`,
-        passwordHash,
-      ],
+      [`ZZRSP${key}`.slice(0, 20), `${PREFIX}${key}`, email(key), passwordHash],
     );
     return row.id;
   }
 
-  async function assignRole(userId: number, roleCode: string): Promise<void> {
+  async function assignRole(id: number, roleCode: string): Promise<void> {
     await ds.query(
       `INSERT INTO catalogos.usuarios_roles (usuario_id, rol_id)
        SELECT $1, id FROM catalogos.roles WHERE codigo = $2`,
-      [userId, roleCode],
+      [id, roleCode],
     );
   }
 
-  async function login(email: string, password: string): Promise<string> {
-    const res = await api().post('/api/auth/login').send({ email, password });
+  async function login(address: string, password: string): Promise<string> {
+    const res = await api()
+      .post('/api/auth/login')
+      .send({ email: address, password });
     // Con ResponseInterceptor el token va en body.data.access_token.
     const accessToken: unknown = res.body?.data?.access_token;
     if (res.status !== 201 || typeof accessToken !== 'string') {
-      throw new Error(`Login de ${email} falló con status ${res.status}`);
+      throw new Error(`Login de ${address} falló con status ${res.status}`);
     }
     return accessToken;
   }
@@ -124,6 +157,36 @@ describe('TSK-015-N11 — POST /api/resolutions: solo SECRETARIA crea (ceish_tes
       `SELECT count(*)::int AS c FROM resolucion.resoluciones`,
     );
     return row.c;
+  }
+
+  /** Protocolo ZZ_TEST_RSP_ del investigador principal, con versión y una resolución. */
+  async function sembrarProtocolo(
+    principalId: number,
+    creadoPor: number,
+  ): Promise<number> {
+    const [p] = await ds.query(
+      `INSERT INTO public.protocolos (titulo, investigador_principal_id)
+       VALUES ($1, $2) RETURNING id`,
+      [`${PREFIX}protocolo`, principalId],
+    );
+    const [v] = await ds.query(
+      `INSERT INTO public.versiones_protocolo (protocolo_id, numero_version)
+       VALUES ($1, 1) RETURNING id`,
+      [p.id],
+    );
+    await ds.query(
+      `INSERT INTO resolucion.resoluciones
+         (protocolo_id, version_id, tipo_resolucion_id, observaciones, archivo_carta_pdf, creado_por)
+       VALUES ($1, $2, 1, $3, $4, $5)`,
+      [
+        p.id,
+        v.id,
+        `${PREFIX}observacion`,
+        `protocols/${p.id}/resolutions/${PREFIX}carta.pdf`,
+        creadoPor,
+      ],
+    );
+    return p.id;
   }
 
   beforeAll(async () => {
@@ -171,40 +234,51 @@ describe('TSK-015-N11 — POST /api/resolutions: solo SECRETARIA crea (ceish_tes
     }
 
     await cleanup();
+    resolucionesAntes = await contarResoluciones();
 
     // Contraseña generada en cada ejecución; no se imprime ni se guarda.
     const password = randomBytes(18).toString('base64url');
     const hash = await bcrypt.hash(password, 10);
 
-    const presId = await insertUser('presidente', hash);
-    await assignRole(presId, 'PRESIDENTE');
-    const secId = await insertUser('secretaria', hash);
-    await assignRole(secId, 'SECRETARIA');
-    userId.presidente = presId;
-    userId.secretaria = secId;
+    const roles: Record<Usuario, string> = {
+      presidente: 'PRESIDENTE',
+      secretaria: 'SECRETARIA',
+      investigador: 'INVESTIGADOR',
+      otroInvestigador: 'INVESTIGADOR',
+      evaluador: 'EVALUADOR',
+    };
+    for (const key of Object.keys(roles) as Usuario[]) {
+      const id = await insertUser(key, hash);
+      userId[key] = id;
+      await assignRole(id, roles[key]);
+    }
 
-    token.presidente = await login(`presidente${EMAIL_DOMAIN}`, password);
-    token.secretaria = await login(`secretaria${EMAIL_DOMAIN}`, password);
+    protocolId = await sembrarProtocolo(
+      userId.investigador!,
+      userId.secretaria!,
+    );
 
-    resolucionesAntes = await contarResoluciones();
+    for (const key of Object.keys(roles) as Usuario[]) {
+      token[key] = await login(email(key), password);
+    }
   }, 60_000);
 
   afterAll(async () => {
     if (ds) {
+      await cleanup();
       const despues = await contarResoluciones();
       if (despues !== resolucionesAntes) {
         throw new Error(
           `Residuo: resolucion.resoluciones pasó de ${resolucionesAntes} a ${despues}`,
         );
       }
-      await cleanup();
     }
     if (app) await app.close();
   });
 
   beforeEach(() => (PermissionsGuard as any).cache.clear());
 
-  describe('POST /api/resolutions', () => {
+  describe('TSK-015-N11 — POST /api/resolutions', () => {
     it('PRESIDENTE → 403 (ya no tiene RESOLUCION_CREAR)', async () => {
       const res = await api()
         .post('/api/resolutions')
@@ -214,24 +288,93 @@ describe('TSK-015-N11 — POST /api/resolutions: solo SECRETARIA crea (ceish_tes
     });
 
     it('SECRETARIA con cuerpo vacío → no 403 (pasa el permiso); no crea nada', async () => {
+      const antes = await contarResoluciones();
       const res = await api()
         .post('/api/resolutions')
         .set('Authorization', `Bearer ${token.secretaria}`)
         .send({});
-      // Sin protocolo el servicio responde 400 o 404 (el payload no está validado como DTO; ver N11 riesgo).
+      // Sin protocolo el servicio responde 400 o 404 (el payload no está validado como DTO).
       expect([400, 404]).toContain(res.status);
       expect(res.status).not.toBe(403);
-      expect(await contarResoluciones()).toBe(resolucionesAntes);
+      expect(await contarResoluciones()).toBe(antes);
     });
   });
 
-  describe('GET /api/resolutions/protocol/:protocolId (sin cambios en TSK-015-N11)', () => {
-    // Comportamiento actual, se restringe en TSK-015-N17.
-    it('PRESIDENTE → 200 con lista vacía para un protocolo inexistente', async () => {
-      const res = await api()
-        .get('/api/resolutions/protocol/2147483000')
-        .set('Authorization', `Bearer ${token.presidente}`);
+  describe('TSK-015-N17 — GET /api/resolutions/protocol/:id', () => {
+    const get = (who: Usuario | 'anonimo', id: string | number) => {
+      const req = api().get(`/api/resolutions/protocol/${id}`);
+      return who === 'anonimo'
+        ? req
+        : req.set('Authorization', `Bearer ${token[who]}`);
+    };
+
+    it('investigador principal → 200 con la resolución', async () => {
+      const res = await get('investigador', protocolId);
       expect(res.status).toBe(200);
+      expect(Array.isArray(res.body.data)).toBe(true);
+      expect(res.body.data).toHaveLength(1);
+      expect(res.body.data[0].protocolId).toBe(protocolId);
+    });
+
+    it('otro investigador → 404 «Protocolo no encontrado.»', async () => {
+      const res = await get('otroInvestigador', protocolId);
+      expect(res.status).toBe(404);
+      expect(res.body.message).toContain(NOT_FOUND);
+    });
+
+    it('evaluador → 404 «Protocolo no encontrado.»', async () => {
+      const res = await get('evaluador', protocolId);
+      expect(res.status).toBe(404);
+      expect(res.body.message).toContain(NOT_FOUND);
+    });
+
+    it('SECRETARIA → 200 (RESOLUCION_HISTORIAL)', async () => {
+      const res = await get('secretaria', protocolId);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+    });
+
+    it('PRESIDENTE → 200 (RESOLUCION_HISTORIAL)', async () => {
+      const res = await get('presidente', protocolId);
+      expect(res.status).toBe(200);
+      expect(res.body.data).toHaveLength(1);
+    });
+
+    it('protocolo inexistente → 404 «Protocolo no encontrado.» (también para SECRETARIA)', async () => {
+      const res = await get('secretaria', 2147483000);
+      expect(res.status).toBe(404);
+      expect(res.body.message).toContain(NOT_FOUND);
+    });
+
+    it('id no numérico → 400 en español', async () => {
+      const res = await get('secretaria', 'abc');
+      expect(res.status).toBe(400);
+      expect(res.body.message).toContain('ID de protocolo inválido');
+    });
+
+    it('sin sesión → 401', async () => {
+      const res = await get('anonimo', protocolId);
+      expect(res.status).toBe(401);
+    });
+
+    it('ninguna respuesta contiene datos del evaluador (nombre, correo ni userId)', async () => {
+      const evaluadorId = userId.evaluador!;
+      const respuestas = [
+        await get('investigador', protocolId),
+        await get('secretaria', protocolId),
+        await get('presidente', protocolId),
+      ];
+      for (const res of respuestas) {
+        expect(res.status).toBe(200);
+        const texto = JSON.stringify(res.body);
+        expect(texto).not.toContain(email('evaluador'));
+        expect(texto).not.toContain(`${PREFIX}evaluador`);
+        const claves = clavesProfundas(res.body).map((k) => k.toLowerCase());
+        expect(claves.filter((k) => /evalu|revis|reviewer/.test(k))).toEqual(
+          [],
+        );
+        expect(texto).not.toContain(`"userId":${evaluadorId}`);
+      }
     });
   });
 });
