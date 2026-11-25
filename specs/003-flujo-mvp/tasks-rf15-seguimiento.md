@@ -332,7 +332,7 @@
     | M6 `eliminado_en` | sin `AND cp.eliminado_en IS NULL` | respuesta › protocolosATratar cuenta protocolos distintos y no las filas con eliminado_en | 1 failed, 16 passed |
     | M7 SWC | `convocatoria?: ConvocatoriaOrmEntity` sin `Relation<>` en `convocatoria-protocolo.orm-entity.ts` | Arranque compilado con SWC › cada entidad se carga como primer módulo sin ReferenceError ni otro error (`convocatoria.orm-entity.js`, `minutes.entity.orm.js`, `session.entity.orm.js`: `ReferenceError: Cannot access 'ConvocatoriaOrmEntity' before initialization`) | 1 failed, 1 passed |
 
-### Task TSK-015-N08 - [ ] PENDIENTE
+### Task TSK-015-N08 - [x] COMPLETADO (rama feat/tsk-015-n08-resultado-pleno)
 - **ID Único**: `TSK-015-N08`
 - **Requisito Relacionado**: `RF-17.1` (spec-003 v1.6.2), `RF-09.4`, `RF-ALR.f.8`
 - **Criterio EARS**: `EARS 5` (RF-17.1)
