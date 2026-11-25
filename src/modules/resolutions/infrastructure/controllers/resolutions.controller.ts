@@ -32,6 +32,7 @@ export interface CreateResolutionPayload {
 export interface RequestWithUser {
   user: {
     id: number;
+    permissions?: string[];
   };
 }
 
@@ -66,8 +67,18 @@ export class ResolutionsController {
     return { url, statusCode: 302 };
   }
 
+  /**
+   * TSK-015-N17 (RF-17.6): sin @Permissions en la ruta (el investigador principal no tiene
+   * RESOLUCION_HISTORIAL). La regla de lectura está en el servicio.
+   */
   @Get('protocol/:protocolId')
-  async findByProtocolId(@Param('protocolId') protocolId: string) {
-    return this.resolutionsService.findByProtocolId(+protocolId);
+  async findByProtocolId(
+    @Param('protocolId') protocolId: string,
+    @Request() req: RequestWithUser,
+  ) {
+    return this.resolutionsService.findByProtocolIdForReader(
+      Number(protocolId),
+      req.user,
+    );
   }
 }

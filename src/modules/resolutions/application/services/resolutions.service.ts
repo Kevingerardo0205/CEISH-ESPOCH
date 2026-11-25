@@ -22,6 +22,31 @@ import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 import { DocumentTemplateOrmEntity } from '../../../documents/infrastructure/database/document-template.entity.orm';
+import { Permission } from '../../../../shared/enums/permission.enum';
+
+/** Usuario autenticado tal como lo deja `JwtStrategy.validate` (permisos del token). */
+export interface ResolutionReader {
+  id: number;
+  permissions?: string[];
+}
+
+/**
+ * TSK-015-N17: regla de lectura de la resolución. Puro, sin acceso a datos.
+ * Devuelve true si el lector es el investigador principal o tiene RESOLUCION_HISTORIAL.
+ */
+export function canReadResolution(
+  principalInvestigatorId: number | null | undefined,
+  reader: ResolutionReader,
+): boolean {
+  if (
+    principalInvestigatorId != null &&
+    typeof reader.id === 'number' &&
+    principalInvestigatorId === reader.id
+  ) {
+    return true;
+  }
+  return (reader.permissions ?? []).includes(Permission.RESOLUCION_HISTORIAL);
+}
 
 @Injectable()
 export class ResolutionsService {
@@ -330,7 +355,26 @@ export class ResolutionsService {
     return saved;
   }
 
-  async findByProtocolId(protocolId: number) {
+  /**
+   * TSK-015-N17 (RF-17.6, mismo patrón que RF-02.10): lectura de la resolución de un protocolo.
+   * La leen el investigador principal y quien tiene RESOLUCION_HISTORIAL (permiso del token,
+   * como RF-02.10). Los demás reciben 404 «Protocolo no encontrado.», igual que un protocolo
+   * inexistente. No se devuelven datos de evaluadores.
+   */
+  async findByProtocolIdForReader(
+    protocolId: number,
+    reader: ResolutionReader,
+  ): Promise<ResolutionOrmEntity[]> {
+    if (!Number.isInteger(protocolId) || protocolId <= 0) {
+      throw new BadRequestException('ID de protocolo inválido');
+    }
+    const protocol = await this.protocolRepository.findById(protocolId);
+    if (!protocol) throw new NotFoundException('Protocolo no encontrado.');
+
+    if (!canReadResolution(protocol.principalInvestigatorId, reader)) {
+      throw new NotFoundException('Protocolo no encontrado.');
+    }
+
     return this.resolutionRepo.find({
       where: { protocolId },
       relations: ['protocol', 'version'],
