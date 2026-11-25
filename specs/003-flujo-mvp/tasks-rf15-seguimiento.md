@@ -372,27 +372,49 @@
 
 ### Task TSK-015-N09 - [ ] PENDIENTE
 - **ID Único**: `TSK-015-N09`
-- **Requisito Relacionado**: `RF-17.1`, `RF-17.2`, `RF-17.4` (spec-003 v1.6.1)
-- **Criterio EARS**: `EARS 5` (RF-17.2, RF-17.4)
-- **Acción**: `CREAR` (migración) y `MODIFICAR`
-- **Archivos Afectados**:
-  - `src/migrations/<timestamp>-VersionesCartaResolucion.ts` — CREAR: columnas aditivas para la versión de la carta (`numero_version`, `vigente`, `subido_por`, `fecha_subida`, `motivo_reemplazo`). Requiere consulta previa (AGENTS.md), ver preguntas abiertas.
-  - `src/modules/resolutions/infrastructure/database/resolution.entity.orm.ts` — MODIFICAR: columnas nuevas
-  - `src/modules/resolutions/infrastructure/controllers/resolutions.controller.ts:20` — MODIFICAR: la interfaz `CreateResolutionPayload` pasa a validar que el anexo corresponda al resultado (RF-17.2)
-  - `src/modules/resolutions/application/services/resolutions.service.ts:50-60` — `determineResolutionType` deja de decidir (solo referencia)
-  - `src/modules/resolutions/application/services/resolutions.service.ts:139-209` — tipo y estado salen de `dictamen_resultado`, y se aplican al subir la carta, en la misma transacción
-- **Dependencias**: TSK-015-N08, TSK-015-N14 (anexos sembrados para validar el anexo subido)
-- **Descripción**: Cada carta firmada se guarda como versión nueva. `numero_version` es un entero (1, 2, 3…) independiente por protocolo y convocatoria, distinto de la versión del protocolo de RF-14. Reemplazar una carta exige `motivo_reemplazo` y deja la anterior como no vigente. El investigador ve solo la versión vigente.
-- **Paso 0**: resuelve la pregunta 3 (`numero_version` como columna o tabla propia) antes de escribir la migración.
-- **Estado del protocolo**: `APROBADO` → 17; `APROBADO_CON_CONDICION` → **19** (`REQUIERE_SUBSANACION_VERSION`); `NO_APROBADO` → 18. El estado 25 queda sin uso en este flujo.
-- **Tests**: unitarias de la validación anexo ↔ resultado; E2E de subida, reemplazo y lectura por investigador.
+- **Requisito Relacionado**: `RF-17.1`, `RF-17.2`, `RF-17.4`, `RF-17.7` (spec-003 v1.6.4)
+- **Criterio EARS**: `EARS 5` (RF-17.2, RF-17.4, RF-17.7)
+- **Acción**: `CREAR` (migración, entidad y endpoints nuevos) y `MODIFICAR` (marca de legacy en `POST /resolutions`)
+- **Archivos Afectados** (ningún archivo nuevo sin esta lista; si aparece otro, detenerse):
+  - `src/migrations/<timestamp>-CartasFirmadasResolucion.ts` — CREAR: tabla aditiva `resolucion.cartas_firmadas` con las columnas, UNIQUE, índice parcial de vigente y CHECK de RF-17.4 (spec v1.6.4). Requiere autorización previa del esquema (AGENTS.md). Sin cambios en `resolucion.resoluciones`.
+  - `src/modules/resolutions/infrastructure/database/carta-firmada.entity.orm.ts` — CREAR: entidad ORM de la tabla.
+  - `src/modules/resolutions/domain/entities/carta-firmada.entity.ts` — CREAR: entidad de dominio y reglas puras de versión (`numero_version`, vigencia, motivo).
+  - `src/modules/resolutions/application/services/carta-firmada-rules.ts` — CREAR: matriz anexo ↔ (resultado, tipo de estudio). Antes de crearlo, buscar con Grep matrices equivalentes (anexos 13 a 16) y reutilizarlas si existen.
+  - `src/modules/resolutions/application/services/cartas-firmadas.service.ts` — CREAR: `upload-url`, registro de versión, vigente e historial, con transacción y `SELECT … FOR UPDATE`.
+  - `src/modules/resolutions/application/dtos/cartas-firmadas.dto.ts` — CREAR: DTO de clase con `class-validator` para `{ anexoCodigo }`, `{ claveArchivo, anexoCodigo, motivoReemplazo? }` (reemplaza la interfaz `CreateResolutionPayload` como contrato nuevo).
+  - `src/modules/resolutions/infrastructure/controllers/cartas-firmadas.controller.ts` — CREAR: endpoints de RF-17.4 con `RESOLUCION_CREAR` o `RESOLUCION_HISTORIAL`, según corresponda.
+  - `src/modules/resolutions/resolutions.module.ts` — MODIFICAR: registrar entidad, servicio y controlador nuevos.
+  - `src/modules/resolutions/infrastructure/controllers/resolutions.controller.ts` — MODIFICAR: marcar `POST /resolutions` como legacy (comentario y sin cambios de lógica; retiro en TSK-015-N18).
+  - `src/shared/storage/domain/ports/storage.service.port.ts` y `src/shared/storage/infrastructure/adapters/s3-storage.adapter.ts` — **sin cambios**: se reutilizan `generateUploadUrl` y `getMetadata` (HeadObject).
+  - Pruebas: `src/modules/resolutions/application/services/carta-firmada-rules.spec.ts` y `cartas-firmadas.service.spec.ts` (CREAR); `test/cartas-firmadas.e2e-spec.ts` (CREAR).
+  - **No se modifica** `resolution.entity.orm.ts`, `determineResolutionType` ni `calls.service.ts`. Tampoco `resolutions.service.ts`: la lógica nueva vive en el servicio nuevo. El tipo calculado por dictámenes queda como referencia (RF-17.1).
+- **Dependencias**: TSK-015-N08 (resultado del pleno), TSK-015-N11 (quitar `RESOLUCION_CREAR` a PRESIDENTE), TSK-015-N14 (anexos ANEXO_13 a 16 sembrados), TSK-015-N17 (lectura restringida del legado). Se entrega **junto con TSK-015-N13** (misma rama y PR, commits separados; N09 primero).
+- **Descripción**: Cada carta firmada se guarda como versión nueva en `resolucion.cartas_firmadas`. `numero_version` es un entero (1, 2, 3…) independiente por protocolo y convocatoria, distinto de la versión del protocolo de RF-14. Reemplazar exige `motivoReemplazo`, marca la anterior como no vigente y la conserva. La clave del archivo la genera el backend (`protocols/{protocolId}/resolutions/{convocatoriaProtocoloId}/v{n}/{uuid}.pdf`). El investigador ve solo la versión vigente, sin datos del evaluador.
+- **Flujo**:
+  1. `POST …/cartas/upload-url` → valida `RESOLUCION_CREAR`, resultado del pleno (N08), anexo ↔ resultado y tipo de estudio, y que el estudio no sea EX; devuelve `{ uploadUrl, claveArchivo }`. No registra nada.
+  2. `POST …/cartas` con `{ claveArchivo, anexoCodigo, motivoReemplazo? }` → verifica prefijo exacto, `HeadObject` (existe, `application/pdf`, ≤ 10 MB), anexo, y motivo si hay vigente; crea la versión y cambia el estado en la misma transacción.
+- **Estado del protocolo** (misma transacción): `APROBADO_DEFINITIVO` → 17; `APROBADO_CON_CONDICION` → **19** (`REQUIERE_SUBSANACION_VERSION`), con la v2.0 de TSK-015-N13; `NO_APROBADO` → 18. El estado 25 queda sin uso.
+- **Endpoints**:
+  - `POST /resolutions/convocatorias/:convocatoriaId/protocolos/:convocatoriaProtocoloId/cartas/upload-url`: `RESOLUCION_CREAR`.
+  - `POST /resolutions/convocatorias/:convocatoriaId/protocolos/:convocatoriaProtocoloId/cartas`: `RESOLUCION_CREAR`.
+  - `GET /resolutions/convocatorias/:convocatoriaId/protocolos/:convocatoriaProtocoloId/cartas/vigente`: investigador principal y `RESOLUCION_HISTORIAL`; resto `404` «Protocolo no encontrado.».
+  - `GET /resolutions/convocatorias/:convocatoriaId/protocolos/:convocatoriaProtocoloId/cartas`: solo `RESOLUCION_HISTORIAL`; investigador `404`.
+- **Códigos**: `400` (anexo incompatible, motivo faltante, clave fuera de prefijo, objeto inexistente / no PDF / > 10 MB); `404` (convocatoria, convocatoria-protocolo o protocolo inexistente, o no pertenece a la convocatoria); `409` (sin resultado del pleno, estudio EX, colisión de versión o del índice parcial). Mensajes en español.
+- **Paso 0**: resuelto en la decisión del 25/11/2026 (tabla propia; clave por el backend; PDF ≤ 10 MB; POST legacy).
+- **Tests**:
+  - Unitarias: matriz anexo ↔ (resultado, tipo de estudio); cálculo de `numero_version`; motivo obligatorio desde la versión 2; EX → 409.
+  - E2E (`test/cartas-firmadas.e2e-spec.ts`): upload-url devuelve clave con el prefijo; registro con clave ajena → 400; objeto no PDF o > 10 MB → 400 (con storage de prueba); segunda subida crea v2 y deja v1 no vigente; reemplazo sin motivo → 400; investigador ve solo la vigente; estado del protocolo cambia en la misma transacción.
+  - Datos con prefijo `ZZ_TEST_`; residuos = 0 al terminar; contraseñas solo por `E2E_TEST_ACCOUNTS_PASSWORD`; `--runInBand`; `ResponseInterceptor` aplicado como en `main.ts:39`.
 - **Criterio de aceptación**:
-  1. Subir un anexo incompatible con el resultado responde `400` en español.
-  2. Una segunda subida crea la versión 2 y deja la 1 como no vigente.
-  3. Reemplazar sin motivo responde `400`.
-  4. El estado del protocolo cambia en la misma transacción que la subida.
-  5. El investigador recibe solo la versión vigente.
-  6. Esta tarea no crea la v2.0 de RF-14 (eso es TSK-015-N13).
+  1. `upload-url` devuelve `{ uploadUrl, claveArchivo }` con la clave generada por el backend; el frontend no elige la clave.
+  2. Registrar con una clave que no tenga el prefijo generado responde `400` en español.
+  3. Un objeto que no existe, no es `application/pdf` o pesa más de 10 MB responde `400`.
+  4. Un anexo incompatible con el resultado o el tipo de estudio responde `400`.
+  5. Una segunda subida crea la versión 2 y deja la 1 como no vigente; sin motivo responde `400`.
+  6. Sin resultado del pleno, o con estudio EX, responde `409`.
+  7. El estado del protocolo cambia en la misma transacción que la versión vigente.
+  8. El investigador recibe solo la versión vigente y ningún dato del evaluador.
+  9. Esta tarea no crea la v2.0 de RF-14 (eso es TSK-015-N13, misma entrega).
 
 ### Task TSK-015-N10 - [ ] PENDIENTE
 - **ID Único**: `TSK-015-N10`
@@ -459,7 +481,7 @@
 - **Archivos Afectados**:
   - `src/modules/resolutions/application/services/resolutions.service.ts:203-237` — MODIFICAR: la creación de la versión v2.0 deja de dispararse por el tipo 2 y pasa a dispararse solo al subir el Anexo 15 con resultado `APROBADO_CON_CONDICION`
   - `src/shared/deadlines/deadline-rules.ts:15` — usa `PLAZO_CONDICION_DIAS` (ya existe, 30)
-- **Dependencias**: TSK-015-N08, TSK-015-N09
+- **Dependencias**: TSK-015-N08, TSK-015-N09 (se entrega en el mismo PR, commit posterior a N09)
 - **Descripción**: Al subir el Anexo 15, en la misma transacción: se congelan los requisitos aprobados, se crea la v2.0 y se asigna `plazo_condicion_dias` = 30, con el cálculo actual de `protocol-deadline.service.ts` (no se cambia en esta tarea; ver pregunta 9). El estado del protocolo pasa a 19 (`REQUIERE_SUBSANACION_VERSION`). No se toca `calls.service.ts`.
 - **Tests**: E2E: con Anexo 15 crea v2.0; con Anexo 13, 14 o 16 no la crea.
 - **Criterio de aceptación**:
@@ -520,11 +542,79 @@
 
 ---
 
+### Task TSK-015-N17 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N17`
+- **Requisito Relacionado**: `RF-17.6` (spec-003 v1.6.4), `RF-02.10` (spec-001 v3.7.7)
+- **Criterio EARS**: `EARS 5` (RF-17.6): **cuando** un usuario consulte la resolución de un protocolo, **el sistema debe** devolverla solo si es el investigador principal o tiene `RESOLUCION_HISTORIAL`; **si** no, **el sistema debe** responder `404` con «Protocolo no encontrado.».
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/modules/resolutions/infrastructure/controllers/resolutions.controller.ts` — MODIFICAR: `GET protocol/:protocolId` con `@Permissions(RESOLUCION_HISTORIAL)` y comprobación de investigador principal.
+  - `src/modules/resolutions/application/services/resolutions.service.ts` — MODIFICAR: `findByProtocolId` aplica la comprobación y no devuelve datos del evaluador.
+  - Pruebas: unitaria y E2E.
+- **Dependencias**: Ninguna. **Va antes de TSK-015-N09.**
+- **Descripción**: hoy `GET /resolutions/protocol/:protocolId` no tiene `@Permissions` ni `@Roles` (cualquier autenticado lee la clave de la carta y las observaciones de cualquier protocolo). Se restringe como RF-02.10. Verificar antes de codificar el campo del investigador principal en `ProtocolOrmEntity` (por confirmar, no asumido).
+- **Tests**: E2E: investigador principal → `200`; otro investigador → `404` «Protocolo no encontrado.»; SECRETARIA y PRESIDENTE con `RESOLUCION_HISTORIAL` → `200`; respuesta sin datos del evaluador.
+- **Criterio de aceptación**:
+  1. Sin sesión o sin permiso no se revela la existencia del protocolo (`404`).
+  2. La respuesta no contiene nombre, correo ni `userId` de evaluador.
+  3. `POST /resolutions` no cambia en esta tarea.
+
+### Task TSK-015-N18 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N18`
+- **Requisito Relacionado**: `RF-17.4` y `RF-17.2` (spec-003 v1.6.4, `POST /resolutions` legacy)
+- **Criterio EARS**: `EARS 5` (RF-17.4): **cuando** la Secretaría suba una carta firmada, **el sistema debe** hacerlo solo por el flujo de cartas por versiones.
+- **Acción**: `MODIFICAR` (eliminar el handler `POST /resolutions`)
+- **Archivos Afectados**:
+  - `src/modules/resolutions/infrastructure/controllers/resolutions.controller.ts` — MODIFICAR: quitar `@Post()` y `create`.
+  - `src/modules/resolutions/application/services/resolutions.service.ts` — MODIFICAR: quitar `createResolution` y sus ramas de estado (líneas 139-237), si ya no tiene llamadas.
+  - Frontend (repo aparte, fuera de este repo): `resolution-api.adapter.ts`, `generate-and-submit-resolution.use-case.ts` y `emit-consolidated-resolution.use-case.ts` dejan de llamar a `POST /resolutions`.
+- **Dependencias**: TSK-015-N09 (flujo nuevo en producción) y el cambio de frontend correspondiente. **No se hace hasta que el frontend use el flujo nuevo.**
+- **Descripción**: retiro del endpoint legacy. Riesgo abierto mientras exista: puede cambiar el estado del protocolo a partir del agregado de dictámenes.
+- **Tests**: E2E: `POST /resolutions` responde `404`/`405`; el resto del módulo sigue igual.
+- **Criterio de aceptación**:
+  1. Ninguna ruta de estado depende del agregado de dictámenes.
+  2. El frontend no llama a `POST /resolutions` (verificado con búsqueda en su repo).
+
+### Task TSK-015-N19 - [ ] PENDIENTE (futura, no se inicia)
+- **ID Único**: `TSK-015-N19`
+- **Requisito Relacionado**: carta de exención, Anexo 12 (verificado en el PET, índice de anexos, pág. 84; spec-003 v1.6.1, pendiente del frontend).
+- **Acción**: a definir.
+- **Descripción**: los protocolos EX (exentos de revisión) no pasan por el pleno (RF-17.2). Su carta de exención (Anexo 12) queda fuera de RF-17 y necesita diseño propio: quién la sube, qué estado asigna y si usa `resolucion.cartas_firmadas`. Pendiente también el rótulo «Anexo 12» en el frontend.
+- **Criterio de aceptación**: se define en su propia especificación antes de tocar código.
+
+### Task TSK-015-N20 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N20`
+- **Requisito Relacionado**: `RF-17.2` (EX fuera de RF-17, spec-003 v1.6.4); seguimiento de TSK-015-N08.
+- **Criterio EARS**: `EARS 5` (RF-17.2): **cuando** el estudio sea EX, **el sistema debe** rechazar el registro del resultado del pleno con `409` en español.
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**: el caso de uso y el controlador del `PATCH .../protocolos/:convocatoriaProtocoloId/resultado` de TSK-015-N08 (ubicar con Grep antes de tocar; no fijado aquí).
+- **Dependencias**: TSK-015-N08.
+- **Descripción**: N08 no rechaza hoy los protocolos EX. Se añade la validación de `tipo_estudio_id` → código `EX`.
+- **Tests**: unitaria y E2E: registrar resultado para EX → `409`; para otro estudio, sin cambio.
+- **Criterio de aceptación**:
+  1. EX → `409` con mensaje en español.
+  2. Los demás estudios no cambian.
+
+## Orden de ejecución (decisión 25/11/2026)
+
+1. PR de docs (esta rama): spec v1.6.4 y este archivo.
+2. TSK-015-N11: quitar `RESOLUCION_CREAR` a PRESIDENTE (solo datos).
+3. TSK-015-N17: restringir `GET /resolutions/protocol/:id`.
+4. TSK-015-N14: sembrar ANEXO_13 a 16 (solo datos).
+5. TSK-015-N15: constante de 96 h.
+6. TSK-015-N09 + TSK-015-N13: mismo PR, commits separados (N09 primero). Incluye N20 si EX se valida en el registro.
+7. TSK-015-N12: correo y Anexo 9 sin datos del evaluador.
+8. TSK-015-N10: fila «Subir resolución firmada».
+9. TSK-015-N18: retirar `POST /resolutions` **cuando el frontend ya use el flujo nuevo**.
+10. TSK-015-N19: carta de exención, en su propia especificación.
+
+Tareas que tocan `resolutions.service.ts`: N09 (no lo modifica, pero N13 sí), N12 (correo), N13 (líneas 203-237), N18 (legacy). Hacerlas en secuencia para evitar conflictos.
+
 ## Preguntas abiertas (Paso 0 — confirmar con la usuaria)
 
 1. ~~Registro del resultado (TSK-015-N08)~~ **Cerrada 24/11/2026**: ruta, payload, permiso `PLENO_RESULTADO_REGISTRAR`, ventana, historial y supuesto de Sección II aprobados (RF-17.1 de spec-003 v1.6.2). El frontend usa solo Meetings.
 2. ~~«Aprobado con condición»~~ **Cerrada 24/11/2026**: `dictamen_resultado = APROBADO_CON_CONDICION`; el estado tras el Anexo 15 es 19 (`REQUIERE_SUBSANACION_VERSION`); el 25 queda sin uso.
-3. **Versión de la carta (TSK-015-N09)**: `numero_version` como columna de `resolucion.resoluciones` o tabla propia. Ambas requieren migración aditiva. **Se resuelve en el Paso 0 de TSK-015-N09.**
+3. ~~Versión de la carta (TSK-015-N09)~~ **Cerrada 25/11/2026**: tabla propia `resolucion.cartas_firmadas`; `resolucion.resoluciones` queda legacy. Clave por versión generada por el backend (spec-003 v1.6.4, RF-17.4).
 4. ~~Plazo de RF-17.5~~ **Cerrada**: se usa `plazo_condicion_dias` = 30 con el cálculo actual; no se cambia (ver pregunta 9).
 5. **Anexo 9 «ya sin nombre»**: la usuaria lo indicó, pero `dev` lo incluye. ¿En qué rama está esa versión?
 6. **Respuestas del investigador (TSK-015-N12)**: lista de endpoints que consume el investigador, para auditar nombre, correo y `userId` del evaluador. **Se resuelve en el Paso 0 de TSK-015-N12.**
