@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/003-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 1.5.3  
+**Versión:** 1.6.1  
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v1.4.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v1.4.1: RF-ALR renovación cambia a `alerta_renovacion_offsets_dias` [90, 60, 15]; HU-015 EARS 3 usa el parámetro  
@@ -10,6 +10,8 @@
 **Historial:** 2026-10-28 — v1.5.1: sección Pendientes de confirmar con el comité añadida  
 **Historial:** 2026-11-04 — v1.5.2: RF-ALR.f contrato de `GET /secretaria/pendientes`, detección de las filas VALIDAR, ASIGNAR y REASIGNAR, grupos de plazo en America/Guayaquil y filas omitidas con su motivo (decisiones pendientes de validar con la Secretaría)  
 **Historial:** 2026-11-04 — v1.5.3: RF-ALR.f.7 contrato de `GET /evaluations/meetings/next` (tarjeta «Próxima reunión»): estados, inicio del día en America/Guayaquil, protocolos a tratar e `informesATratar` null; pendientes de RF-09 (cierre de reuniones, informes en el orden del día, `protocolCount`) (decisiones pendientes de validar con la Secretaría)
+**Historial:** 2026-11-24 — v1.6.0: decisiones de la reunión del 24/11/2026 sobre la resolución del pleno: RF-17 (resultado del pleno por protocolo, carta firmada Anexos 13–16, plazo de 96 h, versiones de la carta y B8), nueva fila «Subir resolución firmada» en RF-ALR.f.8 y ajustes a RF-09.2, RF-14 y RF-ALR.f.6; la matriz de permisos (solo SECRETARIA crea/sube resoluciones) se actualiza en specs/001  
+**Historial:** 2026-11-24 — v1.6.1: correcciones de la decisión del 24/11/2026: `SUSPENDIDO` sale de RF-17 (no es resultado del pleno; la suspensión es el Anexo 26, de seguimiento) y se cierran los pendientes 11 a 14 de la Sección 10; Anexo 13 o 14 por tipo de estudio (PET, «Dictamen de aprobación definitiva»); Anexo 12 verificado como carta de exención (PET, índice de anexos, pág. 84); plazo de 96 h desde `fecha_reunion` sin reinicio por corrección (RF-09.4); versión de la carta como entero independiente por protocolo y convocatoria; RF-16 reservado para renovaciones; líneas del Anexo 9 verificadas en `dev`; aprobado con condición → estado 19; SUSPENDIDO solo en Sección III
 
 ---
 
@@ -141,6 +143,8 @@ Especificar las reglas operativas, funcionales y de integridad para:
     | `SUSPENDIDO` | El protocolo queda detenido hasta que el pleno lo reactive | Sí |
 
     > "Requiere modificaciones" y "Diferido" se eliminan como resultados de sesión. **Revocado** no es un resultado de sesión: es un estado al que puede pasar un protocolo suspendido. Si Metodológico y Salud no coincidieron en el riesgo (CS-03/RF-12.2e), el pleno fija el nivel en esta misma sesión y el protocolo sigue a Resolución.
+    >
+    > **Decisión 24/11/2026**: el resultado registrado aquí es el que decide el tipo de resolución, el anexo exigido (13 a 16) y el cambio de estado del protocolo; el agregado de los dictámenes individuales solo se muestra como referencia. Ver RF-17.1 a RF-17.5. La fila `SUSPENDIDO` de esta tabla se mantiene, pero `SUSPENDIDO` solo aplica a la Sección III (`SEGUIMIENTO_INFORMES`) y nunca a la Sección II (`EVALUACION_DICTAMEN`); la suspensión es el Anexo 26 (seguimiento) y queda fuera de RF-17.
 
   - **Sección III (`SEGUIMIENTO_INFORMES`)**: Conocimiento, revisión y pronunciamiento de Informes de Seguimiento (ítems: `INFORME_INICIO`, `INFORME_AVANCE`, `INFORME_FIN`).
   - **Sección IV (`ASUNTOS_VARIOS`)**: Asuntos varios.
@@ -175,13 +179,64 @@ Especificar las reglas operativas, funcionales y de integridad para:
 ### RF-14: Subsanación de Versión Mayor (Ciclo Multiversión v1.0 ➔ v2.0 ➔ v3.0)
 - **RF-14.1**: El sistema debe soportar el ciclo de vida multiversión (v1.0 ➔ v2.0 ➔ v3.0), asignando `plazo_condicion_dias` (inicial 30 días hábiles) por versión, bloqueando documentos aprobados previamente e incrementando el número de versión secuencialmente.
   - **Almacenamiento vs. Presentación**: En BD (`versiones_protocolo`), la versión se almacena como `numero_version` entero secuencial (`1`, `2`, `3`). En presentación se despliega como `v${numero_version}.0` (ej. v1.0, v2.0).
-- **Criterio EARS (RF-14.1)**: **Cuando** un protocolo reciba el dictamen "Requiere Subsanación" tras evaluación del Pleno, **el sistema debe** congelar e inhabilitar los documentos previamente aprobados (🔒), liberar para resometimiento únicamente los observados, asignar `plazo_condicion_dias` (inicial 30 días hábiles) y aumentar la versión mayor a v2.0.
+- **Criterio EARS (RF-14.1)**: **Cuando** el pleno registre el resultado `APROBADO_CON_CONDICION` (RF-17.1) y la Secretaría suba el Anexo 15 con las observaciones consolidadas (RF-17.2), **el sistema debe** congelar e inhabilitar los documentos previamente aprobados (🔒), liberar para resometimiento únicamente los observados, asignar `plazo_condicion_dias` (inicial 30 días hábiles) y aumentar la versión mayor a v2.0. El agregado de los dictámenes individuales no dispara la v2.0.
 
 ### RF-15: Informes de Inicio, Avance (Anexo 18), Fin (Anexo 8), Agenda de Entregables y Seguimiento
 - **RF-15.1**: El sistema debe pre-llenar y controlar la agenda de entregables periódicos e informe final de protocolos aprobados a partir de los metadatos de `catalogos.tipos_estudio` (`requiere_informe_inicio`, `requiere_informe_final`, `periodicidad_informe_dias`), permitiendo la edición por Presidencia/Secretaría y la recepción del **Informe de Inicio de Actividades** (plazo: `plazo_informe_inicio_dias` días desde la notificación de aprobación), **Anexo 18 (Avance)** y **Anexo 8 (Cierre/Fin)**. Los informes de seguimiento son evaluados por los **mismos pares evaluadores** del protocolo; la Secretaría solo controla plazos y los lleva a la sesión. — CS-11, rediseño 27/10/2026
 - **RF-15.2**: Una vez presentado un entregable de seguimiento, el sistema debe habilitarlo para ser agendado por la Secretaría en la Sección III de la Convocatoria al Pleno, permitiendo que el Pleno emita pronunciamiento oficial: `APROBADO` (equivale a "Validado" en pantalla), `OBSERVADO` (equivale a "Con observaciones"; 30 días para corregir), `CONVALIDADO` o `CIERRE_DEFINITIVO`. Si el plazo vence: la subida se **bloquea**, el informe pasa a "No cumplidos" y la Secretaría decide (reanudar, suspender o revocar, siempre con motivo). El botón "Reanudar informe de seguimiento" solo se activa cuando el plazo ya venció. — CS-11, rediseño 27/10/2026
 - **Criterio EARS (RF-15.1)**: **Cuando** una investigación sea aprobada, **el sistema debe** pre-calcular la agenda de entregables (modificable por Presidencia/Secretaría), despachar notificaciones por hito según RF-ALR (`aviso_previo_plazo_dias` días antes y el mismo día) y procesar el Informe de Inicio, el Anexo 18 para avances y el Anexo 8 para cierre final.
 - **Criterio EARS (RF-15.2)**: **Si** vence el plazo de entrega de un informe sin recepción, **el sistema debe** bloquear la subida, marcar el estado como `VENCIDO`/`SUSPENDIDO`, notificar a la Secretaría según RF-ALR e iniciar un plazo de gracia de 30 días antes del escalamiento normativo.
+
+---
+
+### RF-17: Resultado del Pleno, Carta Firmada y Versiones de la Resolución
+
+> Decisiones de la reunión del 24/11/2026. La resolución se firma **fuera del sistema**; el sistema solo recibe la carta firmada. RF-16 queda reservado para renovaciones (ver `src/shared/deadlines/deadline-rules.ts`).
+
+- **RF-17.1 (Resultado del pleno por protocolo)**: **Cuando** la Secretaría cierre la sesión del pleno, **el sistema debe** registrar, por cada protocolo de la Sección II (`EVALUACION_DICTAMEN`), el resultado acordado en `evaluacion.convocatoria_protocolos.dictamen_resultado` con uno de estos tres valores, según el PET (Anexo 10/11): `APROBADO_DEFINITIVO`, `APROBADO_CON_CONDICION` o `NO_APROBADO`. El resultado se registra en la misma vista de la sesión; `NO_APROBADO` exige motivo. El agregado de los dictámenes individuales (hoy `ResolutionsService.determineResolutionType`, `resolutions.service.ts:50-60`) **solo se muestra como referencia** y ya no decide el tipo de resolución ni el estado del protocolo.
+  - **Qué deriva el resultado**: el tipo de resolución (`APROBADO` 17, `REQUIERE_SUBSANACION_VERSION` 19 para `APROBADO_CON_CONDICION`, o `RECHAZADO` 18), el anexo exigido (RF-17.2) y el cambio de estado del protocolo. El estado se aplica al subir la carta firmada, en la misma transacción que crea la versión vigente de la resolución (RF-17.4). Mientras no se suba la carta, el protocolo queda pendiente de resolución y aparece en la fila de RF-ALR.f.8. Tras el Anexo 15 el protocolo espera la v2.0 con el estado 19; el estado 25 (`APROBADO_CON_CONDICION`) queda **sin uso** en este flujo, porque recepción y los filtros ya dependen del 19. La distinción queda en `dictamen_resultado` y en el tipo de resolución (Anexo 15).
+  - **Fuera de RF-17**: `SUSPENDIDO` solo aplica a la Sección III (`SEGUIMIENTO_INFORMES`) y nunca a la Sección II (`EVALUACION_DICTAMEN`). La suspensión es el Anexo 26 (seguimiento, RF-15); no genera carta de RF-17 ni cambia el estado por esta vía.
+  - **Corrección**: aplica RF-09.4; la corrección del resultado no borra el original y deja nota en el acta y en el recorrido.
+- **Criterio EARS (RF-17.1)**: **Cuando** la Secretaría cierre la sesión del pleno, **el sistema debe** exigir el resultado por protocolo (`APROBADO_DEFINITIVO`, `APROBADO_CON_CONDICION` con observaciones consolidadas, o `NO_APROBADO` con motivo) y guardarlo en `convocatoria_protocolos.dictamen_resultado`; **si** falta el resultado de un protocolo, **el sistema debe** impedir el cierre con un mensaje en español. El agregado de dictámenes no puede sobrescribir el resultado del pleno.
+
+- **RF-17.2 (Carta firmada: Anexos 13 a 16)**: **Cuando** el pleno haya decidido, **la Secretaría debe** subir la carta firmada correspondiente; el sistema no genera ni firma la carta. El anexo depende del resultado del pleno:
+
+  | Resultado del pleno | Anexo exigido | Efecto en el protocolo |
+  |---|---|---|
+  | `APROBADO_DEFINITIVO` — estudio observacional o de intervención | **Anexo 13** (aprobación definitiva) | `APROBADO` (17) |
+  | `APROBADO_DEFINITIVO` — ensayo clínico | **Anexo 14** (aprobación definitiva de ensayo clínico) | `APROBADO` (17) |
+  | `APROBADO_CON_CONDICION` | **Anexo 15** (aprobado con condición, con las observaciones consolidadas) | `REQUIERE_SUBSANACION_VERSION` (19) y creación de la versión de subsanación (RF-14) |
+  | `NO_APROBADO` | **Anexo 16** (no aprobado, con el motivo) | `RECHAZADO` (18) |
+
+  - **Anexo 13 o 14 (decisión 24/11/2026)**: se elige por el tipo de estudio, según el PET (sección «Dictamen de aprobación definitiva»): observacional o de intervención → Anexo 13; ensayo clínico → Anexo 14.
+  - **Plantillas**: hoy no existen plantillas de los Anexos 13 a 16 en `catalogos.tipos_documento` (verificado en `ceish_test_db`: los anexos sembrados son ANEXO_1, ANEXO_2, ANEXO_4, ANEXO_5 y ANEXO_6) ni en `documents.document_templates` (sin verificar); se requieren para las pantallas de carga y para el nombrado de archivos. La carta firmada **no** se genera desde el sistema: se adjunta como archivo.
+  - **Contenido del Anexo 15**: las observaciones consolidadas del pleno son las que se registran en RF-17.1 (no el agregado de los informes individuales).
+  - **Solo la Secretaría** crea o sube resoluciones. La Presidenta ve la resolución en **solo lectura** (ver la matriz de permisos de specs/001, RF-17.7).
+- **Criterio EARS (RF-17.2)**: **Cuando** la Secretaría suba la carta firmada, **el sistema debe** validar que el anexo corresponda al resultado registrado en RF-17.1 (`APROBADO_DEFINITIVO` → Anexo 13 o 14; `APROBADO_CON_CONDICION` → Anexo 15; `NO_APROBADO` → Anexo 16) y **si** no coincide, **el sistema debe** rechazar la subida con `400` y un mensaje en español.
+
+- **RF-17.3 (Plazo de 96 horas para subir la carta firmada)**: **Cuando** el protocolo tenga resultado del pleno, **el sistema debe** fijar el plazo para subir la carta firmada en **96 horas corridas desde `convocatorias.fecha_reunion`**; el plazo **no se reinicia** si el resultado se corrige (RF-09.4). El plazo se muestra en `GET /secretaria/pendientes` como una acción nueva, «Subir resolución firmada», con su fecha de plazo y su grupo (`VENCIDO`, `HOY`, `SEMANA`, `PROXIMO`). Si vence, la fila queda en `VENCIDO` y **la subida no se bloquea**; solo se marca en rojo.
+  - **Cálculo**: `fecha_reunion` + 96 horas corridas (no días hábiles), en el instante de la base; la fecha se muestra en America/Guayaquil. No aplica `BusinessDayCalculator`.
+  - **Dónde vive**: el plazo se define en `src/shared/deadlines/deadline-rules.ts` (p. ej. `PLAZO_RESOLUCION_FIRMADA_HORAS = 96`) y la fila se implementa en la consulta única de `PendingItemsTypeormRepository` (RF-ALR.f.8).
+- **Criterio EARS (RF-17.3)**: **Mientras** un protocolo de la convocatoria tenga resultado del pleno y no tenga una versión vigente de la carta firmada, **el sistema debe** listarlo en `GET /secretaria/pendientes` con `accion = SUBIR_RESOLUCION`, `accionTexto = «Subir resolución firmada»` y `fechaPlazo = fecha_reunion + 96 h`; **si** el plazo venció, **el sistema debe** devolver `estadoPlazo = VENCIDO` sin impedir la subida.
+
+- **RF-17.4 (Versiones de la carta firmada)**: Cada carta firmada que se suba se guarda como una **versión nueva**; no se sobrescribe la anterior. La versión de la carta es un entero `numero_version` (1, 2, 3…) independiente por protocolo y convocatoria; **no** es la versión del protocolo de RF-14 (v1.0, v2.0). Cada versión guarda fecha de subida, usuario y, **si reemplaza a otra**, motivo obligatorio. El investigador y los demás roles ven solo la versión **vigente**; el historial queda para la Secretaría y auditoría. La versión vigente es la que se usa en el correo y en el detalle de la resolución.
+  - **Reemplazo**: reemplazar una carta ya subida exige motivo (texto libre) y no borra la anterior; crea una versión nueva y marca la anterior como no vigente.
+- **Criterio EARS (RF-17.4)**: **Cuando** la Secretaría suba una carta firmada, **el sistema debe** crear una versión nueva con fecha, usuario y archivo; **si** esa carta reemplaza a una vigente, **el sistema debe** exigir motivo y conservar la anterior como no vigente. **Cuando** el investigador consulte la resolución, **el sistema debe** devolver únicamente la versión vigente.
+
+- **RF-17.5 (V2 de subsanación desde el resultado del pleno)**: La creación de la versión mayor de subsanación (RF-14) se dispara **solo** cuando el resultado del pleno es `APROBADO_CON_CONDICION` y la Secretaría sube el Anexo 15. No se dispara desde el agregado de dictámenes ni desde `calls.service.ts`. En la misma transacción se congelan los requisitos aprobados, se crea la versión v2.0 y se asigna `plazo_condicion_dias` (30, con el cálculo actual de `protocol-deadline.service.ts`), como ya define RF-14.
+- **Criterio EARS (RF-17.5)**: **Cuando** la Secretaría suba el Anexo 15 de un protocolo con resultado `APROBADO_CON_CONDICION`, **el sistema debe** crear la versión v2.0 en la misma transacción y **no debe** crear la v2.0 si el resultado es `APROBADO_DEFINITIVO` o `NO_APROBADO`.
+
+- **RF-17.6 (B8 — el investigador nunca ve la identidad del evaluador)**: El investigador **nunca** recibe el nombre, el correo ni ningún dato de identidad del evaluador: ni en las respuestas de la API, ni en los documentos generados (Anexo 9 en PDF y DOCX), ni en los adjuntos ni en el cuerpo del correo de la resolución. El investigador sí ve el **perfil** y el **dictamen** de cada par.
+  - **Correo de la resolución**: hoy adjunta el informe individual de cada evaluador con su nombre (`resolutions.service.ts:103-130` y `:317-327`). Debe dejar de adjuntar los informes individuales; si se requiere evidencia, se adjunta solo la carta firmada.
+  - **Anexo 9 (PDF/DOCX)**: hoy el PDF imprime `revisores` (`pdf-generator.service.ts:795-797`, alimentado en `evaluations.service.ts:614`) y el DOCX imprime `revisorName` (`docx-generator.service.ts:469`, alimentado en `evaluations.service.ts:622`). Debe dejar de imprimir el nombre. Además, `evaluations.service.ts:585` usa el nombre del evaluador como respaldo de `investigatorName` cuando falta el investigador; ese respaldo también se retira.
+  - **API**: las respuestas que consume el investigador no incluyen nombre, correo ni `userId` del evaluador; exponen el perfil y el dictamen.
+  - **Verificado en `dev` (24/11/2026)**: el nombre del revisor sí aparece en el Anexo 9, en PDF (`pdf-generator.service.ts:795-797`) y en DOCX (`docx-generator.service.ts:469`), alimentado desde `evaluations.service.ts:585`, `:614` y `:622`. La afirmación de que el Anexo 9 «ya se genera sin el nombre» no se cumple en `dev`; la tarea TSK-015-N12 lo corrige.
+- **Criterio EARS (RF-17.6)**: **Cuando** el investigador consulte un protocolo, sus evaluaciones o su resolución, **el sistema no debe** devolver nombre, correo ni identificador del evaluador; **cuando** se genere el Anexo 9 o se envíe el correo de la resolución, **el sistema no debe** incluir el nombre del evaluador ni adjuntar sus informes individuales. **Mientras** el investigador consulte los pares, **el sistema debe** mostrar el perfil y el dictamen de cada uno.
+
+- **RF-17.7 (Permiso de creación y carga de resoluciones)**: Solo la `SECRETARIA` crea o sube resoluciones (`RESOLUCION_CREAR`). La `PRESIDENTE` **pierde** `RESOLUCION_CREAR` y ve la resolución en solo lectura (con `RESOLUCION_HISTORIAL`). La matriz fija de specs/001 se actualiza en consecuencia. `RESOLUCION_FIRMAR` sigue sin endpoint: la firma es externa.
+- **Criterio EARS (RF-17.7)**: **Cuando** la Presidenta intente crear o subir una resolución, **el sistema debe** responder `403`; **cuando** consulte la resolución, **el sistema debe** devolverla en solo lectura.
+
+> **Pendiente del frontend**: algunas pantallas rotulan la carta consolidada como «Anexo 12». Verificado en el PET (índice de anexos, pág. 84): el **Anexo 12 es la carta de exención**; ese rótulo es incorrecto y debe corregirse en el frontend. No hay cambio de backend asociado.
 
 ---
 
@@ -206,6 +261,7 @@ Especificar las reglas operativas, funcionales y de integridad para:
   | En evaluación · dictamen vencido | Reasignar |
   | Aprobado con condición | Enviar observaciones |
   | Aprobado · sin resolución | Emitir |
+  | Resolución pendiente de subir (pleno cerrado) | Subir resolución firmada |
   | Informe no entregado | Ver control |
 
   **RF-ALR.f.1 — Filas implementadas (decisión 04/11/2026, pendiente de validar con la Secretaría)**
@@ -217,6 +273,7 @@ Especificar las reglas operativas, funcionales y de integridad para:
   | a) Validar | La recepción de la versión activa está en `EN_REVISION_SECRETARIA` (15). | Recepción por validar | `VALIDAR` | Validar documentos | Sin plazo |
   | b) Asignar | Recepción `COMPLETO` (10), `protocolos.estado_id` NULL, `nivel_riesgo_confirmado = false`, `sometimiento_tiempos_aceptado = true` y ninguna asignación activa (`SUGERIDO` 5 o `ASIGNADO` 6) en la versión activa. Se excluyen los que esperan la aceptación de plazos del investigador. | Recepción completa · sin evaluadores | `ASIGNAR` | Asignar evaluadores | Sin plazo |
   | c) Reasignar | Hay una asignación `ASIGNADO` (6) de la versión activa que pertenece a una convocatoria con plazo (`convocatoria_protocolos` sin `eliminado_en`, convocatoria no `CANCELADA` y con `fecha_entrega_evaluacion`), y su plazo `COALESCE(fecha_limite_ts, fin del día de fecha_limite en America/Guayaquil)` es anterior a `NOW()` de la base. Las asignaciones sin convocatoria no cuentan. | En evaluación · dictamen vencido | `REASIGNAR` | Reasignar evaluador | El plazo vencido más antiguo del protocolo (una sola fila por protocolo) |
+  | d) Subir resolución firmada | El pleno cerró la sesión, el protocolo tiene `convocatoria_protocolos.dictamen_resultado` con resultado que exige carta (`APROBADO_DEFINITIVO`, `APROBADO_CON_CONDICION` o `NO_APROBADO`) y no tiene una versión vigente de la carta firmada en `resolucion.resoluciones`. Ver RF-17.3. | Resolución pendiente de subir | `SUBIR_RESOLUCION` | Subir resolución firmada | `convocatorias.fecha_reunion + 96 h corridas` |
 
   **RF-ALR.f.2 — Grupos de plazo (`estadoPlazo`)**: se calculan con `NOW()` de la base y la fecha de calendario de Ecuador (America/Guayaquil); cada fila está en un solo grupo.
   - `VENCIDO`: el instante del plazo ya pasó, aunque sea hoy.
@@ -225,7 +282,7 @@ Especificar las reglas operativas, funcionales y de integridad para:
   - `PROXIMO`: vence después de ese domingo.
   - `SIN_PLAZO`: la fila no tiene plazo (`fechaPlazo = null`).
 
-  Con las filas de RF-ALR.f.1, una fila con plazo siempre está vencida (fila c); `HOY`, `SEMANA` y `PROXIMO` quedan definidos para filas con plazo futuro que se añadan después.
+  Con las filas de RF-ALR.f.1, la fila c) siempre está vencida y la fila d) puede estar vencida, de hoy, de esta semana o próxima. `HOY`, `SEMANA` y `PROXIMO` quedan operativos con la fila d).
 
   **RF-ALR.f.3 — Orden y filtros**: orden `VENCIDO`, `HOY`, `SEMANA`, `PROXIMO`, `SIN_PLAZO`; dentro de cada grupo, por `fechaPlazo` ascendente y luego por `ceishCode`. El parámetro `filtro` acepta `todos` (por defecto, todas las filas), `vencidos`, `hoy` o `semana` (solo ese grupo); cualquier otro valor responde 400. `totales` no depende del filtro: `todos` cuenta todas las filas (incluye `PROXIMO` y `SIN_PLAZO`); `vencidos`, `hoy` y `semana`, las de cada grupo.
 
@@ -253,9 +310,9 @@ Especificar las reglas operativas, funcionales y de integridad para:
 
   `fechaReferencia` es la fecha de hoy en Ecuador (`YYYY-MM-DD`). `etapa` y `etapaOrden` salen de `resolveProtocolStage` (spec-001 RF-EST.1). La vista se resuelve con una sola consulta a la base.
 
-  **RF-ALR.f.6 — Filas no implementadas en esta versión (decisión 04/11/2026)**
-  - Aprobado con condición → Enviar observaciones: el estado `APROBADO_CON_CONDICION` (25) no se asigna; la carta se envía al crear la resolución y no se registra la notificación (`fecha_notificacion_investigador` no se escribe), así que no hay forma de saber qué falta enviar.
-  - Aprobado · sin resolución → Emitir: no puede ocurrir; el estado `APROBADO` (17) se fija en la misma transacción que crea la resolución.
+  **RF-ALR.f.6 — Filas no implementadas en esta versión (decisión 04/11/2026; revisada 24/11/2026)**
+  - Aprobado con condición → Enviar observaciones: el estado `APROBADO_CON_CONDICION` (25) no se asigna; con RF-17 el envío de observaciones se sustituye por la carta firmada (Anexo 15) y la fila d).
+  - ~~Aprobado · sin resolución → Emitir: no puede ocurrir; el estado `APROBADO` (17) se fija en la misma transacción que crea la resolución.~~ **Sustituido 24/11/2026**: con RF-17 el resultado del pleno queda registrado antes de subir la carta; la fila «Subir resolución firmada» (RF-ALR.f.8) cubre ese estado. El estado del protocolo se fija al subir la carta, no al registrar el resultado.
   - Informe no entregado → Ver control: no existe el módulo de seguimiento.
   - Pendientes de agendar: se dejan fuera por ahora.
 
@@ -285,6 +342,18 @@ Especificar las reglas operativas, funcionales y de integridad para:
   - `protocolosATratar` = `COUNT(DISTINCT protocolo_id)` de `convocatoria_protocolos` con `eliminado_en IS NULL` (0 si no hay).
   - `informesATratar` es siempre `null`: los informes de seguimiento (Sección III, RF-09.2) no se pueden agendar hasta RF-15 (`POST /evaluations/meetings` responde `SEGUIMIENTO_NO_DISPONIBLE`). `null` significa «no disponible», no «cero».
   - Se resuelve con una sola consulta SQL en el repositorio de meetings, sin relaciones nuevas entre entidades.
+
+  **RF-ALR.f.8 — Fila «Subir resolución firmada» (decisión 24/11/2026)**
+
+  Se añade a la consulta única de pendientes (RF-ALR.f.1) una cuarta fila:
+
+  - **Qué la activa**: el protocolo pertenece a una convocatoria cuya sesión ya se cerró (`convocatorias.estado = CONCLUIDA`, o el cierre que defina RF-09), tiene `convocatoria_protocolos.dictamen_resultado` en `APROBADO_DEFINITIVO`, `APROBADO_CON_CONDICION` o `NO_APROBADO`, y **no** tiene una versión vigente de la carta firmada en `resolucion.resoluciones`. `SUSPENDIDO` no es resultado del pleno y no activa la fila.
+  - **`estadoActual`**: «Resolución pendiente de subir».
+  - **`accion` / `accionTexto`**: `SUBIR_RESOLUCION` / «Subir resolución firmada».
+  - **Plazo**: `convocatorias.fecha_reunion + 96 h corridas` (`PLAZO_RESOLUCION_FIRMADA_HORAS` en `deadline-rules.ts`). Si `fecha_reunion` es null, la fila queda `SIN_PLAZO`.
+  - **Vencida**: si el instante del plazo ya pasó, `estadoPlazo = VENCIDO`; la subida **no** se bloquea.
+  - **Una sola fila por protocolo**: si el protocolo tiene varias versiones en la convocatoria, se toma la de la versión activa.
+  - **Al subir la carta**: la fila desaparece porque el protocolo deja de cumplir «no tiene versión vigente». El cambio de estado ocurre en la misma transacción (RF-17.4).
 
   **Pendientes (no implementados en esta versión)**
   - a) Cierre de reuniones: ningún flujo del `MeetingsController` pasa una convocatoria a `CONCLUIDA` (solo la ruta antigua de `calls`); en `ceish_test_db` hay 63 convocatorias `PROGRAMADA` con fecha pasada.
@@ -336,6 +405,10 @@ Especificar las reglas operativas, funcionales y de integridad para:
 - Informe de inicio: ¿desde la aprobación (Secretaría) o desde el inicio de la ejecución (PET y carta)?
 - Situación de un protocolo "No aprobado" (qué pasa después).
 - `submit-risk` (`peer-assignments/:id/submit-risk`) con convocatoria vigente: ¿el endpoint exige que el protocolo esté en convocatoria (`403` si no la hay)? — RF-12.7(4b) en specs/002, DECISIÓN POR DEFECTO 28/10/2026, pendiente de confirmar con Secretaría.
+- **RF-17 (resuelta 24/11/2026)**: `SUSPENDIDO` no es resultado del pleno; no hay carta de RF-17 (la suspensión es el Anexo 26, de seguimiento).
+- **RF-17 (resuelta 24/11/2026)**: el cambio de estado del protocolo ocurre al subir la carta firmada, no al registrar el resultado del pleno.
+- **RF-17 (resuelta 24/11/2026)**: Anexo 13 (observacional o de intervención) o Anexo 14 (ensayo clínico) según el tipo de estudio, según el PET («Dictamen de aprobación definitiva»).
+- **RF-17 (resuelta 24/11/2026)**: RF-16 queda reservado para renovaciones; RF-17 es la resolución del pleno.
 
 ---
 
@@ -353,3 +426,7 @@ Especificar las reglas operativas, funcionales y de integridad para:
 | 8 | ¿Cómo y cuándo pasa una convocatoria a `CONCLUIDA` (y a `EN_CURSO`)? | RF-09, RF-ALR.f.7 a) | PENDIENTE |
 | 9 | Informes de seguimiento en el orden del día: columnas del tipo de punto y del informe en `convocatoria_protocolos` (hoy `protocolo_id`, `version_id` y `fecha_plazo_normativo` son NOT NULL) | RF-09.2, RF-15, RF-ALR.f.7 b) | PENDIENTE |
 | 10 | ¿`protocolCount` de `GET /evaluations/meetings` debe contar protocolos distintos sin `eliminado_en`, como `protocolosATratar`? | RF-ALR.f.7 c) | PENDIENTE |
+| 11 | Si el pleno registra `SUSPENDIDO`, ¿se exige carta firmada o el protocolo queda detenido sin resolución? | RF-17.1, RF-17.2 | CERRADO 24/11/2026: `SUSPENDIDO` no es resultado del pleno (Anexo 26, seguimiento); sale de RF-17 |
+| 12 | ¿El cambio de estado del protocolo se aplica al registrar el resultado del pleno o al subir la carta firmada? | RF-17.1, RF-17.4 | CERRADO 24/11/2026: al subir la carta firmada |
+| 13 | ¿Cómo se decide Anexo 13 (observacional/intervención) frente a Anexo 14 (ensayo clínico)? ¿Por `tipos_estudio` o por el tipo de revisión? | RF-17.2 | CERRADO 24/11/2026: por tipo de estudio, según el PET («Dictamen de aprobación definitiva») |
+| 14 | ¿La numeración RF-16 queda reservada para renovaciones y RF-17 para la resolución del pleno? | RF-17 | CERRADO 24/11/2026: sí |
