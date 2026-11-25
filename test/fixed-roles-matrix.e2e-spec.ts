@@ -285,12 +285,13 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
   // ─── SESIÓN ─────────────────────────────────────────────────────────────────
   describe('SESIÓN: login devuelve roles y permisos vigentes', () => {
     // TSK-015-N08 (spec 001 v3.7.10): SECRETARIA recibe PLENO_RESULTADO_REGISTRAR → 37 permisos y 77 filas.
+    // TSK-015-N11 (spec 001 v3.7.10, RF-17.7): PRESIDENTE pierde RESOLUCION_CREAR → 22 permisos y 76 filas.
     it('SECRETARIA: token contiene exactamente 37 permisos', () => {
       expect(u.secretaria.loginBody?.user?.permissions).toHaveLength(37);
     });
 
-    it('PRESIDENTE: token contiene exactamente 23 permisos (TSK-002-N51)', () => {
-      expect(u.presidente.loginBody?.user?.permissions).toHaveLength(23);
+    it('PRESIDENTE: token contiene exactamente 22 permisos (TSK-002-N51, TSK-015-N11)', () => {
+      expect(u.presidente.loginBody?.user?.permissions).toHaveLength(22);
     });
 
     it('EVALUADOR: token contiene exactamente 9 permisos', () => {
@@ -301,7 +302,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(u.investigador.loginBody?.user?.permissions).toHaveLength(8);
     });
 
-    it('matriz fija: 77 filas vigentes en rol_permisos para los 4 roles (TSK-001.4, TSK-002-N51, TSK-015-N08)', async () => {
+    it('matriz fija: 76 filas vigentes en rol_permisos para los 4 roles (TSK-001.4, TSK-002-N51, TSK-015-N08, TSK-015-N11)', async () => {
       const [{ c }] = await ds.query(
         `SELECT count(*)::int AS c
          FROM catalogos.rol_permisos rp
@@ -309,7 +310,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
          JOIN catalogos.permisos p ON p.id = rp.permiso_id AND p.eliminado_en IS NULL
          WHERE r.codigo IN ('SECRETARIA', 'PRESIDENTE', 'EVALUADOR', 'INVESTIGADOR')`,
       );
-      expect(c).toBe(77);
+      expect(c).toBe(76);
     });
 
     it('SECRETARIA y PRESIDENTE: token incluye PROTOCOLOS_LISTAR; EVALUADOR e INVESTIGADOR no (TSK-001.4)', () => {
@@ -371,7 +372,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
   });
 
   // ─── PRESIDENTE ──────────────────────────────────────────────────────────────
-  describe('PRESIDENTE (23 permisos)', () => {
+  describe('PRESIDENTE (22 permisos)', () => {
     it('GET /auth/admin-only → 200 (tiene rol PRESIDENTE)', async () => {
       const res = await get('/auth/admin-only', u.presidente.token);
       expect(res.status).toBe(200);

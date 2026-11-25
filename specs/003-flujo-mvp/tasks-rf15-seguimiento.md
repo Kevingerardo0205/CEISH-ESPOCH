@@ -436,15 +436,25 @@
   4. Una sola fila por protocolo.
   5. La fila desaparece al subir la carta (TSK-015-N09).
 
-### Task TSK-015-N11 - [ ] PENDIENTE
+### Task TSK-015-N11 - [x] COMPLETADO (rama feat/tsk-015-n11-presidente-sin-resolucion-crear, commit 9613c07)
 - **ID Único**: `TSK-015-N11`
-- **Requisito Relacionado**: `RF-17.7` (spec-003 v1.6.1), `HU-001`
+- **Resultados** (25/11/2026, `ceish_test_db`):
+  - Migración `2000000000002-QuitarResolucionCrearPresidente` aplicada: run → revert → run. Estado final: PRESIDENTE 22 permisos, matriz 76 filas, SECRETARIA sin cambios (37).
+  - `npx tsc --noEmit`: sin errores. `npm test`: 71 suites, 728 pruebas, todas en verde.
+  - E2E `--runInBand`: `fixed-roles-matrix` (PRESIDENTE 23 → 22; matriz 77 → 76), `resolutions-permisos` (nueva, 3 pruebas) y `evaluations-contract`: 116 pruebas en verde.
+  - Mutación (a), quitar el DELETE de la migración: fallan 3 pruebas (403 de PRESIDENTE, 22 permisos y 76 filas). Restaurada con hash verificado.
+  - Mutación (b), quitar `@Permissions` de `POST /resolutions`: falla la prueba 403 de PRESIDENTE. Restaurada con hash verificado.
+  - `resolucion.resoluciones` sin cambios (7 filas antes y después).
+  - ESLint sobre los archivos tocados: sin errores. Prettier: `test/fixed-roles-matrix.e2e-spec.ts` ya fallaba antes de esta tarea (finales de línea CRLF en `HEAD`); no se reformatea el archivo entero para no ensuciar el diff.
+  - **Caché**: `PermissionsGuard` cachea permisos 5 min. La API se reinicia tras aplicar la migración en cada entorno.
+  - **Frontend**: no se toca. Ver TSK-015-N21 (ajuste de pantallas que todavía muestran la acción a PRESIDENTE).
+- **Requisito Relacionado**: `RF-17.7` (spec-003 v1.6.4), `HU-001`
 - **Criterio EARS**: `EARS 5` (RF-17.7)
 - **Acción**: `CREAR` (migración)
 - **Archivos Afectados**:
   - `src/migrations/<timestamp>-QuitarResolucionCrearPresidente.ts` — CREAR: quita la asignación de `RESOLUCION_CREAR` a PRESIDENTE sembrada en `src/migrations/1880000000000-FixedRolesMatrix.ts:133`. Solo cambio de datos; sin cambios de esquema.
 - **Dependencias**: Ninguna
-- **Descripción**: Solo `SECRETARIA` crea o sube resoluciones. `PRESIDENTE` conserva `RESOLUCION_HISTORIAL` (lectura). La matriz fija de specs/001 ya está actualizada (v3.7.9).
+- **Descripción**: Solo `SECRETARIA` crea o sube resoluciones. `PRESIDENTE` conserva `RESOLUCION_HISTORIAL` (lectura). La matriz fija de specs/001 ya está actualizada (v3.7.10).
 - **Tests**: E2E: PRESIDENTE → `403` en `POST /resolutions`; SECRETARIA → no cambia; PRESIDENTE → `200` en lectura.
 - **Criterio de aceptación**:
   1. `POST /resolutions` responde `403` para PRESIDENTE.
@@ -594,6 +604,17 @@
 - **Criterio de aceptación**:
   1. EX → `409` con mensaje en español.
   2. Los demás estudios no cambian.
+
+### Task TSK-015-N21 - [ ] PENDIENTE (frontend, repo aparte)
+- **ID Único**: `TSK-015-N21`
+- **Requisito Relacionado**: `RF-17.7` (spec-003 v1.6.4), tras TSK-015-N11.
+- **Acción**: `MODIFICAR` en `D:\Frontend-CEISH\ceish-espoch-frontend\src` (fuera de este repo).
+- **Descripción**: PRESIDENTE ya no puede crear resoluciones (403 desde N11). Ajustar lo que todavía lo ofrece:
+  - `src/features/resolutions/routes.ts:26`: la ruta `generator` acepta `['SECRETARIA', 'PRESIDENTE']`; dejarla solo para SECRETARIA o mostrar el estado de solo lectura.
+  - `src/features/resolutions/presentation/pages/resolution-generator/resolution-generator.page.ts:75`: botón «Emitir Dictamen» sin control de permiso.
+  - `src/features/evaluations/presentation/pages/evaluation-consolidation/evaluation-consolidation.page.ts:340`: botón «Firmar y Notificar» sin control de permiso.
+  - `src/features/evaluations/routes.ts:99` y `:108`: rutas de consolidación con `RESOLUCION_CREAR` en `any` (PRESIDENTE entra por `EVALUACION_INFORMES`; revisar si se quiere solo lectura).
+- **Criterio de aceptación**: PRESIDENTE no ve acciones de creación de resoluciones y ve la resolución en solo lectura (`RESOLUCION_HISTORIAL`).
 
 ## Orden de ejecución (decisión 25/11/2026)
 
