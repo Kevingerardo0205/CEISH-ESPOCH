@@ -284,8 +284,9 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
 
   // ─── SESIÓN ─────────────────────────────────────────────────────────────────
   describe('SESIÓN: login devuelve roles y permisos vigentes', () => {
-    it('SECRETARIA: token contiene exactamente 36 permisos', () => {
-      expect(u.secretaria.loginBody?.user?.permissions).toHaveLength(36);
+    // TSK-015-N08 (spec 001 v3.7.10): SECRETARIA recibe PLENO_RESULTADO_REGISTRAR → 37 permisos y 77 filas.
+    it('SECRETARIA: token contiene exactamente 37 permisos', () => {
+      expect(u.secretaria.loginBody?.user?.permissions).toHaveLength(37);
     });
 
     it('PRESIDENTE: token contiene exactamente 23 permisos (TSK-002-N51)', () => {
@@ -300,7 +301,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
       expect(u.investigador.loginBody?.user?.permissions).toHaveLength(8);
     });
 
-    it('matriz fija: 76 filas vigentes en rol_permisos para los 4 roles (TSK-001.4, TSK-002-N51)', async () => {
+    it('matriz fija: 77 filas vigentes en rol_permisos para los 4 roles (TSK-001.4, TSK-002-N51, TSK-015-N08)', async () => {
       const [{ c }] = await ds.query(
         `SELECT count(*)::int AS c
          FROM catalogos.rol_permisos rp
@@ -308,7 +309,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
          JOIN catalogos.permisos p ON p.id = rp.permiso_id AND p.eliminado_en IS NULL
          WHERE r.codigo IN ('SECRETARIA', 'PRESIDENTE', 'EVALUADOR', 'INVESTIGADOR')`,
       );
-      expect(c).toBe(76);
+      expect(c).toBe(77);
     });
 
     it('SECRETARIA y PRESIDENTE: token incluye PROTOCOLOS_LISTAR; EVALUADOR e INVESTIGADOR no (TSK-001.4)', () => {
@@ -348,7 +349,7 @@ describe('TSK-001.1a — Matriz roles fija: guards reales (ceish_test_db)', () =
   });
 
   // ─── SECRETARIA ─────────────────────────────────────────────────────────────
-  describe('SECRETARIA (36 permisos)', () => {
+  describe('SECRETARIA (37 permisos)', () => {
     it('GET /auth/users → 200 (tiene USUARIOS_VER)', async () => {
       const res = await get('/auth/users', u.secretaria.token);
       expect(res.status).toBe(200);
