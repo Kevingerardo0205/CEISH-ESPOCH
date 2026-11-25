@@ -537,9 +537,12 @@ describe('TSK-002-N52: sin guard de convocatoria en acciones de evaluador (derog
         ...sampleAssignment,
       });
 
-      await expect(service.getEvaluationDocumentUrl(1001)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.getEvaluationDocumentUrl(1001, {
+          id: 1,
+          permissions: ['EVALUACION_INFORMES'],
+        }),
+      ).rejects.toThrow(NotFoundException);
       expect(
         mockEvalRepo.filterVersionIdsInActiveConvocatoria,
       ).not.toHaveBeenCalled();
@@ -554,9 +557,12 @@ describe('TSK-002-N52: sin guard de convocatoria en acciones de evaluador (derog
         ...sampleAssignment,
       });
 
-      await expect(service.getEvaluationDocxUrl(1001)).rejects.toThrow(
-        NotFoundException,
-      );
+      await expect(
+        service.getEvaluationDocxUrl(1001, {
+          id: 1,
+          permissions: ['EVALUACION_INFORMES'],
+        }),
+      ).rejects.toThrow(NotFoundException);
       expect(
         mockEvalRepo.filterVersionIdsInActiveConvocatoria,
       ).not.toHaveBeenCalled();
