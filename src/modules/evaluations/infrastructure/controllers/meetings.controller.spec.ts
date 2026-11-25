@@ -8,6 +8,7 @@ import type { Response } from 'express';
 import { MeetingsController } from './meetings.controller';
 import { CreateMeetingUseCase } from '../../application/services/create-meeting.use-case';
 import { CalculateMeetingDatesService } from '../../application/services/calculate-meeting-dates.service';
+import { RegistrarResultadoPlenoUseCase } from '../../application/use-cases/registrar-resultado-pleno.use-case';
 import type { CreateMeetingDto } from '../../application/dtos/create-meeting.dto';
 import type { CalculateEvalDateDto } from '../../application/dtos/calculate-eval-date.dto';
 import { SessionType } from '../database/entities/convocatoria.orm-entity';
@@ -61,6 +62,8 @@ describe('MeetingsController (T017 / RF-09)', () => {
       updatePlace: jest.fn(),
       deletePlace: jest.fn(),
       findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),
+      findResultadoPlenoContext: jest.fn(),
+      registrarResultadoPleno: jest.fn(),
     };
 
     pdfGeneratorMock = {
@@ -73,6 +76,10 @@ describe('MeetingsController (T017 / RF-09)', () => {
         {
           provide: CreateMeetingUseCase,
           useValue: createMeetingUseCaseMock,
+        },
+        {
+          provide: RegistrarResultadoPlenoUseCase,
+          useValue: { execute: jest.fn() },
         },
         {
           provide: CalculateMeetingDatesService,
@@ -416,6 +423,23 @@ describe('MeetingsController (T017 / RF-09)', () => {
       ]);
       expect(Reflect.getMetadata(PERMISSIONS_KEY, handler)).toEqual([
         Permission.RESOLUCION_CONVOCATORIAS,
+      ]);
+    });
+  });
+
+  describe('PATCH /meetings/:id/protocolos/:convocatoriaProtocoloId/resultado (TSK-015-N08, RF-17.1)', () => {
+    // Mutación "quitar @Permissions" o "@Roles": SECRETARIA tiene el permiso en la matriz,
+    // así que el e2e no lo distingue; esta prueba sí.
+    it('el handler lleva PermissionsGuard, rol SECRETARIA solo y PLENO_RESULTADO_REGISTRAR', () => {
+      const handler = MeetingsController.prototype.registrarResultadoPleno;
+      expect(Reflect.getMetadata(GUARDS_METADATA, handler)).toEqual([
+        PermissionsGuard,
+      ]);
+      expect(Reflect.getMetadata(ROLES_KEY, handler)).toEqual([
+        RoleCode.SECRETARIA,
+      ]);
+      expect(Reflect.getMetadata(PERMISSIONS_KEY, handler)).toEqual([
+        Permission.PLENO_RESULTADO_REGISTRAR,
       ]);
     });
   });

@@ -50,6 +50,8 @@ describe('CreateMeetingUseCase (T008 / TSK-009-006)', () => {
       updatePlace: jest.fn(),
       deletePlace: jest.fn(),
       findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),
+      findResultadoPlenoContext: jest.fn(),
+      registrarResultadoPleno: jest.fn(),
     };
     pdfGeneratorMock = {
       generateAgendaPdf: jest.fn().mockResolvedValue({

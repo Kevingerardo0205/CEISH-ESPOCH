@@ -54,6 +54,23 @@ export class ConvocatoriaProtocoloOrmEntity {
   @Column({ name: 'dictamen_resultado', type: 'varchar', nullable: true })
   dictamenResultado?: string;
 
+  /** Valor vigente del resultado del pleno (RF-17.1, TSK-015-N08). Escrito junto con el historial. */
+  @Column({ name: 'dictamen_motivo', type: 'text', nullable: true })
+  dictamenMotivo?: string | null;
+
+  @Column({ name: 'dictamen_observaciones', type: 'text', nullable: true })
+  dictamenObservaciones?: string | null;
+
+  @Column({ name: 'dictamen_registrado_por', type: 'integer', nullable: true })
+  dictamenRegistradoPor?: number | null;
+
+  @Column({
+    name: 'dictamen_registrado_en',
+    type: 'timestamptz',
+    nullable: true,
+  })
+  dictamenRegistradoEn?: Date | null;
+
   @CreateDateColumn({ name: 'created_at', type: 'timestamptz' })
   createdAt: Date;
 

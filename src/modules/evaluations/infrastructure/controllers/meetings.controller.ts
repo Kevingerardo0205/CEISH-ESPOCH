@@ -15,8 +15,9 @@ import {
   Res,
   StreamableFile,
   ParseUUIDPipe,
+  Req,
 } from '@nestjs/common';
-import type { Response } from 'express';
+import type { Request, Response } from 'express';
 import {
   ApiTags,
   ApiBearerAuth,
@@ -63,6 +64,9 @@ import { Permissions } from '../../../../shared/decorators/permissions.decorator
 import { Permission } from '../../../../shared/enums/permission.enum';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
+import { JwtPayload } from '../../../auth/infrastructure/strategies/jwt.strategy';
+import { RegistrarResultadoPlenoUseCase } from '../../application/use-cases/registrar-resultado-pleno.use-case';
+import { RegistrarResultadoPlenoDto } from '../../application/dtos/registrar-resultado-pleno.dto';
 import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-repository.port';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
 
@@ -78,6 +82,7 @@ export class MeetingsController {
     private readonly meetingRepository: IMeetingRepositoryPort,
     @Inject('IMeetingPdfGeneratorPort')
     private readonly pdfGenerator: IMeetingPdfGeneratorPort,
+    private readonly registrarResultadoPlenoUseCase: RegistrarResultadoPlenoUseCase,
   ) {}
 
   // ==========================================
@@ -156,6 +161,57 @@ export class MeetingsController {
       statusCode: HttpStatus.CREATED,
       message: 'Lugar creado exitosamente',
       data: toPlaceDto(result),
+    };
+  }
+
+  /**
+   * TSK-015-N08 (spec-003 RF-17.1 v1.6.2): registra o corrige el resultado del pleno de un
+   * punto de la convocatoria. Solo SECRETARIA (permiso PLENO_RESULTADO_REGISTRAR).
+   */
+  @Patch(':id/protocolos/:convocatoriaProtocoloId/resultado')
+  @UseGuards(PermissionsGuard)
+  @Roles(RoleCode.SECRETARIA)
+  @Permissions(Permission.PLENO_RESULTADO_REGISTRAR)
+  @Audit('PLENO_RESULTADO_REGISTRADO')
+  @ApiOperation({
+    summary:
+      'Registrar o corregir el resultado del pleno de un protocolo (SECRETARIA)',
+  })
+  @ApiOkResponse({ description: 'Resultado registrado en el historial.' })
+  async registrarResultadoPleno(
+    @Param('id', ParseUUIDPipe) id: string,
+    @Param('convocatoriaProtocoloId', ParseUUIDPipe)
+    convocatoriaProtocoloId: string,
+    @Body() dto: RegistrarResultadoPlenoDto,
+    @Req() req: Request & { user: JwtPayload },
+  ): Promise<{
+    statusCode: number;
+    message: string;
+    data: {
+      convocatoriaProtocoloId: string;
+      resultado: string;
+      motivo: string | null;
+      observaciones: string | null;
+      motivoCorreccion: string | null;
+    };
+  }> {
+    const resultado = await this.registrarResultadoPlenoUseCase.execute({
+      convocatoriaId: id,
+      convocatoriaProtocoloId,
+      dto,
+      registradoPor: req.user.id,
+      now: new Date(),
+    });
+    return {
+      statusCode: HttpStatus.OK,
+      message: 'Resultado del pleno registrado exitosamente',
+      data: {
+        convocatoriaProtocoloId: resultado.convocatoriaProtocoloId,
+        resultado: resultado.resultado,
+        motivo: resultado.motivo,
+        observaciones: resultado.observaciones,
+        motivoCorreccion: resultado.motivoCorreccion,
+      },
     };
   }
 
