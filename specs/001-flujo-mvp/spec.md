@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/001-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 3.7.8
+**Versión:** 3.7.9
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v3.3.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v3.3.1: RF-16.1 avisos de renovación actualizados a 90, 60 y 15 días; parámetro `alerta_renovacion_offsets_dias`  
@@ -25,7 +25,8 @@
 **Historial:** 2026-11-16 — v3.7.5: decisiones de la usuaria del 15/11/2026 y 16/11/2026 (TSK-001.18). Pendiente 18 cerrado: en la pantalla de documentos del investigador, un botón «Descargar formato» por requisito que tenga plantilla; sin ZIP para el investigador (un ZIP, si se hace, queda para Configuración). RF-18.1 reescrito: relación requisito → plantilla con `catalogos.tipos_documento.codigo_plantilla`; el checklist devuelve `templateCode` por requisito (no una URL) y `GET /documents/templates/:code/download` responde `{ downloadUrl }` sin redirección
 **Historial:** 2026-11-17 — v3.7.6: hallazgo de seguridad del 14/11/2026 y decisiones de la usuaria del 17/11/2026 (TSK-001.22). RF-02.1: `principalInvestigatorId` deja de ser obligatorio. RF-02.9 nuevo: en `POST /protocols` el investigador principal sale siempre del usuario autenticado (JWT); `principalInvestigatorId` queda opcional y obsoleto (transitorio: distinto del usuario autenticado → 400 en español; igual → se ignora; se retira del todo en TSK-001.24); solo el rol INVESTIGADOR crea protocolos (403); `PROTOCOL_CREATED` con `usuario_id` = investigador principal
 **Historial:** 2026-11-17 — v3.7.7: hallazgo de seguridad 6b (TSK-F02-9 del frontend) y decisiones de la usuaria del 17/11/2026 (TSK-001.26). RF-02.10 nuevo: `GET /protocols/:id` solo lo leen el investigador principal, quien tiene `PROTOCOLOS_LISTAR` (SECRETARIA y PRESIDENTE; un borrador no) y el evaluador con una asignación en estado 5, 6 o 7 en alguna versión; los demás reciben 404 «Protocolo no encontrado.». Límite actual del sistema: la plataforma no admite coinvestigadores por ahora (quien figura como coinvestigador recibe 404). `PROTOCOLOS_LISTAR` se lee del token (desfase aceptado de hasta 15 minutos)
-**Historial:** 2026-11-18 — v3.7.8: decisiones de la usuaria del 18/11/2026 (TSK-001.27). RF-EST.2: `GET /protocols/:id` agrega `etapa`, `etapaOrden`, `principalInvestigator { id, fullName }` y `riskLevelCode`, y llena `studyType`, `studyTypeCode` y `riskLevel` (texto, null si no está fijado); no quita ni renombra ninguna clave. `riskLevelCode` también llega a `GET /protocols`, `mis-protocolos` y `mis-subsanaciones`. El acceso de RF-02.10 no cambia
+**Historial:** 2026-11-18 — v3.7.8: decisiones de la usuaria del 18/11/2026 (TSK-001.27). RF-EST.2: `GET /protocols/:id` agrega `etapa`, `etapaOrden`, `principalInvestigator { id, fullName }` y `riskLevelCode`, y llena `studyType`, `studyTypeCode` y `riskLevel` (texto, null si no está fijado); no quita ni renombra ninguna clave. `riskLevelCode` también llega a `GET /protocols`, `mis-protocolos` y `mis-subsanaciones`. El acceso de RF-02.10 no cambia  
+**Historial:** 2026-11-24 — v3.7.9: matriz de permisos de resoluciones: `RESOLUCION_CREAR` solo para SECRETARIA (la PRESIDENTE pierde la creación y ve la resolución en solo lectura con `RESOLUCION_HISTORIAL`); `RESOLUCION_FIRMAR` sin endpoint (firma externa). Ver RF-17.7 de specs/003 (decisión 24/11/2026)
 
 ---
 
@@ -118,7 +119,8 @@ La matriz se siembra por migración y **no se edita desde la aplicación**. Los 
 | `EVALUACION_INFORMES` | ✓ | ✓ | — | — |
 | `EVALUACION_RIESGO`, `EVALUACION_EXPEDITA`, `EVALUACION_PLENO` | ✓ | ✓ | ✓ | — |
 | `EVALUACION_SUBSANACIONES` | ✓ | — | — | ✓ |
-| `RESOLUCION_CREAR`, `RESOLUCION_NOTIF`, `RESOLUCION_HISTORIAL`, `RESOLUCION_CONVOCATORIAS` | ✓ | ✓ | — | — |
+| `RESOLUCION_CREAR` | ✓ | — | — | — |
+| `RESOLUCION_NOTIF`, `RESOLUCION_HISTORIAL`, `RESOLUCION_CONVOCATORIAS` | ✓ | ✓ | — | — |
 | `RESOLUCION_FIRMAR` | — | ✓ | — | — |
 | `SEGUIMIENTO_AVANCE`, `SEGUIMIENTO_FINAL`, `SEGUIMIENTO_EVENTOS`, `SEGUIMIENTO_RENOVACIONES` | ✓ | ✓ | ✓ | ✓ |
 | `SEGUIMIENTO_SUSPENSION` | ✓ | ✓ | — | — |
@@ -129,7 +131,8 @@ La matriz se siembra por migración y **no se edita desde la aplicación**. Los 
 > - En `EVALUADOR` e `INVESTIGADOR`, el alcance se limita a sus propios recursos: los protocolos asignados al evaluador y los protocolos propios del investigador. Eso lo valida el servicio, no la matriz.
 > - `RESOLUCION_URGENCIAS`, `REPORTES_KPIS` y `REPORTES_TIEMPOS` quedan **PENDIENTES**, según los reportes que confirme el comité (RF-12.8 en specs/002).
 > - El Presidente consulta la consolidación de dictámenes (solo lectura) para preparar el pleno. — decisión 28/10/2026
-> - No existe endpoint de firma: la Secretaría emite la resolución con RESOLUCION_CREAR. RESOLUCION_FIRMAR queda solo para PRESIDENTE. — decisión 28/10/2026
+> - No existe endpoint de firma: la Secretaría crea y sube la carta firmada con RESOLUCION_CREAR. RESOLUCION_FIRMAR queda solo para PRESIDENTE, sin endpoint (la firma es externa). — decisión 28/10/2026; actualizado 24/11/2026
+> - **Solo la Secretaría crea o sube resoluciones** (RF-17.7 de specs/003). La Presidenta pierde `RESOLUCION_CREAR` y ve la resolución en solo lectura con `RESOLUCION_HISTORIAL`. — decisión 24/11/2026
 > - La validación final de la matriz con la Secretaría queda **PENDIENTE**.
 
 **d) Asignación de roles (decisión 28/10/2026)**

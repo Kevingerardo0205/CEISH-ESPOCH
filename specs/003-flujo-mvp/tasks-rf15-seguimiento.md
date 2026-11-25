@@ -331,3 +331,166 @@
     | M5 DISTINCT | `COUNT(cp.protocolo_id)` | respuesta › protocolosATratar cuenta protocolos distintos y no las filas con eliminado_en | 1 failed, 16 passed |
     | M6 `eliminado_en` | sin `AND cp.eliminado_en IS NULL` | respuesta › protocolosATratar cuenta protocolos distintos y no las filas con eliminado_en | 1 failed, 16 passed |
     | M7 SWC | `convocatoria?: ConvocatoriaOrmEntity` sin `Relation<>` en `convocatoria-protocolo.orm-entity.ts` | Arranque compilado con SWC › cada entidad se carga como primer módulo sin ReferenceError ni otro error (`convocatoria.orm-entity.js`, `minutes.entity.orm.js`, `session.entity.orm.js`: `ReferenceError: Cannot access 'ConvocatoriaOrmEntity' before initialization`) | 1 failed, 1 passed |
+
+### Task TSK-015-N08 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N08`
+- **Requisito Relacionado**: `RF-17.1` (spec-003 v1.6.1), `RF-ALR.f.8`
+- **Criterio EARS**: `EARS 5` (RF-17.1)
+- **Acción**: `MODIFICAR` y `CREAR` (endpoint nuevo: requiere confirmar ruta y payload antes de implementar, AGENTS.md)
+- **Archivos Afectados**:
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` — endpoint nuevo para registrar el resultado por protocolo (ruta y payload propuestos, pendientes de confirmar)
+  - `src/modules/evaluations/domain/ports/meeting-repository.port.ts` — método nuevo `registrarResultadosPleno`
+  - `src/modules/evaluations/infrastructure/repositories/meeting-typeorm.repository.ts` — escribe `convocatoria_protocolos.dictamen_resultado` (no existe puerto de repositorio propio para `convocatoria_protocolo`; la entidad está en `convocatoria-protocolo.orm-entity.ts:54-55`)
+- **Dependencias**: Ninguna
+- **Descripción**: Registrar, por cada protocolo de la Sección II de la sesión, el resultado del pleno (`APROBADO_DEFINITIVO`, `APROBADO_CON_CONDICION` o `NO_APROBADO`) en `dictamen_resultado`. `NO_APROBADO` exige motivo. `SUSPENDIDO` no es resultado del pleno. Esta tarea **no** cambia el estado del protocolo: el estado se aplica al subir la carta firmada (TSK-015-N09).
+- **Paso 0**: resuelve la pregunta 1 (ruta y payload del endpoint) antes de implementar.
+- **Riesgo conocido**: la comparación legacy de `calls.service.ts:483-484` (`'APROBADO_CON_CONDICIONES'` o `'25'`) no reconoce el valor nuevo `APROBADO_CON_CONDICION`. No se toca (AGENTS.md); queda documentada aquí.
+- **Tests**: unitarias del caso de uso; E2E de los criterios de aceptación.
+- **Criterio de aceptación**:
+  1. Cerrar la sesión sin resultado de algún protocolo de la Sección II responde `400` con mensaje en español.
+  2. Un valor fuera de los tres resultados responde `400`.
+  3. `NO_APROBADO` sin motivo responde `400`.
+  4. Registrar el resultado no modifica `protocolos.estado_id`.
+  5. Solo `SECRETARIA` puede registrar el resultado.
+
+### Task TSK-015-N09 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N09`
+- **Requisito Relacionado**: `RF-17.1`, `RF-17.2`, `RF-17.4` (spec-003 v1.6.1)
+- **Criterio EARS**: `EARS 5` (RF-17.2, RF-17.4)
+- **Acción**: `CREAR` (migración) y `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/migrations/<timestamp>-VersionesCartaResolucion.ts` — CREAR: columnas aditivas para la versión de la carta (`numero_version`, `vigente`, `subido_por`, `fecha_subida`, `motivo_reemplazo`). Requiere consulta previa (AGENTS.md), ver preguntas abiertas.
+  - `src/modules/resolutions/infrastructure/database/resolution.entity.orm.ts` — MODIFICAR: columnas nuevas
+  - `src/modules/resolutions/infrastructure/controllers/resolutions.controller.ts:20` — MODIFICAR: la interfaz `CreateResolutionPayload` pasa a validar que el anexo corresponda al resultado (RF-17.2)
+  - `src/modules/resolutions/application/services/resolutions.service.ts:50-60` — `determineResolutionType` deja de decidir (solo referencia)
+  - `src/modules/resolutions/application/services/resolutions.service.ts:139-209` — tipo y estado salen de `dictamen_resultado`, y se aplican al subir la carta, en la misma transacción
+- **Dependencias**: TSK-015-N08, TSK-015-N14 (anexos sembrados para validar el anexo subido)
+- **Descripción**: Cada carta firmada se guarda como versión nueva. `numero_version` es un entero (1, 2, 3…) independiente por protocolo y convocatoria, distinto de la versión del protocolo de RF-14. Reemplazar una carta exige `motivo_reemplazo` y deja la anterior como no vigente. El investigador ve solo la versión vigente.
+- **Paso 0**: resuelve la pregunta 3 (`numero_version` como columna o tabla propia) antes de escribir la migración.
+- **Estado del protocolo**: `APROBADO` → 17; `APROBADO_CON_CONDICION` → **19** (`REQUIERE_SUBSANACION_VERSION`); `NO_APROBADO` → 18. El estado 25 queda sin uso en este flujo.
+- **Tests**: unitarias de la validación anexo ↔ resultado; E2E de subida, reemplazo y lectura por investigador.
+- **Criterio de aceptación**:
+  1. Subir un anexo incompatible con el resultado responde `400` en español.
+  2. Una segunda subida crea la versión 2 y deja la 1 como no vigente.
+  3. Reemplazar sin motivo responde `400`.
+  4. El estado del protocolo cambia en la misma transacción que la subida.
+  5. El investigador recibe solo la versión vigente.
+  6. Esta tarea no crea la v2.0 de RF-14 (eso es TSK-015-N13).
+
+### Task TSK-015-N10 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N10`
+- **Requisito Relacionado**: `RF-17.3` (spec-003 v1.6.1), `RF-ALR.f.8`
+- **Criterio EARS**: `EARS 5` (RF-17.3)
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/modules/secretaria/domain/pending-item.ts` — añadir `SUBIR_RESOLUCION` al enum `PendingAction`
+  - `src/modules/secretaria/application/services/pending-items.service.ts` — texto «Subir resolución firmada» y grupos de plazo
+  - `src/modules/secretaria/infrastructure/repositories/pending-items.typeorm.repository.ts:140-142` — cuarta fila en la consulta única
+  - `src/shared/deadlines/deadline-rules.ts` — usa `PLAZO_RESOLUCION_FIRMADA_HORAS` (TSK-015-N15)
+- **Dependencias**: TSK-015-N08, TSK-015-N15
+- **Descripción**: Fila d) de RF-ALR.f.1 y RF-ALR.f.8: el protocolo tiene resultado del pleno y no tiene versión vigente de la carta. Plazo `convocatorias.fecha_reunion + 96 h corridas`; si `fecha_reunion` es null, `SIN_PLAZO`. Si vence, `estadoPlazo = VENCIDO` sin bloquear la subida.
+- **Tests**: unitarias de la clasificación de grupos; E2E de `GET /secretaria/pendientes`.
+- **Criterio de aceptación**:
+  1. La fila aparece con `accion = SUBIR_RESOLUCION` y `accionTexto = «Subir resolución firmada»`.
+  2. `fechaPlazo = fecha_reunion + 96 h`.
+  3. Con plazo pasado, `estadoPlazo = VENCIDO`.
+  4. Una sola fila por protocolo.
+  5. La fila desaparece al subir la carta (TSK-015-N09).
+
+### Task TSK-015-N11 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N11`
+- **Requisito Relacionado**: `RF-17.7` (spec-003 v1.6.1), `HU-001`
+- **Criterio EARS**: `EARS 5` (RF-17.7)
+- **Acción**: `CREAR` (migración)
+- **Archivos Afectados**:
+  - `src/migrations/<timestamp>-QuitarResolucionCrearPresidente.ts` — CREAR: quita la asignación de `RESOLUCION_CREAR` a PRESIDENTE sembrada en `src/migrations/1880000000000-FixedRolesMatrix.ts:133`. Solo cambio de datos; sin cambios de esquema.
+- **Dependencias**: Ninguna
+- **Descripción**: Solo `SECRETARIA` crea o sube resoluciones. `PRESIDENTE` conserva `RESOLUCION_HISTORIAL` (lectura). La matriz fija de specs/001 ya está actualizada (v3.7.9).
+- **Tests**: E2E: PRESIDENTE → `403` en `POST /resolutions`; SECRETARIA → no cambia; PRESIDENTE → `200` en lectura.
+- **Criterio de aceptación**:
+  1. `POST /resolutions` responde `403` para PRESIDENTE.
+  2. `POST /resolutions` sigue permitido para SECRETARIA.
+  3. La lectura de resoluciones sigue disponible para PRESIDENTE.
+
+### Task TSK-015-N12 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N12`
+- **Requisito Relacionado**: `RF-17.6` (spec-003 v1.6.1), `RF-17.1`
+- **Criterio EARS**: `EARS 5` (RF-17.6)
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/shared/utils/pdf-generator.service.ts:795-797` — MODIFICAR: dejar de imprimir `revisores` en el Anexo 9 PDF
+  - `src/shared/utils/docx-generator.service.ts:469` — MODIFICAR: dejar de imprimir `revisorName` en el Anexo 9 DOCX
+  - `src/modules/evaluations/application/services/evaluations.service.ts:585` — MODIFICAR: quitar el respaldo `evaluator?.fullName` de `investigatorName`
+  - `src/modules/evaluations/application/services/evaluations.service.ts:614` y `:622` — MODIFICAR: dejar de pasar el nombre del evaluador
+  - `src/modules/resolutions/application/services/resolutions.service.ts:103-130` — MODIFICAR: dejar de adjuntar los informes individuales
+  - `src/modules/resolutions/application/services/resolutions.service.ts:317-327` — MODIFICAR: el correo lleva solo la carta firmada
+  - Respuestas API del investigador: archivos por confirmar tras auditoría (ver preguntas abiertas). Si la lista crece, detenerse y reportar (AGENTS.md)
+- **Dependencias**: TSK-015-N08, TSK-015-N11
+- **Descripción**: El investigador nunca recibe nombre, correo ni identificador del evaluador, ni en la API, ni en el Anexo 9, ni en adjuntos ni en el correo. Ve el perfil y el dictamen de cada par.
+- **Paso 0**: resuelve la pregunta 6 (lista de endpoints del investigador a auditar) antes de fijar los archivos de la API.
+- **Tests**: unitarias de la generación del Anexo 9 (texto sin nombre); E2E del correo (sin adjuntos de informe) y de las respuestas del investigador.
+- **Criterio de aceptación**:
+  1. El PDF y el DOCX del Anexo 9 no contienen el nombre del revisor.
+  2. El correo de la resolución no adjunta informes individuales.
+  3. Las respuestas del investigador no contienen nombre, correo ni `userId` del evaluador.
+
+### Task TSK-015-N13 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N13`
+- **Requisito Relacionado**: `RF-17.5` (spec-003 v1.6.1), `RF-14.1`
+- **Criterio EARS**: `EARS 5` (RF-17.5)
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/modules/resolutions/application/services/resolutions.service.ts:203-237` — MODIFICAR: la creación de la versión v2.0 deja de dispararse por el tipo 2 y pasa a dispararse solo al subir el Anexo 15 con resultado `APROBADO_CON_CONDICION`
+  - `src/shared/deadlines/deadline-rules.ts:15` — usa `PLAZO_CONDICION_DIAS` (ya existe, 30)
+- **Dependencias**: TSK-015-N08, TSK-015-N09
+- **Descripción**: Al subir el Anexo 15, en la misma transacción: se congelan los requisitos aprobados, se crea la v2.0 y se asigna `plazo_condicion_dias` = 30, con el cálculo actual de `protocol-deadline.service.ts` (no se cambia en esta tarea; ver pregunta 9). El estado del protocolo pasa a 19 (`REQUIERE_SUBSANACION_VERSION`). No se toca `calls.service.ts`.
+- **Tests**: E2E: con Anexo 15 crea v2.0; con Anexo 13, 14 o 16 no la crea.
+- **Criterio de aceptación**:
+  1. Subir el Anexo 15 con resultado `APROBADO_CON_CONDICION` crea la v2.0 en la misma transacción.
+  2. El plazo de subsanación es `plazo_condicion_dias` = 30, con el cálculo actual.
+  3. El estado del protocolo queda en 19 (`REQUIERE_SUBSANACION_VERSION`).
+  3. Con resultado `APROBADO_DEFINITIVO` o `NO_APROBADO` no se crea la v2.0.
+  4. `calls.service.ts` no cambia.
+
+### Task TSK-015-N14 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N14`
+- **Requisito Relacionado**: `RF-17.2` (spec-003 v1.6.1)
+- **Criterio EARS**: `EARS 5` (RF-17.2)
+- **Acción**: `CREAR` (migración de datos)
+- **Archivos Afectados**:
+  - `src/migrations/<timestamp>-SeedTiposDocumentoAnexos13a16.ts` — CREAR: inserta en `catalogos.tipos_documento` los códigos `ANEXO_13`, `ANEXO_14`, `ANEXO_15` y `ANEXO_16`, con el patrón de `ANEXO_1`, `ANEXO_2`, `ANEXO_4`, `ANEXO_5` y `ANEXO_6` (verificado en `ceish_test_db`)
+- **Dependencias**: Ninguna
+- **Descripción**: Los anexos 13 a 16 no existen en el catálogo (verificado). Se siembran sus filas para la carga y el nombrado de archivos. La carta firmada se adjunta; el sistema no la genera.
+- **Tests**: E2E de la migración (filas presentes, sin duplicados); `down` las elimina por `codigo_anexo`.
+- **Criterio de aceptación**:
+  1. Existen cuatro filas nuevas: `ANEXO_13`, `ANEXO_14`, `ANEXO_15` y `ANEXO_16`.
+  2. Ninguna fila existente cambia.
+  3. El `down` deja la tabla como estaba.
+
+### Task TSK-015-N15 - [ ] PENDIENTE
+- **ID Único**: `TSK-015-N15`
+- **Requisito Relacionado**: `RF-17.3` (spec-003 v1.6.1)
+- **Criterio EARS**: `EARS 5` (RF-17.3)
+- **Acción**: `MODIFICAR`
+- **Archivos Afectados**:
+  - `src/shared/deadlines/deadline-rules.ts` — añadir `PLAZO_RESOLUCION_FIRMADA_HORAS = 96 as const` junto a `PLAZO_CONDICION_DIAS` (línea 15)
+- **Dependencias**: Ninguna
+- **Descripción**: Constante única del plazo de 96 horas corridas. Búsqueda previa de similares: ninguna constante de 96 h en `src/shared/deadlines` ni en `src/modules/secretaria`.
+- **Tests**: unitaria del valor; la búsqueda de `96` en el proyecto no muestra otra definición.
+- **Criterio de aceptación**:
+  1. La constante vale `96` y está exportada en `deadline-rules.ts`.
+  2. TSK-015-N10 la importa; no hay otra definición.
+
+---
+
+## Preguntas abiertas (Paso 0 — confirmar con la usuaria)
+
+1. **Registro del resultado del pleno (TSK-015-N08)**: ruta y payload del endpoint nuevo. AGENTS.md exige consulta previa para payloads nuevos. **Se resuelve en el Paso 0 de TSK-015-N08.**
+2. ~~«Aprobado con condición»~~ **Cerrada 24/11/2026**: `dictamen_resultado = APROBADO_CON_CONDICION`; el estado tras el Anexo 15 es 19 (`REQUIERE_SUBSANACION_VERSION`); el 25 queda sin uso.
+3. **Versión de la carta (TSK-015-N09)**: `numero_version` como columna de `resolucion.resoluciones` o tabla propia. Ambas requieren migración aditiva. **Se resuelve en el Paso 0 de TSK-015-N09.**
+4. ~~Plazo de RF-17.5~~ **Cerrada**: se usa `plazo_condicion_dias` = 30 con el cálculo actual; no se cambia (ver pregunta 9).
+5. **Anexo 9 «ya sin nombre»**: la usuaria lo indicó, pero `dev` lo incluye. ¿En qué rama está esa versión?
+6. **Respuestas del investigador (TSK-015-N12)**: lista de endpoints que consume el investigador, para auditar nombre, correo y `userId` del evaluador. **Se resuelve en el Paso 0 de TSK-015-N12.**
+7. ~~SUSPENDIDO en la sección II~~ **Cerrada**: la fila se mantiene en RF-09.2; `SUSPENDIDO` solo aplica a la Sección III y nunca a la Sección II.
+8. **Frontend**: además del rótulo «Anexo 12», ¿hay otras pantallas con rótulos de anexos por corregir?
+9. **Días hábiles (TSK-015-N13)**: AGENTS.md dice que los días hábiles se calculan solo con `BusinessDayCalculator`, pero `protocol-deadline.service.ts` usa un `addBusinessDays` propio (salta fines de semana, sin feriados). Confirmar qué cálculo se usa para `plazo_condicion_dias`.
