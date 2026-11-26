@@ -14,6 +14,9 @@ export const PLAZO_SUBSANACION_DOCUMENTAL_DIAS = 30 as const;
 /** RF-14.1 (spec-003): Días hábiles para subsanar una versión mayor (APROBADO_CON_CONDICIONES). */
 export const PLAZO_CONDICION_DIAS = 30 as const;
 
+/** RF-17.3 (spec-003 v1.6.5): horas corridas desde `convocatorias.fecha_reunion` para subir la carta firmada (no son días hábiles; sin BusinessDayCalculator). */
+export const PLAZO_RESOLUCION_FIRMADA_HORAS = 96 as const;
+
 /** RF-12.7(c) (spec-002): Plazo de evaluación desde la asignación (días laborables, PET); hasta que vence, el protocolo no puede agendarse (c.2). */
 export const PLAZO_REVISION_OFICIO_DIAS = 8 as const;
 
