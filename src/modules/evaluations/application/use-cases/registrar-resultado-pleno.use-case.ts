@@ -11,6 +11,7 @@ import {
   ResultadoPleno,
 } from '../dtos/registrar-resultado-pleno.dto';
 import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
+import { esEstudioExento } from '../../../resolutions/application/services/carta-firmada-rules';
 
 /** Estado de convocatoria que no admite registros (ConvocatoriaStatus.CANCELADA). */
 const ESTADO_CANCELADA = 'CANCELADA';
@@ -65,6 +66,16 @@ export class RegistrarResultadoPlenoUseCase {
     if (contexto.convocatoriaEstado === ESTADO_CANCELADA) {
       throw new ConflictException(
         'La convocatoria está cancelada y no admite el registro de resultados.',
+      );
+    }
+
+    // TSK-015-N20 (RF-17.2): el estudio EX no pasa por el pleno; no admite resultado.
+    if (
+      contexto.tipoEstudioCodigo !== null &&
+      esEstudioExento(contexto.tipoEstudioCodigo)
+    ) {
+      throw new ConflictException(
+        'El estudio exento (EX) no pasa por el pleno y no admite el registro de resultados.',
       );
     }
 

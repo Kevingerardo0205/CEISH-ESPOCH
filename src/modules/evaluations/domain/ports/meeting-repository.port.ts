@@ -14,6 +14,8 @@ export interface ResultadoPlenoContext {
   fechaReunion: Date | null;
   /** Valor vigente de dictamen_resultado; null si aún no hay resultado. */
   dictamenResultado: string | null;
+  /** catalogo.tipos_estudio.codigo del protocolo (p. ej. EX, EC); null si no tiene tipo. */
+  tipoEstudioCodigo: string | null;
 }
 
 /** Datos ya validados que escribe el registro del resultado (TSK-015-N08). */

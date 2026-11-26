@@ -57,6 +57,7 @@ describe('TSK-015-N08 — RegistrarResultadoPlenoUseCase (RF-17.1)', () => {
       convocatoriaEstado: 'PROGRAMADA',
       fechaReunion: new Date('2026-11-24T10:00:00-05:00'),
       dictamenResultado: null,
+      tipoEstudioCodigo: 'IO',
       ...parcial,
     });
   }
@@ -86,6 +87,22 @@ describe('TSK-015-N08 — RegistrarResultadoPlenoUseCase (RF-17.1)', () => {
         ConflictException,
       );
       expect(repo.registrarResultadoPleno).not.toHaveBeenCalled();
+    });
+
+    it('409 en español si el estudio es EX (no pasa por el pleno) y no escribe nada', async () => {
+      conContexto({ tipoEstudioCodigo: 'EX' });
+      await expect(useCase.execute(entrada())).rejects.toThrow(
+        ConflictException,
+      );
+      await expect(useCase.execute(entrada())).rejects.toThrow(
+        'El estudio exento (EX) no pasa por el pleno',
+      );
+      expect(repo.registrarResultadoPleno).not.toHaveBeenCalled();
+    });
+
+    it('EC y IO no se bloquean por tipo de estudio (N20 solo rechaza EX)', async () => {
+      conContexto({ tipoEstudioCodigo: 'EC' });
+      await expect(useCase.execute(entrada())).resolves.toBeDefined();
     });
 
     it('409 si fecha_reunion es futura en America/Guayaquil', async () => {
