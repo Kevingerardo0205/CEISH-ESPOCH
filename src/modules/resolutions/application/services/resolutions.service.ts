@@ -17,12 +17,14 @@ import { AssignmentStatus } from '../../../evaluations/domain/enums/assignment-s
 import { ReceptionOrmEntity } from '../../../reception/infrastructure/database/reception.entity.orm';
 import { ProtocolRequirementOrmEntity } from '../../../protocols/infrastructure/database/protocol-requirement.entity.orm';
 import { ProtocolDeadlineService } from '../../../protocols/application/services/protocol-deadline.service';
-import { RequirementStatus } from '../../../protocols/domain/enums/requirement-status.enum';
-import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
-import { ProtocolVersionOrmEntity } from '../../../evaluations/infrastructure/database/protocol-version.entity.orm';
 import { DocumentTemplateOrmEntity } from '../../../documents/infrastructure/database/document-template.entity.orm';
 import { Permission } from '../../../../shared/enums/permission.enum';
+import { VersionSubsanacionService } from './version-subsanacion.service';
+import {
+  ResultadoResolucionService,
+  TipoResolucion,
+} from './resultado-resolucion.service';
 
 /** Usuario autenticado tal como lo deja `JwtStrategy.validate` (permisos del token). */
 export interface ResolutionReader {
@@ -64,6 +66,8 @@ export class ResolutionsService {
     private readonly requirementRepo: Repository<ProtocolRequirementOrmEntity>,
     private readonly deadlineService: ProtocolDeadlineService,
     private readonly dataSource: DataSource,
+    private readonly versionSubsanacion: VersionSubsanacionService,
+    private readonly resultadoResolucion: ResultadoResolucionService,
   ) {}
 
   /**
@@ -199,102 +203,19 @@ export class ResolutionsService {
 
       saved = await queryRunner.manager.save(ResolutionOrmEntity, resolution);
 
-      // Actualizar estado del protocolo y versión
-      if (resolutionTypeId === 1) {
-        // APROBADO:
-        // - Versión actual -> 17 (ProtocolStatus.APROBADO)
-        await queryRunner.manager.update(ProtocolVersionOrmEntity, version.id, {
-          statusId: ProtocolStatus.APROBADO,
-          resolutionDate: new Date(),
-          resolutionTypeId: resolutionTypeId,
-        });
-
-        // - Protocolo -> 17 (ProtocolStatus.APROBADO)
-        protocolOrm.statusId = ProtocolStatus.APROBADO;
-        protocolOrm.approvalDate = new Date();
-        await queryRunner.manager.save(ProtocolOrmEntity, protocolOrm);
-      } else if (resolutionTypeId === 3) {
-        // RECHAZADO:
-        // - Versión actual -> 18 (ProtocolStatus.RECHAZADO)
-        await queryRunner.manager.update(ProtocolVersionOrmEntity, version.id, {
-          statusId: ProtocolStatus.RECHAZADO,
-          resolutionDate: new Date(),
-          resolutionTypeId: resolutionTypeId,
-        });
-
-        // - Protocolo -> 18 (ProtocolStatus.RECHAZADO)
-        protocolOrm.statusId = ProtocolStatus.RECHAZADO;
-        await queryRunner.manager.save(ProtocolOrmEntity, protocolOrm);
-      } else if (resolutionTypeId === 2) {
-        // APROBADO CON OBSERVACIONES:
-        // - Versión actual (V1) -> 19 (ProtocolStatus.REQUIERE_SUBSANACION_VERSION)
-        await queryRunner.manager.update(ProtocolVersionOrmEntity, version.id, {
-          statusId: ProtocolStatus.REQUIERE_SUBSANACION_VERSION,
-          resolutionDate: new Date(),
-          resolutionTypeId: 2,
-        });
-
-        const nextVersionNumber = (version.versionNumber || 1) + 1;
-        const deadlineDate = this.deadlineService.calculateSubsanacionDeadline(
-          new Date(),
-        );
-
-        // 1. Crear nueva versión V2
-        const newVersion = queryRunner.manager.create(
-          ProtocolVersionOrmEntity,
-          {
-            protocolId: dto.protocolId,
-            versionNumber: nextVersionNumber,
-            submissionDate: new Date(),
-            statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL, // Nueva versión inicia en 21 (EN_CONTROL_DOCUMENTAL)
-            correctionDeadlineDays: this.deadlineService.getCondicionDias(),
-            correctionDeadlineDate: deadlineDate,
-          } as any,
-        );
-
-        const savedVersion = await queryRunner.manager.save(
-          ProtocolVersionOrmEntity,
-          newVersion,
-        );
-
-        // 2. Asociar el protocolo a la nueva versión (V2, V3, etc.) y sincronizar su estado a 21 (EN_CONTROL_DOCUMENTAL)
-        protocolOrm.versionActualId = savedVersion.id;
-        protocolOrm.statusId = ProtocolStatus.EN_CONTROL_DOCUMENTAL;
-        await queryRunner.manager.save(ProtocolOrmEntity, protocolOrm);
-
-        // 3. Crear una nueva recepción para esta versión para recibir los archivos corregidos (inicia en INICIADO 9)
-        const newReception = queryRunner.manager.create(ReceptionOrmEntity, {
+      // Estado del protocolo y de la versión (TSK-015-N13: servicios compartidos con el flujo de cartas).
+      await this.resultadoResolucion.aplicar(queryRunner.manager, {
+        protocolOrm,
+        versionId: version.id,
+        tipo: resolutionTypeId as TipoResolucion,
+      });
+      if (resolutionTypeId === 2) {
+        await this.versionSubsanacion.crearSiguiente(queryRunner.manager, {
           protocolId: dto.protocolId,
-          versionId: savedVersion.id,
-          statusId: ProtocolStatus.INICIADO,
-          createdByUserId: userId,
-          hasMissingItems: false,
-        } as any);
-        await queryRunner.manager.save(ReceptionOrmEntity, newReception);
-
-        // 4. Resetear los checklist items del protocolo para la nueva versión de subsanación
-        // Los aprobados (APROBADO) y no aplicables (NO_APLICA) quedan bloqueados e inmutables.
-        // El resto (RECHAZADO, PRESENTADO, NO_PRESENTADO, PENDIENTE) se resetean a NO_PRESENTADO.
-        const checklistItems = await queryRunner.manager.find(
-          ProtocolRequirementOrmEntity,
-          {
-            where: { protocolId: dto.protocolId },
-          },
-        );
-        for (const item of checklistItems) {
-          if (
-            item.status !== RequirementStatus.APROBADO &&
-            item.status !== RequirementStatus.NO_APLICA
-          ) {
-            await queryRunner.manager.update(
-              ProtocolRequirementOrmEntity,
-              item.id,
-              {
-                status: RequirementStatus.NO_PRESENTADO,
-              },
-            );
-          }
-        }
+          protocolOrm,
+          versionNumber: version.versionNumber,
+          userId,
+        });
       }
 
       await queryRunner.commitTransaction();

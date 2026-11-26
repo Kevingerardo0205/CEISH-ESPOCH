@@ -5,6 +5,8 @@ import { ResolutionTypeOrmEntity } from './infrastructure/database/resolution-ty
 import { ResolutionsService } from './application/services/resolutions.service';
 import { ResolutionsController } from './infrastructure/controllers/resolutions.controller';
 import { CartaFirmadaOrmEntity } from './infrastructure/database/carta-firmada.entity.orm';
+import { VersionSubsanacionService } from './application/services/version-subsanacion.service';
+import { ResultadoResolucionService } from './application/services/resultado-resolucion.service';
 import { CartasFirmadasService } from './application/services/cartas-firmadas.service';
 import { CartasFirmadasController } from './infrastructure/controllers/cartas-firmadas.controller';
 import { ProtocolsModule } from '../protocols/protocols.module';
@@ -25,7 +27,12 @@ import { ProtocolRequirementOrmEntity } from '../protocols/infrastructure/databa
     EvaluationsModule,
   ],
   controllers: [ResolutionsController, CartasFirmadasController],
-  providers: [ResolutionsService, CartasFirmadasService],
+  providers: [
+    ResolutionsService,
+    CartasFirmadasService,
+    VersionSubsanacionService,
+    ResultadoResolucionService,
+  ],
   exports: [ResolutionsService],
 })
 export class ResolutionsModule {}
