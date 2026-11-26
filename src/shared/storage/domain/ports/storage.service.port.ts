@@ -32,6 +32,12 @@ export abstract class IStorageService {
   abstract getMetadata(key: string): Promise<Record<string, unknown>>;
 
   /**
+   * Leer un rango de bytes [start, end] (inclusive) de un objeto. Lo usa la verificación de
+   * cartas firmadas para comprobar la cabecera `%PDF-` (TSK-015-N09, RF-17.4 v1.6.6).
+   */
+  abstract readRange(key: string, start: number, end: number): Promise<Buffer>;
+
+  /**
    * Subir un archivo en buffer directamente desde el backend
    */
   abstract uploadFile(

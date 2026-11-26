@@ -99,6 +99,17 @@ export class S3StorageAdapter implements IStorageService {
     };
   }
 
+  async readRange(key: string, start: number, end: number): Promise<Buffer> {
+    const command = new GetObjectCommand({
+      Bucket: this.bucketName,
+      Key: key,
+      Range: `bytes=${start}-${end}`,
+    });
+    const response = await this.s3Client.send(command);
+    const bytes = await response.Body?.transformToByteArray();
+    return Buffer.from(bytes ?? new Uint8Array());
+  }
+
   async uploadFile(
     key: string,
     buffer: Buffer,
