@@ -1897,10 +1897,32 @@ export class EvaluationsService {
   }
 
   /**
+   * TSK-015-N22a (hallazgo Evaluador / tarea B7): el Anexo 9 lo ve solo el evaluador dueño de
+   * la asignación, o quien tiene EVALUACION_INFORMES. Otro evaluador recibe 404 igual que si
+   * la evaluación no existiera.
+   */
+  private assertPuedeVerAnexo9(
+    id: number,
+    assignment: EvaluationAssignmentOrmEntity | null,
+    reader: { id: number; permissions?: string[] },
+  ): void {
+    const tieneInformes = (reader.permissions ?? []).includes(
+      Permission.EVALUACION_INFORMES,
+    );
+    if (tieneInformes || assignment?.evaluatorId === reader.id) return;
+    throw new NotFoundException(
+      `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
+    );
+  }
+
+  /**
    * Fase 2: Obtener URL firmada (30 min) para descargar el PDF del Anexo 9
    * generado automáticamente desde Cloudflare R2.
    */
-  async getEvaluationDocumentUrl(id: number): Promise<{
+  async getEvaluationDocumentUrl(
+    id: number,
+    reader: { id: number; permissions?: string[] },
+  ): Promise<{
     evaluacionId: number;
     downloadUrl: string;
     expiresInSeconds: number;
@@ -1920,6 +1942,8 @@ export class EvaluationsService {
         `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
       );
     }
+
+    this.assertPuedeVerAnexo9(id, assignment, reader);
 
     if (!evaluation.rutaPdf) {
       throw new NotFoundException(
@@ -1947,7 +1971,10 @@ export class EvaluationsService {
    * Fase 2: Obtener URL firmada (30 min) para descargar el DOCX del Anexo 9
    * generado automáticamente desde Cloudflare R2.
    */
-  async getEvaluationDocxUrl(id: number): Promise<{
+  async getEvaluationDocxUrl(
+    id: number,
+    reader: { id: number; permissions?: string[] },
+  ): Promise<{
     evaluacionId: number;
     downloadUrl: string;
     expiresInSeconds: number;
@@ -1968,6 +1995,8 @@ export class EvaluationsService {
         `No se encontró ninguna evaluación con ID de evaluación o ID de asignación igual a ${id}.`,
       );
     }
+
+    this.assertPuedeVerAnexo9(id, assignment, reader);
 
     if (!evaluation.rutaDocx) {
       throw new NotFoundException(

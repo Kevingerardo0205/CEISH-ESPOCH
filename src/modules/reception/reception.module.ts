@@ -11,6 +11,7 @@ import { IReceptionRepository } from './domain/ports/reception.repository.port';
 import { ReceptionTypeOrmRepository } from './infrastructure/repositories/reception.typeorm.repository';
 import { ProtocolsModule } from '../protocols/protocols.module';
 import { forwardRef } from '@nestjs/common';
+import { StorageAccessModule } from '../storage-access/storage-access.module';
 
 @Module({
   imports: [
@@ -22,6 +23,7 @@ import { forwardRef } from '@nestjs/common';
       ProtocolVersionOrmEntity,
     ]),
     forwardRef(() => ProtocolsModule),
+    forwardRef(() => StorageAccessModule),
   ],
 
   controllers: [ReceptionController],

@@ -33,6 +33,10 @@ import { JwtPayload } from '../../../../modules/auth/infrastructure/strategies/j
 
 import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import {
+  StorageKeyAccessPolicy,
+  StorageReader,
+} from '../../../storage-access/application/storage-key-access.policy';
+import {
   isValidPdfExtension,
   sanitizeFilenameBackend,
 } from '../../../../shared/utils/validation';
@@ -43,6 +47,7 @@ export class ReceptionController {
   constructor(
     private readonly receptionService: ReceptionService,
     private readonly storageService: IStorageService,
+    private readonly storageAccess: StorageKeyAccessPolicy,
   ) {}
 
   @Get('protocol/:protocolId/validation-detail')
@@ -187,7 +192,9 @@ export class ReceptionController {
   async viewDocument(
     @Param('documentId') documentId: string,
     @Res() res: Response,
+    @Request() req: { user: StorageReader },
   ) {
+    await this.storageAccess.assertCanReadDocument(+documentId, req.user);
     const document = await this.receptionService.findDocumentById(+documentId);
     if (!document) throw new NotFoundException('Documento no encontrado');
 
@@ -244,7 +251,11 @@ export class ReceptionController {
 
   @Get('document/:documentId/download-url')
   @Audit('DOCUMENT_DOWNLOAD_URL_GENERATED')
-  async getDocumentDownloadUrl(@Param('documentId') documentId: string) {
+  async getDocumentDownloadUrl(
+    @Param('documentId') documentId: string,
+    @Request() req: { user: StorageReader },
+  ) {
+    await this.storageAccess.assertCanReadDocument(+documentId, req.user);
     const document = await this.receptionService.findDocumentById(+documentId);
     if (!document) throw new NotFoundException('Documento no encontrado');
 

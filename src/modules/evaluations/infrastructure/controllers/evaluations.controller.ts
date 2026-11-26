@@ -322,8 +322,11 @@ export class EvaluationsController {
       'Obtener URL firmada (30 min) para descargar el PDF del Anexo 9 auto-generado. ' +
       'Solo disponible para evaluaciones de tipo Revisión Expedita. El PDF se almacena en Cloudflare R2.',
   })
-  async getEvaluationDocument(@Param('id', ParseIntPipe) id: number) {
-    return this.evaluationsService.getEvaluationDocumentUrl(id);
+  async getEvaluationDocument(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: Request & { user: JwtPayload },
+  ) {
+    return this.evaluationsService.getEvaluationDocumentUrl(id, req.user);
   }
 
   @Get(':id/document/docx')
@@ -334,8 +337,11 @@ export class EvaluationsController {
       'Solo disponible para evaluaciones de tipo Revisión Expedita. El DOCX se almacena en Cloudflare R2. ' +
       'El campo filename de la respuesta indica el nombre sugerido para guardar el archivo.',
   })
-  async getEvaluationDocumentDocx(@Param('id', ParseIntPipe) id: number) {
-    return this.evaluationsService.getEvaluationDocxUrl(id);
+  async getEvaluationDocumentDocx(
+    @Param('id', ParseIntPipe) id: number,
+    @Request() req: Request & { user: JwtPayload },
+  ) {
+    return this.evaluationsService.getEvaluationDocxUrl(id, req.user);
   }
 
   @Get('protocol/:protocolId/observations')
