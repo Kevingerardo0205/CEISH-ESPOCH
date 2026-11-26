@@ -61,6 +61,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
   let ds: DataSource;
   let secretariaToken: string;
   let investigadorToken: string;
+  let presidenteToken: string;
   let investigadorId: number;
   let convocatoriaId: string;
   let cpId: string;
@@ -95,6 +96,10 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
          (SELECT cp.id FROM evaluacion.convocatoria_protocolos cp
             JOIN public.protocolos p ON p.id = cp.protocolo_id
            WHERE p.titulo LIKE '${PREFIX}%')`,
+    );
+    await ds.query(
+      `DELETE FROM resolucion.resoluciones WHERE protocolo_id IN
+         (SELECT id FROM public.protocolos WHERE titulo LIKE '${PREFIX}%')`,
     );
     await ds.query(
       `DELETE FROM recepcion.recepciones WHERE version_id IN
@@ -152,21 +157,26 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
     protocoloIdParam: number,
     resultado: string | null,
     orden: number,
+    textos: { motivo?: string; observaciones?: string } = {},
   ): Promise<string> {
     const [vid] = await ds.query(
       `SELECT version_actual_id FROM public.protocolos WHERE id = $1`,
       [protocoloIdParam],
     );
+    // ck_cp_dictamen_motivo (NO_APROBADO) y ck_cp_dictamen_observaciones (APROBADO_CON_CONDICION).
     const [cp] = await ds.query(
       `INSERT INTO evaluacion.convocatoria_protocolos
-         (convocatoria_id, protocolo_id, version_id, fecha_plazo_normativo, orden, dictamen_resultado)
-       VALUES ($1, $2, $3, CURRENT_DATE + 30, $4, $5) RETURNING id`,
+         (convocatoria_id, protocolo_id, version_id, fecha_plazo_normativo, orden,
+          dictamen_resultado, dictamen_motivo, dictamen_observaciones)
+       VALUES ($1, $2, $3, CURRENT_DATE + 30, $4, $5, $6, $7) RETURNING id`,
       [
         convocatoriaId,
         protocoloIdParam,
         vid.version_actual_id,
         orden,
         resultado,
+        textos.motivo ?? null,
+        textos.observaciones ?? null,
       ],
     );
     return cp.id;
@@ -262,6 +272,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       'ZZCARINV',
       'INVESTIGADOR',
     );
+    await crearUsuario('PRESIDENTE', 'ZZCARPRE', 'PRESIDENTE');
 
     const login = async (key: string) => {
       const res = await api()
@@ -275,6 +286,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
     };
     secretariaToken = await login('SECRETARIA');
     investigadorToken = await login('INVESTIGADOR');
+    presidenteToken = await login('PRESIDENTE');
 
     const [conv] = await ds.query(
       `INSERT INTO evaluacion.convocatorias (numero_convocatoria) VALUES ($1) RETURNING id`,
@@ -495,6 +507,171 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
         'motivoReemplazo',
         'Corrección de firma del presidente',
       );
+    });
+  });
+
+  describe('ANEXO_15 y puente con resoluciones (TSK-015-N13, RF-17.5)', () => {
+    let protocoloCond: number;
+    let cpCond: string;
+    let protocoloRech: number;
+    let cpRech: string;
+    let fetchSpy: jest.SpyInstance;
+
+    const url = (cp: string) =>
+      `/api/resolutions/convocatorias/${convocatoriaId}/protocolos/${cp}/cartas`;
+
+    beforeAll(async () => {
+      protocoloCond = await protocolo(TIPO_IO, 'cond');
+      cpCond = await convocatoriaProtocolo(
+        protocoloCond,
+        'APROBADO_CON_CONDICION',
+        4,
+        { observaciones: `${PREFIX}observaciones` },
+      );
+      protocoloRech = await protocolo(TIPO_IO, 'rech');
+      cpRech = await convocatoriaProtocolo(protocoloRech, 'NO_APROBADO', 5, {
+        motivo: `${PREFIX}motivo`,
+      });
+      fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockImplementation(() =>
+          Promise.resolve(new Response(PDF, { status: 200 })),
+        );
+    });
+
+    afterAll(() => {
+      fetchSpy?.mockRestore();
+    });
+
+    it('PRESIDENTE (sin RESOLUCION_CREAR) → 403 en upload-url y en el registro', async () => {
+      const up = await api()
+        .post(`${url(cpCond)}/upload-url`)
+        .set('Authorization', `Bearer ${presidenteToken}`)
+        .send({ anexoCodigo: 'ANEXO_15' });
+      expect(up.status).toBe(403);
+      const reg = await api()
+        .post(url(cpCond))
+        .set('Authorization', `Bearer ${presidenteToken}`)
+        .send({
+          claveArchivo: `protocols/${protocoloCond}/resolutions/${cpCond}/v1/x.pdf`,
+          anexoCodigo: 'ANEXO_15',
+        });
+      expect(reg.status).toBe(403);
+    });
+
+    it('ANEXO_15: versión evaluada en 19 (tipo 2), v2.0 en 21 con plazo 30, protocolo en 21 y puente en resoluciones', async () => {
+      const up = await api()
+        .post(`${url(cpCond)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ anexoCodigo: 'ANEXO_15' });
+      expect(up.status).toBe(201);
+      const clave = up.body.data.claveArchivo as string;
+      subirAlBucket(clave, PDF);
+
+      const res = await api()
+        .post(url(cpCond))
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ claveArchivo: clave, anexoCodigo: 'ANEXO_15' });
+      expect(res.status).toBe(201);
+      expect(res.body.data.numeroVersion).toBe(1);
+
+      const [prot] = await ds.query(
+        `SELECT estado_id, version_actual_id FROM public.protocolos WHERE id = $1`,
+        [protocoloCond],
+      );
+      expect(prot.estado_id).toBe(21);
+
+      const versiones: Array<{
+        id: number;
+        numero_version: number;
+        estado_id: number;
+        tipo_resolucion_id: number | null;
+        plazo_subsanacion_dias: number | null;
+      }> = await ds.query(
+        `SELECT id, numero_version, estado_id, tipo_resolucion_id, plazo_subsanacion_dias
+           FROM public.versiones_protocolo WHERE protocolo_id = $1
+          ORDER BY numero_version`,
+        [protocoloCond],
+      );
+      expect(versiones.map((v) => [v.numero_version, v.estado_id])).toEqual([
+        [1, 19],
+        [2, 21],
+      ]);
+      expect(versiones[0].tipo_resolucion_id).toBe(2);
+      expect(versiones[1].plazo_subsanacion_dias).toBe(30);
+      expect(prot.version_actual_id).toBe(versiones[1].id);
+
+      const [rec] = await ds.query(
+        `SELECT estado_id FROM recepcion.recepciones WHERE version_id = $1`,
+        [versiones[1].id],
+      );
+      expect(rec.estado_id).toBe(9);
+
+      // Puente: una fila en resoluciones para la versión evaluada, con vigencia 1 y sin seguimiento.
+      const puente = await ds.query(
+        `SELECT protocolo_id, tipo_resolucion_id, observaciones,
+                vigencia_aprobacion_anios, periodo_seguimiento_dias
+           FROM resolucion.resoluciones WHERE version_id = $1`,
+        [versiones[0].id],
+      );
+      expect(puente).toEqual([
+        {
+          protocolo_id: protocoloCond,
+          tipo_resolucion_id: 2,
+          observaciones: `${PREFIX}observaciones`,
+          vigencia_aprobacion_anios: 1,
+          periodo_seguimiento_dias: null,
+        },
+      ]);
+    });
+
+    it('con la v2.0 del Anexo 15, el investigador sube un requisito v2 → 201', async () => {
+      const key = `protocols/${protocoloCond}/v2/requirements/${PREFIX}v2/doc.pdf`;
+      const r = await api()
+        .post('/api/storage/upload-url')
+        .set('Authorization', `Bearer ${investigadorToken}`)
+        .send({ key, contentType: 'application/pdf' });
+      expect(r.status).toBe(201);
+      expect(r.body.data.key).toBe(key);
+    });
+
+    it('ANEXO_16 (NO_APROBADO) no crea v2.0: protocolo en 18, una sola versión y puente tipo 3', async () => {
+      const up = await api()
+        .post(`${url(cpRech)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ anexoCodigo: 'ANEXO_16' });
+      const clave = up.body.data.claveArchivo as string;
+      subirAlBucket(clave, PDF);
+      const res = await api()
+        .post(url(cpRech))
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ claveArchivo: clave, anexoCodigo: 'ANEXO_16' });
+      expect(res.status).toBe(201);
+
+      const [prot] = await ds.query(
+        `SELECT estado_id FROM public.protocolos WHERE id = $1`,
+        [protocoloRech],
+      );
+      expect(prot.estado_id).toBe(18);
+      const [{ c }] = await ds.query(
+        `SELECT count(*)::int AS c FROM public.versiones_protocolo WHERE protocolo_id = $1`,
+        [protocoloRech],
+      );
+      expect(c).toBe(1);
+      const [puente] = await ds.query(
+        `SELECT tipo_resolucion_id FROM resolucion.resoluciones
+          WHERE version_id = (SELECT version_actual_id FROM public.protocolos WHERE id = $1)`,
+        [protocoloRech],
+      );
+      expect(puente.tipo_resolucion_id).toBe(3);
+    });
+
+    it('APROBADO_DEFINITIVO (ANEXO_13) no crea v2.0: el protocolo sigue con una sola versión', async () => {
+      const [{ c }] = await ds.query(
+        `SELECT count(*)::int AS c FROM public.versiones_protocolo WHERE protocolo_id = $1`,
+        [protocoloId],
+      );
+      expect(c).toBe(1);
     });
   });
 });

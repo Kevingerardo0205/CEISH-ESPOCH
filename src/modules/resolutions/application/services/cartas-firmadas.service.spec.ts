@@ -5,6 +5,7 @@ import {
 } from '@nestjs/common';
 import { DataSource } from 'typeorm';
 import { CartasFirmadasService } from './cartas-firmadas.service';
+import { VersionSubsanacionService } from './version-subsanacion.service';
 import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 
@@ -115,6 +116,8 @@ function servicio(handler: Handler, storage = almacenamiento({})) {
     ds,
     storage as unknown as IStorageService,
     email as unknown as IEmailServicePort,
+    { aplicar: jest.fn() },
+    { crearSiguiente: jest.fn() } as unknown as VersionSubsanacionService,
   );
   return { svc, storage, email, query, qr };
 }

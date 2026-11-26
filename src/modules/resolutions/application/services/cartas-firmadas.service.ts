@@ -6,25 +6,29 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { DataSource } from 'typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
 import { randomUUID } from 'crypto';
 import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { Permission } from '../../../../shared/enums/permission.enum';
-import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
 import type { ResultadoPleno } from '../../../evaluations/application/dtos/registrar-resultado-pleno.dto';
+import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import {
   CONTENT_TYPE_PDF,
   parseStorageKey,
 } from '../../../storage-access/application/storage-key-access.policy';
 import { canReadResolution, ResolutionReader } from './resolutions.service';
 import {
+  ResultadoResolucionService,
+  TipoResolucion,
+} from './resultado-resolucion.service';
+import { VersionSubsanacionService } from './version-subsanacion.service';
+import {
   AnexoCarta,
   CABECERA_PDF,
   TAMANO_MAXIMO_CARTA_BYTES,
   anexoParaResultado,
   esEstudioExento,
-  estadoProtocoloParaResultado,
   etiquetaDecision,
   numeroVersionSiguiente,
   prefijoClaveCarta,
@@ -40,7 +44,6 @@ import { CartaFirmada } from '../../domain/entities/carta-firmada.entity';
 /** Validez de la URL de subida (segundos). */
 const EXPIRA_SUBIDA_SEGUNDOS = 900;
 const NO_ENCONTRADO = 'Protocolo no encontrado.';
-const ESTADO_APROBADO_PROTOCOLO: number = ProtocolStatus.APROBADO;
 const MENSAJE_CARRERA_VERSION =
   'La versión de la carta cambió mientras se subía el archivo. Vuelva a subirlo.';
 
@@ -73,8 +76,9 @@ export type CartaFirmadaVista = Omit<
 /**
  * TSK-015-N09 — spec-003 RF-17.2, RF-17.4, RF-17.7 (v1.6.6). Carta firmada por versiones.
  * Upload en dos pasos: upload-url emite la clave (la genera el backend); el registro verifica el
- * archivo (HeadObject + cabecera %PDF-), guarda la versión y cambia el estado en una transacción.
- * La v2.0 (Anexo 15) no se crea aquí: es TSK-015-N13.
+ * archivo (HeadObject + cabecera %PDF-), guarda la versión y aplica el resultado en una transacción.
+ * TSK-015-N13 (RF-17.5): el estado lo aplican los servicios compartidos con el legacy
+ * (ResultadoResolucionService; VersionSubsanacionService para la v2.0 del Anexo 15).
  */
 @Injectable()
 export class CartasFirmadasService {
@@ -86,6 +90,8 @@ export class CartasFirmadasService {
     private readonly storage: IStorageService,
     @Inject(IEmailServicePort)
     private readonly email: IEmailServicePort,
+    private readonly resultadoResolucion: ResultadoResolucionService,
+    private readonly versionSubsanacion: VersionSubsanacionService,
   ) {}
 
   /** upload-url: valida resultado, EX y anexo; devuelve la URL firmada y la clave. No registra nada. */
@@ -152,7 +158,8 @@ export class CartasFirmadasService {
     try {
       // Bloqueo de la convocatoria-protocolo y del protocolo, en el mismo orden siempre.
       const [cp] = (await qr.query(
-        `SELECT id, dictamen_resultado FROM evaluacion.convocatoria_protocolos
+        `SELECT id, dictamen_resultado, dictamen_observaciones
+           FROM evaluacion.convocatoria_protocolos
           WHERE id = $1 FOR UPDATE`,
         [ctxInicial.convocatoriaProtocoloId],
       )) as Fila[];
@@ -211,26 +218,40 @@ export class CartasFirmadasService {
       )) as Fila[];
       fila = insertada;
 
-      const estado = estadoProtocoloParaResultado(resultado);
-      await qr.query(
-        `UPDATE public.versiones_protocolo
-            SET estado_id = $2, fecha_resolucion = now(), tipo_resolucion_id = $3
-          WHERE id = $1`,
-        [ctx.versionId, estado, tipoResolucionParaResultado(resultado)],
-      );
-      // version + 1: el UPDATE nativo no incrementa el @VersionColumn de protocolos (decisión 26/11/2026).
-      // fecha_aprobacion: lo fija el legacy al aprobar (resolutions.service.ts:210, approvalDate).
-      await qr.query(
-        `UPDATE public.protocolos
-            SET estado_id = $2::int,
-                version = version + 1,
-                actualizado_en = now(),
-                fecha_aprobacion = CASE WHEN $2::int = $3::int
-                  THEN (now() AT TIME ZONE 'America/Guayaquil')::date
-                  ELSE fecha_aprobacion END
-          WHERE id = $1`,
-        [ctx.protocoloId, estado, ESTADO_APROBADO_PROTOCOLO],
-      );
+      // Estados con los servicios compartidos del legacy (sin SQL de estados aquí):
+      // - ResultadoResolucionService: versión → 17/18/19 y protocolo → 17/18 (fecha_aprobacion en
+      //   Guayaquil); con «aprobado con condición» el protocolo no se toca aquí.
+      // - VersionSubsanacionService (solo Anexo 15): v2.0 en 21, protocolo apuntando a ella en 21,
+      //   recepción en 9 y checklist. Cada rama guarda el protocolo una sola vez, así que TypeORM
+      //   incrementa `version` una vez.
+      const protocolOrm = await qr.manager.findOneByOrFail(ProtocolOrmEntity, {
+        id: ctx.protocoloId,
+      });
+      const tipo = tipoResolucionParaResultado(resultado);
+      await this.resultadoResolucion.aplicar(qr.manager, {
+        protocolOrm,
+        versionId: ctx.versionId,
+        tipo,
+      });
+      if (resultado === 'APROBADO_CON_CONDICION') {
+        const [evaluada] = (await qr.query(
+          `SELECT numero_version FROM public.versiones_protocolo WHERE id = $1`,
+          [ctx.versionId],
+        )) as Fila[];
+        await this.versionSubsanacion.crearSiguiente(qr.manager, {
+          protocolId: ctx.protocoloId,
+          protocolOrm,
+          versionNumber: evaluada.numero_version as number,
+          userId: usuarioId,
+        });
+      }
+      await this.puenteResoluciones(qr, {
+        protocoloId: ctx.protocoloId,
+        versionId: ctx.versionId,
+        tipo,
+        observaciones: (cp?.dictamen_observaciones as string | null) ?? null,
+        usuarioId,
+      });
       await qr.commitTransaction();
     } catch (error) {
       await qr.rollbackTransaction();
@@ -464,6 +485,44 @@ export class CartasFirmadasService {
         `No se pudo preparar el correo de la carta: ${String(error)}`,
       );
     }
+  }
+
+  /**
+   * Puente con `resolucion.resoluciones`: lo lee el pendiente «Subir resolución» de secretaría
+   * (`resolution_emitted`, por `version_id`). Una fila por versión evaluada: upsert bajo
+   * `FOR UPDATE`. `vigencia_aprobacion_anios` = 1 (NOT NULL) y `periodo_seguimiento_dias` = NULL.
+   */
+  private async puenteResoluciones(
+    qr: QueryRunner,
+    p: {
+      protocoloId: number;
+      versionId: number;
+      tipo: TipoResolucion;
+      observaciones: string | null;
+      usuarioId: number;
+    },
+  ): Promise<void> {
+    const [existente] = (await qr.query(
+      `SELECT id FROM resolucion.resoluciones WHERE version_id = $1 FOR UPDATE`,
+      [p.versionId],
+    )) as Fila[];
+    if (existente) {
+      await qr.query(
+        `UPDATE resolucion.resoluciones
+            SET tipo_resolucion_id = $2, observaciones = $3,
+                vigencia_aprobacion_anios = 1, periodo_seguimiento_dias = NULL
+          WHERE id = $1`,
+        [existente.id, p.tipo, p.observaciones],
+      );
+      return;
+    }
+    await qr.query(
+      `INSERT INTO resolucion.resoluciones
+         (protocolo_id, version_id, tipo_resolucion_id, observaciones,
+          vigencia_aprobacion_anios, periodo_seguimiento_dias, creado_por)
+       VALUES ($1, $2, $3, $4, 1, NULL, $5)`,
+      [p.protocoloId, p.versionId, p.tipo, p.observaciones, p.usuarioId],
+    );
   }
 
   private async maximoVersion(

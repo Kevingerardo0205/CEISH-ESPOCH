@@ -1,8 +1,8 @@
 /** Códigos de catalogo.tipos_estudio (StudyTypeCode): EX exento, EC ensayo clínico. */
 const CODIGO_ESTUDIO_EXENTO = 'EX';
 const CODIGO_ENSAYO_CLINICO = 'EC';
-import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
 import type { ResultadoPleno } from '../../../evaluations/application/dtos/registrar-resultado-pleno.dto';
+import type { TipoResolucion } from './resultado-resolucion.service';
 
 /**
  * TSK-015-N09 — spec-003 RF-17.2 y RF-17.4 (v1.6.6). Reglas puras de la carta firmada.
@@ -24,18 +24,11 @@ export const TAMANO_MAXIMO_CARTA_BYTES = 10 * 1024 * 1024;
 /** Cabecera que debe tener el contenido del archivo (verificación real, no solo el tipo declarado). */
 export const CABECERA_PDF = '%PDF-';
 
-/** Id de catalogo.tipos_resolucion para cada resultado (APROBADO=1, CON_OBSERVACIONES=2, RECHAZADO=3). */
-const TIPO_RESOLUCION_POR_RESULTADO: Record<ResultadoPleno, number> = {
+/** Tipo de resolución de cada resultado (APROBADO=1, CON_OBSERVACIONES=2, RECHAZADO=3). */
+const TIPO_RESOLUCION_POR_RESULTADO: Record<ResultadoPleno, TipoResolucion> = {
   APROBADO_DEFINITIVO: 1,
   APROBADO_CON_CONDICION: 2,
   NO_APROBADO: 3,
-};
-
-/** Estado del protocolo que fija cada resultado al subir la carta (RF-17.4). */
-const ESTADO_PROTOCOLO_POR_RESULTADO: Record<ResultadoPleno, number> = {
-  APROBADO_DEFINITIVO: ProtocolStatus.APROBADO,
-  APROBADO_CON_CONDICION: ProtocolStatus.REQUIERE_SUBSANACION_VERSION,
-  NO_APROBADO: ProtocolStatus.RECHAZADO,
 };
 
 /**
@@ -73,13 +66,9 @@ export function requiereMotivo(numeroVersion: number): boolean {
   return numeroVersion > 1;
 }
 
-export function estadoProtocoloParaResultado(
+export function tipoResolucionParaResultado(
   resultado: ResultadoPleno,
-): number {
-  return ESTADO_PROTOCOLO_POR_RESULTADO[resultado];
-}
-
-export function tipoResolucionParaResultado(resultado: ResultadoPleno): number {
+): TipoResolucion {
   return TIPO_RESOLUCION_POR_RESULTADO[resultado];
 }
 

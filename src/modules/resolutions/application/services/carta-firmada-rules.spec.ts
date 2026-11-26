@@ -1,6 +1,5 @@
 import {
   anexoParaResultado,
-  estadoProtocoloParaResultado,
   esEstudioExento,
   numeroVersionSiguiente,
   prefijoClaveCarta,
@@ -54,13 +53,11 @@ describe('TSK-015-N09 — carta-firmada-rules', () => {
     });
   });
 
-  describe('estado y tipo de resolución por resultado (RF-17.4)', () => {
-    it('APROBADO_DEFINITIVO → 17 y tipo 1; APROBADO_CON_CONDICION → 19 y tipo 2; NO_APROBADO → 18 y tipo 3', () => {
-      expect(estadoProtocoloParaResultado('APROBADO_DEFINITIVO')).toBe(17);
+  describe('tipo de resolución por resultado (RF-17.4)', () => {
+    // Los estados de versión y protocolo los fijan ResultadoResolucionService y VersionSubsanacionService.
+    it('APROBADO_DEFINITIVO → tipo 1; APROBADO_CON_CONDICION → tipo 2; NO_APROBADO → tipo 3', () => {
       expect(tipoResolucionParaResultado('APROBADO_DEFINITIVO')).toBe(1);
-      expect(estadoProtocoloParaResultado('APROBADO_CON_CONDICION')).toBe(19);
       expect(tipoResolucionParaResultado('APROBADO_CON_CONDICION')).toBe(2);
-      expect(estadoProtocoloParaResultado('NO_APROBADO')).toBe(18);
       expect(tipoResolucionParaResultado('NO_APROBADO')).toBe(3);
     });
   });
