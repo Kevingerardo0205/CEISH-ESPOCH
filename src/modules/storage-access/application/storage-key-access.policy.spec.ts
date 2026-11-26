@@ -507,6 +507,70 @@ describe('StorageKeyAccessPolicy.assertCanWrite (TSK-015-N22b)', () => {
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
+    it('principal, protocolo en 21 (flujo real), v2 activa con recepción 9 → permitido', async () => {
+      protocolRepository.findById.mockResolvedValue(
+        protocolo({
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+          activeVersion: { versionNumber: 2, reception: { statusId: 9 } },
+        }),
+      );
+      await expect(
+        policy.assertCanWrite(clave, PDF, principal),
+      ).resolves.toBeUndefined();
+    });
+
+    it('principal, protocolo en 21, v2 activa con recepción 20 (subsanación documental) → permitido', async () => {
+      protocolRepository.findById.mockResolvedValue(
+        protocolo({
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+          activeVersion: { versionNumber: 2, reception: { statusId: 20 } },
+        }),
+      );
+      await expect(
+        policy.assertCanWrite(clave, PDF, principal),
+      ).resolves.toBeUndefined();
+    });
+
+    it('principal, protocolo en 21, v2 activa con recepción 15 (en revisión) → 409', async () => {
+      protocolRepository.findById.mockResolvedValue(
+        protocolo({
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+          activeVersion: { versionNumber: 2, reception: { statusId: 15 } },
+        }),
+      );
+      await expect(
+        policy.assertCanWrite(clave, PDF, principal),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('principal, protocolo en 21, v1 activa (la clave indica v2) → 409', async () => {
+      protocolRepository.findById.mockResolvedValue(
+        protocolo({
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+          activeVersion: { versionNumber: 1, reception: { statusId: 9 } },
+        }),
+      );
+      await expect(
+        policy.assertCanWrite(clave, PDF, principal),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('principal, protocolo en 21, clave v3 con v2 activa → 409 (n distinto de la activa)', async () => {
+      protocolRepository.findById.mockResolvedValue(
+        protocolo({
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+          activeVersion: { versionNumber: 2, reception: { statusId: 9 } },
+        }),
+      );
+      await expect(
+        policy.assertCanWrite(
+          'protocols/5/v3/requirements/r1/f.pdf',
+          PDF,
+          principal,
+        ),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
     it('otro usuario → 404', async () => {
       protocolRepository.findById.mockResolvedValue(
         protocolo({

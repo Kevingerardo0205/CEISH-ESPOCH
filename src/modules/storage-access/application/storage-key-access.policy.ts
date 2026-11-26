@@ -320,8 +320,8 @@ export class StorageKeyAccessPolicy {
    * Subida de requisitos del investigador principal:
    * - sin versión (`protocols/{id}/requirements/`): BORRADOR (recepción 9 en versión 1) o
    *   subsanación documental (recepción en REQUIERE_SUBSANACION_DOC, 20);
-   * - con versión (`protocols/{id}/v{n}/requirements/`): protocolo en REQUIERE_SUBSANACION_VERSION
-   *   (19) y n igual a la versión activa.
+   * - con versión (`protocols/{id}/v{n}/requirements/`): protocolo en 19 o 21, n > 1 e igual a la
+   *   versión activa, y recepción de esa versión en INICIADO (9) o REQUIERE_SUBSANACION_DOC (20).
    * Nota: PENDIENTE_SUBSANACION del getter `receptionStatus` es un valor por defecto, no un
    * estado concreto, así que no se usa como regla de escritura.
    */
@@ -343,9 +343,18 @@ export class StorageKeyAccessPolicy {
           ProtocolStatus.REQUIERE_SUBSANACION_DOC
       );
     }
+    // TSK-015-N22b (hallazgo): el flujo real de subsanación deja el protocolo en 21
+    // (EN_CONTROL_DOCUMENTAL); 19 se mantiene por compatibilidad. La versión debe ser una
+    // subsanación (n > 1), la activa, y su recepción debe estar abierta (9) o en subsanación
+    // documental (20). Cualquier otra recepción (15, 10, 11…) → 409.
+    const activa = protocol.activeVersion;
     return (
-      protocol.statusId === ProtocolStatus.REQUIERE_SUBSANACION_VERSION &&
-      protocol.activeVersion?.versionNumber === version
+      (protocol.statusId === ProtocolStatus.REQUIERE_SUBSANACION_VERSION ||
+        protocol.statusId === ProtocolStatus.EN_CONTROL_DOCUMENTAL) &&
+      version > 1 &&
+      activa?.versionNumber === version &&
+      (activa.reception?.statusId === ProtocolStatus.INICIADO ||
+        activa.reception?.statusId === ProtocolStatus.REQUIERE_SUBSANACION_DOC)
     );
   }
 
