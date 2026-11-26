@@ -62,6 +62,8 @@ describe('TSK-015-N17 — ResolutionsService.findByProtocolIdForReader', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
+      {} as any,
     );
   });
 

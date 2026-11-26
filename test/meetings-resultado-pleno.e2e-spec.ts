@@ -472,6 +472,29 @@ describe('TSK-015-N08 — PATCH /api/evaluations/meetings/:id/protocolos/:cpId/r
       expect(await historial(cpId)).toHaveLength(0);
     });
 
+    it('409 en español si el estudio es EX (TSK-015-N20): sin historial ni valor vigente', async () => {
+      const { convId, cpId, protocolId } = await sembrar('EX');
+      await ds.query(
+        `UPDATE public.protocolos SET tipo_estudio_id =
+           (SELECT id FROM catalogos.tipos_estudio WHERE codigo = 'EX')
+          WHERE id = $1`,
+        [protocolId],
+      );
+      const res = await patch('secretaria', convId, cpId, {
+        resultado: 'APROBADO_DEFINITIVO',
+      });
+      expect(res.status).toBe(409);
+      expect(res.body.message).toBe(
+        'El estudio exento (EX) no pasa por el pleno y no admite el registro de resultados.',
+      );
+      expect(await historial(cpId)).toHaveLength(0);
+      const [cp] = await ds.query(
+        `SELECT dictamen_resultado FROM evaluacion.convocatoria_protocolos WHERE id = $1`,
+        [cpId],
+      );
+      expect(cp.dictamen_resultado).toBeNull();
+    });
+
     it('409 si fecha_reunion es futura', async () => {
       const { convId, cpId } = await sembrar('FUT', REUNION_FUTURA_SQL);
       const res = await patch('secretaria', convId, cpId, {

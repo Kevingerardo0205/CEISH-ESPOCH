@@ -709,14 +709,18 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
         convocatoria_estado: string;
         fecha_reunion: Date | null;
         dictamen_resultado: string | null;
+        tipo_estudio_codigo: string | null;
       }>
     >(
       `SELECT cp.id AS convocatoria_protocolo_id,
               c.estado AS convocatoria_estado,
               c.fecha_reunion,
-              cp.dictamen_resultado
+              cp.dictamen_resultado,
+              te.codigo AS tipo_estudio_codigo
          FROM evaluacion.convocatoria_protocolos cp
          JOIN evaluacion.convocatorias c ON c.id = cp.convocatoria_id
+         JOIN public.protocolos p ON p.id = cp.protocolo_id
+         LEFT JOIN catalogos.tipos_estudio te ON te.id = p.tipo_estudio_id
         WHERE cp.id = $1
           AND cp.convocatoria_id = $2
           AND cp.eliminado_en IS NULL`,
@@ -729,6 +733,7 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       convocatoriaEstado: row.convocatoria_estado,
       fechaReunion: row.fecha_reunion,
       dictamenResultado: row.dictamen_resultado,
+      tipoEstudioCodigo: row.tipo_estudio_codigo,
     };
   }
 

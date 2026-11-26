@@ -520,7 +520,6 @@ describe('TSK-015-N22a — descarga por clave, documento de recepción y Anexo 9
     let pBorrador: number;
     let pSubsDoc: number;
     let pRevision: number;
-    let pVersion: number;
     let pEval: number;
     let evalVersionId: number;
     let asignacionEvaluador: number;
@@ -560,7 +559,6 @@ describe('TSK-015-N22a — descarga por clave, documento de recepción y Anexo 9
       pBorrador = (await crearProtocolo('up-borrador', 9, 1, 9)).protocolId;
       pSubsDoc = (await crearProtocolo('up-subs-doc', 13, 1, 20)).protocolId;
       pRevision = (await crearProtocolo('up-revision', 13, 1, 15)).protocolId;
-      pVersion = (await crearProtocolo('up-version', 19, 2, 9)).protocolId;
       const eval_ = await crearProtocolo('up-evaluacion', 13, 1, 15);
       pEval = eval_.protocolId;
       evalVersionId = eval_.versionId;
@@ -604,21 +602,6 @@ describe('TSK-015-N22a — descarga por clave, documento de recepción y Anexo 9
       expect(r.body.message).toBe(
         'El protocolo no admite subir documentos en su estado actual.',
       );
-    });
-
-    it('subsanación de versión v2 con protocolo en 19 → 200; con el protocolo fuera de 19 → 409', async () => {
-      const ok = await subir(
-        'investigador',
-        `protocols/${pVersion}/v2/requirements/${PREFIX}r1/doc.pdf`,
-        PDF,
-      );
-      expect(ok.status).toBe(201);
-      const fuera = await subir(
-        'investigador',
-        `protocols/${pRevision}/v2/requirements/${PREFIX}r1/doc.pdf`,
-        PDF,
-      );
-      expect(fuera.status).toBe(409);
     });
 
     it('SECRETARIA y otro investigador en requisitos → 404 «Archivo no encontrado.»', async () => {
@@ -694,8 +677,93 @@ describe('TSK-015-N22a — descarga por clave, documento de recepción y Anexo 9
       expect(r.status).toBe(400);
     });
 
-    it('solo las subidas permitidas llegan al adaptador de storage (5 firmas)', () => {
-      expect(storageMock.generateUploadUrl).toHaveBeenCalledTimes(5);
+    it('solo las subidas permitidas llegan al adaptador de storage (4 firmas)', () => {
+      expect(storageMock.generateUploadUrl).toHaveBeenCalledTimes(4);
+    });
+  });
+
+  describe('subsanación de versión llevada por el flujo real (TSK-015-N22b)', () => {
+    const PDF = 'application/pdf';
+    let flujoId: number;
+    let flujoV2Id: number;
+
+    it('dictamen tipo 2 por POST /resolutions (sin UPDATE de estados) → v2 activa; el investigador sube v2/requirements → 201', async () => {
+      // Mismo fixture que la caracterización de POST /resolutions tipo 2 (resolutions-legacy-v2).
+      const [p] = await ds.query(
+        `INSERT INTO public.protocolos (titulo, investigador_principal_id, tipo_estudio_id, estado_id, version)
+         VALUES ($1, $2, 5, 21, 1) RETURNING id`,
+        [`${PREFIX}flujo-real`, userId.investigador],
+      );
+      const [v1] = await ds.query(
+        `INSERT INTO public.versiones_protocolo (protocolo_id, numero_version, estado_id)
+         VALUES ($1, 1, 21) RETURNING id`,
+        [p.id],
+      );
+      await ds.query(
+        `UPDATE public.protocolos SET version_actual_id = $1 WHERE id = $2`,
+        [v1.id, p.id],
+      );
+      await ds.query(
+        `INSERT INTO recepcion.recepciones (version_id, estado_id, creado_por)
+         VALUES ($1, 9, $2)`,
+        [v1.id, userId.secretaria],
+      );
+      const [a] = await ds.query(
+        `INSERT INTO evaluacion.asignaciones_evaluacion (version_id, evaluador_id, estado_id)
+         VALUES ($1, $2, 7) RETURNING id`,
+        [v1.id, userId.evaluador],
+      );
+      await ds.query(
+        `INSERT INTO evaluacion.evaluaciones (asignacion_id, resultado_id, observaciones)
+         VALUES ($1, 2, $2)`,
+        [a.id, `${PREFIX}observaciones`],
+      );
+
+      const res = await api()
+        .post('/api/resolutions')
+        .set('Authorization', `Bearer ${token.secretaria}`)
+        .send({ protocolId: p.id, validityYears: 1 });
+      expect(res.status).toBe(201);
+
+      // Estado real tras el dictamen tipo 2: protocolo en 21, v2 activa con recepción en 9.
+      const [prot] = await ds.query(
+        `SELECT estado_id, version_actual_id FROM public.protocolos WHERE id = $1`,
+        [p.id],
+      );
+      expect(prot.estado_id).toBe(21);
+      const [v2] = await ds.query(
+        `SELECT v.id, v.numero_version, v.estado_id, r.estado_id AS recepcion_estado
+           FROM public.versiones_protocolo v
+           LEFT JOIN recepcion.recepciones r ON r.version_id = v.id
+          WHERE v.id = $1`,
+        [prot.version_actual_id],
+      );
+      expect(v2.numero_version).toBe(2);
+      expect(v2.estado_id).toBe(21);
+      expect(v2.recepcion_estado).toBe(9);
+      flujoId = p.id;
+      flujoV2Id = v2.id;
+
+      const key = `protocols/${p.id}/v2/requirements/${PREFIX}v2/doc.pdf`;
+      const subida = await api()
+        .post('/api/storage/upload-url')
+        .set('Authorization', `Bearer ${token.investigador}`)
+        .send({ key, contentType: PDF });
+      expect(subida.status).toBe(201);
+      expect(subida.body.data.key).toBe(key);
+    });
+
+    it('mismo protocolo con la recepción de la v2 en revisión (15) → 409', async () => {
+      await ds.query(
+        `UPDATE recepcion.recepciones SET estado_id = 15 WHERE version_id = $1`,
+        [flujoV2Id],
+      );
+      const key = `protocols/${flujoId}/v2/requirements/${PREFIX}v2/doc.pdf`;
+      const r = await api()
+        .post('/api/storage/upload-url')
+        .set('Authorization', `Bearer ${token.investigador}`)
+        .send({ key, contentType: PDF });
+      expect(r.status).toBe(409);
     });
   });
 });

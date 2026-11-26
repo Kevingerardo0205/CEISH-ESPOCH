@@ -13,6 +13,8 @@ import { ProtocolStatus } from '../../protocols/domain/enums/protocol-status.enu
 import { ReceptionStatus } from '../../protocols/domain/enums/reception-status.enum';
 import { IProtocolRepository } from '../../protocols/domain/ports/protocol.repository.port';
 import { ReceptionService } from '../../reception/application/services/reception.service';
+import { Repository } from 'typeorm';
+import { CartaFirmadaOrmEntity } from '../../resolutions/infrastructure/database/carta-firmada.entity.orm';
 import {
   CONTENT_TYPE_DOCX,
   CONTENT_TYPE_PDF,
@@ -105,6 +107,8 @@ describe('StorageKeyAccessPolicy (TSK-015-N22a)', () => {
       protocolsService as unknown as ProtocolsService,
       protocolRepository as unknown as IProtocolRepository,
       receptionService as unknown as ReceptionService,
+      // TSK-015-N09: repositorio de cartas (no lo usan estas pruebas; solo la regla CARTA_FIRMADA).
+      {} as never,
     );
     protocolRepository.findById.mockResolvedValue({
       id: 5,
@@ -347,6 +351,8 @@ describe('StorageKeyAccessPolicy.assertCanWrite (TSK-015-N22b)', () => {
       protocolsService as unknown as ProtocolsService,
       protocolRepository as unknown as IProtocolRepository,
       receptionService as unknown as ReceptionService,
+      // TSK-015-N09: repositorio de cartas (no lo usan estas pruebas; solo la regla CARTA_FIRMADA).
+      {} as never,
     );
   });
 
@@ -498,6 +504,70 @@ describe('StorageKeyAccessPolicy.assertCanWrite (TSK-015-N22b)', () => {
       );
       await expect(
         policy.assertCanWrite(clave, PDF, principal),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('principal, protocolo en 21 (flujo real), v2 activa con recepción 9 → permitido', async () => {
+      protocolRepository.findById.mockResolvedValue(
+        protocolo({
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+          activeVersion: { versionNumber: 2, reception: { statusId: 9 } },
+        }),
+      );
+      await expect(
+        policy.assertCanWrite(clave, PDF, principal),
+      ).resolves.toBeUndefined();
+    });
+
+    it('principal, protocolo en 21, v2 activa con recepción 20 (subsanación documental) → permitido', async () => {
+      protocolRepository.findById.mockResolvedValue(
+        protocolo({
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+          activeVersion: { versionNumber: 2, reception: { statusId: 20 } },
+        }),
+      );
+      await expect(
+        policy.assertCanWrite(clave, PDF, principal),
+      ).resolves.toBeUndefined();
+    });
+
+    it('principal, protocolo en 21, v2 activa con recepción 15 (en revisión) → 409', async () => {
+      protocolRepository.findById.mockResolvedValue(
+        protocolo({
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+          activeVersion: { versionNumber: 2, reception: { statusId: 15 } },
+        }),
+      );
+      await expect(
+        policy.assertCanWrite(clave, PDF, principal),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('principal, protocolo en 21, v1 activa (la clave indica v2) → 409', async () => {
+      protocolRepository.findById.mockResolvedValue(
+        protocolo({
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+          activeVersion: { versionNumber: 1, reception: { statusId: 9 } },
+        }),
+      );
+      await expect(
+        policy.assertCanWrite(clave, PDF, principal),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('principal, protocolo en 21, clave v3 con v2 activa → 409 (n distinto de la activa)', async () => {
+      protocolRepository.findById.mockResolvedValue(
+        protocolo({
+          statusId: ProtocolStatus.EN_CONTROL_DOCUMENTAL,
+          activeVersion: { versionNumber: 2, reception: { statusId: 9 } },
+        }),
+      );
+      await expect(
+        policy.assertCanWrite(
+          'protocols/5/v3/requirements/r1/f.pdf',
+          PDF,
+          principal,
+        ),
       ).rejects.toBeInstanceOf(ConflictException);
     });
 
@@ -667,5 +737,97 @@ describe('parseStorageKey: subsanación de versión (TSK-015-N22b)', () => {
     ['protocols/5/v2/docEvaluacion/f.pdf', 'versión fuera de requirements'],
   ])('400 para %s (%s)', (clave) => {
     expect(() => parseStorageKey(clave)).toThrow(BadRequestException);
+  });
+});
+
+/** TSK-015-N09 (RF-17.4 v1.6.6): regla CARTA_FIRMADA, clave de seis segmentos. */
+describe('StorageKeyAccessPolicy — carta firmada (TSK-015-N09)', () => {
+  const CP = '6f1c2a4e-1b2c-4d5e-8f90-123456789abc';
+  const CLAVE = `protocols/5/resolutions/${CP}/v2/0a1b2c3d-0000-4000-8000-000000000001.pdf`;
+  const investigador = { id: 1, permissions: [] as string[] };
+  const secretaria = {
+    id: 9,
+    permissions: ['RESOLUCION_CREAR', 'RESOLUCION_HISTORIAL'],
+  };
+  let protocolRepository: { findById: jest.Mock };
+  let cartasRepo: { exists: jest.Mock };
+  let policy: StorageKeyAccessPolicy;
+
+  beforeEach(() => {
+    protocolRepository = {
+      findById: jest
+        .fn()
+        .mockResolvedValue({ id: 5, principalInvestigatorId: 1 }),
+    };
+    cartasRepo = { exists: jest.fn() };
+    policy = new StorageKeyAccessPolicy(
+      {} as never,
+      protocolRepository as unknown as IProtocolRepository,
+      {} as never,
+      cartasRepo as unknown as Repository<CartaFirmadaOrmEntity>,
+    );
+  });
+
+  it('parseStorageKey reconoce la clave de carta con su convocatoria-protocolo y versión', () => {
+    expect(parseStorageKey(CLAVE)).toEqual({
+      rule: 'CARTA_FIRMADA',
+      protocolId: 5,
+      convocatoriaProtocoloId: CP,
+      cartaVersion: 2,
+    });
+  });
+
+  it.each([
+    [`protocols/5/resolutions/${CP}/v0/a.pdf`, 'versión 0'],
+    [
+      `protocols/5/resolutions/no-es-uuid/v2/a.pdf`,
+      'convocatoria-protocolo no UUID',
+    ],
+    [`protocols/5/resolutions/${CP}/v2/a.docx`, 'extensión no PDF'],
+  ])('400 para %s (%s)', (clave) => {
+    expect(() => parseStorageKey(clave)).toThrow(BadRequestException);
+  });
+
+  it('lectura: el investigador principal lee la clave vigente', async () => {
+    cartasRepo.exists.mockResolvedValue(true);
+    await expect(
+      policy.assertCanRead(CLAVE, investigador),
+    ).resolves.toBeUndefined();
+    expect(cartasRepo.exists).toHaveBeenCalledWith({
+      where: { claveArchivo: CLAVE, vigente: true },
+    });
+  });
+
+  it('lectura: el investigador principal no lee una versión que ya no es vigente (404)', async () => {
+    cartasRepo.exists.mockResolvedValue(false);
+    await expect(policy.assertCanRead(CLAVE, investigador)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it('lectura: RESOLUCION_HISTORIAL lee cualquier versión sin consultar vigencia', async () => {
+    await expect(
+      policy.assertCanRead(CLAVE, secretaria),
+    ).resolves.toBeUndefined();
+    expect(cartasRepo.exists).not.toHaveBeenCalled();
+  });
+
+  it('lectura: otro investigador no lee la carta (404)', async () => {
+    await expect(
+      policy.assertCanRead(CLAVE, { id: 77, permissions: [] }),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('escritura por upload genérico: 404 también para SECRETARIA con RESOLUCION_CREAR', async () => {
+    await expect(
+      policy.assertCanWrite(CLAVE, CONTENT_TYPE_PDF, secretaria),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('la clave fija legacy de tres segmentos sigue siendo RESOLUCION', () => {
+    expect(parseStorageKey('protocols/5/resolutions/carta.pdf')).toEqual({
+      rule: 'RESOLUCION',
+      protocolId: 5,
+    });
   });
 });

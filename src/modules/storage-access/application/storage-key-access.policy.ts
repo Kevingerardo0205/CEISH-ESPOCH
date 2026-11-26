@@ -13,6 +13,9 @@ import { ReceptionStatus } from '../../protocols/domain/enums/reception-status.e
 import { IProtocolRepository } from '../../protocols/domain/ports/protocol.repository.port';
 import { ReceptionService } from '../../reception/application/services/reception.service';
 import { canReadResolution } from '../../resolutions/application/services/resolutions.service';
+import { InjectRepository } from '@nestjs/typeorm';
+import { Repository } from 'typeorm';
+import { CartaFirmadaOrmEntity } from '../../resolutions/infrastructure/database/carta-firmada.entity.orm';
 
 /**
  * TSK-015-N22a (hallazgo C lectura, hallazgo I, hallazgo Evaluador / tarea B7).
@@ -33,7 +36,8 @@ export type StorageKeyRule =
   | 'PROTOCOLO_EVALUACION'
   | 'CV'
   | 'PLANTILLA'
-  | 'ANEXO9';
+  | 'ANEXO9'
+  | 'CARTA_FIRMADA';
 
 export interface ParsedStorageKey {
   rule: StorageKeyRule | null;
@@ -41,7 +45,13 @@ export interface ParsedStorageKey {
   ownerId?: number;
   /** Solo en requisitos de subsanación de versión: `protocols/{id}/v{n}/requirements/…`. */
   version?: number;
+  /** Solo en cartas firmadas (TSK-015-N09): `protocols/{id}/resolutions/{cpId}/v{n}/…`. */
+  convocatoriaProtocoloId?: string;
+  cartaVersion?: number;
 }
+
+const UUID_RE =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const MAX_KEY_LENGTH = 1024;
 const KEY_INVALIDA = 'Clave de archivo inválida.';
@@ -109,6 +119,28 @@ export function parseStorageKey(key: string): ParsedStorageKey {
       }
       return { rule: 'REQUISITO', protocolId, version };
     }
+    // TSK-015-N09 (RF-17.4 v1.6.6): carta firmada, protocols/{id}/resolutions/{cpId}/v{n}/{archivo}.
+    if (
+      tercero === 'resolutions' &&
+      segmentos.length === 6 &&
+      /^v\d+$/.test(segmentos[4])
+    ) {
+      const cartaVersion = Number(segmentos[4].slice(1));
+      if (
+        cartaVersion < 1 ||
+        !UUID_RE.test(segmentos[3]) ||
+        !segmentos[5].endsWith('.pdf')
+      ) {
+        throw new BadRequestException(KEY_INVALIDA);
+      }
+      return {
+        rule: 'CARTA_FIRMADA',
+        protocolId,
+        convocatoriaProtocoloId: segmentos[3],
+        cartaVersion,
+      };
+    }
+    // Clave fija legacy de tres segmentos: se mantiene hasta TSK-015-N18.
     if (tercero === 'resolutions') return { rule: 'RESOLUCION', protocolId };
     if (tercero === 'requirements') return { rule: 'REQUISITO', protocolId };
     return { rule: 'PROTOCOLO_EVALUACION', protocolId };
@@ -134,6 +166,8 @@ export class StorageKeyAccessPolicy {
     private readonly protocolsService: ProtocolsService,
     private readonly protocolRepository: IProtocolRepository,
     private readonly receptionService: ReceptionService,
+    @InjectRepository(CartaFirmadaOrmEntity)
+    private readonly cartasRepo: Repository<CartaFirmadaOrmEntity>,
   ) {}
 
   /** Lanza 400 si la clave es inválida y 404 (sin revelar existencia) si no puede leerla. */
@@ -152,6 +186,25 @@ export class StorageKeyAccessPolicy {
         ) {
           throw noEncontrado;
         }
+        return;
+      }
+      case 'CARTA_FIRMADA': {
+        // TSK-015-N09 (RF-17.4 v1.6.6): la regla de resolución y, sin RESOLUCION_HISTORIAL,
+        // solo la clave de la versión vigente.
+        const protocol = await this.protocolRepository.findById(
+          parsed.protocolId as number,
+        );
+        if (
+          !protocol ||
+          !canReadResolution(protocol.principalInvestigatorId, reader)
+        ) {
+          throw noEncontrado;
+        }
+        if (this.tienePermiso(reader, Permission.RESOLUCION_HISTORIAL)) return;
+        const esVigente = await this.cartasRepo.exists({
+          where: { claveArchivo: key, vigente: true },
+        });
+        if (!esVigente) throw noEncontrado;
         return;
       }
       case 'REQUISITO':
@@ -247,6 +300,9 @@ export class StorageKeyAccessPolicy {
           throw new ForbiddenException(SIN_PERMISO_PLANTILLA);
         }
         return;
+      case 'CARTA_FIRMADA':
+        // Las claves de carta solo las emite CartasFirmadasService (upload-url de cartas).
+        throw noEncontrado;
       default:
         throw noEncontrado;
     }
@@ -264,8 +320,8 @@ export class StorageKeyAccessPolicy {
    * Subida de requisitos del investigador principal:
    * - sin versión (`protocols/{id}/requirements/`): BORRADOR (recepción 9 en versión 1) o
    *   subsanación documental (recepción en REQUIERE_SUBSANACION_DOC, 20);
-   * - con versión (`protocols/{id}/v{n}/requirements/`): protocolo en REQUIERE_SUBSANACION_VERSION
-   *   (19) y n igual a la versión activa.
+   * - con versión (`protocols/{id}/v{n}/requirements/`): protocolo en 19 o 21, n > 1 e igual a la
+   *   versión activa, y recepción de esa versión en INICIADO (9) o REQUIERE_SUBSANACION_DOC (20).
    * Nota: PENDIENTE_SUBSANACION del getter `receptionStatus` es un valor por defecto, no un
    * estado concreto, así que no se usa como regla de escritura.
    */
@@ -287,9 +343,18 @@ export class StorageKeyAccessPolicy {
           ProtocolStatus.REQUIERE_SUBSANACION_DOC
       );
     }
+    // TSK-015-N22b (hallazgo): el flujo real de subsanación deja el protocolo en 21
+    // (EN_CONTROL_DOCUMENTAL); 19 se mantiene por compatibilidad. La versión debe ser una
+    // subsanación (n > 1), la activa, y su recepción debe estar abierta (9) o en subsanación
+    // documental (20). Cualquier otra recepción (15, 10, 11…) → 409.
+    const activa = protocol.activeVersion;
     return (
-      protocol.statusId === ProtocolStatus.REQUIERE_SUBSANACION_VERSION &&
-      protocol.activeVersion?.versionNumber === version
+      (protocol.statusId === ProtocolStatus.REQUIERE_SUBSANACION_VERSION ||
+        protocol.statusId === ProtocolStatus.EN_CONTROL_DOCUMENTAL) &&
+      version > 1 &&
+      activa?.versionNumber === version &&
+      (activa.reception?.statusId === ProtocolStatus.INICIADO ||
+        activa.reception?.statusId === ProtocolStatus.REQUIERE_SUBSANACION_DOC)
     );
   }
 

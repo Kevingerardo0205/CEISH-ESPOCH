@@ -370,7 +370,7 @@
   7. El registro no modifica `protocolos.estado_id`.
   8. `calls.service.ts` no cambia.
 
-### Task TSK-015-N09 - [ ] PENDIENTE
+### Task TSK-015-N09 - [x] COMPLETADO (rama feat/tsk-015-n09-n13-carta-firmada)
 - **ID Único**: `TSK-015-N09`
 - **Requisito Relacionado**: `RF-17.1`, `RF-17.2`, `RF-17.4`, `RF-17.7` (spec-003 v1.6.4)
 - **Criterio EARS**: `EARS 5` (RF-17.2, RF-17.4, RF-17.7)
@@ -385,7 +385,10 @@
   - `src/modules/resolutions/infrastructure/controllers/cartas-firmadas.controller.ts` — CREAR: endpoints de RF-17.4 con `RESOLUCION_CREAR` o `RESOLUCION_HISTORIAL`, según corresponda.
   - `src/modules/resolutions/resolutions.module.ts` — MODIFICAR: registrar entidad, servicio y controlador nuevos.
   - `src/modules/resolutions/infrastructure/controllers/resolutions.controller.ts` — MODIFICAR: marcar `POST /resolutions` como legacy (comentario y sin cambios de lógica; retiro en TSK-015-N18).
-  - `src/shared/storage/domain/ports/storage.service.port.ts` y `src/shared/storage/infrastructure/adapters/s3-storage.adapter.ts` — **sin cambios**: se reutilizan `generateUploadUrl` y `getMetadata` (HeadObject).
+  - `src/shared/storage/domain/ports/storage.service.port.ts` — MODIFICAR (aprobado 26/11/2026): método nuevo para leer un rango de bytes (`%PDF-`). `generateUploadUrl` y `getMetadata` se reutilizan.
+  - `src/shared/storage/infrastructure/adapters/s3-storage.adapter.ts` — MODIFICAR: implementación del rango (GetObject con `Range`).
+  - Doble de storage de las pruebas — MODIFICAR: el método nuevo.
+  - `src/modules/storage-access/application/storage-key-access.policy.ts` — MODIFICAR (aprobado): regla `CARTA_FIRMADA` (clave de seis segmentos): lectura solo de la vigente para el investigador; escritura rechazada con 404 en el upload genérico.
   - Pruebas: `src/modules/resolutions/application/services/carta-firmada-rules.spec.ts` y `cartas-firmadas.service.spec.ts` (CREAR); `test/cartas-firmadas.e2e-spec.ts` (CREAR).
   - **No se modifica** `resolution.entity.orm.ts`, `determineResolutionType` ni `calls.service.ts`. Tampoco `resolutions.service.ts`: la lógica nueva vive en el servicio nuevo. El tipo calculado por dictámenes queda como referencia (RF-17.1).
 - **Dependencias**: TSK-015-N08 (resultado del pleno), TSK-015-N11 (quitar `RESOLUCION_CREAR` a PRESIDENTE), TSK-015-N14 (anexos ANEXO_13 a 16 sembrados), TSK-015-N17 (lectura restringida del legado). Se entrega **junto con TSK-015-N13** (misma rama y PR, commits separados; N09 primero).
@@ -393,7 +396,7 @@
 - **Flujo**:
   1. `POST …/cartas/upload-url` → valida `RESOLUCION_CREAR`, resultado del pleno (N08), anexo ↔ resultado y tipo de estudio, y que el estudio no sea EX; devuelve `{ uploadUrl, claveArchivo }`. No registra nada.
   2. `POST …/cartas` con `{ claveArchivo, anexoCodigo, motivoReemplazo? }` → verifica prefijo exacto, `HeadObject` (existe, `application/pdf`, ≤ 10 MB), anexo, y motivo si hay vigente; crea la versión y cambia el estado en la misma transacción.
-- **Estado del protocolo** (misma transacción): `APROBADO_DEFINITIVO` → 17; `APROBADO_CON_CONDICION` → **19** (`REQUIERE_SUBSANACION_VERSION`), con la v2.0 de TSK-015-N13; `NO_APROBADO` → 18. El estado 25 queda sin uso.
+- **Estado del protocolo** (misma transacción): `APROBADO_DEFINITIVO` → 17; `APROBADO_CON_CONDICION` → versión evaluada **19** y protocolo **21** (`EN_CONTROL_DOCUMENTAL`), con la v2.0 de TSK-015-N13 (corregido 26/11/2026); `NO_APROBADO` → 18. El estado 25 queda sin uso.
 - **Endpoints**:
   - `POST /resolutions/convocatorias/:convocatoriaId/protocolos/:convocatoriaProtocoloId/cartas/upload-url`: `RESOLUCION_CREAR`.
   - `POST /resolutions/convocatorias/:convocatoriaId/protocolos/:convocatoriaProtocoloId/cartas`: `RESOLUCION_CREAR`.
@@ -416,7 +419,20 @@
   8. El investigador recibe solo la versión vigente y ningún dato del evaluador.
   9. Esta tarea no crea la v2.0 de RF-14 (eso es TSK-015-N13, misma entrega).
 
+- **Resultados** (26/11/2026, `ceish_test_db`, rama `feat/tsk-015-n09-n13-carta-firmada`):
+  - Migración `2000000000004-CartasFirmadasResolucion`: run, revert, run correctos (commit `be3bb42`).
+  - `npx tsc --noEmit`: exit 0. `npm test`: 76 suites, 847 tests, todos pasan.
+  - ESLint de los archivos tocados: 0 errores. Queda un warning preexistente en `storage-key-access.policy.spec.ts:1` (directiva `eslint-disable` sin uso).
+  - E2E `--runInBand`: `cartas-firmadas` 13/13, `resolutions-legacy-v2` 1/1 (sin cambios), `storage-access` y `resolutions-permisos` en verde. Residuos `ZZ_TEST_CAR_` = 0.
+  - Mutaciones (original restaurado e idéntico): M1 sin `%PDF-` → 3 fallos; M2 sin rechazo de EX → 1 fallo; M3 sin motivo desde v2 → 1 fallo; M4 `fecha_aprobacion` a NULL → 1 fallo.
+  - Decisiones: `version = version + 1` en `protocolos` (el UPDATE nativo no incrementa el `@VersionColumn`). Al aprobar (17) se fija `fecha_aprobacion` como el legacy (`resolutions.service.ts:210`, `approvalDate`), con fecha de Guayaquil.
+  - Diferencia con el legacy, a confirmar: en tipo 1 el legacy crea una fila en `resolucion.resoluciones` (`resolutions.service.ts:188`); el flujo nuevo no la crea, la fuente de la carta es `resolucion.cartas_firmadas`.
+  - Entrega conjunta: con `APROBADO_CON_CONDICION` N09 pone el protocolo en 19 sin v2.0 hasta que N13 esté en el mismo PR.
+  - Cubierto: investigador sin permiso → 403 en upload. No cubierto aquí: caso PRESIDENTE (depende de TSK-015-N11).
+
 ### Task TSK-015-N10 - [ ] PENDIENTE
+- **Hallazgo (26/11/2026, obligatorio para esta tarea)**: el pendiente «Subir resolución» se calcula con `resolution_emitted` en `src/modules/secretaria/infrastructure/repositories/pending-items.typeorm.repository.ts` (`EXISTS … resolucion.resoluciones WHERE version_id = p.version_actual_id`). Tras ANEXO_15 la fila del puente queda en la **versión evaluada** (19) y la activa es la **v2.0**, así que el pendiente seguiría mostrándose. La fila «Subir resolución firmada» de N10 debe basarse en la **carta vigente de `resolucion.cartas_firmadas`** por convocatoria-protocolo (o, como mínimo, en la versión evaluada `convocatoria_protocolos.version_id`), **no** en `version_actual_id`. Mismo problema que ya existía con el legado tipo 2.
+- **Hallazgo (26/11/2026, no resuelto aquí)**: `convocatorias.fecha_reunion` es `date` sin hora; el plazo de 96 h «desde la hora de la reunión» necesita la hora. Existe `convocatorias.hora` (time). Decidir la fuente de la hora antes de implementar.
 - **ID Único**: `TSK-015-N10`
 - **Requisito Relacionado**: `RF-17.3` (spec-003 v1.6.1), `RF-ALR.f.8`
 - **Criterio EARS**: `EARS 5` (RF-17.3)
@@ -484,23 +500,37 @@
   2. El correo de la resolución no adjunta informes individuales.
   3. Las respuestas del investigador no contienen nombre, correo ni `userId` del evaluador.
 
-### Task TSK-015-N13 - [ ] PENDIENTE
+### Task TSK-015-N13 - [x] COMPLETADO (rama feat/tsk-015-n09-n13-carta-firmada)
+- **Hallazgo (26/11/2026, no se toca)**: `calls.service.ts:483-484` compara `dictamenResultado` con `'APROBADO_CON_CONDICIONES'` (plural) y con `'25'`; el valor real es `APROBADO_CON_CONDICION`. La rama no se cumple nunca. Fuera de alcance: N13 prohíbe cambiar `calls.service.ts`.
 - **ID Único**: `TSK-015-N13`
 - **Requisito Relacionado**: `RF-17.5` (spec-003 v1.6.1), `RF-14.1`
 - **Criterio EARS**: `EARS 5` (RF-17.5)
 - **Acción**: `MODIFICAR`
 - **Archivos Afectados**:
-  - `src/modules/resolutions/application/services/resolutions.service.ts:203-237` — MODIFICAR: la creación de la versión v2.0 deja de dispararse por el tipo 2 y pasa a dispararse solo al subir el Anexo 15 con resultado `APROBADO_CON_CONDICION`
+  - `src/modules/resolutions/application/services/version-subsanacion.service.ts` — CREAR (aprobado): la creación de la v2.0 (pasos 2 a 6), compartida con el legacy.
+  - `src/modules/resolutions/application/services/resultado-resolucion.service.ts` — CREAR (movido desde N09 el 26/11/2026): aplica 17/18/19 a versión y protocolo; lo usan ambos flujos.
+  - `src/modules/resolutions/application/services/resolutions.service.ts:203-237` — MODIFICAR (aprobado, extracción): el bloque del tipo 2 llama al servicio compartido **sin cambio de comportamiento**. El legacy **deja de crear la v2.0 en TSK-015-N18**, no en esta tarea.
+  - `src/modules/resolutions/application/services/cartas-firmadas.service.ts` (TSK-015-N09): llama a `VersionSubsanacionService` solo con `APROBADO_CON_CONDICION` (Anexo 15)
   - `src/shared/deadlines/deadline-rules.ts:15` — usa `PLAZO_CONDICION_DIAS` (ya existe, 30)
 - **Dependencias**: TSK-015-N08, TSK-015-N09 (se entrega en el mismo PR, commit posterior a N09)
-- **Descripción**: Al subir el Anexo 15, en la misma transacción: se congelan los requisitos aprobados, se crea la v2.0 y se asigna `plazo_condicion_dias` = 30, con el cálculo actual de `protocol-deadline.service.ts` (no se cambia en esta tarea; ver pregunta 9). El estado del protocolo pasa a 19 (`REQUIERE_SUBSANACION_VERSION`). No se toca `calls.service.ts`.
+- **Descripción**: Al subir el Anexo 15, en la misma transacción: se congelan los requisitos aprobados, se crea la v2.0 y se asigna `plazo_condicion_dias` = 30, con el cálculo actual de `protocol-deadline.service.ts` (no se cambia en esta tarea; ver pregunta 9). La versión evaluada pasa a 19 (tipo 2) y el protocolo a 21 (`EN_CONTROL_DOCUMENTAL`), apuntando a la v2.0 (corregido 26/11/2026: la versión anterior de esta tarea decía que el protocolo quedaba en 19; el flujo real deja 21). No se toca `calls.service.ts`.
 - **Tests**: E2E: con Anexo 15 crea v2.0; con Anexo 13, 14 o 16 no la crea.
 - **Criterio de aceptación**:
   1. Subir el Anexo 15 con resultado `APROBADO_CON_CONDICION` crea la v2.0 en la misma transacción.
   2. El plazo de subsanación es `plazo_condicion_dias` = 30, con el cálculo actual.
-  3. El estado del protocolo queda en 19 (`REQUIERE_SUBSANACION_VERSION`).
+  3. La versión evaluada queda en 19 y el protocolo en 21 (`EN_CONTROL_DOCUMENTAL`), apuntando a la v2.0.
   3. Con resultado `APROBADO_DEFINITIVO` o `NO_APROBADO` no se crea la v2.0.
   4. `calls.service.ts` no cambia.
+- **Resultados** (26/11/2026, `ceish_test_db`; commits `0a19728` decisión 2 y `175be5c` ANEXO_15):
+  - Caracterización tipo 1/3 (`resolutions-legacy-v1-v3`) y tipo 2 (`resolutions-legacy-v2`): en verde. La de tipo 1 comprueba ahora que `fecha_aprobacion` es el día de calendario de Ecuador. Un fallo previo: TypeORM escribe las partes locales de un `Date`, así que el primer intento con medianoche UTC guardaba el día anterior en UTC-5; se corrigió con medianoche local.
+  - Mutación «`new Date()` en vez del día de Ecuador»: **no discrimina a esta hora** (17:29 en Ecuador, mismo día en ambas zonas). Verificada la lógica con una comprobación puntual con `TZ=UTC` y el instante 2026-11-25 23:30 Ecuador: correcta con el cambio (25), incorrecta sin él (26).
+  - E2E `cartas-firmadas` (18 pruebas en verde): ANEXO_15 (versión evaluada en 19 con tipo 2; v2.0 en 21 con plazo 30 y recepción 9; protocolo en 21 apuntando a la v2.0; puente en resoluciones), requisito v2 → 201, ANEXO_16 sin v2.0 (protocolo en 18, puente tipo 3), ANEXO_13 sin v2.0, PRESIDENTE 403 en upload-url y en el registro. **ANEXO_14 no tiene caso propio: NO EJECUTADO.**
+  - Unitarias `src/modules/resolutions`: 37 en verde. `npm test` completo: 76 suites, 852 pruebas en verde. `npx tsc --noEmit`: sin errores. ESLint sobre lo tocado: 0 errores.
+  - Mutaciones (cada archivo restaurado y comprobado con `cmp`): sin crear la v2.0 → 2 fallos; sin puente → 2 fallos; v2.0 siempre → 3 fallos.
+  - Corrige la nota de N09: `resolucion.resoluciones` ya no queda sin cambios; el registro de la carta escribe una fila puente por versión evaluada (upsert).
+  - Servicios compartidos: el registro usa `ResultadoResolucionService` (versión y protocolo) y `VersionSubsanacionService` (solo ANEXO_15); se eliminó el SQL nativo de estados y `estadoProtocoloParaResultado`.
+  - **Anotación (acordada con la usuaria, 26/11/2026)**: en la caracterización tipo 1 (`resolutions-legacy-v1-v3`, commit `0a19728`) se añadió una aserción nueva de fecha de Ecuador. No se cambió ninguna aserción existente, pero la regla de esa caracterización era STOP ante cualquier cambio; queda registrado aquí.
+  - ANEXO_14 (EC): cubierto por el commit `d080652` (ANEXO_13 → 400; ANEXO_14 → 201, protocolo en 17 con fecha de hoy, sin v2.0, puente tipo 1).
 
 ### Task TSK-015-N14 - [x] COMPLETADO (rama feat/tsk-015-n14-n15-anexos-y-plazo)
 - **ID Único**: `TSK-015-N14`
@@ -647,7 +677,7 @@
 - **Descripción (hallazgo C, escritura)**: `POST /storage/upload-url` firma **una URL PUT para cualquier clave**, sin dueño ni permiso. Cualquier autenticado puede sobrescribir la carta de otro protocolo (`protocols/{id}/resolutions/…`), documentos de requisitos o de evaluación, o plantillas (`templates/…`). **Además**, `create-template.use-case.ts:18` y `upload-template-file.use-case.ts:15` del frontend suben plantillas por esta vía, **evitando el permiso `CONFIG_PLANTILLAS`** que sí protege `POST /documents/templates/:code/file` (`documents.controller.ts:69-70`).
 - **Reglas de escritura** (decisiones de la usuaria, Paso 0 de N22b):
   - `protocols/{id}/requirements/…` (sin versión): solo el investigador principal, y solo si el protocolo está en BORRADOR (recepción 9, versión 1) o en subsanación documental (recepción 20). Otro usuario, incluida SECRETARIA → `404`. Principal en otro estado → `409 «El protocolo no admite subir documentos en su estado actual.»`.
-  - `protocols/{id}/v{n}/requirements/…` (subsanación de versión): solo el principal, con el protocolo en REQUIERE_SUBSANACION_VERSION (estado 19) y `n` igual a la versión activa. Otro estado → `409`; otro usuario → `404`.
+  - `protocols/{id}/v{n}/requirements/…` (subsanación de versión): solo el principal, con el protocolo en 19 **o** 21 (EN_CONTROL_DOCUMENTAL), `n > 1` e igual a la versión activa, y recepción de esa versión en 9 (INICIADO) o 20 (REQUIERE_SUBSANACION_DOC). Recepción en 15, 10, 11 u otra → `409`; v1 activa o `n` distinto de la activa → `409`; otro usuario → `404`. (Corregida el 26/11/2026: la regla original exigía solo 19, pero el flujo real de subsanación deja el protocolo en 21; ver hallazgo abajo.)
   - `protocols/{id}/docEvaluacion/…`: solo el evaluador con asignación en ASSIGNED (6). Estados 5 y 7 → `404`.
   - `protocols/{id}/resolutions/…`: `RESOLUCION_CREAR`; sin el permiso → `403`. El bloqueo total de esta clave llega con TSK-015-N09 (N09 tendrá su propio `upload-url`).
   - `investigators/{id}/cv/…`: solo el propio investigador → si no, `404`.
@@ -679,6 +709,7 @@
 | 4 | Quitar la comprobación de estado de requisitos (`requisitoAdmiteSubida` devuelve `true`) | «recepción en revisión (15) → 409», «recepción 11 → 409», «BORRADOR con versión 2 → 409», «v2 con activa v1 → 409», «protocolo fuera de 19 → 409» | `Tests: 5 failed, 66 passed` |
 
   - Hallazgos registrados en la tarea siguiente (TSK-015-N24) y en «Hallazgos de seguridad de storage»: la divergencia del botón de subsanación con el servidor, y el bloqueo por requisito APROBADO/VALIDADO/NO_APLICA que solo aplica el frontend.
+  - **Hallazgo (26/11/2026, corrección de N22b)**: la regla original de `v{n}/requirements` exigía protocolo en 19. El flujo real de subsanación (POST /resolutions tipo 2 y, por diseño, ANEXO_15) deja el protocolo en 21 y la v2 activa con recepción 9. Con la regla original, el principal recibía 409 al subir requisitos de la v2 en el flujo real; los tests existentes pasaban solo porque usaban un fixture manual en 19. Corregido: se acepta 19 o 21, con recepción 9 o 20 en la versión activa. Tests: unitarias (21+v2+9 y 21+v2+20 → permitido; 21+v2+15, v1 activa y n distinto → 409) y e2e «dictamen tipo 2 por POST /resolutions (sin UPDATE de estados)» → 201 y «recepción 15» → 409. El caso manual de 19 se eliminó de la e2e (lo cubre la unitaria). Mutación «exigir solo 19»: el e2e de flujo real falla (1 fallo, 27 pasan).
 
 ### Task TSK-015-N22c - [ ] PENDIENTE (recepción sin prefijo, legado y `draft/`)
 - **Acción**: `MODIFICAR` (y, si hace falta, migración de datos)
@@ -747,7 +778,8 @@
 - **Descripción**: los protocolos EX (exentos de revisión) no pasan por el pleno (RF-17.2). Su carta de exención (Anexo 12) queda fuera de RF-17 y necesita diseño propio: quién la sube, qué estado asigna y si usa `resolucion.cartas_firmadas`. Pendiente también el rótulo «Anexo 12» en el frontend.
 - **Criterio de aceptación**: se define en su propia especificación antes de tocar código.
 
-### Task TSK-015-N20 - [ ] PENDIENTE
+### Task TSK-015-N20 - [x] COMPLETADO (rama feat/tsk-015-n09-n13-carta-firmada, commit `dc69b66`)
+- **Orden (aprobado 26/11/2026)**: commit aparte al final de la rama `feat/tsk-015-n09-n13-carta-firmada`, después de N13.
 - **ID Único**: `TSK-015-N20`
 - **Requisito Relacionado**: `RF-17.2` (EX fuera de RF-17, spec-003 v1.6.4); seguimiento de TSK-015-N08.
 - **Criterio EARS**: `EARS 5` (RF-17.2): **cuando** el estudio sea EX, **el sistema debe** rechazar el registro del resultado del pleno con `409` en español.
@@ -759,6 +791,11 @@
 - **Criterio de aceptación**:
   1. EX → `409` con mensaje en español.
   2. Los demás estudios no cambian.
+- **Resultados** (26/11/2026, `ceish_test_db`, commit `dc69b66`):
+  - Unitaria `registrar-resultado-pleno.use-case.spec.ts`: 19 en verde, incluidas EX → 409 en español sin escritura y EC sin cambio.
+  - E2E `meetings-resultado-pleno.e2e-spec.ts`: 12 en verde, incluido EX → 409 en español, sin historial ni dictamen.
+  - Mutación (quitar la comprobación EX): 1 fallo en la unitaria y 1 en la e2e. Restaurado y verificado con `cmp`.
+  - Reutiliza `esEstudioExento` de `carta-firmada-rules.ts` (la capa de evaluaciones importa una función pura de resoluciones; anotado).
 
 ### Task TSK-015-N21 - [ ] PENDIENTE (frontend, repo aparte)
 - **ID Único**: `TSK-015-N21`
@@ -770,6 +807,10 @@
   - `src/features/evaluations/presentation/pages/evaluation-consolidation/evaluation-consolidation.page.ts:340`: botón «Firmar y Notificar» sin control de permiso.
   - `src/features/evaluations/routes.ts:99` y `:108`: rutas de consolidación con `RESOLUCION_CREAR` en `any` (PRESIDENTE entra por `EVALUACION_INFORMES`; revisar si se quiere solo lectura).
 - **Criterio de aceptación**: PRESIDENTE no ve acciones de creación de resoluciones y ve la resolución en solo lectura (`RESOLUCION_HISTORIAL`).
+
+## Hallazgos abiertos (tareas futuras)
+
+- **Zona horaria en `BusinessDayCalculator.calculateDeadline` (26/11/2026)**: devuelve medianoche UTC del día de calendario de Ecuador (`src/shared/services/deadline-calculator.service.ts`). TypeORM escribe las partes **locales** de un `Date` en columnas `date`, así que en un proceso con zona distinta de Ecuador guarda el día anterior. Es el mismo riesgo que se corrigió en `fecha_aprobacion` (TSK-015-N13, commit `0a19728`). Tarea futura: revisar los usos de `calculateDeadline` y de las columnas `date` que lo reciben, y decidir si se construye medianoche local con el día de Ecuador. No se toca en N13 ni en N20.
 
 ## Orden de ejecución (decisión 25/11/2026)
 

@@ -41,6 +41,10 @@ export interface RequestWithUser {
 export class ResolutionsController {
   constructor(private readonly resolutionsService: ResolutionsService) {}
 
+  /**
+   * LEGACY (spec-003 v1.6.6, TSK-015-N09): flujo anterior, se mantiene solo porque el frontend lo usa.
+   * No se extiende; las cartas firmadas van por /resolutions/convocatorias/…/cartas. Se retira en TSK-015-N18.
+   */
   @Post()
   @Permissions(Permission.RESOLUTION_CREATE)
   @Audit('RESOLUTION_CREATED')
