@@ -491,6 +491,7 @@
   3. Las respuestas del investigador no contienen nombre, correo ni `userId` del evaluador.
 
 ### Task TSK-015-N13 - [ ] PENDIENTE
+- **Hallazgo (26/11/2026, no se toca)**: `calls.service.ts:483-484` compara `dictamenResultado` con `'APROBADO_CON_CONDICIONES'` (plural) y con `'25'`; el valor real es `APROBADO_CON_CONDICION`. La rama no se cumple nunca. Fuera de alcance: N13 prohíbe cambiar `calls.service.ts`.
 - **ID Único**: `TSK-015-N13`
 - **Requisito Relacionado**: `RF-17.5` (spec-003 v1.6.1), `RF-14.1`
 - **Criterio EARS**: `EARS 5` (RF-17.5)
