@@ -502,7 +502,7 @@
   3. Con resultado `APROBADO_DEFINITIVO` o `NO_APROBADO` no se crea la v2.0.
   4. `calls.service.ts` no cambia.
 
-### Task TSK-015-N14 - [ ] PENDIENTE
+### Task TSK-015-N14 - [x] COMPLETADO (rama feat/tsk-015-n14-n15-anexos-y-plazo)
 - **ID Único**: `TSK-015-N14`
 - **Requisito Relacionado**: `RF-17.2` (spec-003 v1.6.1)
 - **Criterio EARS**: `EARS 5` (RF-17.2)
@@ -517,7 +517,16 @@
   2. Ninguna fila existente cambia.
   3. El `down` deja la tabla como estaba.
 
-### Task TSK-015-N15 - [ ] PENDIENTE
+- **Resultados** (26/11/2026, `ceish_test_db`, rama `feat/tsk-015-n14-n15-anexos-y-plazo`):
+  - Migración `2000000000003-SeedTiposDocumentoAnexos13a16` aplicada con `run` → `revert` → `run`, vía TypeORM CLI. Tras el `revert`: 0 filas `ANEXO_13..16` y 0 relaciones huérfanas. Estado final: 4 filas, una por código, con `codigo_plantilla` NULL y 0 filas en `tipo_documento_estudio`.
+  - Respaldo previo de `catalogos.tipos_documento` y `tipo_documento_estudio` (datos y esquema) en el scratchpad, con sha256.
+  - E2E `test/seed-anexos-13-16.e2e-spec.ts`: 5/5 en verde (filas, checklist IO/EI/EC sin ANEXO_13..16, idempotencia y `down` en transacción revertida).
+  - Mutación (a), fila en `tipo_documento_estudio` para ANEXO_13 vía la migración: fallan la prueba de «sin relaciones», la del checklist de IO y la de idempotencia (clave duplicada en `tipo_documento_estudio_pkey`). Restaurada con `cmp`.
+  - Mutación (b), sin `WHERE NOT EXISTS`: falla la prueba de idempotencia (duplicado). Restaurada con `cmp`.
+  - Hallazgo: `catalogos.tipos_documento.codigo_anexo` es `varchar(20)` en `ceish_test_db`; la migración `1778800000000` pide `VARCHAR(50)`. No afecta a los cuatro códigos (8 caracteres).
+  - Suite `protocol-thesis` (TSK-001.12), no afectada por esta tarea: 1 prueba NO VERIFICADA; aborta antes de sus aserciones por falta de `E2E_TEST_ACCOUNTS_PASSWORD` en el entorno. Las otras 34 pruebas de `seed-anexos-13-16`, `requirement-templates` y `protocol-thesis` pasan.
+
+### Task TSK-015-N15 - [x] COMPLETADO (rama feat/tsk-015-n14-n15-anexos-y-plazo)
 - **ID Único**: `TSK-015-N15`
 - **Requisito Relacionado**: `RF-17.3` (spec-003 v1.6.1)
 - **Criterio EARS**: `EARS 5` (RF-17.3)
@@ -530,6 +539,12 @@
 - **Criterio de aceptación**:
   1. La constante vale `96` y está exportada en `deadline-rules.ts`.
   2. TSK-015-N10 la importa; no hay otra definición.
+
+- **Resultados** (26/11/2026, rama `feat/tsk-015-n14-n15-anexos-y-plazo`):
+  - `src/shared/deadlines/deadline-rules.ts`: `PLAZO_RESOLUCION_FIRMADA_HORAS = 96 as const`, después de `PLAZO_CONDICION_DIAS`. Diff del archivo: 3 líneas añadidas.
+  - Búsqueda previa de `96`, `HORAS` y `96h` en `src/**/*.ts`: sin definiciones preexistentes.
+  - Unitaria `src/shared/deadlines/deadline-rules.spec.ts`: 1/1 en verde.
+  - Mutación 96 → 72: falla la unitaria (`Expected 96, Received 72`). Restaurada con `cmp`.
 
 ### Task TSK-015-N16 - [ ] PENDIENTE
 - **ID Único**: `TSK-015-N16`
