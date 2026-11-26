@@ -370,7 +370,7 @@
   7. El registro no modifica `protocolos.estado_id`.
   8. `calls.service.ts` no cambia.
 
-### Task TSK-015-N09 - [ ] PENDIENTE
+### Task TSK-015-N09 - [x] COMPLETADO (rama feat/tsk-015-n09-n13-carta-firmada)
 - **ID Único**: `TSK-015-N09`
 - **Requisito Relacionado**: `RF-17.1`, `RF-17.2`, `RF-17.4`, `RF-17.7` (spec-003 v1.6.4)
 - **Criterio EARS**: `EARS 5` (RF-17.2, RF-17.4, RF-17.7)
@@ -388,8 +388,6 @@
   - `src/shared/storage/domain/ports/storage.service.port.ts` — MODIFICAR (aprobado 26/11/2026): método nuevo para leer un rango de bytes (`%PDF-`). `generateUploadUrl` y `getMetadata` se reutilizan.
   - `src/shared/storage/infrastructure/adapters/s3-storage.adapter.ts` — MODIFICAR: implementación del rango (GetObject con `Range`).
   - Doble de storage de las pruebas — MODIFICAR: el método nuevo.
-  - `src/modules/resolutions/application/services/version-subsanacion.service.ts` — CREAR (aprobado 26/11/2026): pasos 2 a 6 de la creación actual de la v2.0; lo usan el legacy (hasta N18) y el flujo nuevo (solo Anexo 15).
-  - `src/modules/resolutions/application/services/resultado-resolucion.service.ts` — CREAR (aprobado 26/11/2026): aplica 17/18/19 a versión y protocolo; lo usan ambos flujos.
   - `src/modules/storage-access/application/storage-key-access.policy.ts` — MODIFICAR (aprobado): regla `CARTA_FIRMADA` (clave de seis segmentos): lectura solo de la vigente para el investigador; escritura rechazada con 404 en el upload genérico.
   - Pruebas: `src/modules/resolutions/application/services/carta-firmada-rules.spec.ts` y `cartas-firmadas.service.spec.ts` (CREAR); `test/cartas-firmadas.e2e-spec.ts` (CREAR).
   - **No se modifica** `resolution.entity.orm.ts`, `determineResolutionType` ni `calls.service.ts`. Tampoco `resolutions.service.ts`: la lógica nueva vive en el servicio nuevo. El tipo calculado por dictámenes queda como referencia (RF-17.1).
@@ -420,6 +418,17 @@
   7. El estado del protocolo cambia en la misma transacción que la versión vigente.
   8. El investigador recibe solo la versión vigente y ningún dato del evaluador.
   9. Esta tarea no crea la v2.0 de RF-14 (eso es TSK-015-N13, misma entrega).
+
+- **Resultados** (26/11/2026, `ceish_test_db`, rama `feat/tsk-015-n09-n13-carta-firmada`):
+  - Migración `2000000000004-CartasFirmadasResolucion`: run, revert, run correctos (commit `be3bb42`).
+  - `npx tsc --noEmit`: exit 0. `npm test`: 76 suites, 847 tests, todos pasan.
+  - ESLint de los archivos tocados: 0 errores. Queda un warning preexistente en `storage-key-access.policy.spec.ts:1` (directiva `eslint-disable` sin uso).
+  - E2E `--runInBand`: `cartas-firmadas` 13/13, `resolutions-legacy-v2` 1/1 (sin cambios), `storage-access` y `resolutions-permisos` en verde. Residuos `ZZ_TEST_CAR_` = 0.
+  - Mutaciones (original restaurado e idéntico): M1 sin `%PDF-` → 3 fallos; M2 sin rechazo de EX → 1 fallo; M3 sin motivo desde v2 → 1 fallo; M4 `fecha_aprobacion` a NULL → 1 fallo.
+  - Decisiones: `version = version + 1` en `protocolos` (el UPDATE nativo no incrementa el `@VersionColumn`). Al aprobar (17) se fija `fecha_aprobacion` como el legacy (`resolutions.service.ts:210`, `approvalDate`), con fecha de Guayaquil.
+  - Diferencia con el legacy, a confirmar: en tipo 1 el legacy crea una fila en `resolucion.resoluciones` (`resolutions.service.ts:188`); el flujo nuevo no la crea, la fuente de la carta es `resolucion.cartas_firmadas`.
+  - Entrega conjunta: con `APROBADO_CON_CONDICION` N09 pone el protocolo en 19 sin v2.0 hasta que N13 esté en el mismo PR.
+  - Cubierto: investigador sin permiso → 403 en upload. No cubierto aquí: caso PRESIDENTE (depende de TSK-015-N11).
 
 ### Task TSK-015-N10 - [ ] PENDIENTE
 - **Hallazgo (26/11/2026, no resuelto aquí)**: `convocatorias.fecha_reunion` es `date` sin hora; el plazo de 96 h «desde la hora de la reunión» necesita la hora. Existe `convocatorias.hora` (time). Decidir la fuente de la hora antes de implementar.
@@ -498,6 +507,7 @@
 - **Acción**: `MODIFICAR`
 - **Archivos Afectados**:
   - `src/modules/resolutions/application/services/version-subsanacion.service.ts` — CREAR (aprobado): la creación de la v2.0 (pasos 2 a 6), compartida con el legacy.
+  - `src/modules/resolutions/application/services/resultado-resolucion.service.ts` — CREAR (movido desde N09 el 26/11/2026): aplica 17/18/19 a versión y protocolo; lo usan ambos flujos.
   - `src/modules/resolutions/application/services/resolutions.service.ts:203-237` — MODIFICAR (aprobado, extracción): el bloque del tipo 2 llama al servicio compartido **sin cambio de comportamiento**. El legacy **deja de crear la v2.0 en TSK-015-N18**, no en esta tarea.
   - `src/modules/resolutions/application/services/cartas-firmadas.service.ts` (TSK-015-N09): llama a `VersionSubsanacionService` solo con `APROBADO_CON_CONDICION` (Anexo 15)
   - `src/shared/deadlines/deadline-rules.ts:15` — usa `PLAZO_CONDICION_DIAS` (ya existe, 30)
