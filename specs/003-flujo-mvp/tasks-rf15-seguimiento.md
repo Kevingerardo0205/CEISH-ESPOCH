@@ -641,17 +641,23 @@
   2. `reception/document/:id/download-url` y `/view` no entregan URL a quien no puede leer el protocolo del documento.
   3. Las descargas legítimas de los consumidores listados siguen funcionando.
 
-### Task TSK-015-N22b - [ ] PENDIENTE (escritura: POST /storage/upload-url, hallazgo C escritura)
+### Task TSK-015-N22b - [x] COMPLETADO (escritura: POST /storage/upload-url, hallazgo C escritura; commit de código 67b4dec)
 - **Acción**: `MODIFICAR`
-- **Archivos Afectados**: `src/shared/storage/infrastructure/controllers/storage.controller.ts:23-44`; misma regla por prefijo que N22a (reutilizada, no duplicada).
+- **Archivos Afectados**: `src/modules/storage-access/infrastructure/controllers/storage.controller.ts` (antes `src/shared/storage/…`, movido en N22a); `src/modules/storage-access/application/storage-key-access.policy.ts` (`assertCanWrite`, reutiliza `parseStorageKey`, `canReadResolution`, `protocolRepository.findById`, `hasEvaluatorAssignment`); pruebas: `storage-key-access.policy.spec.ts` y `test/storage-access.e2e-spec.ts` (MODIFICAR, no archivos nuevos).
 - **Descripción (hallazgo C, escritura)**: `POST /storage/upload-url` firma **una URL PUT para cualquier clave**, sin dueño ni permiso. Cualquier autenticado puede sobrescribir la carta de otro protocolo (`protocols/{id}/resolutions/…`), documentos de requisitos o de evaluación, o plantillas (`templates/…`). **Además**, `create-template.use-case.ts:18` y `upload-template-file.use-case.ts:15` del frontend suben plantillas por esta vía, **evitando el permiso `CONFIG_PLANTILLAS`** que sí protege `POST /documents/templates/:code/file` (`documents.controller.ts:69-70`).
-- **Reglas de escritura**:
-  - `protocols/{id}/resolutions/…`: solo el flujo de SECRETARIA (`RESOLUCION_CREAR`; a confirmar con N09).
-  - `protocols/{id}/requirements/…`: investigador principal.
-  - `protocols/{id}/docEvaluacion/…`: evaluador asignado en estados 5/6/7.
-  - `investigators/{id}/cv/…`: solo el propio investigador.
-  - `templates/…`: permiso `CONFIG_PLANTILLAS` (`permission.enum.ts:86`).
-  - Cualquier otra clave, `..` o prefijo desconocido → `400`.
+- **Reglas de escritura** (decisiones de la usuaria, Paso 0 de N22b):
+  - `protocols/{id}/requirements/…` (sin versión): solo el investigador principal, y solo si el protocolo está en BORRADOR (recepción 9, versión 1) o en subsanación documental (recepción 20). Otro usuario, incluida SECRETARIA → `404`. Principal en otro estado → `409 «El protocolo no admite subir documentos en su estado actual.»`.
+  - `protocols/{id}/v{n}/requirements/…` (subsanación de versión): solo el principal, con el protocolo en REQUIERE_SUBSANACION_VERSION (estado 19) y `n` igual a la versión activa. Otro estado → `409`; otro usuario → `404`.
+  - `protocols/{id}/docEvaluacion/…`: solo el evaluador con asignación en ASSIGNED (6). Estados 5 y 7 → `404`.
+  - `protocols/{id}/resolutions/…`: `RESOLUCION_CREAR`; sin el permiso → `403`. El bloqueo total de esta clave llega con TSK-015-N09 (N09 tendrá su propio `upload-url`).
+  - `investigators/{id}/cv/…`: solo el propio investigador → si no, `404`.
+  - `templates/…`: `CONFIG_PLANTILLAS` → sin el permiso `403`.
+  - Cualquier otra subruta de `protocols/{id}/`, Anexo 9 (`evaluations/anexo9/`), prefijo desconocido → `404`. `..`, `draft/` o mal formada → `400`.
+  - **Tipo de contenido** (validado antes de la autorización): `protocols/*` y CV → `application/pdf`; `templates/*` → DOCX. Otro valor → `400 «Tipo de contenido no permitido para esta clave.»`.
+  - **Tamaño**: fuera de esta tarea (ver hallazgos de N22b).
+  - **Subsanación de versión**: `parseStorageKey` clasificaba `protocols/{id}/v{n}/requirements/…` como `PROTOCOLO_EVALUACION`. Ahora se clasifica como `REQUISITO` con `version`. Efecto en lectura: el principal puede leer sus requisitos versionados por `GET /storage/download-url` (antes solo SECRETARIA y evaluadores); quien tenga `PROTOCOLOS_LISTAR` también los leerá fuera de BORRADOR, igual que el resto de requisitos.
+  - **Desviación**: `PENDIENTE_SUBSANACION` del getter `receptionStatus` no se usa como regla. Es un valor por defecto que cubre cualquier estado no listado con versión 1 (por ejemplo, EN_REVISION), así que permitiría subir en estados que no son de subsanación. La regla usa el id de recepción 20.
+  - **Principal**: se compara con `principalInvestigatorId`, que el ORM marca como deprecado (`protocol.entity.orm.ts:69, 76`) pero que ya usan `findOneForReader` y `canReadResolution`. Mantenemos la misma fuente para no divergir.
 - **Dependencias**: TSK-015-N22a (comparte la regla). Va **después** de N22a.
 - **Tests**: E2E con `ZZ_TEST_`: investigador no dueño → `404`; evaluador no asignado → `404`; plantilla sin `CONFIG_PLANTILLAS` → `404` o `403` (decidir); clave con `..` → `400`.
 - **Mutaciones**: quitar la comprobación de escritura; quitar la de `templates/`.
@@ -659,6 +665,20 @@
   1. Nadie puede obtener una URL PUT para una clave ajena.
   2. Las subidas legítimas del frontend siguen funcionando (listadas en N22a).
   3. Las plantillas solo se suben con `CONFIG_PLANTILLAS`, también vía `upload-url`.
+- **Resultados** (25/11/2026, `ceish_test_db`; commit de código 67b4dec):
+  - Unitarias `storage-key-access.policy.spec.ts`: 71 pruebas en verde (37 de N22a + 34 nuevas de `assertCanWrite` y del parseo de `v{n}`). `npm test` completo: 73 suites, 809 pruebas en verde.
+  - E2E `test/storage-access.e2e-spec.ts` con `--runInBand`: 27/27 en verde (15 de N22a + 12 nuevas de `POST /api/storage/upload-url`). Cuentas `ZZ_TEST_SA_`, doble de `IStorageService`. Residuos tras la suite: protocolos 0, usuarios 0, recepciones 0, asignaciones 0.
+  - `npx tsc --noEmit`: sin errores. `npx eslint` sobre lo tocado: 0 errores; 1 aviso (`Unused eslint-disable directive` en la cabecera de `storage-key-access.policy.spec.ts`) que ya existía idéntico en `dev`.
+  - Mutaciones (cada archivo restaurado y comprobado con `cmp` contra copia previa):
+
+| Mutación | Qué se rompió | Prueba que falla | Resultado |
+|---|---|---|---|
+| 1 | Quitar `assertCanWrite` del controlador | E2E: SECRETARIA/otro investigador → 404; estados → 409; etc. | `Tests: 10 failed, 17 passed` (de 27) |
+| 2 | Quitar `CONFIG_PLANTILLAS` en la rama `templates/` | «sin CONFIG_PLANTILLAS → 403» | `Tests: 1 failed, 70 passed` |
+| 3 | Quitar la comprobación de asignación ASIGNADA en `docEvaluacion/` | «evaluador con asignación ASIGNADA (6) → permitido», «SUGERIDA (5) → 404», «COMPLETADA (7) → 404», «principal y SECRETARIA → 404» | `Tests: 4 failed, 67 passed` |
+| 4 | Quitar la comprobación de estado de requisitos (`requisitoAdmiteSubida` devuelve `true`) | «recepción en revisión (15) → 409», «recepción 11 → 409», «BORRADOR con versión 2 → 409», «v2 con activa v1 → 409», «protocolo fuera de 19 → 409» | `Tests: 5 failed, 66 passed` |
+
+  - Hallazgos registrados en la tarea siguiente (TSK-015-N24) y en «Hallazgos de seguridad de storage»: la divergencia del botón de subsanación con el servidor, y el bloqueo por requisito APROBADO/VALIDADO/NO_APLICA que solo aplica el frontend.
 
 ### Task TSK-015-N22c - [ ] PENDIENTE (recepción sin prefijo, legado y `draft/`)
 - **Acción**: `MODIFICAR` (y, si hace falta, migración de datos)
@@ -672,7 +692,26 @@
 ### Hallazgos de seguridad de storage (registrados en Paso 0 de N22, 25/11/2026)
 - **Hallazgo C (lectura)**: `GET` y `POST /storage/download-url` firman cualquier clave. → **N22a**.
 - **Hallazgo I (recepción por id)**: `reception/document/:id/download-url` y `/view` no comprueban dueño ni permiso. → **N22a**.
-- **Hallazgo C (escritura)**: `POST /storage/upload-url` firma PUT para cualquier clave, incluidas plantillas sin `CONFIG_PLANTILLAS`. → **N22b**.
+- **Hallazgo C (escritura)**: `POST /storage/upload-url` firma PUT para cualquier clave, incluidas plantillas sin `CONFIG_PLANTILLAS`. → **N22b** (hecho, 67b4dec).
+- **Hallazgo N22b-1 (botón de subsanación, frontend)**: `subsanacion.page.ts:283-292` muestra «Subir» según `isInvestigador()` y `!isRequirementLocked(req)` (`:1057-1068`). Esa condición mira solo el estado del requisito, no el del protocolo. El servidor ya rechaza con `409` fuera de BORRADOR / REQUIERE_SUBSANACION_DOC / REQUIERE_SUBSANACION_VERSION. → **TSK-015-N24**.
+- **Hallazgo N22b-2 (co-investigadores)**: `protocol.controller.ts:196-198` admite co-investigadores en `POST /protocols/:id/upload-document`. RF-02.10 y la decisión de N22b dicen que solo sube el investigador principal. **No se cambia en N22b**; el alta de la diferencia queda para una tarea aparte (decidir si se elimina la rama de co-investigador en el registro de documentos).
+- **Hallazgo N22b-3 (bloqueo por requisito, servidor)**: el bloqueo de re-subida de un requisito APROBADO / VALIDADO / NO_APLICA (`isRequirementLocked`) solo lo aplica el frontend. `POST /protocols/:id/upload-document` y `POST /storage/upload-url` no lo comprueban. Tarea futura, no en N22b.
+- **Hallazgo N22b-4 (tamaño)**: el adaptador S3 no fija `ContentLength` en la URL PUT, así que el servidor no limita el tamaño. Los límites del frontend son de cliente (10 MB, 5 MB para el CV, 20 MB en algunos anexos). Fuera de N22b; requiere cambiar el adaptador.
+- **Hallazgo N22b-5 (DOCX en requisitos)**: el frontend acepta DOCX en algunos anexos (`anexos-pet.constants.ts:36`, `upload-documentos.component.ts:420`), pero `POST /protocols/:id/upload-document` solo acepta PDF (`protocol.controller.ts:183`). Con N22b un DOCX de requisito falla con `400` al pedir la URL. → **TSK-015-N24** (restringir a PDF en frontend).
+
+### Task TSK-015-N24 - [ ] PENDIENTE (frontend, repo aparte; dependencia: TSK-015-N22b)
+- **ID Único**: `TSK-015-N24`
+- **Requisito Relacionado**: `RF-17.6` (spec-003 v1.6.4), decisiones de N22b (Paso 0, 25/11/2026).
+- **Acción**: `MODIFICAR` en `D:\Frontend-CEISH\ceish-espoch-frontend\src` (fuera de este repo; no tocar desde el backend).
+- **Descripción**:
+  1. Quitar la subida de requisitos en `protocol-validation-detail.page.ts:1344` (SECRETARIA no escribe en `requirements/`; la regla de N22b devuelve `404`).
+  2. Restringir a PDF las subidas de requisitos: `anexos-pet.constants.ts:36` (quitar DOCX) y `upload-documentos.component.ts:420` (quitar el mapeo DOCX).
+  3. Hallazgo N22b-1: el botón «Subir» de `subsanacion.page.ts:283-292` debe exigir además el estado del protocolo (BORRADOR, REQUIERE_SUBSANACION_DOC o REQUIERE_SUBSANACION_VERSION) y mostrar el mensaje del `409` («El protocolo no admite subir documentos en su estado actual.») si el servidor lo devuelve.
+- **Dependencias**: TSK-015-N22b (hecha, 67b4dec).
+- **Criterio de aceptación**:
+  1. SECRETARIA no tiene ninguna subida de requisitos.
+  2. Un DOCX no se ofrece como requisito.
+  3. El botón «Subir» de subsanación no aparece fuera de los estados permitidos, y un `409` se muestra en español.
 - **Hallazgo Evaluador / tarea B7 (Anexo 9 por id)**: `GET /evaluations/:id/document` y `…/document/docx` (`evaluations.controller.ts:318-338`, con `EVALUATION_VIEW_MINE` = `EVALUACION_PLENO`, que tienen EVALUADOR, SECRETARIA y PRESIDENTE) **no comprueban que la evaluación sea del usuario**: el controlador pasa solo el `id` y `getEvaluationDocumentUrl` (`evaluations.service.ts:1903-1948`) resuelve por id, comprueba solo que exista `rutaPdf`, y firma. Cualquier evaluador ve el Anexo 9 de otro. → **N22a** (regla "dueño de la evaluación").
 
 ### Task TSK-015-N23 - [ ] PENDIENTE (frontend, repo aparte)

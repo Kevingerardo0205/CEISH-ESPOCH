@@ -7,6 +7,8 @@
  * - GET y POST /api/storage/download-url aplican la política por prefijo y dueño.
  * - GET /api/reception/document/:id/{view,download-url} aplican la regla del protocolo de la fila.
  * - GET /api/evaluations/:id/document y /document/docx: solo el evaluador dueño o EVALUACION_INFORMES.
+ * - TSK-015-N22b: POST /api/storage/upload-url aplica assertCanWrite (dueño, estado del protocolo,
+ *   asignación ASIGNADA, permisos de plantillas y resoluciones, tipo de contenido).
  *
  * Login real con cuentas ZZ_TEST_SA_ propias (contraseña generada en cada ejecución, no se imprime).
  * IStorageService se sustituye por un doble: no se llama a S3 real.
@@ -81,7 +83,7 @@ const ROL: Record<Usuario, string> = {
 describe('TSK-015-N22a — descarga por clave, documento de recepción y Anexo 9 (ceish_test_db)', () => {
   let app: INestApplication;
   let ds: DataSource;
-  let storageMock: { getDownloadUrl: jest.Mock };
+  let storageMock: { getDownloadUrl: jest.Mock; generateUploadUrl: jest.Mock };
   const token: Partial<Record<Usuario, string>> = {};
   const userId: Partial<Record<Usuario, number>> = {};
   const email = (k: Usuario) => `${k.toLowerCase()}${EMAIL_DOMAIN}`;
@@ -108,6 +110,10 @@ describe('TSK-015-N22a — descarga por clave, documento de recepción y Anexo 9
     );
     await ds.query(
       `DELETE FROM resolucion.resoluciones WHERE protocolo_id IN (${protocolos})`,
+    );
+    await ds.query(
+      `DELETE FROM recepcion.recepciones WHERE version_id IN
+         (SELECT id FROM public.versiones_protocolo WHERE protocolo_id IN (${protocolos}))`,
     );
     await ds.query(
       `UPDATE public.protocolos SET version_actual_id = NULL WHERE titulo LIKE '${PREFIX}%'`,
@@ -244,6 +250,7 @@ describe('TSK-015-N22a — descarga por clave, documento de recepción y Anexo 9
 
     storageMock = {
       getDownloadUrl: jest.fn().mockResolvedValue('https://test.local/f.pdf'),
+      generateUploadUrl: jest.fn().mockResolvedValue('https://test.local/up'),
     };
 
     const fix: TestingModule = await Test.createTestingModule({
@@ -266,7 +273,7 @@ describe('TSK-015-N22a — descarga por clave, documento de recepción y Anexo 9
         getFileUrl: jest.fn().mockResolvedValue('https://test.local/f.pdf'),
         getMetadata: jest.fn().mockResolvedValue({}),
         deleteFile: jest.fn().mockResolvedValue(undefined),
-        generateUploadUrl: jest.fn().mockResolvedValue('https://test.local/up'),
+        generateUploadUrl: storageMock.generateUploadUrl,
         getDownloadUrl: storageMock.getDownloadUrl,
       })
       .compile();
@@ -496,6 +503,199 @@ describe('TSK-015-N22a — descarga por clave, documento de recepción y Anexo 9
         .get(`/api/evaluations/${evaluacionId}/document`)
         .set('Authorization', `Bearer ${token.investigador}`);
       expect(r.status).toBe(403);
+    });
+  });
+
+  /** TSK-015-N22b: POST /api/storage/upload-url aplica assertCanWrite antes de firmar. */
+  describe('POST /api/storage/upload-url por clave (TSK-015-N22b)', () => {
+    const PDF = 'application/pdf';
+    const DOCX =
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    const subir = (u: Usuario, key: string, contentType: string) =>
+      api()
+        .post('/api/storage/upload-url')
+        .set('Authorization', `Bearer ${token[u]}`)
+        .send({ key, contentType });
+
+    let pBorrador: number;
+    let pSubsDoc: number;
+    let pRevision: number;
+    let pVersion: number;
+    let pEval: number;
+    let evalVersionId: number;
+    let asignacionEvaluador: number;
+
+    /** Protocolo ZZ_TEST_SA_ con versión activa, estado de protocolo y de recepción. */
+    async function crearProtocolo(
+      sufijo: string,
+      estadoProtocolo: number,
+      numeroVersion: number,
+      estadoRecepcion: number | null,
+    ): Promise<{ protocolId: number; versionId: number }> {
+      const [p] = await ds.query(
+        `INSERT INTO public.protocolos (titulo, investigador_principal_id, estado_id)
+         VALUES ($1, $2, $3) RETURNING id`,
+        [`${PREFIX}${sufijo}`, userId.investigador, estadoProtocolo],
+      );
+      const [v] = await ds.query(
+        `INSERT INTO public.versiones_protocolo (protocolo_id, numero_version)
+         VALUES ($1, $2) RETURNING id`,
+        [p.id, numeroVersion],
+      );
+      await ds.query(
+        `UPDATE public.protocolos SET version_actual_id = $1 WHERE id = $2`,
+        [v.id, p.id],
+      );
+      if (estadoRecepcion !== null) {
+        await ds.query(
+          `INSERT INTO recepcion.recepciones (version_id, estado_id) VALUES ($1, $2)`,
+          [v.id, estadoRecepcion],
+        );
+      }
+      return { protocolId: p.id, versionId: v.id };
+    }
+
+    beforeAll(async () => {
+      storageMock.generateUploadUrl.mockClear();
+      pBorrador = (await crearProtocolo('up-borrador', 9, 1, 9)).protocolId;
+      pSubsDoc = (await crearProtocolo('up-subs-doc', 13, 1, 20)).protocolId;
+      pRevision = (await crearProtocolo('up-revision', 13, 1, 15)).protocolId;
+      pVersion = (await crearProtocolo('up-version', 19, 2, 9)).protocolId;
+      const eval_ = await crearProtocolo('up-evaluacion', 13, 1, 15);
+      pEval = eval_.protocolId;
+      evalVersionId = eval_.versionId;
+      const [a] = await ds.query(
+        `INSERT INTO evaluacion.asignaciones_evaluacion (version_id, evaluador_id, estado_id)
+         VALUES ($1, $2, 6) RETURNING id`,
+        [evalVersionId, userId.evaluador],
+      );
+      asignacionEvaluador = a.id;
+      await ds.query(
+        `INSERT INTO evaluacion.asignaciones_evaluacion (version_id, evaluador_id, estado_id)
+         VALUES ($1, $2, 7)`,
+        [evalVersionId, userId.evaluadorAjeno],
+      );
+    });
+
+    it('requisitos en BORRADOR (recepción 9) → 200 con la clave firmada', async () => {
+      const key = `protocols/${pBorrador}/requirements/${PREFIX}r1/doc.pdf`;
+      const r = await subir('investigador', key, PDF);
+      expect(r.status).toBe(201);
+      expect(r.body.data.uploadUrl).toBe('https://test.local/up');
+      expect(r.body.data.key).toBe(key);
+    });
+
+    it('requisitos en subsanación documental (recepción 20) → 200', async () => {
+      const r = await subir(
+        'investigador',
+        `protocols/${pSubsDoc}/requirements/${PREFIX}r1/doc.pdf`,
+        PDF,
+      );
+      expect(r.status).toBe(201);
+    });
+
+    it('principal con recepción en revisión (15) → 409 en español', async () => {
+      const r = await subir(
+        'investigador',
+        `protocols/${pRevision}/requirements/${PREFIX}r1/doc.pdf`,
+        PDF,
+      );
+      expect(r.status).toBe(409);
+      expect(r.body.message).toBe(
+        'El protocolo no admite subir documentos en su estado actual.',
+      );
+    });
+
+    it('subsanación de versión v2 con protocolo en 19 → 200; con el protocolo fuera de 19 → 409', async () => {
+      const ok = await subir(
+        'investigador',
+        `protocols/${pVersion}/v2/requirements/${PREFIX}r1/doc.pdf`,
+        PDF,
+      );
+      expect(ok.status).toBe(201);
+      const fuera = await subir(
+        'investigador',
+        `protocols/${pRevision}/v2/requirements/${PREFIX}r1/doc.pdf`,
+        PDF,
+      );
+      expect(fuera.status).toBe(409);
+    });
+
+    it('SECRETARIA y otro investigador en requisitos → 404 «Archivo no encontrado.»', async () => {
+      const key = `protocols/${pBorrador}/requirements/${PREFIX}r2/doc.pdf`;
+      for (const u of ['secretaria', 'otroInvestigador'] as Usuario[]) {
+        const r = await subir(u, key, PDF);
+        expect(r.status).toBe(404);
+        expect(r.body.message).toBe(NO_ARCHIVO);
+      }
+    });
+
+    it('requisitos con DOCX → 400 (solo PDF)', async () => {
+      const r = await subir(
+        'investigador',
+        `protocols/${pBorrador}/requirements/${PREFIX}r3/doc.docx`,
+        DOCX,
+      );
+      expect(r.status).toBe(400);
+      expect(r.body.message).toBe(
+        'Tipo de contenido no permitido para esta clave.',
+      );
+    });
+
+    it('plantillas sin CONFIG_PLANTILLAS → 403', async () => {
+      const r = await subir(
+        'investigador',
+        `templates/${PREFIX}formato_template.docx`,
+        DOCX,
+      );
+      expect(r.status).toBe(403);
+      expect(r.body.message).toBe('No tienes permiso para subir plantillas.');
+    });
+
+    it('resoluciones sin RESOLUCION_CREAR → 403', async () => {
+      const r = await subir(
+        'investigador',
+        `protocols/${pBorrador}/resolutions/${PREFIX}carta.pdf`,
+        PDF,
+      );
+      expect(r.status).toBe(403);
+    });
+
+    it('CV: el propio investigador → 201; otro usuario → 404', async () => {
+      const key = `investigators/${userId.investigador}/cv/${PREFIX}cv.pdf`;
+      expect((await subir('investigador', key, PDF)).status).toBe(201);
+      const ajeno = await subir('otroInvestigador', key, PDF);
+      expect(ajeno.status).toBe(404);
+    });
+
+    it('docEvaluacion: evaluador con asignación ASIGNADA (6) → 201; SUGERIDA (5) y COMPLETADA (7) → 404', async () => {
+      const key = `protocols/${pEval}/docEvaluacion/${PREFIX}informe.pdf`;
+      expect((await subir('evaluador', key, PDF)).status).toBe(201);
+
+      const ajeno = await subir('evaluadorAjeno', key, PDF);
+      expect(ajeno.status).toBe(404);
+
+      await ds.query(
+        `UPDATE evaluacion.asignaciones_evaluacion SET estado_id = 5 WHERE id = $1`,
+        [asignacionEvaluador],
+      );
+      try {
+        expect((await subir('evaluador', key, PDF)).status).toBe(404);
+      } finally {
+        await ds.query(
+          `UPDATE evaluacion.asignaciones_evaluacion SET estado_id = 6 WHERE id = $1`,
+          [asignacionEvaluador],
+        );
+      }
+    });
+
+    it('clave con traversal → 400', async () => {
+      const r = await subir('investigador', 'protocols/1/../2/x.pdf', PDF);
+      expect(r.status).toBe(400);
+    });
+
+    it('solo las subidas permitidas llegan al adaptador de storage (5 firmas)', () => {
+      expect(storageMock.generateUploadUrl).toHaveBeenCalledTimes(5);
     });
   });
 });

@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/003-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 1.6.4  
+**Versión:** 1.6.5  
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v1.4.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v1.4.1: RF-ALR renovación cambia a `alerta_renovacion_offsets_dias` [90, 60, 15]; HU-015 EARS 3 usa el parámetro  
@@ -15,6 +15,7 @@
 **Historial:** 2026-11-24 — v1.6.2: contrato del registro del resultado del pleno (TSK-015-N08) dentro de RF-17.1: endpoint `PATCH /api/evaluations/meetings/:id/protocolos/:convocatoriaProtocoloId/resultado`; permiso `PLENO_RESULTADO_REGISTRAR` solo para SECRETARIA; ventana (no CANCELADA y `fecha_reunion` ≤ hoy en America/Guayaquil, 409 si no); historial append-only `evaluacion.convocatoria_protocolo_resultados` con `motivo_correccion` obligatorio en las correcciones; supuesto de que todas las filas de `convocatoria_protocolos` son Sección II; cierre canónico movido a TSK-015-N16
 **Historial:** 2026-11-25 — v1.6.3: forma de la respuesta del registro del resultado del pleno (RF-17.1): `{ data: { convocatoriaProtocoloId, resultado, motivo, observaciones, motivoCorreccion }, statusCode: 200, message }`, envoltura puesta por el `ResponseInterceptor` (main.ts:39); el controlador devuelve el payload plano. Hallazgo para tarea futura: otros endpoints de Meetings ya devuelven su propia envoltura y quedan con `data.data` (ver TSK-015-N08, Riesgo conocido).
 **Historial:** 2026-11-25 — v1.6.4: diseño de la carta firmada por versiones (TSK-015-N09) en RF-17.2, RF-17.4 y RF-17.7: tabla `resolucion.cartas_firmadas` (columnas, UNIQUE, índice parcial de vigente), subida en dos pasos con clave generada por el backend y verificación con HeadObject (PDF, ≤ 10 MB), endpoints `upload-url`, `POST cartas`, `GET cartas/vigente` y `GET cartas` con sus permisos y códigos 400/404/409; el Exento (EX) queda fuera de RF-17; `POST /resolutions` pasa a legacy (se retira en TSK-015-N18); lectura restringida de `GET /resolutions/protocol/:id` (TSK-015-N17)
+**Historial:** 2026-11-25 — v1.6.5: subsección «Acceso a archivos por clave» en RF-17.6, con las reglas de lectura (TSK-015-N22a, bb1c6dd) y de escritura (TSK-015-N22b, 67b4dec) por prefijo, los códigos 400/401/403/404/409 y los formatos permitidos
 
 ---
 
@@ -265,6 +266,30 @@ Especificar las reglas operativas, funcionales y de integridad para:
   - **API**: las respuestas que consume el investigador no incluyen nombre, correo ni `userId` del evaluador; exponen el perfil y el dictamen.
   - **Verificado en `dev` (24/11/2026)**: el nombre del revisor sí aparece en el Anexo 9, en PDF (`pdf-generator.service.ts:795-797`) y en DOCX (`docx-generator.service.ts:469`), alimentado desde `evaluations.service.ts:585`, `:614` y `:622`. La afirmación de que el Anexo 9 «ya se genera sin el nombre» no se cumple en `dev`; la tarea TSK-015-N12 lo corrige.
 - **Criterio EARS (RF-17.6)**: **Cuando** el investigador consulte un protocolo, sus evaluaciones o su resolución, **el sistema no debe** devolver nombre, correo ni identificador del evaluador; **cuando** se genere el Anexo 9 o se envíe el correo de la resolución, **el sistema no debe** incluir el nombre del evaluador ni adjuntar sus informes individuales. **Mientras** el investigador consulte los pares, **el sistema debe** mostrar el perfil y el dictamen de cada uno.
+- **Acceso a archivos por clave (subsección de RF-17.6; lectura TSK-015-N22a, escritura TSK-015-N22b)**: `GET` y `POST /api/storage/download-url` (lectura) y `POST /api/storage/upload-url` (escritura) deciden según el prefijo de la clave, con `parseStorageKey` y `StorageKeyAccessPolicy`. Ningún usuario recibe una URL para una clave que no puede leer o escribir.
+  - **Lectura** (`assertCanRead`):
+    - `protocols/{id}/resolutions/…`: investigador principal o `RESOLUCION_HISTORIAL`.
+    - `protocols/{id}/requirements/…` y `protocols/{id}/v{n}/requirements/…`: quien puede ver el protocolo (RF-02.10).
+    - `protocols/{id}/docEvaluacion/…`: SECRETARIA y PRESIDENTE con `EVALUACION_INFORMES`, o el evaluador asignado. El investigador principal no lo ve.
+    - `investigators/{id}/cv/…`: solo el propio investigador.
+    - `templates/…`: cualquier usuario autenticado.
+    - `evaluations/anexo9/…`: solo con `EVALUACION_INFORMES`. El evaluador dueño descarga el Anexo 9 por `GET /evaluations/:id/document`, no por clave.
+  - **Escritura** (`assertCanWrite`):
+    - `protocols/{id}/requirements/…`: solo el investigador principal, con el protocolo en BORRADOR (recepción 9) o en subsanación documental (recepción 20).
+    - `protocols/{id}/v{n}/requirements/…`: solo el investigador principal, con el protocolo en REQUIERE_SUBSANACION_VERSION (19) y `n` igual a la versión activa.
+    - `protocols/{id}/docEvaluacion/…`: solo el evaluador con asignación ASIGNADA (6).
+    - `protocols/{id}/resolutions/…`: requiere `RESOLUCION_CREAR`.
+    - `investigators/{id}/cv/…`: solo el propio investigador.
+    - `templates/…`: requiere `CONFIG_PLANTILLAS`.
+    - Cualquier otra subruta de `protocols/{id}/`, `evaluations/anexo9/…` y los prefijos desconocidos: `404`.
+  - **Códigos de respuesta**:
+    - `400`: clave vacía, de más de 1024 caracteres, con `..`, `\`, barra inicial, segmentos vacíos o caracteres de control; prefijo `draft/`; subruta `protocols/{id}/v{n}/` mal formada. En escritura, además, tipo de contenido no permitido.
+    - `401`: sin sesión.
+    - `403` (solo escritura): falta `RESOLUCION_CREAR` o `CONFIG_PLANTILLAS`. Se responde antes de comprobar la regla de dueño.
+    - `404` «Archivo no encontrado.»: sin permiso de lectura o escritura, no dueño, sin asignación ASIGNADA o prefijo desconocido. No revela si el archivo existe.
+    - `409` (solo escritura) «El protocolo no admite subir documentos en su estado actual.»: el investigador principal intenta subir requisitos fuera de los estados indicados.
+    - Éxito: `200` en `GET download-url` y `201` en `POST`, con la URL firmada y la clave.
+  - **Formatos permitidos**: en escritura, `protocols/*` y `investigators/{id}/cv/…` aceptan solo `application/pdf`; `templates/…` acepta solo DOCX (`application/vnd.openxmlformats-officedocument.wordprocessingml.document`). En lectura no se restringe el tipo. El tamaño máximo de subida queda fuera de esta versión.
 
 - **RF-17.7 (Permiso de creación y carga de resoluciones)**: Solo la `SECRETARIA` crea o sube resoluciones (`RESOLUCION_CREAR`). La `PRESIDENTE` **pierde** `RESOLUCION_CREAR` y ve la resolución en solo lectura (con `RESOLUCION_HISTORIAL`). La matriz fija de specs/001 se actualiza en consecuencia. `RESOLUCION_FIRMAR` sigue sin endpoint: la firma es externa.
 - **Criterio EARS (RF-17.7)**: **Cuando** la Presidenta intente crear o subir una resolución, **el sistema debe** responder `403`; **cuando** consulte la resolución, **el sistema debe** devolverla en solo lectura.
