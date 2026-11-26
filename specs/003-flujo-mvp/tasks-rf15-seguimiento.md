@@ -431,6 +431,7 @@
   - Cubierto: investigador sin permiso → 403 en upload. No cubierto aquí: caso PRESIDENTE (depende de TSK-015-N11).
 
 ### Task TSK-015-N10 - [ ] PENDIENTE
+- **Hallazgo (26/11/2026, obligatorio para esta tarea)**: el pendiente «Subir resolución» se calcula con `resolution_emitted` en `src/modules/secretaria/infrastructure/repositories/pending-items.typeorm.repository.ts` (`EXISTS … resolucion.resoluciones WHERE version_id = p.version_actual_id`). Tras ANEXO_15 la fila del puente queda en la **versión evaluada** (19) y la activa es la **v2.0**, así que el pendiente seguiría mostrándose. La fila «Subir resolución firmada» de N10 debe basarse en la **carta vigente de `resolucion.cartas_firmadas`** por convocatoria-protocolo (o, como mínimo, en la versión evaluada `convocatoria_protocolos.version_id`), **no** en `version_actual_id`. Mismo problema que ya existía con el legado tipo 2.
 - **Hallazgo (26/11/2026, no resuelto aquí)**: `convocatorias.fecha_reunion` es `date` sin hora; el plazo de 96 h «desde la hora de la reunión» necesita la hora. Existe `convocatorias.hora` (time). Decidir la fuente de la hora antes de implementar.
 - **ID Único**: `TSK-015-N10`
 - **Requisito Relacionado**: `RF-17.3` (spec-003 v1.6.1), `RF-ALR.f.8`
@@ -528,6 +529,8 @@
   - Mutaciones (cada archivo restaurado y comprobado con `cmp`): sin crear la v2.0 → 2 fallos; sin puente → 2 fallos; v2.0 siempre → 3 fallos.
   - Corrige la nota de N09: `resolucion.resoluciones` ya no queda sin cambios; el registro de la carta escribe una fila puente por versión evaluada (upsert).
   - Servicios compartidos: el registro usa `ResultadoResolucionService` (versión y protocolo) y `VersionSubsanacionService` (solo ANEXO_15); se eliminó el SQL nativo de estados y `estadoProtocoloParaResultado`.
+  - **Anotación (acordada con la usuaria, 26/11/2026)**: en la caracterización tipo 1 (`resolutions-legacy-v1-v3`, commit `0a19728`) se añadió una aserción nueva de fecha de Ecuador. No se cambió ninguna aserción existente, pero la regla de esa caracterización era STOP ante cualquier cambio; queda registrado aquí.
+  - ANEXO_14 (EC): cubierto por el commit `d080652` (ANEXO_13 → 400; ANEXO_14 → 201, protocolo en 17 con fecha de hoy, sin v2.0, puente tipo 1).
 
 ### Task TSK-015-N14 - [x] COMPLETADO (rama feat/tsk-015-n14-n15-anexos-y-plazo)
 - **ID Único**: `TSK-015-N14`
@@ -775,7 +778,7 @@
 - **Descripción**: los protocolos EX (exentos de revisión) no pasan por el pleno (RF-17.2). Su carta de exención (Anexo 12) queda fuera de RF-17 y necesita diseño propio: quién la sube, qué estado asigna y si usa `resolucion.cartas_firmadas`. Pendiente también el rótulo «Anexo 12» en el frontend.
 - **Criterio de aceptación**: se define en su propia especificación antes de tocar código.
 
-### Task TSK-015-N20 - [ ] PENDIENTE
+### Task TSK-015-N20 - [x] COMPLETADO (rama feat/tsk-015-n09-n13-carta-firmada, commit `dc69b66`)
 - **Orden (aprobado 26/11/2026)**: commit aparte al final de la rama `feat/tsk-015-n09-n13-carta-firmada`, después de N13.
 - **ID Único**: `TSK-015-N20`
 - **Requisito Relacionado**: `RF-17.2` (EX fuera de RF-17, spec-003 v1.6.4); seguimiento de TSK-015-N08.
@@ -788,6 +791,11 @@
 - **Criterio de aceptación**:
   1. EX → `409` con mensaje en español.
   2. Los demás estudios no cambian.
+- **Resultados** (26/11/2026, `ceish_test_db`, commit `dc69b66`):
+  - Unitaria `registrar-resultado-pleno.use-case.spec.ts`: 19 en verde, incluidas EX → 409 en español sin escritura y EC sin cambio.
+  - E2E `meetings-resultado-pleno.e2e-spec.ts`: 12 en verde, incluido EX → 409 en español, sin historial ni dictamen.
+  - Mutación (quitar la comprobación EX): 1 fallo en la unitaria y 1 en la e2e. Restaurado y verificado con `cmp`.
+  - Reutiliza `esEstudioExento` de `carta-firmada-rules.ts` (la capa de evaluaciones importa una función pura de resoluciones; anotado).
 
 ### Task TSK-015-N21 - [ ] PENDIENTE (frontend, repo aparte)
 - **ID Único**: `TSK-015-N21`
@@ -799,6 +807,10 @@
   - `src/features/evaluations/presentation/pages/evaluation-consolidation/evaluation-consolidation.page.ts:340`: botón «Firmar y Notificar» sin control de permiso.
   - `src/features/evaluations/routes.ts:99` y `:108`: rutas de consolidación con `RESOLUCION_CREAR` en `any` (PRESIDENTE entra por `EVALUACION_INFORMES`; revisar si se quiere solo lectura).
 - **Criterio de aceptación**: PRESIDENTE no ve acciones de creación de resoluciones y ve la resolución en solo lectura (`RESOLUCION_HISTORIAL`).
+
+## Hallazgos abiertos (tareas futuras)
+
+- **Zona horaria en `BusinessDayCalculator.calculateDeadline` (26/11/2026)**: devuelve medianoche UTC del día de calendario de Ecuador (`src/shared/services/deadline-calculator.service.ts`). TypeORM escribe las partes **locales** de un `Date` en columnas `date`, así que en un proceso con zona distinta de Ecuador guarda el día anterior. Es el mismo riesgo que se corrigió en `fecha_aprobacion` (TSK-015-N13, commit `0a19728`). Tarea futura: revisar los usos de `calculateDeadline` y de las columnas `date` que lo reciben, y decidir si se construye medianoche local con el día de Ecuador. No se toca en N13 ni en N20.
 
 ## Orden de ejecución (decisión 25/11/2026)
 
