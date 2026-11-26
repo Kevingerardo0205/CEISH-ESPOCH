@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/003-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 1.6.5  
+**Versión:** 1.6.6  
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v1.4.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v1.4.1: RF-ALR renovación cambia a `alerta_renovacion_offsets_dias` [90, 60, 15]; HU-015 EARS 3 usa el parámetro  
@@ -16,6 +16,7 @@
 **Historial:** 2026-11-25 — v1.6.3: forma de la respuesta del registro del resultado del pleno (RF-17.1): `{ data: { convocatoriaProtocoloId, resultado, motivo, observaciones, motivoCorreccion }, statusCode: 200, message }`, envoltura puesta por el `ResponseInterceptor` (main.ts:39); el controlador devuelve el payload plano. Hallazgo para tarea futura: otros endpoints de Meetings ya devuelven su propia envoltura y quedan con `data.data` (ver TSK-015-N08, Riesgo conocido).
 **Historial:** 2026-11-25 — v1.6.4: diseño de la carta firmada por versiones (TSK-015-N09) en RF-17.2, RF-17.4 y RF-17.7: tabla `resolucion.cartas_firmadas` (columnas, UNIQUE, índice parcial de vigente), subida en dos pasos con clave generada por el backend y verificación con HeadObject (PDF, ≤ 10 MB), endpoints `upload-url`, `POST cartas`, `GET cartas/vigente` y `GET cartas` con sus permisos y códigos 400/404/409; el Exento (EX) queda fuera de RF-17; `POST /resolutions` pasa a legacy (se retira en TSK-015-N18); lectura restringida de `GET /resolutions/protocol/:id` (TSK-015-N17)
 **Historial:** 2026-11-25 — v1.6.5: subsección «Acceso a archivos por clave» en RF-17.6, con las reglas de lectura (TSK-015-N22a, bb1c6dd) y de escritura (TSK-015-N22b, 67b4dec) por prefijo, los códigos 400/401/403/404/409 y los formatos permitidos
+**Historial:** 2026-11-26 — v1.6.6: decisiones del Paso 0 de TSK-015-N09 y N13. (a) Servicio compartido de la v2.0 (`VersionSubsanacionService`) y del estado 17/18/19 (`ResultadoResolucionService`); el `POST /resolutions` legacy conserva su comportamiento, incluida la v2.0 del tipo 2, hasta TSK-015-N18. (b) Anexo derivado por el backend de (resultado, tipo de estudio); `anexoCodigo` obligatorio y coincidente. (c) Verificación `%PDF-` por rango con método nuevo en `IStorageService`; borrado best effort del objeto rechazado. (d) Correo por cada carta vigente, también en reemplazos. (e) Campos ocultos al investigador. (f) Regla `CARTA_FIRMADA` (clave de seis segmentos). (g) `SELECT … FOR UPDATE` sobre convocatoria-protocolo y protocolo. Hallazgos sin resolver: `calls.service.ts:483` compara con `APROBADO_CON_CONDICIONES` (plural) y `fecha_reunion` es `date` sin hora (TSK-015-N10).
 
 ---
 
@@ -259,6 +260,13 @@ Especificar las reglas operativas, funcionales y de integridad para:
 
 - **RF-17.5 (V2 de subsanación desde el resultado del pleno)**: La creación de la versión mayor de subsanación (RF-14) se dispara **solo** cuando el resultado del pleno es `APROBADO_CON_CONDICION` y la Secretaría sube el Anexo 15. No se dispara desde el agregado de dictámenes ni desde `calls.service.ts`. En la misma transacción se congelan los requisitos aprobados, se crea la versión v2.0 y se asigna `plazo_condicion_dias` (30, con el cálculo actual de `protocol-deadline.service.ts`), como ya define RF-14.
 - **Criterio EARS (RF-17.5)**: **Cuando** la Secretaría suba el Anexo 15 de un protocolo con resultado `APROBADO_CON_CONDICION`, **el sistema debe** crear la versión v2.0 en la misma transacción y **no debe** crear la v2.0 si el resultado es `APROBADO_DEFINITIVO` o `NO_APROBADO`.
+  - **Servicio compartido (v1.6.6)**: la creación de la v2.0 (`VersionSubsanacionService`) y la aplicación de los estados 17/18/19 (`ResultadoResolucionService`) son un único código, usado por el flujo nuevo y por `POST /resolutions`. El legacy **sigue creando la v2.0 para el tipo 2 hasta TSK-015-N18**, sin cambio de comportamiento. El flujo nuevo crea la v2.0 **solo** con el Anexo 15.
+  - **Anexo derivado por el backend (v1.6.6)**: el anexo sale de (resultado, tipo de estudio) según RF-17.2. El `anexoCodigo` del body es obligatorio y debe coincidir; si no, `400`.
+  - **Verificación del archivo (v1.6.6)**: además de HeadObject (existe, `application/pdf`, ≤ 10 MB), los primeros bytes leídos por rango deben empezar por `%PDF-`. Requiere un método nuevo en `IStorageService`. Si la validación rechaza el objeto, se borra del bucket (best effort; si el borrado falla, se registra y la respuesta sigue siendo `400`).
+  - **Correo (v1.6.6)**: después del commit, se envía la carta que queda vigente, también en reemplazos (el texto indica que reemplaza a la anterior). Sin `additionalAttachments` ni datos de evaluadores.
+  - **Visibilidad (v1.6.6)**: `GET …/cartas/vigente` para el investigador no incluye `subidoPor` ni `motivoReemplazo`. El historial (`RESOLUCION_HISTORIAL`) sí.
+  - **Concurrencia (v1.6.6)**: la transacción toma `SELECT … FOR UPDATE` sobre `evaluacion.convocatoria_protocolos` y sobre `protocolos` (respeta `@VersionColumn` `versionLock`).
+  - **Modelo (v1.6.6)**: CHECK que une resultado y anexo (`APROBADO_DEFINITIVO` → 13 o 14; `APROBADO_CON_CONDICION` → 15; `NO_APROBADO` → 16) y `UNIQUE` de `clave_archivo`.
 
 - **RF-17.6 (B8 — el investigador nunca ve la identidad del evaluador)**: El investigador **nunca** recibe el nombre, el correo ni ningún dato de identidad del evaluador: ni en las respuestas de la API, ni en los documentos generados (Anexo 9 en PDF y DOCX), ni en los adjuntos ni en el cuerpo del correo de la resolución. El investigador sí ve el **perfil** y el **dictamen** de cada par.
   - **Correo de la resolución**: hoy adjunta el informe individual de cada evaluador con su nombre (`resolutions.service.ts:103-130` y `:317-327`). Debe dejar de adjuntar los informes individuales; si se requiere evidencia, se adjunta solo la carta firmada.
@@ -274,6 +282,7 @@ Especificar las reglas operativas, funcionales y de integridad para:
     - `investigators/{id}/cv/…`: solo el propio investigador.
     - `templates/…`: cualquier usuario autenticado.
     - `evaluations/anexo9/…`: solo con `EVALUACION_INFORMES`. El evaluador dueño descarga el Anexo 9 por `GET /evaluations/:id/document`, no por clave.
+  - **Carta firmada** (`protocols/{id}/resolutions/{convocatoriaProtocoloId}/v{n}/{archivo}`, seis segmentos; regla `CARTA_FIRMADA`, v1.6.6): **lectura**: el investigador principal solo si la clave es la de la versión vigente; `RESOLUCION_HISTORIAL` lee todas. **Escritura**: `POST /storage/upload-url` la rechaza con `404`; solo `CartasFirmadasService` genera estas claves. La clave fija legacy de tres segmentos (`protocols/{id}/resolutions/…`) no cambia hasta TSK-015-N18.
   - **Escritura** (`assertCanWrite`):
     - `protocols/{id}/requirements/…`: solo el investigador principal, con el protocolo en BORRADOR (recepción 9) o en subsanación documental (recepción 20).
     - `protocols/{id}/v{n}/requirements/…`: solo el investigador principal, con el protocolo en REQUIERE_SUBSANACION_VERSION (19) y `n` igual a la versión activa.

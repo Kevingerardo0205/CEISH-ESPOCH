@@ -385,7 +385,12 @@
   - `src/modules/resolutions/infrastructure/controllers/cartas-firmadas.controller.ts` — CREAR: endpoints de RF-17.4 con `RESOLUCION_CREAR` o `RESOLUCION_HISTORIAL`, según corresponda.
   - `src/modules/resolutions/resolutions.module.ts` — MODIFICAR: registrar entidad, servicio y controlador nuevos.
   - `src/modules/resolutions/infrastructure/controllers/resolutions.controller.ts` — MODIFICAR: marcar `POST /resolutions` como legacy (comentario y sin cambios de lógica; retiro en TSK-015-N18).
-  - `src/shared/storage/domain/ports/storage.service.port.ts` y `src/shared/storage/infrastructure/adapters/s3-storage.adapter.ts` — **sin cambios**: se reutilizan `generateUploadUrl` y `getMetadata` (HeadObject).
+  - `src/shared/storage/domain/ports/storage.service.port.ts` — MODIFICAR (aprobado 26/11/2026): método nuevo para leer un rango de bytes (`%PDF-`). `generateUploadUrl` y `getMetadata` se reutilizan.
+  - `src/shared/storage/infrastructure/adapters/s3-storage.adapter.ts` — MODIFICAR: implementación del rango (GetObject con `Range`).
+  - Doble de storage de las pruebas — MODIFICAR: el método nuevo.
+  - `src/modules/resolutions/application/services/version-subsanacion.service.ts` — CREAR (aprobado 26/11/2026): pasos 2 a 6 de la creación actual de la v2.0; lo usan el legacy (hasta N18) y el flujo nuevo (solo Anexo 15).
+  - `src/modules/resolutions/application/services/resultado-resolucion.service.ts` — CREAR (aprobado 26/11/2026): aplica 17/18/19 a versión y protocolo; lo usan ambos flujos.
+  - `src/modules/storage-access/application/storage-key-access.policy.ts` — MODIFICAR (aprobado): regla `CARTA_FIRMADA` (clave de seis segmentos): lectura solo de la vigente para el investigador; escritura rechazada con 404 en el upload genérico.
   - Pruebas: `src/modules/resolutions/application/services/carta-firmada-rules.spec.ts` y `cartas-firmadas.service.spec.ts` (CREAR); `test/cartas-firmadas.e2e-spec.ts` (CREAR).
   - **No se modifica** `resolution.entity.orm.ts`, `determineResolutionType` ni `calls.service.ts`. Tampoco `resolutions.service.ts`: la lógica nueva vive en el servicio nuevo. El tipo calculado por dictámenes queda como referencia (RF-17.1).
 - **Dependencias**: TSK-015-N08 (resultado del pleno), TSK-015-N11 (quitar `RESOLUCION_CREAR` a PRESIDENTE), TSK-015-N14 (anexos ANEXO_13 a 16 sembrados), TSK-015-N17 (lectura restringida del legado). Se entrega **junto con TSK-015-N13** (misma rama y PR, commits separados; N09 primero).
@@ -417,6 +422,7 @@
   9. Esta tarea no crea la v2.0 de RF-14 (eso es TSK-015-N13, misma entrega).
 
 ### Task TSK-015-N10 - [ ] PENDIENTE
+- **Hallazgo (26/11/2026, no resuelto aquí)**: `convocatorias.fecha_reunion` es `date` sin hora; el plazo de 96 h «desde la hora de la reunión» necesita la hora. Existe `convocatorias.hora` (time). Decidir la fuente de la hora antes de implementar.
 - **ID Único**: `TSK-015-N10`
 - **Requisito Relacionado**: `RF-17.3` (spec-003 v1.6.1), `RF-ALR.f.8`
 - **Criterio EARS**: `EARS 5` (RF-17.3)
@@ -490,7 +496,9 @@
 - **Criterio EARS**: `EARS 5` (RF-17.5)
 - **Acción**: `MODIFICAR`
 - **Archivos Afectados**:
-  - `src/modules/resolutions/application/services/resolutions.service.ts:203-237` — MODIFICAR: la creación de la versión v2.0 deja de dispararse por el tipo 2 y pasa a dispararse solo al subir el Anexo 15 con resultado `APROBADO_CON_CONDICION`
+  - `src/modules/resolutions/application/services/version-subsanacion.service.ts` — CREAR (aprobado): la creación de la v2.0 (pasos 2 a 6), compartida con el legacy.
+  - `src/modules/resolutions/application/services/resolutions.service.ts:203-237` — MODIFICAR (aprobado, extracción): el bloque del tipo 2 llama al servicio compartido **sin cambio de comportamiento**. El legacy **deja de crear la v2.0 en TSK-015-N18**, no en esta tarea.
+  - `src/modules/resolutions/application/services/cartas-firmadas.service.ts` (TSK-015-N09): llama a `VersionSubsanacionService` solo con `APROBADO_CON_CONDICION` (Anexo 15)
   - `src/shared/deadlines/deadline-rules.ts:15` — usa `PLAZO_CONDICION_DIAS` (ya existe, 30)
 - **Dependencias**: TSK-015-N08, TSK-015-N09 (se entrega en el mismo PR, commit posterior a N09)
 - **Descripción**: Al subir el Anexo 15, en la misma transacción: se congelan los requisitos aprobados, se crea la v2.0 y se asigna `plazo_condicion_dias` = 30, con el cálculo actual de `protocol-deadline.service.ts` (no se cambia en esta tarea; ver pregunta 9). El estado del protocolo pasa a 19 (`REQUIERE_SUBSANACION_VERSION`). No se toca `calls.service.ts`.
@@ -748,6 +756,7 @@
 - **Criterio de aceptación**: se define en su propia especificación antes de tocar código.
 
 ### Task TSK-015-N20 - [ ] PENDIENTE
+- **Orden (aprobado 26/11/2026)**: commit aparte al final de la rama `feat/tsk-015-n09-n13-carta-firmada`, después de N13.
 - **ID Único**: `TSK-015-N20`
 - **Requisito Relacionado**: `RF-17.2` (EX fuera de RF-17, spec-003 v1.6.4); seguimiento de TSK-015-N08.
 - **Criterio EARS**: `EARS 5` (RF-17.2): **cuando** el estudio sea EX, **el sistema debe** rechazar el registro del resultado del pleno con `409` en español.
