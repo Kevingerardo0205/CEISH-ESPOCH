@@ -674,4 +674,75 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       expect(c).toBe(1);
     });
   });
+
+  describe('ANEXO_14 (ensayo clínico, EC) — TSK-015-N13', () => {
+    let protocoloEc: number;
+    let cpEc: string;
+    let fetchEcSpy: jest.SpyInstance;
+    const urlEc = () =>
+      `/api/resolutions/convocatorias/${convocatoriaId}/protocolos/${cpEc}/cartas`;
+
+    beforeAll(async () => {
+      const [ec] = await ds.query(
+        `SELECT id FROM catalogos.tipos_estudio WHERE codigo = 'EC'`,
+      );
+      protocoloEc = await protocolo(ec.id as number, 'ec');
+      cpEc = await convocatoriaProtocolo(protocoloEc, 'APROBADO_DEFINITIVO', 6);
+      fetchEcSpy = jest
+        .spyOn(global, 'fetch')
+        .mockImplementation(() =>
+          Promise.resolve(new Response(PDF, { status: 200 })),
+        );
+    });
+
+    afterAll(() => {
+      fetchEcSpy?.mockRestore();
+    });
+
+    it('EC con APROBADO_DEFINITIVO: upload-url con ANEXO_13 → 400', async () => {
+      const r = await api()
+        .post(`${urlEc()}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ anexoCodigo: 'ANEXO_13' });
+      expect(r.status).toBe(400);
+    });
+
+    it('EC con APROBADO_DEFINITIVO: ANEXO_14 → registro 201; protocolo en 17 con fecha_aprobacion de hoy, sin v2.0 y con puente', async () => {
+      const up = await api()
+        .post(`${urlEc()}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ anexoCodigo: 'ANEXO_14' });
+      expect(up.status).toBe(201);
+      const clave = up.body.data.claveArchivo as string;
+      subirAlBucket(clave, PDF);
+
+      const res = await api()
+        .post(urlEc())
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ claveArchivo: clave, anexoCodigo: 'ANEXO_14' });
+      expect(res.status).toBe(201);
+
+      const [p] = await ds.query(
+        `SELECT p.estado_id, p.version_actual_id,
+                to_char(p.fecha_aprobacion, 'YYYY-MM-DD') AS fecha_aprobacion,
+                to_char((now() AT TIME ZONE 'America/Guayaquil')::date, 'YYYY-MM-DD') AS hoy
+           FROM public.protocolos p WHERE p.id = $1`,
+        [protocoloEc],
+      );
+      expect(p.estado_id).toBe(ESTADO_APROBADO);
+      expect(p.fecha_aprobacion).toBe(p.hoy);
+
+      const [{ c }] = await ds.query(
+        `SELECT count(*)::int AS c FROM public.versiones_protocolo WHERE protocolo_id = $1`,
+        [protocoloEc],
+      );
+      expect(c).toBe(1);
+
+      const puentes = await ds.query(
+        `SELECT tipo_resolucion_id FROM resolucion.resoluciones WHERE version_id = $1`,
+        [p.version_actual_id],
+      );
+      expect(puentes).toEqual([{ tipo_resolucion_id: 1 }]);
+    });
+  });
 });
