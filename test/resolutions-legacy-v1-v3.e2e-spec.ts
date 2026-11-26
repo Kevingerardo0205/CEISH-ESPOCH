@@ -299,12 +299,15 @@ describe('Caracterización — POST /resolutions legacy, dictámenes tipo 1 y 3 
     // y la misma versión activa (no hay v2.0 en la aprobación).
     const [p] = await ds.query(
       `SELECT estado_id, fecha_aprobacion IS NOT NULL AS tiene_aprobacion, version,
-              version_actual_id
+              version_actual_id,
+              fecha_aprobacion::text = (now() AT TIME ZONE 'America/Guayaquil')::date::text AS fecha_ecuador
          FROM public.protocolos WHERE id = $1`,
       [protocoloId],
     );
     expect(p.estado_id).toBe(ESTADO_APROBADO);
     expect(p.tiene_aprobacion).toBe(true);
+    // fecha_aprobacion es el día de calendario de Ecuador (TSK-015-N13, decisión 2).
+    expect(p.fecha_ecuador).toBe(true);
     expect(p.version).toBe(antes.version + 1);
     expect(p.version_actual_id).toBe(versionId);
 
