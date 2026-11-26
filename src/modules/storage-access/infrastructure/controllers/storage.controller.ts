@@ -39,6 +39,7 @@ export class StorageController {
   async getUploadUrl(
     @Body('key') key: string,
     @Body('contentType') contentType: string,
+    @Request() req: RequestWithReader,
   ) {
     if (!key) {
       throw new BadRequestException(
@@ -51,6 +52,7 @@ export class StorageController {
       );
     }
 
+    await this.accessPolicy.assertCanWrite(key, contentType, req.user);
     const url = await this.storageService.generateUploadUrl(key, contentType);
     return { uploadUrl: url, key };
   }

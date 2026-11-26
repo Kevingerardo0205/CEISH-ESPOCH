@@ -1,10 +1,15 @@
 import {
   BadRequestException,
+  ConflictException,
+  ForbiddenException,
   Injectable,
   NotFoundException,
 } from '@nestjs/common';
 import { Permission } from '../../../shared/enums/permission.enum';
+import { AssignmentStatus } from '../../evaluations/domain/enums/assignment-status.enum';
 import { ProtocolsService } from '../../protocols/application/services/protocols.service';
+import { ProtocolStatus } from '../../protocols/domain/enums/protocol-status.enum';
+import { ReceptionStatus } from '../../protocols/domain/enums/reception-status.enum';
 import { IProtocolRepository } from '../../protocols/domain/ports/protocol.repository.port';
 import { ReceptionService } from '../../reception/application/services/reception.service';
 import { canReadResolution } from '../../resolutions/application/services/resolutions.service';
@@ -34,6 +39,8 @@ export interface ParsedStorageKey {
   rule: StorageKeyRule | null;
   protocolId?: number;
   ownerId?: number;
+  /** Solo en requisitos de subsanación de versión: `protocols/{id}/v{n}/requirements/…`. */
+  version?: number;
 }
 
 const MAX_KEY_LENGTH = 1024;
@@ -43,6 +50,16 @@ const DOCUMENTO_NO_ENCONTRADO = 'Documento no encontrado.';
 
 /** Prefijos que se deniegan hasta TSK-015-N22c (sin dueño identificable). */
 const PREFIJOS_DENEGADOS: readonly string[] = ['draft'];
+
+/** TSK-015-N22b: tipos MIME que se firman para escritura, por origen de la clave. */
+export const CONTENT_TYPE_PDF = 'application/pdf';
+export const CONTENT_TYPE_DOCX =
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+const CONTENT_TYPE_INVALIDO = 'Tipo de contenido no permitido para esta clave.';
+const SIN_PERMISO_RESOLUCION = 'No tienes permiso para subir resoluciones.';
+const SIN_PERMISO_PLANTILLA = 'No tienes permiso para subir plantillas.';
+const ESTADO_NO_ADMITE_SUBIDA =
+  'El protocolo no admite subir documentos en su estado actual.';
 
 /**
  * Interpreta una clave de storage. Lanza 400 si la clave está mal formada o usa un prefijo
@@ -80,6 +97,18 @@ export function parseStorageKey(key: string): ParsedStorageKey {
       throw new BadRequestException(KEY_INVALIDA);
     }
     const protocolId = Number(segundo);
+    // TSK-015-N22b: subsanación de versión, `protocols/{id}/v{n}/requirements/{req}/{file}`.
+    if (tercero !== undefined && /^v\d+$/.test(tercero)) {
+      const version = Number(tercero.slice(1));
+      if (
+        version < 1 ||
+        segmentos[3] !== 'requirements' ||
+        segmentos.length < 6
+      ) {
+        throw new BadRequestException(KEY_INVALIDA);
+      }
+      return { rule: 'REQUISITO', protocolId, version };
+    }
     if (tercero === 'resolutions') return { rule: 'RESOLUCION', protocolId };
     if (tercero === 'requirements') return { rule: 'REQUISITO', protocolId };
     return { rule: 'PROTOCOLO_EVALUACION', protocolId };
@@ -156,6 +185,116 @@ export class StorageKeyAccessPolicy {
       default:
         throw noEncontrado;
     }
+  }
+
+  /**
+   * TSK-015-N22b: decide si el usuario puede pedir una URL PUT para la clave.
+   * 404 sin revelar existencia (no es dueño o no tiene asignación); 403 si falta un permiso
+   * de rol (resoluciones, plantillas); 409 si es el investigador principal pero el estado del
+   * protocolo no admite subir; 400 si el tipo de contenido no corresponde a la clave.
+   */
+  async assertCanWrite(
+    key: string,
+    contentType: string,
+    writer: StorageReader,
+  ): Promise<void> {
+    const parsed = parseStorageKey(key);
+    const noEncontrado = new NotFoundException(ARCHIVO_NO_ENCONTRADO);
+    if (parsed.rule === null || parsed.rule === 'ANEXO9') throw noEncontrado;
+
+    this.assertContentType(parsed.rule, contentType);
+
+    switch (parsed.rule) {
+      case 'RESOLUCION': {
+        if (!this.tienePermiso(writer, Permission.RESOLUCION_CREAR)) {
+          throw new ForbiddenException(SIN_PERMISO_RESOLUCION);
+        }
+        if (
+          !(await this.protocolRepository.findById(parsed.protocolId as number))
+        ) {
+          throw noEncontrado;
+        }
+        return;
+      }
+      case 'REQUISITO': {
+        const protocol = await this.protocolRepository.findById(
+          parsed.protocolId as number,
+        );
+        if (!protocol || protocol.principalInvestigatorId !== writer.id) {
+          throw noEncontrado;
+        }
+        if (!this.requisitoAdmiteSubida(protocol, parsed.version)) {
+          throw new ConflictException(ESTADO_NO_ADMITE_SUBIDA);
+        }
+        return;
+      }
+      case 'PROTOCOLO_EVALUACION': {
+        // Solo docEvaluacion: el resto de subrutas de protocols/{id}/ no se escribe por clave.
+        if (key.split('/')[2] !== 'docEvaluacion') throw noEncontrado;
+        const asignado = await this.protocolRepository.hasEvaluatorAssignment(
+          parsed.protocolId as number,
+          writer.id,
+          [AssignmentStatus.ASSIGNED],
+        );
+        if (!asignado) throw noEncontrado;
+        return;
+      }
+      case 'CV':
+        if (String(parsed.ownerId) !== String(writer.id)) throw noEncontrado;
+        return;
+      case 'PLANTILLA':
+        if (!this.tienePermiso(writer, Permission.CONFIG_PLANTILLAS)) {
+          throw new ForbiddenException(SIN_PERMISO_PLANTILLA);
+        }
+        return;
+      default:
+        throw noEncontrado;
+    }
+  }
+
+  private assertContentType(rule: StorageKeyRule, contentType: string): void {
+    const esperado =
+      rule === 'PLANTILLA' ? CONTENT_TYPE_DOCX : CONTENT_TYPE_PDF;
+    if (contentType.trim().toLowerCase() !== esperado) {
+      throw new BadRequestException(CONTENT_TYPE_INVALIDO);
+    }
+  }
+
+  /**
+   * Subida de requisitos del investigador principal:
+   * - sin versión (`protocols/{id}/requirements/`): BORRADOR (recepción 9 en versión 1) o
+   *   subsanación documental (recepción en REQUIERE_SUBSANACION_DOC, 20);
+   * - con versión (`protocols/{id}/v{n}/requirements/`): protocolo en REQUIERE_SUBSANACION_VERSION
+   *   (19) y n igual a la versión activa.
+   * Nota: PENDIENTE_SUBSANACION del getter `receptionStatus` es un valor por defecto, no un
+   * estado concreto, así que no se usa como regla de escritura.
+   */
+  private requisitoAdmiteSubida(
+    protocol: {
+      statusId?: number;
+      receptionStatus: ReceptionStatus;
+      activeVersion?: {
+        versionNumber?: number;
+        reception?: { statusId?: number };
+      };
+    },
+    version?: number,
+  ): boolean {
+    if (version === undefined) {
+      return (
+        protocol.receptionStatus === ReceptionStatus.BORRADOR ||
+        protocol.activeVersion?.reception?.statusId ===
+          ProtocolStatus.REQUIERE_SUBSANACION_DOC
+      );
+    }
+    return (
+      protocol.statusId === ProtocolStatus.REQUIERE_SUBSANACION_VERSION &&
+      protocol.activeVersion?.versionNumber === version
+    );
+  }
+
+  private tienePermiso(reader: StorageReader, permiso: Permission): boolean {
+    return (reader.permissions ?? []).includes(permiso);
   }
 
   /** Documento de recepción por id: el dueño sale de la fila; se aplica la regla del protocolo. */
