@@ -846,6 +846,42 @@
   4. `claveArchivo` solo aparece dentro de `cartaVigente`.
   5. Los ids no UUID en cartas y en el PATCH responden 400 «Identificador inválido.».
 
+### Task TSK-015-N27 - [ ] PENDIENTE (Paso 0 aprobado 27/11/2026; spec-003 v1.6.8; sin migración)
+- **ID Único**: `TSK-015-N27`
+- **Requisito Relacionado**: `RF-17.1 v1.6.8` (resultado calculado e inmutable), `RF-17.2`, `RF-17.4`, `RF-17.7` (spec-003 v1.6.8). Reemplaza la decisión 3 de RF-17.1 (registro manual por la Secretaría, TSK-015-N08).
+- **Criterio EARS**: `EARS 5` (RF-17.1 v1.6.8, RF-17.2, RF-17.4)
+- **Decisiones aprobadas (27/11/2026)**:
+  1. Mapeo de `evaluacion.evaluaciones.resultado_id`: todos 1 → `APROBADO_DEFINITIVO`; todos 3 → `NO_APROBADO`; cualquier otro caso, incluido «todos 2», → `APROBADO_CON_CONDICION`. Precondición: asignaciones activas (5, 6, 7) todas en 7, al menos una completada y todas con `resultado_id` no NULL; si no, `PENDIENTE`.
+  2. Momento: sin carta vigente el resultado se calcula al leer y se muestra como `CALCULADO` (no persistido). En la **primera** carta de la convocatoria-protocolo el backend recalcula dentro de la transacción (con bloqueo), deriva el anexo y congela el resultado en `resolucion.cartas_firmadas.resultado`. Un reemplazo usa el resultado de la carta vigente anterior y no recalcula.
+  3. No se escribe `cp.dictamen_resultado`, `dictamen_motivo`, `dictamen_observaciones` ni `convocatoria_protocolo_resultados` en el flujo nuevo. Quien registra = `subido_por`. Sin migración, sin usuario de sistema, sin textos generados.
+  4. `PATCH …/resultado` (N08) responde `410 Gone` con mensaje en español. Tabla de historial y permiso `PLENO_RESULTADO_REGISTRAR` se conservan (limpieza en otra tarea).
+  5. Bloqueo legacy: fila en `resolucion.resoluciones` para `cp.version_id` y sin carta en `cartas_firmadas` para ese cp → carta 409 y contexto expone `resolucionAnterior`.
+  6. El cliente no envía `anexoCodigo` (se quita de `SolicitarSubidaCartaDto` y de `RegistrarCartaFirmadaDto`).
+  7. Contexto N25: se quita `puedeRegistrarResultado`; se añaden `estadoResultado` (`PENDIENTE` | `CALCULADO` | `CONGELADO` | `RESUELTO_LEGACY`), `resultadoCalculado` y `resumenDictamenes { aprobado, conCondicion, noAprobado, pendientes }` por conteo, sin identidad (B8). Investigador: sin cambios (resultado solo con carta vigente; no ve el resumen ni los pendientes).
+- **Subtareas** (orden de la propuesta G del Paso 0; sin el paso de migración):
+  - **N27-3 — regla pura**: `calcularResultadoPleno` en `src/modules/evaluations/domain/` (nombre distinto de `determineResolutionType`, que no se toca). Mover `ACTIVE_ASSIGNMENT_STATES` (hoy privada en `meeting-typeorm.repository.ts:52-56`) a dominio para reutilizarla. Pruebas unitarias de la regla y de la precondición.
+  - **N27-4 — cálculo al leer y congelación**: lectura del dictamen calculado para el contexto; en `registrar` de `cartas-firmadas.service.ts` (hoy lee `cp.dictamen_resultado` en `:186-199`) recalcular bajo bloqueo y guardar `resultado` en la fila de la carta. Derivar el anexo del resultado congelado. Puente a `resoluciones` con `observaciones = null` (`cartas-firmadas.service.ts:275-283`, `:625-650`; columna nullable).
+  - **N27-5 — N08 a 410**: `PATCH …/resultado` (`meetings.controller.ts:172-210`) responde 410 con mensaje en español. Retirar `RegistrarResultadoPlenoUseCase` y su DTO solo si no quedan referencias (`git grep`); la tabla de historial y el permiso se conservan.
+  - **N27-6 — carta**: quitar `anexoCodigo` de los DTOs (`dtos/cartas-firmadas.dto.ts`); `solicitarSubida` y `registrar` derivan el anexo; bloqueo legacy por versión (`409`). Con `GlobalValidationPipe` (`whitelist` + `forbidNonWhitelisted`, `shared/pipes/validation.pipe.ts`), un cliente que todavía envíe `anexoCodigo` recibirá `400` (no ejecutado: verificar en e2e).
+  - **N27-7 — contexto N25**: quitar `puedeRegistrarResultado` (`cartas-firmadas.service.ts:430-437`); añadir `estadoResultado`, `resultadoCalculado` y `resumenDictamenes`; el investigador no ve el resumen ni los pendientes.
+  - **N27-8 — frontend (repo aparte, después de N27-5/6/7)**: `endpoints.constant.ts:84` (PATCH N08), `IResolucionContextoPort.ts:15`, `subir-carta-firmada.use-case.ts:59` (deja de enviar `anexoCodigo`), `resolution-stage.page.ts` y `mapper/resolucion-contexto.mapper.ts`. Coordinar el despliegue: el frontend actual rompe con `400` al enviar `anexoCodigo`.
+- **Dependencias**: TSK-015-N25 (contexto). Sin dependencia de migración.
+- **Lectores de `cp.dictamen_*` hoy** (Paso 0, 27/11/2026): `meeting-typeorm.repository.ts:702-779` (N08, sale de uso); `registrar-resultado-pleno.use-case.ts` (N08, sale de uso); `cartas-firmadas.service.ts:186-199` (`registrar`), `:279` (puente), `:378` y `:402-446` (contexto), `:458-477` (`cargarContexto`); `calls.service.ts:483-484` (legacy, compara con `'APROBADO_CON_CONDICIONES'` y `'25'`, nunca coincide; no se toca). Tras N27-4 y N27-7 el flujo nuevo no lee `dictamen_*`; las columnas quedan sin escritura.
+- **Verificación del Paso 0 (27/11/2026)**:
+  - Edición tras envío: el reenvío de una evaluación en estado 7 responde 400 (`evaluations.service.ts:342-345`); no hay otra vía que cambie `resultado_id`. El `saveEvaluation` de `evaluations.service.ts:644` repite el valor existente al guardar los PDF (no cambia el resultado).
+  - `asignaciones_evaluacion.recommendation` (`src/modules/evaluations/infrastructure/database/evaluation-assignment.entity.orm.ts:120`, `evaluations.service.ts:747`) duplica el dictamen. La fuente de la regla es `evaluaciones.resultado_id`.
+  - Conteos en `ceish_db` (solo lectura): 12 convocatoria-protocolos, todas con `dictamen_resultado` NULL; 0 filas en `convocatoria_protocolo_resultados`; 0 en `cartas_firmadas`; 8 en `resolucion.resoluciones`; 2 convocatoria-protocolos calculables hoy; 10 con alguna activa sin completar; 0 sin activas; 0 con estado 5.
+  - Las 5 evaluaciones con `resultado_id` NULL (ids 1, 3, 4, 5, 6) pertenecen a la asignación 15-19, todas en estado 7, en la versión 118, que **no** está en ninguna convocatoria. No afectan el cálculo de hoy.
+  - Protocolo legacy confirmado: **169** (cp `8848f644-02ad-4401-8f1f-faa6b83fcaf1`, resolución 8, tipo 1). Es la única convocatoria-protocolo cuya versión tiene fila en `resolucion.resoluciones`.
+  - Puente: `resolucion.resoluciones.observaciones`, `tipo_resolucion_id` y `creado_por` son nullable; las columnas `dictamen_*` de `convocatoria_protocolos` también.
+  - `ValidationPipe` global: `whitelist`, `forbidNonWhitelisted`, `transform` (`src/shared/pipes/validation.pipe.ts`, `main.ts:40`).
+- **Hallazgos (fuera de N27)**:
+  - **Reasignación sin guard de estado**: `reassign-evaluator.use-case.ts` no valida el estado actual; una asignación en 7 puede pasar a 26/27 y salir del conjunto activo. Tarea aparte; hasta resolverla, el cálculo puede cambiar antes de la primera carta.
+  - **Fuga de lectura**: `GET /api/resolutions/protocol/:id` (`resolutions.controller.ts:84-94`) devuelve la entidad ORM completa con las relaciones `protocol` y `version` (`resolutions.service.ts:285-307`), sin DTO. Pendiente revisar qué campos expone y tarea aparte (gravedad no verificada).
+  - **Limpieza N08** (tarea aparte): tabla `evaluacion.convocatoria_protocolo_resultados`, permiso `PLENO_RESULTADO_REGISTRAR`, columnas `dictamen_*` y sus CHECK.
+  - **5 evaluaciones sin dictamen** (ids 1, 3, 4, 5, 6; versión 118 fuera de convocatoria): revisar si son datos de prueba antes de limpiar.
+- **Tests afectados**: unitarias `registrar-resultado-pleno.use-case.spec.ts`, `ventana-resultado-pleno.spec.ts`, `cartas-firmadas.service.spec.ts`, `carta-firmada-rules.spec.ts`, `resolutions.service.spec.ts`, `meetings.controller.spec.ts:433-442`, `convocatoria-protocolo.orm-entity.spec.ts`. E2E: `meetings-resultado-pleno`, `cartas-firmadas`, `resolutions-contexto`, `resolutions-permisos`, `resolutions-legacy-v1-v3`, `resolutions-legacy-v2`. `storage-access` no verificado.
+
 ### Task TSK-015-N21 - [ ] PENDIENTE (frontend, repo aparte)
 - **ID Único**: `TSK-015-N21`
 - **Requisito Relacionado**: `RF-17.7` (spec-003 v1.6.4), tras TSK-015-N11.
