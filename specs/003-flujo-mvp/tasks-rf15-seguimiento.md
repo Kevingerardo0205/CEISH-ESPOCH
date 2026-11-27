@@ -797,7 +797,11 @@
   - Mutación (quitar la comprobación EX): 1 fallo en la unitaria y 1 en la e2e. Restaurado y verificado con `cmp`.
   - Reutiliza `esEstudioExento` de `carta-firmada-rules.ts` (la capa de evaluaciones importa una función pura de resoluciones; anotado).
 
-### Task TSK-015-N25 - [ ] PENDIENTE (aprobada en Paso 0, 26/11/2026)
+### Task TSK-015-N25 - [x] COMPLETADO (commits 629fcc4 ventana, c54d80d pipe, 6c78e0a contexto)
+- **Resultados (26/11/2026)**: `npx tsc --noEmit` sin errores; `npx eslint` sobre lo tocado sin errores; `npm test` 77 suites / 874 tests en verde; e2e `resolutions-contexto`, `cartas-firmadas`, `meetings-resultado-pleno`, `resolutions-permisos`: 4 suites / 56 tests en verde en total (`resolutions-contexto` 11/11 verificado por separado), con residuos 0.
+- **Mutaciones** (todas detectadas): motivo visible al investigador (2 fallos en unitarias, 2 en e2e); acceso ajeno sin 404 (1 y 1); quitar la comprobación de EX (1 y 1); quitar la ventana (2 y 1); quitar el mensaje de `exceptionFactory` del pipe de UUID (2 e2e) y del `ParseIntPipe` del contexto (1 e2e).
+- **Desviaciones registradas**: `ResolutionsController` inyecta `CartasFirmadasService` para la ruta nueva (mismo módulo). El id de protocolo se valida con `ParseIntPipe` + `< 1` → 400 «ID de protocolo inválido».
+- **Cross-module**: `evaluations` importa `esEstudioExento` de `resolutions` (ya marcado en N20) y `resolutions` importa `evaluarVentanaResultadoPleno` de `evaluations/domain`. Dependencia bidireccional de módulos sin ciclo de imports; pendiente revisar en una tarea futura.
 - **ID Único**: `TSK-015-N25`
 - **Requisito Relacionado**: `RF-17.1`, `RF-17.4`, `RF-17.6` (spec-003 v1.6.7)
 - **Criterio EARS**: `EARS 5` (RF-17.1, RF-17.4, RF-17.6)
