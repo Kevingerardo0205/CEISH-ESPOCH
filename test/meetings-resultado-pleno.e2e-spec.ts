@@ -53,7 +53,6 @@ const ZONE = 'America/Guayaquil';
 /** Hoy en Ecuador, a una hora que ya pasó (punto medio entre las 00:00 y ahora). */
 const START_OF_TODAY_SQL = `(date_trunc('day', NOW() AT TIME ZONE '${ZONE}') AT TIME ZONE '${ZONE}')`;
 const REUNION_PASADA_HOY_SQL = `(${START_OF_TODAY_SQL} + (NOW() - ${START_OF_TODAY_SQL}) / 2)`;
-const REUNION_FUTURA_SQL = `(NOW() + interval '1 day')`;
 
 type Usuario = 'secretaria' | 'presidente' | 'evaluador' | 'investigador';
 
@@ -223,14 +222,6 @@ describe('TSK-015-N08 — PATCH /api/evaluations/meetings/:id/protocolos/:cpId/r
     return row;
   }
 
-  async function estadoProtocolo(protocolId: number): Promise<number | null> {
-    const [row] = await ds.query(
-      `SELECT estado_id FROM public.protocolos WHERE id = $1`,
-      [protocolId],
-    );
-    return row.estado_id ?? null;
-  }
-
   beforeAll(async () => {
     const fix: TestingModule = await Test.createTestingModule({
       imports: [AppModule],
@@ -326,191 +317,41 @@ describe('TSK-015-N08 — PATCH /api/evaluations/meetings/:id/protocolos/:cpId/r
     if (app) await app.close();
   });
 
-  describe('autorización (RF-17.1: solo SECRETARIA)', () => {
-    it('403 a PRESIDENTE, EVALUADOR e INVESTIGADOR, sin escribir historial', async () => {
-      const { convId, cpId } = await sembrar('AUT');
+  // TSK-015-N27-5 (RF-17.1 v1.6.8): el registro manual se retiró. La ruta conserva sus guards y
+  // responde 410 Gone; no escribe en el historial ni en el valor vigente.
+  describe('retirado (TSK-015-N27-5, 410 Gone)', () => {
+    const CONV_INEXISTENTE = '00000000-0000-4000-8000-000000000001';
+    const CP_INEXISTENTE = '00000000-0000-4000-8000-000000000002';
+
+    it('403 a PRESIDENTE, EVALUADOR e INVESTIGADOR: el guard actúa antes que el 410', async () => {
       for (const who of ['presidente', 'evaluador', 'investigador'] as const) {
-        const res = await patch(who, convId, cpId, {
+        const res = await patch(who, CONV_INEXISTENTE, CP_INEXISTENTE, {
           resultado: 'APROBADO_DEFINITIVO',
         });
         expect(res.status).toBe(403);
       }
+    });
+
+    it('410 a SECRETARIA con mensaje en español; sin historial ni valor vigente', async () => {
+      const { convId, cpId } = await sembrar('GONE');
+      const res = await patch('secretaria', convId, cpId, {
+        resultado: 'NO_APROBADO',
+        motivo: 'Motivo de prueba',
+      });
+      expect(res.status).toBe(410);
+      expect(String(res.body?.message ?? '')).toContain(
+        'ya no se registra a mano',
+      );
       expect(await historial(cpId)).toHaveLength(0);
       expect((await valorVigente(cpId)).dictamen_resultado).toBeNull();
     });
-  });
 
-  describe('registro y corrección (SECRETARIA)', () => {
-    it('200 registra el resultado: una fila en el historial, valor vigente y estado del protocolo sin cambios', async () => {
-      const { convId, cpId, protocolId } = await sembrar('OK');
-      const estadoAntes = await estadoProtocolo(protocolId);
-
-      const res = await patch('secretaria', convId, cpId, {
-        resultado: 'APROBADO_DEFINITIVO',
-      });
-
-      expect(res.status).toBe(200);
-      expect(res.body.statusCode).toBe(200);
-      expect(res.body.data).toEqual(
-        expect.objectContaining({
-          convocatoriaProtocoloId: cpId,
-          resultado: 'APROBADO_DEFINITIVO',
-        }),
-      );
-      expect(res.body.data.resultado).toBe('APROBADO_DEFINITIVO');
-      expect(res.body.data.data).toBeUndefined();
-      const filas = await historial(cpId);
-      expect(filas).toHaveLength(1);
-      expect(filas[0].resultado).toBe('APROBADO_DEFINITIVO');
-      expect(filas[0].registrado_por).toBe(userId.secretaria);
-
-      const vigente = await valorVigente(cpId);
-      expect(vigente.dictamen_resultado).toBe('APROBADO_DEFINITIVO');
-      expect(vigente.dictamen_registrado_por).toBe(userId.secretaria);
-      expect(await estadoProtocolo(protocolId)).toBe(estadoAntes);
-    });
-
-    it('corrección con motivoCorreccion: 2 filas en el historial (la primera intacta) y valor vigente actualizado', async () => {
-      const { convId, cpId } = await sembrar('COR');
-      await patch('secretaria', convId, cpId, {
-        resultado: 'APROBADO_DEFINITIVO',
-      });
-
-      const res = await patch('secretaria', convId, cpId, {
-        resultado: 'NO_APROBADO',
-        motivo: 'Consentimiento informado incompleto',
-        motivoCorreccion: 'El acta registró un resultado equivocado',
-      });
-
-      expect(res.status).toBe(200);
-      const filas = await historial(cpId);
-      expect(filas).toHaveLength(2);
-      expect(filas[0].resultado).toBe('APROBADO_DEFINITIVO');
-      expect(filas[0].motivo_correccion).toBeNull();
-      expect(filas[1].resultado).toBe('NO_APROBADO');
-      expect(filas[1].motivo_correccion).toBe(
-        'El acta registró un resultado equivocado',
-      );
-      expect((await valorVigente(cpId)).dictamen_resultado).toBe('NO_APROBADO');
-    });
-  });
-
-  describe('validaciones', () => {
-    it('400 con un valor fuera de los tres resultados (SUSPENDIDO no es resultado del pleno)', async () => {
-      const { convId, cpId } = await sembrar('VAL');
+    it('410 aunque el cuerpo no sea válido: el DTO ya no se valida (no hay 400)', async () => {
+      const { convId, cpId } = await sembrar('GONE2');
       const res = await patch('secretaria', convId, cpId, {
         resultado: 'SUSPENDIDO',
       });
-      expect(res.status).toBe(400);
-      expect(await historial(cpId)).toHaveLength(0);
-    });
-
-    it('400 NO_APROBADO sin motivo', async () => {
-      const { convId, cpId } = await sembrar('NAM');
-      const res = await patch('secretaria', convId, cpId, {
-        resultado: 'NO_APROBADO',
-      });
-      expect(res.status).toBe(400);
-      expect(await historial(cpId)).toHaveLength(0);
-    });
-
-    it('400 APROBADO_CON_CONDICION sin observaciones', async () => {
-      const { convId, cpId } = await sembrar('APC');
-      const res = await patch('secretaria', convId, cpId, {
-        resultado: 'APROBADO_CON_CONDICION',
-      });
-      expect(res.status).toBe(400);
-      expect(await historial(cpId)).toHaveLength(0);
-    });
-
-    it('400 corrección sin motivoCorreccion', async () => {
-      const { convId, cpId } = await sembrar('CSM');
-      await patch('secretaria', convId, cpId, {
-        resultado: 'APROBADO_DEFINITIVO',
-      });
-      const res = await patch('secretaria', convId, cpId, {
-        resultado: 'NO_APROBADO',
-        motivo: 'Falta firma',
-      });
-      expect(res.status).toBe(400);
-      expect(await historial(cpId)).toHaveLength(1);
-    });
-  });
-
-  describe('pertenencia y ventana de fecha', () => {
-    it('404 con un punto que pertenece a otra convocatoria', async () => {
-      const a = await sembrar('PERTA');
-      const b = await sembrar('PERTB');
-      const res = await patch('secretaria', a.convId, b.cpId, {
-        resultado: 'APROBADO_DEFINITIVO',
-      });
-      expect(res.status).toBe(404);
-      expect(await historial(b.cpId)).toHaveLength(0);
-    });
-
-    it('404 con un punto inexistente', async () => {
-      const { convId } = await sembrar('NOEX');
-      const res = await patch(
-        'secretaria',
-        convId,
-        '00000000-0000-4000-8000-000000000000',
-        { resultado: 'APROBADO_DEFINITIVO' },
-      );
-      expect(res.status).toBe(404);
-    });
-
-    it('409 si la convocatoria está CANCELADA', async () => {
-      const { convId, cpId } = await sembrar(
-        'CAN',
-        REUNION_PASADA_HOY_SQL,
-        'CANCELADA',
-      );
-      const res = await patch('secretaria', convId, cpId, {
-        resultado: 'APROBADO_DEFINITIVO',
-      });
-      expect(res.status).toBe(409);
-      expect(await historial(cpId)).toHaveLength(0);
-    });
-
-    it('400 «Identificador inválido.» si el punto no es UUID (TSK-015-N25)', async () => {
-      const { convId } = await sembrar('UUID');
-      const res = await patch('secretaria', convId, 'no-es-uuid', {
-        resultado: 'APROBADO_DEFINITIVO',
-      });
-      expect(res.status).toBe(400);
-      expect(res.body.message).toBe('Identificador inválido.');
-    });
-
-    it('409 en español si el estudio es EX (TSK-015-N20): sin historial ni valor vigente', async () => {
-      const { convId, cpId, protocolId } = await sembrar('EX');
-      await ds.query(
-        `UPDATE public.protocolos SET tipo_estudio_id =
-           (SELECT id FROM catalogos.tipos_estudio WHERE codigo = 'EX')
-          WHERE id = $1`,
-        [protocolId],
-      );
-      const res = await patch('secretaria', convId, cpId, {
-        resultado: 'APROBADO_DEFINITIVO',
-      });
-      expect(res.status).toBe(409);
-      expect(res.body.message).toBe(
-        'El estudio exento (EX) no pasa por el pleno y no admite el registro de resultados.',
-      );
-      expect(await historial(cpId)).toHaveLength(0);
-      const [cp] = await ds.query(
-        `SELECT dictamen_resultado FROM evaluacion.convocatoria_protocolos WHERE id = $1`,
-        [cpId],
-      );
-      expect(cp.dictamen_resultado).toBeNull();
-    });
-
-    it('409 si fecha_reunion es futura', async () => {
-      const { convId, cpId } = await sembrar('FUT', REUNION_FUTURA_SQL);
-      const res = await patch('secretaria', convId, cpId, {
-        resultado: 'APROBADO_DEFINITIVO',
-      });
-      expect(res.status).toBe(409);
-      expect(await historial(cpId)).toHaveLength(0);
+      expect(res.status).toBe(410);
     });
   });
 });

@@ -112,10 +112,6 @@ export class ResolutionsController {
     if (protocolId < 1) {
       throw new BadRequestException('ID de protocolo inválido');
     }
-    return this.cartasFirmadasService.contextoProtocolo(
-      protocolId,
-      req.user,
-      new Date(),
-    );
+    return this.cartasFirmadasService.contextoProtocolo(protocolId, req.user);
   }
 }

@@ -7,29 +7,6 @@ import {
   NextMeetingEntity,
 } from '../entities/meeting.entity';
 
-/** Contexto de un punto de la convocatoria para registrar el resultado del pleno (TSK-015-N08, RF-17.1). */
-export interface ResultadoPlenoContext {
-  convocatoriaProtocoloId: string;
-  convocatoriaEstado: string;
-  fechaReunion: Date | null;
-  /** Valor vigente de dictamen_resultado; null si aún no hay resultado. */
-  dictamenResultado: string | null;
-  /** catalogo.tipos_estudio.codigo del protocolo (p. ej. EX, EC); null si no tiene tipo. */
-  tipoEstudioCodigo: string | null;
-}
-
-/** Datos ya validados que escribe el registro del resultado (TSK-015-N08). */
-export interface RegistrarResultadoPlenoParams {
-  convocatoriaProtocoloId: string;
-  /** Valor que la aplicación leyó antes; la escritura solo ocurre si sigue siendo el vigente. */
-  resultadoAnterior: string | null;
-  resultado: string;
-  motivo: string | null;
-  observaciones: string | null;
-  motivoCorreccion: string | null;
-  registradoPor: number;
-}
-
 /**
  * Versión enviada a una convocatoria cuyo plazo de evaluación aún no vence (RF-12.7 c.2, TSK-002-N57).
  * `reviewDeadline` = MAX(fecha_limite_revision) de sus asignaciones en estados 5, 6, 7, 26 y 27;
@@ -180,19 +157,4 @@ export interface IMeetingRepositoryPort {
   findAssignedEvaluatorsForVersions(
     versionIds: number[],
   ): Promise<AssignedEvaluatorInfo[]>;
-
-  /**
-   * Punto de la convocatoria (no eliminado) con su estado, fecha de reunión y resultado vigente.
-   * Devuelve null si el punto no pertenece a esa convocatoria (TSK-015-N08, RF-17.1).
-   */
-  findResultadoPlenoContext(
-    convocatoriaId: string,
-    convocatoriaProtocoloId: string,
-  ): Promise<ResultadoPlenoContext | null>;
-
-  /**
-   * Escribe el valor vigente y añade una fila al historial en UNA transacción.
-   * Si el valor vigente cambió desde `resultadoAnterior`, lanza un conflicto de concurrencia (TSK-015-N08).
-   */
-  registrarResultadoPleno(params: RegistrarResultadoPlenoParams): Promise<void>;
 }

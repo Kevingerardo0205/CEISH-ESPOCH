@@ -13,8 +13,6 @@ import {
   NormativeDeadlineInput,
   UnscheduledVersionInfo,
   AssignedEvaluatorInfo,
-  ResultadoPlenoContext,
-  RegistrarResultadoPlenoParams,
 } from '../../domain/ports/meeting-repository.port';
 import {
   MeetingEntity,
@@ -32,14 +30,16 @@ import {
   ConvocatoriaStatus,
 } from '../database/entities/convocatoria.orm-entity';
 import { ConvocatoriaProtocoloOrmEntity } from '../database/entities/convocatoria-protocolo.orm-entity';
-import { ConvocatoriaProtocoloResultadoOrmEntity } from '../database/entities/convocatoria-protocolo-resultado.orm-entity';
 import { LugarOrmEntity } from '../database/entities/lugar.orm-entity';
 import { ProtocolVersionOrmEntity } from '../database/protocol-version.entity.orm';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
 import { MeetingNumberValueObject } from '../../domain/value-objects/meeting-number.vo';
 import { AgendaItemType } from '../../../../shared/enums/agenda-section.enum';
-import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
+import {
+  ACTIVE_ASSIGNMENT_STATES,
+  AssignmentStatus,
+} from '../../domain/enums/assignment-status.enum';
 import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
 import {
   ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION,
@@ -48,12 +48,8 @@ import {
 } from '../../../../shared/deadlines/deadline-rules';
 import { toSafeDate } from '../../../../shared/utils/to-safe-date.util';
 
-/** Asignaciones activas de una versión (RF-12.7 c.2): SUGERIDO, ASIGNADO, COMPLETADO. */
-const ACTIVE_ASSIGNMENT_STATES = [
-  AssignmentStatus.SUGGESTED,
-  AssignmentStatus.ASSIGNED,
-  AssignmentStatus.COMPLETED,
-].join(', ');
+/** Asignaciones activas de una versión (RF-12.7 c.2), movidas a dominio en TSK-015-N27-3. */
+const ACTIVE_ASSIGNMENT_STATES_SQL = ACTIVE_ASSIGNMENT_STATES.join(', ');
 
 /** Asignaciones que fijan la fecha límite de la versión: las activas y las reasignadas (RF-12.7 c.2 y c.5). */
 const REVIEW_DEADLINE_ASSIGNMENT_STATES = [
@@ -71,7 +67,7 @@ const REVIEW_DEADLINE_ASSIGNMENT_STATES = [
  */
 const VERSION_REVIEW_DEADLINE_SQL = `
   SELECT a.version_id,
-         bool_or(a.estado_id IN (${ACTIVE_ASSIGNMENT_STATES})) AS has_active,
+         bool_or(a.estado_id IN (${ACTIVE_ASSIGNMENT_STATES_SQL})) AS has_active,
          MAX(a.fecha_limite_revision) AS review_deadline
     FROM evaluacion.asignaciones_evaluacion a
    WHERE a.estado_id IN (${REVIEW_DEADLINE_ASSIGNMENT_STATES})
@@ -696,110 +692,5 @@ export class MeetingTypeOrmRepository implements IMeetingRepositoryPort {
       evaluatorProfile: r.evaluator_profile ?? '',
       isAssignedForAnnex10: r.is_assigned_for_annex10,
     }));
-  }
-
-  /** TSK-015-N08 (RF-17.1): punto de la convocatoria con su estado, fecha de reunión y resultado vigente. */
-  async findResultadoPlenoContext(
-    convocatoriaId: string,
-    convocatoriaProtocoloId: string,
-  ): Promise<ResultadoPlenoContext | null> {
-    const rows = await this.dataSource.query<
-      Array<{
-        convocatoria_protocolo_id: string;
-        convocatoria_estado: string;
-        fecha_reunion: Date | null;
-        dictamen_resultado: string | null;
-        tipo_estudio_codigo: string | null;
-      }>
-    >(
-      `SELECT cp.id AS convocatoria_protocolo_id,
-              c.estado AS convocatoria_estado,
-              c.fecha_reunion,
-              cp.dictamen_resultado,
-              te.codigo AS tipo_estudio_codigo
-         FROM evaluacion.convocatoria_protocolos cp
-         JOIN evaluacion.convocatorias c ON c.id = cp.convocatoria_id
-         JOIN public.protocolos p ON p.id = cp.protocolo_id
-         LEFT JOIN catalogos.tipos_estudio te ON te.id = p.tipo_estudio_id
-        WHERE cp.id = $1
-          AND cp.convocatoria_id = $2
-          AND cp.eliminado_en IS NULL`,
-      [convocatoriaProtocoloId, convocatoriaId],
-    );
-    const row = rows[0];
-    if (!row) return null;
-    return {
-      convocatoriaProtocoloId: row.convocatoria_protocolo_id,
-      convocatoriaEstado: row.convocatoria_estado,
-      fechaReunion: row.fecha_reunion,
-      dictamenResultado: row.dictamen_resultado,
-      tipoEstudioCodigo: row.tipo_estudio_codigo,
-    };
-  }
-
-  /**
-   * TSK-015-N08 (RF-17.1): escribe el valor vigente y añade la fila del historial en una transacción.
-   * El UPDATE solo afecta a la fila si el valor vigente sigue siendo `resultadoAnterior`; si no,
-   * revierte y lanza conflicto.
-   */
-  async registrarResultadoPleno(
-    params: RegistrarResultadoPlenoParams,
-  ): Promise<void> {
-    const queryRunner = this.dataSource.createQueryRunner();
-    await queryRunner.connect();
-    await queryRunner.startTransaction('READ COMMITTED');
-    try {
-      // Bloqueo de la fila hasta el commit: el valor leído aquí es el que se corrige.
-      const [actual] = (await queryRunner.query(
-        `SELECT dictamen_resultado
-           FROM evaluacion.convocatoria_protocolos
-          WHERE id = $1::uuid
-          FOR UPDATE`,
-        [params.convocatoriaProtocoloId],
-      )) as Array<{ dictamen_resultado: string | null }>;
-
-      if ((actual?.dictamen_resultado ?? null) !== params.resultadoAnterior) {
-        throw new ConflictException(
-          'El resultado del protocolo cambió mientras se registraba. Recargue e intente de nuevo.',
-        );
-      }
-
-      await queryRunner.query(
-        `UPDATE evaluacion.convocatoria_protocolos
-            SET dictamen_resultado = $1::varchar,
-                dictamen_motivo = $2::text,
-                dictamen_observaciones = $3::text,
-                dictamen_registrado_por = $4::integer,
-                dictamen_registrado_en = now(),
-                updated_at = now()
-          WHERE id = $5::uuid`,
-        [
-          params.resultado,
-          params.motivo,
-          params.observaciones,
-          params.registradoPor,
-          params.convocatoriaProtocoloId,
-        ],
-      );
-
-      await queryRunner.manager.insert(
-        ConvocatoriaProtocoloResultadoOrmEntity,
-        {
-          convocatoriaProtocoloId: params.convocatoriaProtocoloId,
-          resultado: params.resultado,
-          motivo: params.motivo,
-          observaciones: params.observaciones,
-          motivoCorreccion: params.motivoCorreccion,
-          registradoPor: params.registradoPor,
-        },
-      );
-
-      await queryRunner.commitTransaction();
-    } catch (error) {
-      await queryRunner.rollbackTransaction();
-      throw error;
-    } finally {
-      await queryRunner.release();
-    }
   }
 }

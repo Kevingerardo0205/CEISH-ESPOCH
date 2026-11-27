@@ -138,8 +138,6 @@ describe('Meetings E2E Suite - [TSK-009-010 / RF-09 / RF-15]', () => {
       .fn()
       .mockResolvedValue([]),
     findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),
-    findResultadoPlenoContext: jest.fn(),
-    registrarResultadoPleno: jest.fn(),
   };
 
   const mockPdfGenerator = {

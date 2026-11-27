@@ -1,7 +1,7 @@
 /** Códigos de catalogo.tipos_estudio (StudyTypeCode): EX exento, EC ensayo clínico. */
 const CODIGO_ESTUDIO_EXENTO = 'EX';
 const CODIGO_ENSAYO_CLINICO = 'EC';
-import type { ResultadoPleno } from '../../../evaluations/application/dtos/registrar-resultado-pleno.dto';
+import type { ResultadoPleno } from '../../../evaluations/domain/services/calcular-resultado-pleno';
 import type { TipoResolucion } from './resultado-resolucion.service';
 
 /**

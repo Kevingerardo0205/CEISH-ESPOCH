@@ -482,6 +482,28 @@ describe('ReassignEvaluatorUseCase (TSK-002-10)', () => {
     );
   });
 
+  it('N27-0-U-01: asignación en estado 7 (COMPLETED) → ConflictException, sin persistencia (RF-17.1 v1.6.8)', async () => {
+    repositoryMock.findAssignmentById.mockResolvedValue({
+      ...ormEntityMock,
+      statusId: AssignmentStatus.COMPLETED,
+    });
+
+    const dto: ReassignEvaluatorDto = {
+      currentAssignmentId: 101,
+      replacementEvaluatorId: 25,
+      replacementEvaluatorProfile: EvaluatorProfile.JURIDICO,
+      reason: ReassignmentReason.VENCIMIENTO,
+    };
+
+    await expect(useCase.execute(dto, 1)).rejects.toThrow(ConflictException);
+    await expect(useCase.execute(dto, 1)).rejects.toThrow(
+      'No se puede reasignar una evaluación que ya fue enviada.',
+    );
+    expect(
+      repositoryMock.executeReassignmentTransaction,
+    ).not.toHaveBeenCalled();
+  });
+
   it('should throw NotFoundException if assignment not found', async () => {
     repositoryMock.findAssignmentById.mockResolvedValue(null);
 

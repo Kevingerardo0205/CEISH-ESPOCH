@@ -2,13 +2,12 @@
 jest.mock('fs');
 import * as fs from 'fs';
 import { Test, TestingModule } from '@nestjs/testing';
-import { NotFoundException } from '@nestjs/common';
+import { GoneException, NotFoundException } from '@nestjs/common';
 import { GUARDS_METADATA } from '@nestjs/common/constants';
 import type { Response } from 'express';
 import { MeetingsController } from './meetings.controller';
 import { CreateMeetingUseCase } from '../../application/services/create-meeting.use-case';
 import { CalculateMeetingDatesService } from '../../application/services/calculate-meeting-dates.service';
-import { RegistrarResultadoPlenoUseCase } from '../../application/use-cases/registrar-resultado-pleno.use-case';
 import type { CreateMeetingDto } from '../../application/dtos/create-meeting.dto';
 import type { CalculateEvalDateDto } from '../../application/dtos/calculate-eval-date.dto';
 import { SessionType } from '../database/entities/convocatoria.orm-entity';
@@ -62,8 +61,6 @@ describe('MeetingsController (T017 / RF-09)', () => {
       updatePlace: jest.fn(),
       deletePlace: jest.fn(),
       findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),
-      findResultadoPlenoContext: jest.fn(),
-      registrarResultadoPleno: jest.fn(),
     };
 
     pdfGeneratorMock = {
@@ -76,10 +73,6 @@ describe('MeetingsController (T017 / RF-09)', () => {
         {
           provide: CreateMeetingUseCase,
           useValue: createMeetingUseCaseMock,
-        },
-        {
-          provide: RegistrarResultadoPlenoUseCase,
-          useValue: { execute: jest.fn() },
         },
         {
           provide: CalculateMeetingDatesService,
@@ -427,7 +420,14 @@ describe('MeetingsController (T017 / RF-09)', () => {
     });
   });
 
-  describe('PATCH /meetings/:id/protocolos/:convocatoriaProtocoloId/resultado (TSK-015-N08, RF-17.1)', () => {
+  describe('PATCH /meetings/:id/protocolos/:convocatoriaProtocoloId/resultado (TSK-015-N08 retirado en TSK-015-N27-5, RF-17.1 v1.6.8)', () => {
+    it('responde 410 Gone con mensaje en español (TSK-015-N27-5)', () => {
+      expect(() => controller.registrarResultadoPleno()).toThrow(GoneException);
+      expect(() => controller.registrarResultadoPleno()).toThrow(
+        'El resultado del pleno lo calcula el sistema a partir de los dictámenes de los evaluadores; ya no se registra a mano.',
+      );
+    });
+
     // Mutación "quitar @Permissions" o "@Roles": SECRETARIA tiene el permiso en la matriz,
     // así que el e2e no lo distingue; esta prueba sí.
     it('el handler lleva PermissionsGuard, rol SECRETARIA solo y PLENO_RESULTADO_REGISTRAR', () => {

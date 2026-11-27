@@ -1,5 +1,5 @@
 import type { AnexoCarta } from '../../application/services/carta-firmada-rules';
-import type { ResultadoPleno } from '../../../evaluations/application/dtos/registrar-resultado-pleno.dto';
+import type { ResultadoPleno } from '../../../evaluations/domain/services/calcular-resultado-pleno';
 
 /**
  * TSK-015-N09 (RF-17.4 v1.6.6): una versión de la carta firmada. Tipo de dominio, sin ORM.

@@ -90,6 +90,12 @@ describe('Contexto de resolución — TSK-015-N25 (ceish_test_db)', () => {
          (SELECT id FROM public.protocolos WHERE titulo LIKE '${PREFIX}%')`,
     );
     await ds.query(
+      `DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN (SELECT a.id FROM evaluacion.asignaciones_evaluacion a JOIN public.versiones_protocolo v ON v.id = a.version_id JOIN public.protocolos p ON p.id = v.protocolo_id WHERE p.titulo LIKE '${PREFIX}%')`,
+    );
+    await ds.query(
+      `DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN (SELECT v.id FROM public.versiones_protocolo v JOIN public.protocolos p ON p.id = v.protocolo_id WHERE p.titulo LIKE '${PREFIX}%')`,
+    );
+    await ds.query(
       `UPDATE public.protocolos SET version_actual_id = NULL WHERE titulo LIKE '${PREFIX}%'`,
     );
     await ds.query(
@@ -136,6 +142,12 @@ describe('Contexto de resolución — TSK-015-N25 (ceish_test_db)', () => {
     return p.id;
   }
 
+  /** Dictámenes que siembra cada resultado del pleno (RF-17.1 v1.6.8: se calcula, no se registra). */
+  const DICTAMENES: Record<string, number[]> = {
+    APROBADO_DEFINITIVO: [1, 1, 1],
+    NO_APROBADO: [3, 3, 3],
+  };
+
   async function convocatoriaProtocolo(
     convId: string,
     protocoloIdParam: number,
@@ -147,22 +159,33 @@ describe('Contexto de resolución — TSK-015-N25 (ceish_test_db)', () => {
       `SELECT version_actual_id FROM public.protocolos WHERE id = $1`,
       [protocoloIdParam],
     );
-    // ck_cp_dictamen_motivo (NO_APROBADO) y ck_cp_dictamen_observaciones (APROBADO_CON_CONDICION).
+    // TSK-015-N27-6: el resultado sale de los dictámenes; dictamen_resultado ya no se escribe.
     const [cp] = await ds.query(
       `INSERT INTO evaluacion.convocatoria_protocolos
          (convocatoria_id, protocolo_id, version_id, fecha_plazo_normativo, orden,
-          dictamen_resultado, dictamen_motivo, dictamen_observaciones)
-       VALUES ($1, $2, $3, CURRENT_DATE + 30, $4, $5, $6, $7) RETURNING id`,
+          dictamen_motivo, dictamen_observaciones)
+       VALUES ($1, $2, $3, CURRENT_DATE + 30, $4, $5, $6) RETURNING id`,
       [
         convId,
         protocoloIdParam,
         vid.version_actual_id,
         orden,
-        resultado,
         textos.motivo ?? null,
         textos.observaciones ?? null,
       ],
     );
+    // Sin dictámenes (null) el resultado está pendiente.
+    for (const resultadoId of resultado === null ? [] : DICTAMENES[resultado]) {
+      const [asignacion] = await ds.query(
+        `INSERT INTO evaluacion.asignaciones_evaluacion (version_id, evaluador_id, estado_id)
+         VALUES ($1, $2, 7) RETURNING id`,
+        [vid.version_actual_id, secretariaId],
+      );
+      await ds.query(
+        `INSERT INTO evaluacion.evaluaciones (asignacion_id, resultado_id) VALUES ($1, $2)`,
+        [asignacion.id, resultadoId],
+      );
+    }
     return cp.id;
   }
 
@@ -298,6 +321,14 @@ describe('Contexto de resolución — TSK-015-N25 (ceish_test_db)', () => {
       1,
     );
 
+    // El resultado es por protocolo (su versión): una asignación activa sin completar deja la
+    // convocatoria futura en PENDIENTE. La carta de la convocatoria pasada sigue congelada.
+    await ds.query(
+      `INSERT INTO evaluacion.asignaciones_evaluacion (version_id, evaluador_id, estado_id)
+       SELECT version_actual_id, $1, 6 FROM public.protocolos WHERE id = $2`,
+      [secretariaId, protocoloId],
+    );
+
     protocoloSinCartaId = await protocolo(TIPO_IO, 'sincarta', investigadorId);
     await convocatoriaProtocolo(
       convPasadaId,
@@ -419,31 +450,98 @@ describe('Contexto de resolución — TSK-015-N25 (ceish_test_db)', () => {
     expect(conCarta.observaciones).toBe('Observación interna');
   });
 
-  it('SECRETARIA: puedeRegistrarResultado solo en la convocatoria celebrada; puedeSubirCarta según resultado', async () => {
+  it('SECRETARIA: puedeSubirCarta exige reunión realizada, estado y anexo (RF-17.2 v1.6.9); no hay puedeRegistrarResultado', async () => {
     const res = await contexto(protocoloId, tokens.SECRETARIA);
     const [futura, celebrada] = res.body.data;
-    // Reunión futura: ventana cerrada aunque tenga permiso.
-    expect(futura.puedeRegistrarResultado).toBe(false);
+    // Reunión futura: no se puede subir carta aunque el cálculo esté listo (RF-17.2 v1.6.9).
     expect(futura.puedeSubirCarta).toBe(false);
-    // Reunión celebrada con resultado: corrección permitida; subir carta permitida (reemplazo).
-    expect(celebrada.puedeRegistrarResultado).toBe(true);
+    // Con carta congelada: el reemplazo sigue permitido.
     expect(celebrada.puedeSubirCarta).toBe(true);
+    expect(JSON.stringify(res.body)).not.toContain('puedeRegistrarResultado');
   });
 
-  it('investigador principal: botones siempre en false', async () => {
+  it('investigador principal: puedeSubirCarta siempre false', async () => {
     const res = await contexto(protocoloId, tokens.INVESTIGADOR);
     for (const item of res.body.data) {
-      expect(item.puedeRegistrarResultado).toBe(false);
       expect(item.puedeSubirCarta).toBe(false);
+      expect(item).not.toHaveProperty('puedeRegistrarResultado');
     }
   });
 
-  it('EX: anexoEsperado null y ningún botón activo, aunque el lector sea SECRETARIA', async () => {
+  it('EX: anexoEsperado null y puedeSubirCarta false, aunque el lector sea SECRETARIA', async () => {
     const res = await contexto(protocoloExId, tokens.SECRETARIA);
     expect(res.status).toBe(200);
     const [item] = res.body.data;
     expect(item.anexoEsperado).toBeNull();
-    expect(item.puedeRegistrarResultado).toBe(false);
     expect(item.puedeSubirCarta).toBe(false);
+    expect(item).not.toHaveProperty('puedeRegistrarResultado');
+  });
+
+  describe('estado del resultado, resumen por conteo y bloqueo legacy (TSK-015-N27-7, RF-17.1 v1.6.8)', () => {
+    let protocoloLegacyId: number;
+
+    beforeAll(async () => {
+      protocoloLegacyId = await protocolo(TIPO_IO, 'legacy', investigadorId);
+      await convocatoriaProtocolo(
+        convPasadaId,
+        protocoloLegacyId,
+        'APROBADO_DEFINITIVO',
+        4,
+      );
+      const [v] = await ds.query(
+        `SELECT version_actual_id FROM public.protocolos WHERE id = $1`,
+        [protocoloLegacyId],
+      );
+      await ds.query(
+        `INSERT INTO resolucion.resoluciones (protocolo_id, version_id, tipo_resolucion_id)
+         VALUES ($1, $2, 1)`,
+        [protocoloLegacyId, v.version_actual_id],
+      );
+    });
+
+    it('estadoResultado: CONGELADO con carta propia; la versión resuelta en otra convocatoria aparece CONGELADA con su número (RF-17.2 v1.6.9)', async () => {
+      const res = await contexto(protocoloId, tokens.SECRETARIA);
+      const [futura, celebrada] = res.body.data;
+      expect(celebrada.estadoResultado).toBe('CONGELADO');
+      expect(celebrada.resueltoEnConvocatoria).toBe(
+        celebrada.numeroConvocatoria,
+      );
+      // Misma versión que la celebrada: no se puede subir otra carta; muestra la convocatoria donde se resolvió.
+      expect(futura.estadoResultado).toBe('CONGELADO');
+      expect(futura.resueltoEnConvocatoria).toBe(celebrada.numeroConvocatoria);
+      expect(futura.puedeSubirCarta).toBe(false);
+      expect(futura.resultadoCalculado).toBeNull();
+    });
+
+    it('RESUELTO_LEGACY con resolucionAnterior y sin resultado ni subida', async () => {
+      const res = await contexto(protocoloLegacyId, tokens.SECRETARIA);
+      const [item] = res.body.data;
+      expect(item.estadoResultado).toBe('RESUELTO_LEGACY');
+      expect(item.resolucionAnterior).toEqual({ tipoResolucionId: 1 });
+      expect(item.resultado).toBeNull();
+      expect(item.resultadoCalculado).toBeNull();
+      expect(item.puedeSubirCarta).toBe(false);
+    });
+
+    it('resumenDictamenes por conteo para SECRETARIA, sin identidad de evaluadores', async () => {
+      const res = await contexto(protocoloSinCartaId, tokens.SECRETARIA);
+      const [item] = res.body.data;
+      expect(item.estadoResultado).toBe('CALCULADO');
+      expect(item.resultadoCalculado).toBe('NO_APROBADO');
+      expect(item.resumenDictamenes).toEqual({
+        aprobado: 0,
+        conCondicion: 0,
+        noAprobado: 3,
+        pendientes: 0,
+      });
+      expect(JSON.stringify(res.body)).not.toMatch(/evaluadorId|evaluador_id/);
+    });
+
+    it('el investigador principal no recibe resumenDictamenes ni pendientes', async () => {
+      const res = await contexto(protocoloSinCartaId, tokens.INVESTIGADOR);
+      expect(res.status).toBe(200);
+      expect(JSON.stringify(res.body)).not.toContain('resumenDictamenes');
+      expect(JSON.stringify(res.body)).not.toContain('pendientes');
+    });
   });
 });

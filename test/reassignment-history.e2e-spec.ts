@@ -407,4 +407,30 @@ describe('Reassignment History E2E (ceish_test_db)', () => {
     expect(assignmentIds).toContain(ASG_OUT_1);
     expect(assignmentIds).toContain(ASG_OUT_2);
   });
+
+  // ── TEST RH-08 (TSK-015-N27-0) ─────────────────────────────────────────────
+  it('RH-08: reasignar una evaluación ya enviada (estado 7) responde 409 (TSK-015-N27-0)', async () => {
+    const [enviada] = await dataSource.query(
+      `INSERT INTO evaluacion.asignaciones_evaluacion (version_id, evaluador_id, estado_id)
+       VALUES ($1, $2, 7) RETURNING id`,
+      [VER_WITH_HISTORY, U_NEW_1],
+    );
+    const res = await request(app.getHttpServer())
+      .post('/api/evaluations/reassign')
+      .set('x-forwarded-for', TEST_RH_IP)
+      .set('x-user-id', String(U_EXEC))
+      .send({
+        currentAssignmentId: enviada.id,
+        replacementEvaluatorId: U_PREV_2,
+        replacementEvaluatorProfile: 'JURIDICO',
+        reason: 'CONFLICTO_INTERES',
+        reasonDescription: 'Prueba N27-0',
+      });
+    await dataSource.query(
+      `DELETE FROM evaluacion.asignaciones_evaluacion WHERE id = $1`,
+      [enviada.id],
+    );
+    expect(res.status).toBe(409);
+    expect(JSON.stringify(res.body)).toContain('ya fue enviada');
+  });
 });

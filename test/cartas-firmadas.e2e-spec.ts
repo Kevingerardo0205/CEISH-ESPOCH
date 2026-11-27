@@ -110,6 +110,20 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       `DELETE FROM evaluacion.convocatoria_protocolos WHERE protocolo_id IN
          (SELECT id FROM public.protocolos WHERE titulo LIKE '${PREFIX}%')`,
     );
+    // Dictámenes sembrados por convocatoriaProtocolo (TSK-015-N27-6): evaluaciones y asignaciones de las versiones.
+    await ds.query(
+      `DELETE FROM evaluacion.evaluaciones WHERE asignacion_id IN
+         (SELECT a.id FROM evaluacion.asignaciones_evaluacion a
+            JOIN public.versiones_protocolo v ON v.id = a.version_id
+            JOIN public.protocolos p ON p.id = v.protocolo_id
+           WHERE p.titulo LIKE '${PREFIX}%')`,
+    );
+    await ds.query(
+      `DELETE FROM evaluacion.asignaciones_evaluacion WHERE version_id IN
+         (SELECT v.id FROM public.versiones_protocolo v
+            JOIN public.protocolos p ON p.id = v.protocolo_id
+           WHERE p.titulo LIKE '${PREFIX}%')`,
+    );
     await ds.query(
       `UPDATE public.protocolos SET version_actual_id = NULL WHERE titulo LIKE '${PREFIX}%'`,
     );
@@ -153,32 +167,56 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
     return p.id;
   }
 
+  /** Dictámenes que siembra cada resultado del pleno (RF-17.1 v1.6.8: se calcula, no se registra). */
+  const DICTAMENES: Record<string, number[]> = {
+    APROBADO_DEFINITIVO: [1, 1, 1],
+    APROBADO_CON_CONDICION: [1, 2, 1],
+    NO_APROBADO: [3, 3, 3],
+    MEZCLA_3_1_NO: [1, 1, 1, 3],
+  };
+
   async function convocatoriaProtocolo(
     protocoloIdParam: number,
     resultado: string | null,
     orden: number,
     textos: { motivo?: string; observaciones?: string } = {},
+    // TSK-015-N27-6 (v1.6.9): convocatoria de la fila; por defecto la del bloque principal.
+    convocatoriaIdParam: string = convocatoriaId,
   ): Promise<string> {
     const [vid] = await ds.query(
       `SELECT version_actual_id FROM public.protocolos WHERE id = $1`,
       [protocoloIdParam],
     );
-    // ck_cp_dictamen_motivo (NO_APROBADO) y ck_cp_dictamen_observaciones (APROBADO_CON_CONDICION).
+    // TSK-015-N27-6: el resultado sale de los dictámenes (no de dictamen_resultado). Las columnas de
+    // texto quedan como datos heredados; ya no se escribe dictamen_resultado.
     const [cp] = await ds.query(
       `INSERT INTO evaluacion.convocatoria_protocolos
          (convocatoria_id, protocolo_id, version_id, fecha_plazo_normativo, orden,
-          dictamen_resultado, dictamen_motivo, dictamen_observaciones)
-       VALUES ($1, $2, $3, CURRENT_DATE + 30, $4, $5, $6, $7) RETURNING id`,
+          dictamen_motivo, dictamen_observaciones)
+       VALUES ($1, $2, $3, CURRENT_DATE + 30, $4, $5, $6) RETURNING id`,
       [
-        convocatoriaId,
+        convocatoriaIdParam,
         protocoloIdParam,
         vid.version_actual_id,
         orden,
-        resultado,
         textos.motivo ?? null,
         textos.observaciones ?? null,
       ],
     );
+    // Dictámenes de los evaluadores (1 APROBADO, 2 APROBADO_CON_OBSERVACIONES, 3 RECHAZADO).
+    // null = sin asignaciones activas → el resultado está pendiente.
+    const dictamenes = resultado === null ? [] : DICTAMENES[resultado];
+    for (const resultadoId of dictamenes) {
+      const [asignacion] = await ds.query(
+        `INSERT INTO evaluacion.asignaciones_evaluacion (version_id, evaluador_id, estado_id)
+         VALUES ($1, $2, 7) RETURNING id`,
+        [vid.version_actual_id, investigadorId],
+      );
+      await ds.query(
+        `INSERT INTO evaluacion.evaluaciones (asignacion_id, resultado_id) VALUES ($1, $2)`,
+        [asignacion.id, resultadoId],
+      );
+    }
     return cp.id;
   }
 
@@ -289,7 +327,8 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
     presidenteToken = await login('PRESIDENTE');
 
     const [conv] = await ds.query(
-      `INSERT INTO evaluacion.convocatorias (numero_convocatoria) VALUES ($1) RETURNING id`,
+      `INSERT INTO evaluacion.convocatorias (numero_convocatoria, fecha_reunion)
+       VALUES ($1, now() - interval '10 days') RETURNING id`,
       [`${PREFIX}${randomBytes(4).toString('hex')}`],
     );
     convocatoriaId = conv.id;
@@ -323,11 +362,11 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
   });
 
   describe('upload-url (RF-17.4)', () => {
-    it('400 si el anexo no corresponde al resultado (APROBADO_DEFINITIVO exige 13 o 14)', async () => {
+    it('400 si el cliente envía anexoCodigo: el anexo lo deriva el backend (TSK-015-N27-6)', async () => {
       const res = await api()
         .post(`${base()}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_15' });
+        .send({ anexoCodigo: 'ANEXO_14' });
       expect(res.status).toBe(400);
     });
 
@@ -335,7 +374,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const res = await api()
         .post(`${base(() => cpExId)}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_13' });
+        .send({});
       expect(res.status).toBe(409);
     });
 
@@ -343,7 +382,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const res = await api()
         .post(`${base(() => cpSinResultadoId)}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_13' });
+        .send({});
       expect(res.status).toBe(409);
     });
 
@@ -351,7 +390,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const res = await api()
         .post(`${base()}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_13' });
+        .send({});
       expect(res.status).toBe(201);
       const datos = res.body.data;
       expect(datos.numeroVersion).toBe(1);
@@ -369,7 +408,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
           `/api/resolutions/convocatorias/no-es-uuid/protocolos/${cpId}/cartas/upload-url`,
         )
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_13' });
+        .send({});
       expect(res.status).toBe(400);
       expect(res.body.message).toBe('Identificador inválido.');
     });
@@ -378,7 +417,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const res = await api()
         .post(`${base()}/upload-url`)
         .set('Authorization', `Bearer ${investigadorToken}`)
-        .send({ anexoCodigo: 'ANEXO_13' });
+        .send({});
       expect(res.status).toBe(403);
     });
   });
@@ -393,7 +432,6 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
         .set('Authorization', `Bearer ${secretariaToken}`)
         .send({
           claveArchivo: `protocols/${protocoloId}/resolutions/otro/v1/x.pdf`,
-          anexoCodigo: 'ANEXO_13',
         });
       expect(res.status).toBe(400);
     });
@@ -402,13 +440,13 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const up = await api()
         .post(`${base()}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_13' });
+        .send({});
       const clave = up.body.data.claveArchivo as string;
       subirAlBucket(clave, NO_PDF);
       const res = await api()
         .post(base())
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ claveArchivo: clave, anexoCodigo: 'ANEXO_13' });
+        .send({ claveArchivo: clave });
       expect(res.status).toBe(400);
       expect(deleteSpy).toHaveBeenCalledWith(clave);
       expect(objetos.has(clave)).toBe(false);
@@ -418,7 +456,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const up = await api()
         .post(`${base()}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_13' });
+        .send({});
       claveV1 = up.body.data.claveArchivo as string;
       subirAlBucket(claveV1, PDF);
       jest
@@ -430,7 +468,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const res = await api()
         .post(base())
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ claveArchivo: claveV1, anexoCodigo: 'ANEXO_13' });
+        .send({ claveArchivo: claveV1 });
       expect(res.status).toBe(201);
       expect(res.body.data.numeroVersion).toBe(1);
       expect(res.body.data.vigente).toBe(true);
@@ -455,13 +493,13 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const up = await api()
         .post(`${base()}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_13' });
+        .send({});
       claveV2 = up.body.data.claveArchivo as string;
       subirAlBucket(claveV2, PDF);
       const res = await api()
         .post(base())
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ claveArchivo: claveV2, anexoCodigo: 'ANEXO_13' });
+        .send({ claveArchivo: claveV2 });
       expect(res.status).toBe(400);
     });
 
@@ -471,7 +509,6 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
         .set('Authorization', `Bearer ${secretariaToken}`)
         .send({
           claveArchivo: claveV2,
-          anexoCodigo: 'ANEXO_13',
           motivoReemplazo: 'Corrección de firma del presidente',
         });
       expect(res.status).toBe(201);
@@ -558,14 +595,13 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const up = await api()
         .post(`${url(cpCond)}/upload-url`)
         .set('Authorization', `Bearer ${presidenteToken}`)
-        .send({ anexoCodigo: 'ANEXO_15' });
+        .send({});
       expect(up.status).toBe(403);
       const reg = await api()
         .post(url(cpCond))
         .set('Authorization', `Bearer ${presidenteToken}`)
         .send({
           claveArchivo: `protocols/${protocoloCond}/resolutions/${cpCond}/v1/x.pdf`,
-          anexoCodigo: 'ANEXO_15',
         });
       expect(reg.status).toBe(403);
     });
@@ -574,7 +610,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const up = await api()
         .post(`${url(cpCond)}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_15' });
+        .send({});
       expect(up.status).toBe(201);
       const clave = up.body.data.claveArchivo as string;
       subirAlBucket(clave, PDF);
@@ -582,7 +618,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const res = await api()
         .post(url(cpCond))
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ claveArchivo: clave, anexoCodigo: 'ANEXO_15' });
+        .send({ claveArchivo: clave });
       expect(res.status).toBe(201);
       expect(res.body.data.numeroVersion).toBe(1);
 
@@ -629,7 +665,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
         {
           protocolo_id: protocoloCond,
           tipo_resolucion_id: 2,
-          observaciones: `${PREFIX}observaciones`,
+          observaciones: null,
           vigencia_aprobacion_anios: 1,
           periodo_seguimiento_dias: null,
         },
@@ -650,13 +686,13 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const up = await api()
         .post(`${url(cpRech)}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_16' });
+        .send({});
       const clave = up.body.data.claveArchivo as string;
       subirAlBucket(clave, PDF);
       const res = await api()
         .post(url(cpRech))
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ claveArchivo: clave, anexoCodigo: 'ANEXO_16' });
+        .send({ claveArchivo: clave });
       expect(res.status).toBe(201);
 
       const [prot] = await ds.query(
@@ -710,19 +746,20 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       fetchEcSpy?.mockRestore();
     });
 
-    it('EC con APROBADO_DEFINITIVO: upload-url con ANEXO_13 → 400', async () => {
+    it('EC con APROBADO_DEFINITIVO: upload-url deriva ANEXO_14 (ensayo clínico)', async () => {
       const r = await api()
         .post(`${urlEc()}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_13' });
-      expect(r.status).toBe(400);
+        .send({});
+      expect(r.status).toBe(201);
+      expect(r.body.data.anexoCodigo).toBe('ANEXO_14');
     });
 
     it('EC con APROBADO_DEFINITIVO: ANEXO_14 → registro 201; protocolo en 17 con fecha_aprobacion de hoy, sin v2.0 y con puente', async () => {
       const up = await api()
         .post(`${urlEc()}/upload-url`)
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ anexoCodigo: 'ANEXO_14' });
+        .send({});
       expect(up.status).toBe(201);
       const clave = up.body.data.claveArchivo as string;
       subirAlBucket(clave, PDF);
@@ -730,7 +767,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       const res = await api()
         .post(urlEc())
         .set('Authorization', `Bearer ${secretariaToken}`)
-        .send({ claveArchivo: clave, anexoCodigo: 'ANEXO_14' });
+        .send({ claveArchivo: clave });
       expect(res.status).toBe(201);
 
       const [p] = await ds.query(
@@ -754,6 +791,342 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
         [p.version_actual_id],
       );
       expect(puentes).toEqual([{ tipo_resolucion_id: 1 }]);
+    });
+  });
+
+  describe('resultado calculado, congelado y bloqueo legacy (TSK-015-N27-6, RF-17.1 v1.6.8)', () => {
+    let pendienteId: number;
+    let cpPendiente: string;
+    let mezclaId: number;
+    let cpMezcla: string;
+    let reemplazoId: number;
+    let cpReemplazo: string;
+    let legacyId: number;
+    let cpLegacy: string;
+    let fetchSpy: jest.SpyInstance;
+
+    beforeAll(async () => {
+      pendienteId = await protocolo(TIPO_IO, 'pend');
+      cpPendiente = await convocatoriaProtocolo(
+        pendienteId,
+        'APROBADO_DEFINITIVO',
+        11,
+      );
+      // Una asignación activa sin completar (estado 6) deja el resultado pendiente.
+      await ds.query(
+        `INSERT INTO evaluacion.asignaciones_evaluacion (version_id, evaluador_id, estado_id)
+         VALUES ((SELECT version_actual_id FROM public.protocolos WHERE id = $1), $2, 6)`,
+        [pendienteId, investigadorId],
+      );
+
+      mezclaId = await protocolo(TIPO_IO, 'mezcla');
+      cpMezcla = await convocatoriaProtocolo(mezclaId, 'MEZCLA_3_1_NO', 12);
+
+      reemplazoId = await protocolo(TIPO_IO, 'reemplazo');
+      cpReemplazo = await convocatoriaProtocolo(
+        reemplazoId,
+        'APROBADO_DEFINITIVO',
+        13,
+      );
+
+      legacyId = await protocolo(TIPO_IO, 'legacy');
+      cpLegacy = await convocatoriaProtocolo(
+        legacyId,
+        'APROBADO_DEFINITIVO',
+        14,
+      );
+      const [vLegacy] = await ds.query(
+        `SELECT version_actual_id FROM public.protocolos WHERE id = $1`,
+        [legacyId],
+      );
+      await ds.query(
+        `INSERT INTO resolucion.resoluciones (protocolo_id, version_id, tipo_resolucion_id)
+         VALUES ($1, $2, 1)`,
+        [legacyId, vLegacy.version_actual_id],
+      );
+
+      fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockImplementation(() =>
+          Promise.resolve(new Response(PDF, { status: 200 })),
+        );
+    });
+
+    afterAll(() => {
+      fetchSpy?.mockRestore();
+    });
+
+    it('409 «pendientes de dictamen» mientras una asignación activa no esté completada', async () => {
+      const res = await api()
+        .post(`${base(() => cpPendiente)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(res.status).toBe(409);
+      expect(JSON.stringify(res.body)).toContain('pendientes de dictamen');
+    });
+
+    it('mezcla de 3 APROBADO_DEFINITIVO y 1 RECHAZADO → APROBADO_CON_CONDICION → ANEXO_15', async () => {
+      const res = await api()
+        .post(`${base(() => cpMezcla)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(res.status).toBe(201);
+      expect(res.body.data.anexoCodigo).toBe('ANEXO_15');
+    });
+
+    it('la primera carta congela el resultado: el reemplazo mantiene el anexo aunque cambie un dictamen', async () => {
+      const up = await api()
+        .post(`${base(() => cpReemplazo)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(up.body.data.anexoCodigo).toBe('ANEXO_13');
+      const clave = up.body.data.claveArchivo as string;
+      subirAlBucket(clave, PDF);
+      const reg = await api()
+        .post(base(() => cpReemplazo))
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ claveArchivo: clave });
+      expect(reg.status).toBe(201);
+
+      // Un dictamen cambia después de la carta: el reemplazo usa el congelado, no recalcula.
+      await ds.query(
+        `UPDATE evaluacion.evaluaciones SET resultado_id = 3
+          WHERE asignacion_id IN (
+            SELECT a.id FROM evaluacion.asignaciones_evaluacion a
+             WHERE a.version_id = (SELECT version_actual_id FROM public.protocolos WHERE id = $1))`,
+        [reemplazoId],
+      );
+      const rep = await api()
+        .post(`${base(() => cpReemplazo)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(rep.status).toBe(201);
+      expect(rep.body.data.numeroVersion).toBe(2);
+      expect(rep.body.data.anexoCodigo).toBe('ANEXO_13');
+    });
+
+    it('409 si el protocolo se resolvió con el flujo anterior y no tiene carta (bloqueo legacy)', async () => {
+      const res = await api()
+        .post(`${base(() => cpLegacy)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(res.status).toBe(409);
+      expect(JSON.stringify(res.body)).toContain('flujo anterior');
+    });
+  });
+
+  describe('guardas v1.6.9: reunión realizada, cancelada y versión única (TSK-015-N27-6, RF-17.2)', () => {
+    const DIA_MS = 24 * 60 * 60 * 1000;
+    let convFuturaId: string;
+    let convSinFechaId: string;
+    let convCanceladaId: string;
+    let convDobleA: string;
+    let convDobleB: string;
+    let convConA: string;
+    let convConB: string;
+    let cpFutura: string;
+    let cpSinFecha: string;
+    let cpCancelada: string;
+    let protocoloDobleId: number;
+    let cpDobleA: string;
+    let cpDobleB: string;
+    let protocoloConId: number;
+    let cpConA: string;
+    let cpConB: string;
+    let fetchSpy: jest.SpyInstance;
+
+    async function convocatoriaDe(
+      numero: string,
+      fecha: string | null,
+      estado = 'PROGRAMADA',
+    ): Promise<string> {
+      const [c] = await ds.query(
+        `INSERT INTO evaluacion.convocatorias (numero_convocatoria, fecha_reunion, estado)
+         VALUES ($1, $2::timestamptz, $3) RETURNING id`,
+        [`${PREFIX}${numero}`, fecha, estado],
+      );
+      return c.id as string;
+    }
+
+    beforeAll(async () => {
+      const pasada = new Date(Date.now() - 10 * DIA_MS).toISOString();
+      const futura = new Date(Date.now() + 10 * DIA_MS).toISOString();
+      convFuturaId = await convocatoriaDe('FUT', futura);
+      convSinFechaId = await convocatoriaDe('SINF', null);
+      convCanceladaId = await convocatoriaDe('CANC', pasada, 'CANCELADA');
+      convDobleA = await convocatoriaDe('DOBLE-A', pasada);
+      convDobleB = await convocatoriaDe('DOBLE-B', pasada);
+      convConA = await convocatoriaDe('CON-A', pasada);
+      convConB = await convocatoriaDe('CON-B', pasada);
+
+      // Reunión futura, sin fecha y cancelada: cada una con su propio protocolo y dictámenes completos.
+      cpFutura = await convocatoriaProtocolo(
+        await protocolo(TIPO_IO, 'futura'),
+        'APROBADO_DEFINITIVO',
+        41,
+        {},
+        convFuturaId,
+      );
+      cpSinFecha = await convocatoriaProtocolo(
+        await protocolo(TIPO_IO, 'sinfecha'),
+        'APROBADO_DEFINITIVO',
+        42,
+        {},
+        convSinFechaId,
+      );
+      cpCancelada = await convocatoriaProtocolo(
+        await protocolo(TIPO_IO, 'cancelada'),
+        'APROBADO_DEFINITIVO',
+        43,
+        {},
+        convCanceladaId,
+      );
+
+      // Misma versión en dos convocatorias: los dictámenes se siembran una sola vez (en A).
+      protocoloDobleId = await protocolo(TIPO_IO, 'doble');
+      cpDobleA = await convocatoriaProtocolo(
+        protocoloDobleId,
+        'APROBADO_DEFINITIVO',
+        44,
+        {},
+        convDobleA,
+      );
+      cpDobleB = await convocatoriaProtocolo(
+        protocoloDobleId,
+        null,
+        45,
+        {},
+        convDobleB,
+      );
+
+      // Misma situación para la subida concurrente.
+      protocoloConId = await protocolo(TIPO_IO, 'concurrente');
+      cpConA = await convocatoriaProtocolo(
+        protocoloConId,
+        'APROBADO_DEFINITIVO',
+        46,
+        {},
+        convConA,
+      );
+      cpConB = await convocatoriaProtocolo(
+        protocoloConId,
+        null,
+        47,
+        {},
+        convConB,
+      );
+
+      fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockImplementation(() =>
+          Promise.resolve(new Response(PDF, { status: 200 })),
+        );
+    });
+
+    afterAll(() => {
+      fetchSpy?.mockRestore();
+    });
+
+    const urlDe = (conv: string, cp: string) =>
+      `/api/resolutions/convocatorias/${conv}/protocolos/${cp}/cartas`;
+
+    it('reunión futura: upload-url y registro responden 409 «aún no se ha realizado»', async () => {
+      const up = await api()
+        .post(`${urlDe(convFuturaId, cpFutura)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(up.status).toBe(409);
+      expect(JSON.stringify(up.body)).toContain('aún no se ha realizado');
+      const reg = await api()
+        .post(urlDe(convFuturaId, cpFutura))
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ claveArchivo: 'ZZ_TEST_sin_subida.pdf' });
+      expect(reg.status).toBe(409);
+      expect(JSON.stringify(reg.body)).toContain('aún no se ha realizado');
+    });
+
+    it('sin fecha de reunión: 409 «aún no se ha realizado»', async () => {
+      const res = await api()
+        .post(`${urlDe(convSinFechaId, cpSinFecha)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(res.status).toBe(409);
+      expect(JSON.stringify(res.body)).toContain('aún no se ha realizado');
+    });
+
+    it('convocatoria cancelada: 409 «fue cancelada» aunque la fecha ya haya pasado', async () => {
+      const res = await api()
+        .post(`${urlDe(convCanceladaId, cpCancelada)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(res.status).toBe(409);
+      expect(JSON.stringify(res.body)).toContain('fue cancelada');
+    });
+
+    it('una carta por versión: la segunda convocatoria responde 409 con el número de la primera', async () => {
+      const up = await api()
+        .post(`${urlDe(convDobleA, cpDobleA)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(up.status).toBe(201);
+      const clave = up.body.data.claveArchivo as string;
+      subirAlBucket(clave, PDF);
+      const reg = await api()
+        .post(urlDe(convDobleA, cpDobleA))
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ claveArchivo: clave });
+      expect(reg.status).toBe(201);
+
+      const upB = await api()
+        .post(`${urlDe(convDobleB, cpDobleB)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(upB.status).toBe(409);
+      expect(JSON.stringify(upB.body)).toContain(
+        `ya tiene carta en la convocatoria ${PREFIX}DOBLE-A`,
+      );
+      const regB = await api()
+        .post(urlDe(convDobleB, cpDobleB))
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ claveArchivo: 'ZZ_TEST_sin_subida.pdf' });
+      expect(regB.status).toBe(409);
+    });
+
+    it('dos registros concurrentes de la misma versión: solo uno pasa y queda una carta', async () => {
+      const upA = await api()
+        .post(`${urlDe(convConA, cpConA)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      const upB = await api()
+        .post(`${urlDe(convConB, cpConB)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(upA.status).toBe(201);
+      expect(upB.status).toBe(201);
+      const claveA = upA.body.data.claveArchivo as string;
+      const claveB = upB.body.data.claveArchivo as string;
+      subirAlBucket(claveA, PDF);
+      subirAlBucket(claveB, PDF);
+
+      const [rA, rB] = await Promise.all([
+        api()
+          .post(urlDe(convConA, cpConA))
+          .set('Authorization', `Bearer ${secretariaToken}`)
+          .send({ claveArchivo: claveA }),
+        api()
+          .post(urlDe(convConB, cpConB))
+          .set('Authorization', `Bearer ${secretariaToken}`)
+          .send({ claveArchivo: claveB }),
+      ]);
+      expect([rA.status, rB.status].sort()).toEqual([201, 409]);
+
+      const [{ n }] = await ds.query(
+        `SELECT count(*)::int AS n FROM resolucion.cartas_firmadas
+          WHERE version_id = (SELECT version_actual_id FROM public.protocolos WHERE id = $1)
+            AND vigente`,
+        [protocoloConId],
+      );
+      expect(n).toBe(1);
     });
   });
 });

@@ -72,8 +72,6 @@ const meetingRepositoryMock: IMeetingRepositoryPort = {
   findNormativeDeadlineInputs: jest.fn().mockResolvedValue([]),
   findAssignedVersionsWithoutScheduledMeeting: jest.fn().mockResolvedValue([]),
   findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),
-  findResultadoPlenoContext: jest.fn(),
-  registrarResultadoPleno: jest.fn(),
 };
 
 const mockPdfGenerator = {

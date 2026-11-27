@@ -24,7 +24,6 @@ import { EvaluationConsolidationService } from './application/services/evaluatio
 import { CallsService } from './application/services/calls.service';
 import { CreateMeetingUseCase } from './application/services/create-meeting.use-case';
 import { CalculateMeetingDatesService } from './application/services/calculate-meeting-dates.service';
-import { RegistrarResultadoPlenoUseCase } from './application/use-cases/registrar-resultado-pleno.use-case';
 import { ConvocatoriaProtocoloResultadoOrmEntity } from './infrastructure/database/entities/convocatoria-protocolo-resultado.orm-entity';
 import { AssignEvaluatorsUseCase } from './application/use-cases/assign-evaluators.use-case';
 import { ReassignEvaluatorUseCase } from './application/use-cases/reassign-evaluator.use-case';
@@ -160,7 +159,6 @@ function buildEvaluatorAssignedBridge(
       ],
     },
     CalculateMeetingDatesService,
-    RegistrarResultadoPlenoUseCase,
     PdfGeneratorService,
     DocxGeneratorService,
     ProtocolDeadlineService,

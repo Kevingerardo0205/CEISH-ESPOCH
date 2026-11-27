@@ -12,10 +12,10 @@ import {
   HttpStatus,
   Inject,
   NotFoundException,
+  GoneException,
   Res,
   StreamableFile,
   ParseUUIDPipe,
-  Req,
 } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import {
@@ -64,12 +64,8 @@ import { Permissions } from '../../../../shared/decorators/permissions.decorator
 import { Permission } from '../../../../shared/enums/permission.enum';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { RoleCode } from '../../../auth/domain/enums/role.enum';
-import { JwtPayload } from '../../../auth/infrastructure/strategies/jwt.strategy';
-import { RegistrarResultadoPlenoUseCase } from '../../application/use-cases/registrar-resultado-pleno.use-case';
-import { RegistrarResultadoPlenoDto } from '../../application/dtos/registrar-resultado-pleno.dto';
 import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-repository.port';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
-import { UUID_PARAM_PIPE } from '../../../../shared/pipes/uuid-param.pipe';
 
 @ApiTags('meetings')
 @ApiBearerAuth()
@@ -83,7 +79,6 @@ export class MeetingsController {
     private readonly meetingRepository: IMeetingRepositoryPort,
     @Inject('IMeetingPdfGeneratorPort')
     private readonly pdfGenerator: IMeetingPdfGeneratorPort,
-    private readonly registrarResultadoPlenoUseCase: RegistrarResultadoPlenoUseCase,
   ) {}
 
   // ==========================================
@@ -166,47 +161,22 @@ export class MeetingsController {
   }
 
   /**
-   * TSK-015-N08 (spec-003 RF-17.1 v1.6.2): registra o corrige el resultado del pleno de un
-   * punto de la convocatoria. Solo SECRETARIA (permiso PLENO_RESULTADO_REGISTRAR).
+   * TSK-015-N27-5 (spec-003 RF-17.1 v1.6.8): el resultado del pleno lo calcula el sistema a partir de
+   * los dictámenes de los pares; ya no se registra a mano. La ruta conserva sus guards (un no
+   * autorizado sigue recibiendo 403) y responde 410 Gone. El historial y el permiso se conservan.
    */
   @Patch(':id/protocolos/:convocatoriaProtocoloId/resultado')
   @UseGuards(PermissionsGuard)
   @Roles(RoleCode.SECRETARIA)
   @Permissions(Permission.PLENO_RESULTADO_REGISTRAR)
-  @Audit('PLENO_RESULTADO_REGISTRADO')
   @ApiOperation({
     summary:
-      'Registrar o corregir el resultado del pleno de un protocolo (SECRETARIA)',
+      'Retirado (410): el resultado del pleno lo calcula el sistema a partir de los dictámenes',
   })
-  @ApiOkResponse({ description: 'Resultado registrado en el historial.' })
-  async registrarResultadoPleno(
-    @Param('id', UUID_PARAM_PIPE) id: string,
-    @Param('convocatoriaProtocoloId', UUID_PARAM_PIPE)
-    convocatoriaProtocoloId: string,
-    @Body() dto: RegistrarResultadoPlenoDto,
-    @Req() req: Request & { user: JwtPayload },
-  ): Promise<{
-    convocatoriaProtocoloId: string;
-    resultado: string;
-    motivo: string | null;
-    observaciones: string | null;
-    motivoCorreccion: string | null;
-  }> {
-    // Payload plano: ResponseInterceptor (main.ts:39) añade { data, statusCode, message }.
-    const resultado = await this.registrarResultadoPlenoUseCase.execute({
-      convocatoriaId: id,
-      convocatoriaProtocoloId,
-      dto,
-      registradoPor: req.user.id,
-      now: new Date(),
-    });
-    return {
-      convocatoriaProtocoloId: resultado.convocatoriaProtocoloId,
-      resultado: resultado.resultado,
-      motivo: resultado.motivo,
-      observaciones: resultado.observaciones,
-      motivoCorreccion: resultado.motivoCorreccion,
-    };
+  registrarResultadoPleno(): never {
+    throw new GoneException(
+      'El resultado del pleno lo calcula el sistema a partir de los dictámenes de los evaluadores; ya no se registra a mano.',
+    );
   }
 
   @Patch('places/:id')
