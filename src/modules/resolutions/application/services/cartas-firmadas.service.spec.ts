@@ -33,6 +33,9 @@ function fakeDataSource(handler: Handler) {
     rollbackTransaction: jest.fn().mockResolvedValue(undefined),
     release: jest.fn().mockResolvedValue(undefined),
     query,
+    manager: {
+      findOneByOrFail: jest.fn().mockResolvedValue({ version: 1 }),
+    },
   };
   return {
     ds: { query, createQueryRunner: () => qr } as unknown as DataSource,
@@ -124,15 +127,100 @@ function servicio(handler: Handler, storage = almacenamiento({})) {
   return { svc, storage, email, query, qr };
 }
 
-describe('CartasFirmadasService (TSK-015-N09)', () => {
-  describe('upload-url: anexo derivado del resultado y del tipo de estudio (RF-17.2)', () => {
-    it('IO con APROBADO_DEFINITIVO acepta ANEXO_13 y emite clave v1 con prefijo', async () => {
-      const { svc, storage } = servicio(
-        conCartas(0, false, contexto('IO', 'APROBADO_DEFINITIVO')),
-      );
-      const r = await svc.solicitarSubida('conv', CP, {
-        anexoCodigo: 'ANEXO_13',
-      });
+interface Escenario {
+  tipo: string | null;
+  /** Asignaciones de la versión (estado y resultado_id). Por defecto: 3 completadas con dictamen 1. */
+  asignaciones?: Array<{ estado: number; resultado: number | null }>;
+  /** Resultado de la carta vigente; undefined = sin carta vigente. */
+  vigente?: string;
+  /** Fila en resolucion.resoluciones para la versión (flujo legacy). */
+  legacy?: boolean;
+  maximo?: number;
+}
+
+const COMPLETADA = 7;
+const POR_DEFECTO = [
+  { estado: COMPLETADA, resultado: 1 },
+  { estado: COMPLETADA, resultado: 1 },
+  { estado: COMPLETADA, resultado: 1 },
+];
+
+/** Enruta el SQL de la subida según el escenario (TSK-015-N27-6). */
+function escenario(e: Escenario): Handler {
+  const asignaciones = e.asignaciones ?? POR_DEFECTO;
+  return (sql, params) => {
+    if (sql.includes('FROM evaluacion.convocatoria_protocolos cp')) {
+      return [
+        {
+          id: CP,
+          protocolo_id: 5,
+          version_id: 9,
+          investigador_principal_id: 1,
+          tipo_codigo: e.tipo,
+        },
+      ];
+    }
+    if (sql.includes('COALESCE(MAX(numero_version)')) {
+      return [{ maximo: e.maximo ?? 0 }];
+    }
+    if (sql.includes('SELECT EXISTS (SELECT 1 FROM resolucion.resoluciones')) {
+      return [{ legacy: e.legacy === true }];
+    }
+    if (sql.includes('SELECT resultado FROM resolucion.cartas_firmadas')) {
+      return e.vigente === undefined ? [] : [{ resultado: e.vigente }];
+    }
+    if (sql.includes('AND vigente FOR UPDATE')) {
+      return e.vigente === undefined ? [] : [{ id: 'vigente-1' }];
+    }
+    if (sql.includes('SELECT numero_version FROM public.versiones_protocolo')) {
+      return [{ numero_version: 1 }];
+    }
+    if (sql.includes('SET vigente = false')) return [];
+    if (sql.includes('INSERT INTO resolucion.cartas_firmadas')) {
+      return [
+        {
+          id: 'nueva-1',
+          convocatoria_protocolo_id: params[0],
+          protocolo_id: params[1],
+          version_id: params[2],
+          numero_version: params[3],
+          resultado: params[4],
+          anexo_codigo: params[5],
+          clave_archivo: params[6],
+          vigente: true,
+          motivo_reemplazo: params[7],
+          subido_por: params[8],
+          subido_en: new Date('2026-11-27T10:00:00Z'),
+        },
+      ];
+    }
+    if (sql.includes('FROM evaluacion.asignaciones_evaluacion a')) {
+      return asignaciones.map((a) => ({
+        estado_id: a.estado,
+        resultado_id: a.resultado,
+      }));
+    }
+    if (
+      sql.includes('FOR UPDATE') &&
+      sql.includes('evaluacion.convocatoria_protocolos')
+    ) {
+      return [{ id: CP }];
+    }
+    if (sql.includes('FOR UPDATE') && sql.includes('public.protocolos')) {
+      return [{ id: 5 }];
+    }
+    return [];
+  };
+}
+
+const CARTA_V1 = { claveArchivo: CLAVE_V1 };
+
+describe('CartasFirmadasService (TSK-015-N09, TSK-015-N27-6)', () => {
+  describe('upload-url: anexo derivado del resultado calculado o congelado (RF-17.1 v1.6.8, RF-17.2)', () => {
+    it('IO, todos dictamen 1 → APROBADO_DEFINITIVO → ANEXO_13 y clave v1', async () => {
+      const { svc, storage } = servicio(escenario({ tipo: 'IO' }));
+      const r = await svc.solicitarSubida('conv', CP, {});
+      expect(r.anexoCodigo).toBe('ANEXO_13');
       expect(r.numeroVersion).toBe(1);
       expect(r.claveArchivo).toMatch(
         new RegExp(`^protocols/5/resolutions/${CP}/v1/[0-9a-f-]+\\.pdf$`),
@@ -144,120 +232,205 @@ describe('CartasFirmadasService (TSK-015-N09)', () => {
       );
     });
 
-    it('IO con APROBADO_DEFINITIVO rechaza ANEXO_14 (ensayo clínico) con 400', async () => {
-      const { svc } = servicio(
-        conCartas(0, false, contexto('IO', 'APROBADO_DEFINITIVO')),
-      );
-      await expect(
-        svc.solicitarSubida('conv', CP, { anexoCodigo: 'ANEXO_14' }),
-      ).rejects.toThrow(BadRequestException);
+    it('EC, todos dictamen 1 → ANEXO_14 (ensayo clínico)', async () => {
+      const { svc } = servicio(escenario({ tipo: 'EC' }));
+      await expect(svc.solicitarSubida('conv', CP, {})).resolves.toMatchObject({
+        anexoCodigo: 'ANEXO_14',
+      });
     });
 
-    it('EC con APROBADO_DEFINITIVO exige ANEXO_14', async () => {
+    it('mezcla 3×1 + 1×3 → APROBADO_CON_CONDICION → ANEXO_15', async () => {
       const { svc } = servicio(
-        conCartas(0, false, contexto('EC', 'APROBADO_DEFINITIVO')),
+        escenario({
+          tipo: 'IO',
+          asignaciones: [
+            { estado: COMPLETADA, resultado: 1 },
+            { estado: COMPLETADA, resultado: 1 },
+            { estado: COMPLETADA, resultado: 1 },
+            { estado: COMPLETADA, resultado: 3 },
+          ],
+        }),
       );
-      await expect(
-        svc.solicitarSubida('conv', CP, { anexoCodigo: 'ANEXO_14' }),
-      ).resolves.toMatchObject({ anexoCodigo: 'ANEXO_14' });
+      await expect(svc.solicitarSubida('conv', CP, {})).resolves.toMatchObject({
+        anexoCodigo: 'ANEXO_15',
+      });
     });
 
-    it('EX responde 409 aunque el anexo sea correcto', async () => {
+    it('todos dictamen 3 → NO_APROBADO → ANEXO_16', async () => {
       const { svc } = servicio(
-        conCartas(0, false, contexto('EX', 'APROBADO_DEFINITIVO')),
+        escenario({
+          tipo: 'IO',
+          asignaciones: [
+            { estado: COMPLETADA, resultado: 3 },
+            { estado: COMPLETADA, resultado: 3 },
+          ],
+        }),
       );
-      await expect(
-        svc.solicitarSubida('conv', CP, { anexoCodigo: 'ANEXO_13' }),
-      ).rejects.toThrow(ConflictException);
+      await expect(svc.solicitarSubida('conv', CP, {})).resolves.toMatchObject({
+        anexoCodigo: 'ANEXO_16',
+      });
     });
 
-    it('sin resultado del pleno responde 409', async () => {
-      const { svc } = servicio(conCartas(0, false, contexto('IO', null)));
-      await expect(
-        svc.solicitarSubida('conv', CP, { anexoCodigo: 'ANEXO_13' }),
-      ).rejects.toThrow(ConflictException);
+    it('con carta vigente usa el resultado congelado (NO_APROBADO) aunque el cálculo dé APROBADO_DEFINITIVO', async () => {
+      const { svc } = servicio(
+        escenario({ tipo: 'IO', vigente: 'NO_APROBADO', maximo: 1 }),
+      );
+      await expect(svc.solicitarSubida('conv', CP, {})).resolves.toMatchObject({
+        anexoCodigo: 'ANEXO_16',
+        numeroVersion: 2,
+      });
+    });
+
+    it('EX responde 409 (no pasa por el pleno)', async () => {
+      const { svc } = servicio(escenario({ tipo: 'EX' }));
+      await expect(svc.solicitarSubida('conv', CP, {})).rejects.toThrow(
+        ConflictException,
+      );
+    });
+
+    it('pendiente (una asignación activa sin completar) responde 409', async () => {
+      const { svc } = servicio(
+        escenario({
+          tipo: 'IO',
+          asignaciones: [
+            { estado: COMPLETADA, resultado: 1 },
+            { estado: 6, resultado: null },
+          ],
+        }),
+      );
+      await expect(svc.solicitarSubida('conv', CP, {})).rejects.toThrow(
+        'pendientes de dictamen',
+      );
+    });
+
+    it('protocolo resuelto con el flujo legacy (fila en resoluciones, sin carta) responde 409', async () => {
+      const { svc } = servicio(escenario({ tipo: 'IO', legacy: true }));
+      await expect(svc.solicitarSubida('conv', CP, {})).rejects.toThrow(
+        'flujo anterior',
+      );
+    });
+
+    it('sin asignaciones activas → pendiente (409)', async () => {
+      const { svc } = servicio(escenario({ tipo: 'IO', asignaciones: [] }));
+      await expect(svc.solicitarSubida('conv', CP, {})).rejects.toThrow(
+        ConflictException,
+      );
     });
   });
 
-  describe('registro: versión, motivo y verificación del archivo (RF-17.4)', () => {
+  describe('registro: primera carta congela, reemplazo no recalcula, bloqueo legacy (RF-17.1 v1.6.8, RF-17.4)', () => {
+    it('primera carta: calcula bajo bloqueo, deriva el anexo, no escribe dictamen_* ni la convocatoria-protocolo', async () => {
+      const { svc, qr } = servicio(
+        escenario({
+          tipo: 'IO',
+          asignaciones: [
+            { estado: COMPLETADA, resultado: 1 },
+            { estado: COMPLETADA, resultado: 2 },
+            { estado: COMPLETADA, resultado: 1 },
+          ],
+        }),
+      );
+      const vista = await svc.registrar('conv', CP, CARTA_V1, 7);
+      expect(vista.resultado).toBe('APROBADO_CON_CONDICION');
+      expect(vista.anexoCodigo).toBe('ANEXO_15');
+      const sqls = qr.query.mock.calls.map(([sql]) => String(sql));
+      expect(
+        sqls.some((s) =>
+          /UPDATE\s+evaluacion\.convocatoria_protocolos/.test(s),
+        ),
+      ).toBe(false);
+      expect(
+        sqls.some(
+          (s) =>
+            s.includes('FROM evaluacion.asignaciones_evaluacion a') &&
+            s.includes('FOR UPDATE OF a'),
+        ),
+      ).toBe(true);
+    });
+
+    it('reemplazo con motivo: usa el resultado congelado (NO_APROBADO) y no recalcula', async () => {
+      const { svc, qr } = servicio(
+        escenario({
+          tipo: 'IO',
+          vigente: 'NO_APROBADO',
+          maximo: 1,
+          asignaciones: [
+            { estado: COMPLETADA, resultado: 1 },
+            { estado: COMPLETADA, resultado: 1 },
+          ],
+        }),
+      );
+      const vista = await svc.registrar(
+        'conv',
+        CP,
+        {
+          claveArchivo: `protocols/5/resolutions/${CP}/v2/b.pdf`,
+          motivoReemplazo: 'Corrección de la firma',
+        },
+        7,
+      );
+      expect(vista.resultado).toBe('NO_APROBADO');
+      expect(vista.anexoCodigo).toBe('ANEXO_16');
+      const sqls = qr.query.mock.calls.map(([sql]) => String(sql));
+      expect(sqls.some((s) => s.includes('SET vigente = false'))).toBe(true);
+      expect(
+        sqls.some((s) => s.includes('FROM evaluacion.asignaciones_evaluacion')),
+      ).toBe(false);
+    });
+
+    it('primera carta con flujo legacy responde 409 y no inserta', async () => {
+      const { svc, qr } = servicio(escenario({ tipo: 'IO', legacy: true }));
+      await expect(svc.registrar('conv', CP, CARTA_V1, 7)).rejects.toThrow(
+        ConflictException,
+      );
+      const sqls = qr.query.mock.calls.map(([sql]) => String(sql));
+      expect(
+        sqls.some((s) => s.includes('INSERT INTO resolucion.cartas_firmadas')),
+      ).toBe(false);
+    });
+
     it('clave de una versión distinta de la esperada responde 409', async () => {
       // Máximo 0 → se espera v1, pero la clave es v2.
-      const { svc, storage } = servicio(
-        conCartas(0, false, contexto('IO', 'APROBADO_DEFINITIVO')),
-      );
+      const { svc, storage } = servicio(escenario({ tipo: 'IO' }));
       await expect(
-        svc.registrar(
-          'conv',
-          CP,
-          { claveArchivo: CLAVE_V2, anexoCodigo: 'ANEXO_13' },
-          7,
-        ),
+        svc.registrar('conv', CP, { claveArchivo: CLAVE_V2 }, 7),
       ).rejects.toThrow(ConflictException);
       expect(storage.getMetadata).not.toHaveBeenCalled();
     });
 
     it('segunda versión sin motivo de reemplazo responde 400', async () => {
       const { svc } = servicio(
-        conCartas(1, true, contexto('IO', 'APROBADO_DEFINITIVO')),
+        escenario({ tipo: 'IO', vigente: 'APROBADO_DEFINITIVO', maximo: 1 }),
       );
       await expect(
-        svc.registrar(
-          'conv',
-          CP,
-          { claveArchivo: CLAVE_V2, anexoCodigo: 'ANEXO_13' },
-          7,
-        ),
+        svc.registrar('conv', CP, { claveArchivo: CLAVE_V2 }, 7),
       ).rejects.toThrow(BadRequestException);
     });
 
     it('un objeto que no es application/pdf responde 400 y se borra', async () => {
       const storage = almacenamiento({ contentType: 'text/html' });
-      const { svc } = servicio(
-        conCartas(0, false, contexto('IO', 'APROBADO_DEFINITIVO')),
-        storage,
+      const { svc } = servicio(escenario({ tipo: 'IO' }), storage);
+      await expect(svc.registrar('conv', CP, CARTA_V1, 7)).rejects.toThrow(
+        BadRequestException,
       );
-      await expect(
-        svc.registrar(
-          'conv',
-          CP,
-          { claveArchivo: CLAVE_V1, anexoCodigo: 'ANEXO_13' },
-          7,
-        ),
-      ).rejects.toThrow(BadRequestException);
       expect(storage.deleteFile).toHaveBeenCalledWith(CLAVE_V1);
     });
 
     it('un PDF de más de 10 MB responde 400 y se borra', async () => {
       const storage = almacenamiento({ contentLength: 10 * 1024 * 1024 + 1 });
-      const { svc } = servicio(
-        conCartas(0, false, contexto('IO', 'APROBADO_DEFINITIVO')),
-        storage,
+      const { svc } = servicio(escenario({ tipo: 'IO' }), storage);
+      await expect(svc.registrar('conv', CP, CARTA_V1, 7)).rejects.toThrow(
+        BadRequestException,
       );
-      await expect(
-        svc.registrar(
-          'conv',
-          CP,
-          { claveArchivo: CLAVE_V1, anexoCodigo: 'ANEXO_13' },
-          7,
-        ),
-      ).rejects.toThrow(BadRequestException);
       expect(storage.deleteFile).toHaveBeenCalledWith(CLAVE_V1);
     });
 
     it('sin cabecera %PDF- responde 400 y se borra', async () => {
       const storage = almacenamiento({ cabecera: '<htm' });
-      const { svc } = servicio(
-        conCartas(0, false, contexto('IO', 'APROBADO_DEFINITIVO')),
-        storage,
+      const { svc } = servicio(escenario({ tipo: 'IO' }), storage);
+      await expect(svc.registrar('conv', CP, CARTA_V1, 7)).rejects.toThrow(
+        BadRequestException,
       );
-      await expect(
-        svc.registrar(
-          'conv',
-          CP,
-          { claveArchivo: CLAVE_V1, anexoCodigo: 'ANEXO_13' },
-          7,
-        ),
-      ).rejects.toThrow(BadRequestException);
       expect(storage.deleteFile).toHaveBeenCalledWith(CLAVE_V1);
     });
   });

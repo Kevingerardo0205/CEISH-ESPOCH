@@ -11,7 +11,12 @@ import { randomUUID } from 'crypto';
 import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { Permission } from '../../../../shared/enums/permission.enum';
-import type { ResultadoPleno } from '../../../evaluations/domain/services/calcular-resultado-pleno';
+import {
+  AsignacionParaResultado,
+  calcularResultadoPleno,
+  ResultadoPleno,
+} from '../../../evaluations/domain/services/calcular-resultado-pleno';
+import { ACTIVE_ASSIGNMENT_STATES } from '../../../evaluations/domain/enums/assignment-status.enum';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import {
   CONTENT_TYPE_PDF,
@@ -47,6 +52,10 @@ const EXPIRA_SUBIDA_SEGUNDOS = 900;
 const NO_ENCONTRADO = 'Protocolo no encontrado.';
 const MENSAJE_CARRERA_VERSION =
   'La versión de la carta cambió mientras se subía el archivo. Vuelva a subirlo.';
+const MENSAJE_RESUELTO_LEGACY =
+  'Este protocolo ya tiene una resolución emitida con el flujo anterior y no admite una carta firmada nueva.';
+const MENSAJE_PENDIENTE =
+  'El resultado del pleno aún no está disponible: hay evaluaciones pendientes de dictamen.';
 
 /** Fila cruda de una consulta SQL nativa. */
 type Fila = Record<string, unknown>;
@@ -83,7 +92,6 @@ interface ContextoCarta {
   versionId: number;
   investigadorId: number;
   tipoCodigo: string | null;
-  resultado: ResultadoPleno | null;
 }
 
 export interface SubidaCartaRespuesta {
@@ -121,17 +129,28 @@ export class CartasFirmadasService {
     private readonly versionSubsanacion: VersionSubsanacionService,
   ) {}
 
-  /** upload-url: valida resultado, EX y anexo; devuelve la URL firmada y la clave. No registra nada. */
+  /**
+   * upload-url (TSK-015-N27-6): valida EX, bloqueo legacy y resultado (vigente o calculado en este
+   * momento); devuelve la URL firmada, la clave y el anexo derivado. No registra nada.
+   * `_dto` no tiene campos: el ValidationPipe rechaza cualquier propiedad (p. ej. `anexoCodigo`).
+   */
   async solicitarSubida(
     convocatoriaId: string,
     convocatoriaProtocoloId: string,
-    dto: SolicitarSubidaCartaDto,
+    // El DTO no aporta datos: el @Body existe para que ValidationPipe rechace propiedades extra (400).
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
+    _dto: SolicitarSubidaCartaDto,
   ): Promise<SubidaCartaRespuesta> {
     const ctx = await this.cargarContexto(
       convocatoriaId,
       convocatoriaProtocoloId,
     );
-    this.assertCartaAplicable(ctx, dto.anexoCodigo);
+    this.assertCartaAplicable(ctx);
+    const { anexo } = await this.resultadoParaCarta(
+      this.dataSource,
+      ctx,
+      false,
+    );
 
     const siguiente = numeroVersionSiguiente(
       await this.maximoVersion(this.dataSource, ctx.convocatoriaProtocoloId),
@@ -145,7 +164,7 @@ export class CartasFirmadasService {
     return {
       uploadUrl,
       claveArchivo,
-      anexoCodigo: dto.anexoCodigo,
+      anexoCodigo: anexo,
       numeroVersion: siguiente,
     };
   }
@@ -161,7 +180,7 @@ export class CartasFirmadasService {
       convocatoriaId,
       convocatoriaProtocoloId,
     );
-    this.assertCartaAplicable(ctxInicial, dto.anexoCodigo);
+    this.assertCartaAplicable(ctxInicial);
     const versionClave = this.versionDeClave(dto.claveArchivo, ctxInicial);
 
     const versionEsperada = numeroVersionSiguiente(
@@ -182,27 +201,27 @@ export class CartasFirmadasService {
     await qr.startTransaction();
     let fila: Fila;
     let resultado: ResultadoPleno;
+    let anexo: AnexoCarta;
     try {
       // Bloqueo de la convocatoria-protocolo y del protocolo, en el mismo orden siempre.
-      const [cp] = (await qr.query(
-        `SELECT id, dictamen_resultado, dictamen_observaciones
-           FROM evaluacion.convocatoria_protocolos
+      await qr.query(
+        `SELECT id FROM evaluacion.convocatoria_protocolos
           WHERE id = $1 FOR UPDATE`,
         [ctxInicial.convocatoriaProtocoloId],
-      )) as Fila[];
+      );
       await qr.query(
         `SELECT id FROM public.protocolos WHERE id = $1 FOR UPDATE`,
         [ctxInicial.protocoloId],
       );
-      const ctx: ContextoCarta = {
-        ...ctxInicial,
-        resultado: (cp?.dictamen_resultado as ResultadoPleno | null) ?? null,
-      };
-      this.assertCartaAplicable(ctx, dto.anexoCodigo);
-      resultado = ctx.resultado as ResultadoPleno;
+      // Primera carta: se calcula ahora, bajo bloqueo, y se congela. Reemplazo: usa el congelado.
+      ({ resultado, anexo } = await this.resultadoParaCarta(
+        qr,
+        ctxInicial,
+        true,
+      ));
 
       const siguiente = numeroVersionSiguiente(
-        await this.maximoVersion(qr, ctx.convocatoriaProtocoloId),
+        await this.maximoVersion(qr, ctxInicial.convocatoriaProtocoloId),
       );
       if (siguiente !== versionClave) {
         throw new ConflictException(MENSAJE_CARRERA_VERSION);
@@ -211,7 +230,7 @@ export class CartasFirmadasService {
       const [vigenteActual] = (await qr.query(
         `SELECT id FROM resolucion.cartas_firmadas
           WHERE convocatoria_protocolo_id = $1 AND vigente FOR UPDATE`,
-        [ctx.convocatoriaProtocoloId],
+        [ctxInicial.convocatoriaProtocoloId],
       )) as Fila[];
       if ((vigenteActual || requiereMotivo(siguiente)) && !motivo) {
         throw new BadRequestException(
@@ -232,12 +251,12 @@ export class CartasFirmadasService {
          VALUES ($1, $2, $3, $4, $5, $6, $7, true, $8, $9)
          RETURNING *`,
         [
-          ctx.convocatoriaProtocoloId,
-          ctx.protocoloId,
-          ctx.versionId,
+          ctxInicial.convocatoriaProtocoloId,
+          ctxInicial.protocoloId,
+          ctxInicial.versionId,
           siguiente,
           resultado,
-          dto.anexoCodigo,
+          anexo,
           dto.claveArchivo,
           requiereMotivo(siguiente) ? motivo : null,
           usuarioId,
@@ -252,31 +271,31 @@ export class CartasFirmadasService {
       //   recepción en 9 y checklist. Cada rama guarda el protocolo una sola vez, así que TypeORM
       //   incrementa `version` una vez.
       const protocolOrm = await qr.manager.findOneByOrFail(ProtocolOrmEntity, {
-        id: ctx.protocoloId,
+        id: ctxInicial.protocoloId,
       });
       const tipo = tipoResolucionParaResultado(resultado);
       await this.resultadoResolucion.aplicar(qr.manager, {
         protocolOrm,
-        versionId: ctx.versionId,
+        versionId: ctxInicial.versionId,
         tipo,
       });
       if (resultado === 'APROBADO_CON_CONDICION') {
         const [evaluada] = (await qr.query(
           `SELECT numero_version FROM public.versiones_protocolo WHERE id = $1`,
-          [ctx.versionId],
+          [ctxInicial.versionId],
         )) as Fila[];
         await this.versionSubsanacion.crearSiguiente(qr.manager, {
-          protocolId: ctx.protocoloId,
+          protocolId: ctxInicial.protocoloId,
           protocolOrm,
           versionNumber: evaluada.numero_version as number,
           userId: usuarioId,
         });
       }
       await this.puenteResoluciones(qr, {
-        protocoloId: ctx.protocoloId,
-        versionId: ctx.versionId,
+        protocoloId: ctxInicial.protocoloId,
+        versionId: ctxInicial.versionId,
         tipo,
-        observaciones: (cp?.dictamen_observaciones as string | null) ?? null,
+        observaciones: null,
         usuarioId,
       });
       await qr.commitTransaction();
@@ -474,12 +493,11 @@ export class CartasFirmadasService {
       versionId: fila.version_id as number,
       investigadorId: fila.investigador_principal_id as number,
       tipoCodigo: (fila.tipo_codigo as string | null) ?? null,
-      resultado: (fila.dictamen_resultado as ResultadoPleno | null) ?? null,
     };
   }
 
-  /** Reglas de RF-17.2: EX → 409; sin resultado → 409; anexo distinto del exigido → 400. */
-  private assertCartaAplicable(ctx: ContextoCarta, anexo: AnexoCarta): void {
+  /** Reglas de RF-17.2 (TSK-015-N27-6): sin tipo de estudio → 409; EX → 409. */
+  private assertCartaAplicable(ctx: ContextoCarta): void {
     if (ctx.tipoCodigo === null) {
       throw new ConflictException(
         'El protocolo no tiene tipo de estudio registrado.',
@@ -490,17 +508,86 @@ export class CartasFirmadasService {
         'El estudio exento (EX) no pasa por el pleno y no tiene carta de resolución.',
       );
     }
-    if (ctx.resultado === null) {
+  }
+
+  /**
+   * Resultado y anexo de la carta (TSK-015-N27-6, RF-17.1 v1.6.8). Con carta vigente (reemplazo)
+   * usa el resultado congelado y no recalcula. Sin carta, calcula ahora; con `bloqueo` toma
+   * `FOR UPDATE` sobre las asignaciones de la versión. 409 si el protocolo se resolvió con el flujo
+   * legacy o si el cálculo está pendiente.
+   */
+  private async resultadoParaCarta(
+    runner: Pick<DataSource, 'query'>,
+    ctx: ContextoCarta,
+    bloqueo: boolean,
+  ): Promise<{ resultado: ResultadoPleno; anexo: AnexoCarta }> {
+    const [vigente] = await runner.query<Fila[]>(
+      `SELECT resultado FROM resolucion.cartas_firmadas
+        WHERE convocatoria_protocolo_id = $1 AND vigente`,
+      [ctx.convocatoriaProtocoloId],
+    );
+    let resultado = (vigente?.resultado as ResultadoPleno | undefined) ?? null;
+    if (resultado === null) {
+      if (await this.resueltoPorLegacy(runner, ctx)) {
+        throw new ConflictException(MENSAJE_RESUELTO_LEGACY);
+      }
+      const calculo = calcularResultadoPleno(
+        await this.asignacionesDeVersion(runner, ctx.versionId, bloqueo),
+      );
+      if (calculo.estado === 'PENDIENTE') {
+        throw new ConflictException(MENSAJE_PENDIENTE);
+      }
+      resultado = calculo.resultado;
+    }
+    const anexo = anexoParaResultado(resultado, ctx.tipoCodigo ?? '');
+    if (anexo === null) {
       throw new ConflictException(
-        'El protocolo no tiene resultado del pleno registrado.',
+        'El estudio exento (EX) no pasa por el pleno y no tiene carta de resolución.',
       );
     }
-    const esperado = anexoParaResultado(ctx.resultado, ctx.tipoCodigo);
-    if (esperado !== anexo) {
-      throw new BadRequestException(
-        `El anexo ${anexo} no corresponde al resultado del pleno. Debe ser ${esperado}.`,
-      );
-    }
+    return { resultado, anexo };
+  }
+
+  /** Protocolo resuelto con el flujo legacy: fila en resolucion.resoluciones de su versión y ninguna carta. */
+  private async resueltoPorLegacy(
+    runner: Pick<DataSource, 'query'>,
+    ctx: ContextoCarta,
+  ): Promise<boolean> {
+    const [fila] = await runner.query<Fila[]>(
+      `SELECT EXISTS (SELECT 1 FROM resolucion.resoluciones WHERE version_id = $1)
+              AND NOT EXISTS (SELECT 1 FROM resolucion.cartas_firmadas
+                               WHERE convocatoria_protocolo_id = $2) AS legacy`,
+      [ctx.versionId, ctx.convocatoriaProtocoloId],
+    );
+    return fila?.legacy === true;
+  }
+
+  /**
+   * Asignaciones activas (5, 6, 7) de la versión con el dictamen de su última evaluación.
+   * `bloqueo` toma `FOR UPDATE OF a`: la reasignación de una activa espera al commit de la carta.
+   */
+  private async asignacionesDeVersion(
+    runner: Pick<DataSource, 'query'>,
+    versionId: number,
+    bloqueo: boolean,
+  ): Promise<AsignacionParaResultado[]> {
+    const filas = await runner.query<Fila[]>(
+      `SELECT a.estado_id, e.resultado_id
+         FROM evaluacion.asignaciones_evaluacion a
+         LEFT JOIN LATERAL (
+           SELECT x.resultado_id FROM evaluacion.evaluaciones x
+            WHERE x.asignacion_id = a.id
+            ORDER BY x.id DESC
+            LIMIT 1
+         ) e ON true
+        WHERE a.version_id = $1 AND a.estado_id = ANY($2::int[])
+        ${bloqueo ? 'FOR UPDATE OF a' : ''}`,
+      [versionId, [...ACTIVE_ASSIGNMENT_STATES]],
+    );
+    return filas.map((f) => ({
+      estadoId: f.estado_id as number,
+      resultadoId: (f.resultado_id as number | null) ?? null,
+    }));
   }
 
   /** Versión que indica la clave; 400 si la clave no es de una carta de esta convocatoria-protocolo. */
