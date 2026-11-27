@@ -13,8 +13,8 @@ export interface VentanaResultadoPlenoEntrada {
 }
 
 /**
- * TSK-015-N25 (RF-17.1): ventana para registrar o corregir el resultado del pleno. Función pura,
- * extraída de RegistrarResultadoPlenoUseCase sin cambio de comportamiento. Devuelve el motivo del
+ * TSK-015-N25 (RF-17.1): ventana de la fecha de la reunión (el registro manual se retiró en TSK-015-N27-5;
+ * la usa el contexto de resolución). Función pura. Devuelve el motivo del
  * cierre o null si la ventana está abierta:
  * - `CANCELADA` si la convocatoria está cancelada (tiene prioridad);
  * - `FECHA_NO_CELEBRADA` si no hay fecha de reunión o es posterior a hoy en America/Guayaquil.

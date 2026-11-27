@@ -11,7 +11,7 @@ import { randomUUID } from 'crypto';
 import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
 import { Permission } from '../../../../shared/enums/permission.enum';
-import type { ResultadoPleno } from '../../../evaluations/application/dtos/registrar-resultado-pleno.dto';
+import type { ResultadoPleno } from '../../../evaluations/domain/services/calcular-resultado-pleno';
 import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/protocol.entity.orm';
 import {
   CONTENT_TYPE_PDF,

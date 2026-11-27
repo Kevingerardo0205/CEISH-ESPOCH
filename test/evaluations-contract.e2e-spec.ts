@@ -21,7 +21,6 @@ import { EvaluationsService } from '../src/modules/evaluations/application/servi
 import { EvaluationConsolidationService } from '../src/modules/evaluations/application/services/evaluation-consolidation.service';
 import { CallsService } from '../src/modules/evaluations/application/services/calls.service';
 import { CreateMeetingUseCase } from '../src/modules/evaluations/application/services/create-meeting.use-case';
-import { RegistrarResultadoPlenoUseCase } from '../src/modules/evaluations/application/use-cases/registrar-resultado-pleno.use-case';
 import { CalculateMeetingDatesService } from '../src/modules/evaluations/application/services/calculate-meeting-dates.service';
 import { EvaluatorAssignmentAdapterService } from '../src/modules/evaluations/application/services/evaluator-assignment-adapter.service';
 import { GetReassignmentHistoryUseCase } from '../src/modules/evaluations/application/use-cases/get-reassignment-history.use-case';
@@ -330,10 +329,6 @@ describe('Phase 2 Safety Net: Evaluations Contract & Authorization Tests (e2e)',
         },
         { provide: CallsService, useValue: mockCallsService },
         { provide: CreateMeetingUseCase, useValue: mockCreateMeetingUseCase },
-        {
-          provide: RegistrarResultadoPlenoUseCase,
-          useValue: { execute: jest.fn() },
-        },
         {
           provide: CalculateMeetingDatesService,
           useValue: mockCalculateDatesService,

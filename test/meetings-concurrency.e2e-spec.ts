@@ -57,8 +57,6 @@ describe('Convocatorias Concurrency Stress Tests (e2e) - [TSK-009-009 / EARS 1]'
     updatePlace: jest.fn(),
     deletePlace: jest.fn(),
     findAssignedEvaluatorsForVersions: jest.fn().mockResolvedValue([]),
-    findResultadoPlenoContext: jest.fn(),
-    registrarResultadoPleno: jest.fn(),
   };
 
   const mockPdfGenerator = {
