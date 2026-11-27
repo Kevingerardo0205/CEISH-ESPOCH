@@ -10,11 +10,8 @@ import {
   RegistrarResultadoPlenoDto,
   ResultadoPleno,
 } from '../dtos/registrar-resultado-pleno.dto';
-import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
 import { esEstudioExento } from '../../../resolutions/application/services/carta-firmada-rules';
-
-/** Estado de convocatoria que no admite registros (ConvocatoriaStatus.CANCELADA). */
-const ESTADO_CANCELADA = 'CANCELADA';
+import { evaluarVentanaResultadoPleno } from '../../domain/services/ventana-resultado-pleno';
 
 export interface RegistrarResultadoPlenoInput {
   convocatoriaId: string;
@@ -63,7 +60,13 @@ export class RegistrarResultadoPlenoUseCase {
       );
     }
 
-    if (contexto.convocatoriaEstado === ESTADO_CANCELADA) {
+    // Ventana (TSK-015-N25: función pura compartida con el contexto de resolución).
+    const cierreVentana = evaluarVentanaResultadoPleno({
+      convocatoriaEstado: contexto.convocatoriaEstado,
+      fechaReunion: contexto.fechaReunion,
+      ahora: input.now,
+    });
+    if (cierreVentana === 'CANCELADA') {
       throw new ConflictException(
         'La convocatoria está cancelada y no admite el registro de resultados.',
       );
@@ -79,12 +82,7 @@ export class RegistrarResultadoPlenoUseCase {
       );
     }
 
-    // Fecha de calendario en America/Guayaquil (helper timezone-safe; sin slice ni toISOString).
-    const hoy = toCalendarDateString(input.now);
-    if (
-      !contexto.fechaReunion ||
-      toCalendarDateString(contexto.fechaReunion) > hoy
-    ) {
+    if (cierreVentana === 'FECHA_NO_CELEBRADA') {
       throw new ConflictException(
         'La reunión todavía no se ha celebrado. El resultado solo puede registrarse desde la fecha de la reunión (hora de Ecuador).',
       );
