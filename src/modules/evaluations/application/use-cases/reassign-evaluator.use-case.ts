@@ -149,6 +149,14 @@ export class ReassignEvaluatorUseCase {
       });
     }
 
+    // TSK-015-N27-0 (RF-17.1 v1.6.8): una evaluación ya enviada no se reasigna; su dictamen forma
+    // parte del resultado calculado del pleno.
+    if (currentAssignment.status === AssignmentStatus.COMPLETED) {
+      throw new ConflictException(
+        'No se puede reasignar una evaluación que ya fue enviada.',
+      );
+    }
+
     const numReplacementId =
       typeof dto.replacementEvaluatorId === 'number'
         ? dto.replacementEvaluatorId
