@@ -23,7 +23,7 @@ import {
   parseStorageKey,
 } from '../../../storage-access/application/storage-key-access.policy';
 import { canReadResolution, ResolutionReader } from './resolutions.service';
-import { ventanaResultadoPlenoAbierta } from '../../../evaluations/domain/services/ventana-resultado-pleno';
+import type { ResumenDictamenes } from '../../../evaluations/domain/services/calcular-resultado-pleno';
 import {
   ResultadoResolucionService,
   TipoResolucion,
@@ -75,16 +75,26 @@ export interface ContextoResolucionConvocatoria {
   numeroConvocatoria: string;
   fechaReunion: Date | null;
   versionEvaluada: number;
+  /** Visible con carta vigente o para RESOLUCION_HISTORIAL. Congelado si hay carta, calculado si no. */
   resultado: ResultadoPleno | null;
+  /** Calculado en este momento (null si está pendiente o el protocolo es legacy). Misma visibilidad que `resultado`. */
+  resultadoCalculado: ResultadoPleno | null;
+  estadoResultado: EstadoResultadoContexto;
   anexoEsperado: AnexoCarta | null;
   cartaVigente: CartaVigenteContexto | null;
-  puedeRegistrarResultado: boolean;
+  /** Bloqueo legacy (RF-17.1 v1.6.8): resolución del flujo anterior y sin carta para esta convocatoria. */
+  resolucionAnterior: { tipoResolucionId: number | null } | null;
   puedeSubirCarta: boolean;
   /** Solo para lectores con RESOLUCION_HISTORIAL. */
   motivo?: string | null;
   /** Solo para lectores con RESOLUCION_HISTORIAL. */
   observaciones?: string | null;
+  /** Solo para lectores con RESOLUCION_HISTORIAL: conteos por dictamen, sin identidad de evaluadores (B8). */
+  resumenDictamenes?: ResumenDictamenes;
 }
+
+export type EstadoResultadoContexto =
+  'PENDIENTE' | 'CALCULADO' | 'CONGELADO' | 'RESUELTO_LEGACY';
 
 interface ContextoCarta {
   convocatoriaProtocoloId: string;
@@ -375,7 +385,6 @@ export class CartasFirmadasService {
   async contextoProtocolo(
     protocoloId: number,
     lector: ResolutionReader,
-    ahora: Date,
   ): Promise<ContextoResolucionConvocatoria[]> {
     const [protocolo] = await this.dataSource.query<Fila[]>(
       `SELECT investigador_principal_id FROM public.protocolos WHERE id = $1`,
@@ -394,7 +403,7 @@ export class CartasFirmadasService {
     const filas = await this.dataSource.query<Fila[]>(
       `SELECT cp.id AS convocatoria_protocolo_id, c.id AS convocatoria_id,
               c.numero_convocatoria, c.fecha_reunion, c.estado AS convocatoria_estado,
-              cp.dictamen_resultado, cp.dictamen_motivo, cp.dictamen_observaciones,
+              cp.version_id, cp.dictamen_motivo, cp.dictamen_observaciones,
               v.numero_version, te.codigo AS tipo_codigo
          FROM evaluacion.convocatoria_protocolos cp
          JOIN evaluacion.convocatorias c ON c.id = cp.convocatoria_id
@@ -406,7 +415,7 @@ export class CartasFirmadasService {
       [protocoloId],
     );
     const cartas = await this.dataSource.query<Fila[]>(
-      `SELECT convocatoria_protocolo_id, numero_version, anexo_codigo, subido_en, clave_archivo
+      `SELECT convocatoria_protocolo_id, numero_version, anexo_codigo, resultado, subido_en, clave_archivo
          FROM resolucion.cartas_firmadas
         WHERE protocolo_id = $1 AND vigente`,
       [protocoloId],
@@ -417,14 +426,32 @@ export class CartasFirmadasService {
 
     const permisos = lector.permissions ?? [];
     const completa = permisos.includes(Permission.RESOLUCION_HISTORIAL);
-    return filas.map((f) => {
-      const resultado = (f.dictamen_resultado as ResultadoPleno | null) ?? null;
+    // El resultado no se guarda: se calcula al leer (RF-17.1 v1.6.8). Con carta vigente, se usa el congelado.
+    const calculos = await Promise.all(
+      filas.map(async (f) => {
+        const cpId = f.convocatoria_protocolo_id as string;
+        const carta = cartaPorCp.get(cpId);
+        const calculo = calcularResultadoPleno(
+          await this.asignacionesDeVersion(
+            this.dataSource,
+            f.version_id as number,
+            false,
+          ),
+        );
+        const anterior = carta
+          ? null
+          : await this.resolucionAnteriorDe(
+              this.dataSource,
+              f.version_id as number,
+              cpId,
+            );
+        return { carta, calculo, anterior };
+      }),
+    );
+
+    return filas.map((f, i) => {
+      const { carta, calculo, anterior } = calculos[i];
       const tipo = (f.tipo_codigo as string | null) ?? null;
-      const anexo =
-        resultado !== null && tipo !== null
-          ? anexoParaResultado(resultado, tipo)
-          : null;
-      const carta = cartaPorCp.get(f.convocatoria_protocolo_id as string);
       const cartaVigente: CartaVigenteContexto | null = carta
         ? {
             numeroVersion: carta.numero_version as number,
@@ -433,36 +460,47 @@ export class CartasFirmadasService {
             claveArchivo: carta.clave_archivo as string,
           }
         : null;
+      const estadoResultado: EstadoResultadoContexto = carta
+        ? 'CONGELADO'
+        : anterior !== null
+          ? 'RESUELTO_LEGACY'
+          : calculo.estado === 'PENDIENTE'
+            ? 'PENDIENTE'
+            : 'CALCULADO';
+      const resultadoCalculado: ResultadoPleno | null =
+        anterior !== null ? null : calculo.resultado;
+      const resultadoEfectivo: ResultadoPleno | null = carta
+        ? (carta.resultado as ResultadoPleno)
+        : resultadoCalculado;
+      const anexoCalculado =
+        resultadoEfectivo !== null && tipo !== null
+          ? anexoParaResultado(resultadoEfectivo, tipo)
+          : null;
       const verResultado = completa || cartaVigente !== null;
-      const exento = tipo !== null && esEstudioExento(tipo);
-      const fechaReunion = (f.fecha_reunion as Date | null) ?? null;
 
       return {
         convocatoriaId: f.convocatoria_id as string,
         convocatoriaProtocoloId: f.convocatoria_protocolo_id as string,
         numeroConvocatoria: f.numero_convocatoria as string,
-        fechaReunion,
+        fechaReunion: (f.fecha_reunion as Date | null) ?? null,
         versionEvaluada: f.numero_version as number,
-        resultado: verResultado ? resultado : null,
-        anexoEsperado: verResultado ? anexo : null,
+        estadoResultado,
+        resultado: verResultado ? resultadoEfectivo : null,
+        resultadoCalculado: verResultado ? resultadoCalculado : null,
+        anexoEsperado: verResultado ? anexoCalculado : null,
         cartaVigente,
-        puedeRegistrarResultado:
-          permisos.includes(Permission.PLENO_RESULTADO_REGISTRAR) &&
-          !exento &&
-          ventanaResultadoPlenoAbierta({
-            convocatoriaEstado: f.convocatoria_estado as string,
-            fechaReunion,
-            ahora,
-          }),
+        resolucionAnterior: anterior,
+        // Permiso de subida: no depende de la visibilidad del resultado, sí del estado y del anexo.
         puedeSubirCarta:
           permisos.includes(Permission.RESOLUCION_CREAR) &&
-          resultado !== null &&
-          anexo !== null,
+          anexoCalculado !== null &&
+          (estadoResultado === 'CALCULADO' || estadoResultado === 'CONGELADO'),
         ...(completa
           ? {
               motivo: (f.dictamen_motivo as string | null) ?? null,
               observaciones:
                 (f.dictamen_observaciones as string | null) ?? null,
+              resumenDictamenes: calculo.resumen,
             }
           : {}),
       };
@@ -528,7 +566,13 @@ export class CartasFirmadasService {
     );
     let resultado = (vigente?.resultado as ResultadoPleno | undefined) ?? null;
     if (resultado === null) {
-      if (await this.resueltoPorLegacy(runner, ctx)) {
+      if (
+        (await this.resolucionAnteriorDe(
+          runner,
+          ctx.versionId,
+          ctx.convocatoriaProtocoloId,
+        )) !== null
+      ) {
         throw new ConflictException(MENSAJE_RESUELTO_LEGACY);
       }
       const calculo = calcularResultadoPleno(
@@ -548,18 +592,29 @@ export class CartasFirmadasService {
     return { resultado, anexo };
   }
 
-  /** Protocolo resuelto con el flujo legacy: fila en resolucion.resoluciones de su versión y ninguna carta. */
-  private async resueltoPorLegacy(
+  /**
+   * Bloqueo legacy (RF-17.1 v1.6.8): devuelve la resolución del flujo anterior de la versión si la hay
+   * y ninguna carta de la convocatoria-protocolo; null en otro caso.
+   */
+  private async resolucionAnteriorDe(
     runner: Pick<DataSource, 'query'>,
-    ctx: ContextoCarta,
-  ): Promise<boolean> {
+    versionId: number,
+    convocatoriaProtocoloId: string,
+  ): Promise<{ tipoResolucionId: number | null } | null> {
     const [fila] = await runner.query<Fila[]>(
-      `SELECT EXISTS (SELECT 1 FROM resolucion.resoluciones WHERE version_id = $1)
-              AND NOT EXISTS (SELECT 1 FROM resolucion.cartas_firmadas
-                               WHERE convocatoria_protocolo_id = $2) AS legacy`,
-      [ctx.versionId, ctx.convocatoriaProtocoloId],
+      `SELECT r.tipo_resolucion_id
+         FROM resolucion.resoluciones r
+        WHERE r.version_id = $1
+          AND NOT EXISTS (
+            SELECT 1 FROM resolucion.cartas_firmadas c
+             WHERE c.convocatoria_protocolo_id = $2)
+        LIMIT 1`,
+      [versionId, convocatoriaProtocoloId],
     );
-    return fila?.legacy === true;
+    if (!fila) return null;
+    return {
+      tipoResolucionId: (fila.tipo_resolucion_id as number | null) ?? null,
+    };
   }
 
   /**

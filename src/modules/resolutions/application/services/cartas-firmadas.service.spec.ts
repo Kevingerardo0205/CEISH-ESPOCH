@@ -163,8 +163,8 @@ function escenario(e: Escenario): Handler {
     if (sql.includes('COALESCE(MAX(numero_version)')) {
       return [{ maximo: e.maximo ?? 0 }];
     }
-    if (sql.includes('SELECT EXISTS (SELECT 1 FROM resolucion.resoluciones')) {
-      return [{ legacy: e.legacy === true }];
+    if (sql.includes('FROM resolucion.resoluciones r')) {
+      return e.legacy === true ? [{ tipo_resolucion_id: 1 }] : [];
     }
     if (sql.includes('SELECT resultado FROM resolucion.cartas_firmadas')) {
       return e.vigente === undefined ? [] : [{ resultado: e.vigente }];
@@ -469,22 +469,23 @@ describe('CartasFirmadasService (TSK-015-N09, TSK-015-N27-6)', () => {
   });
 });
 
-/** TSK-015-N25 — contextoProtocolo: acceso, visibilidad y permisos de botón (RF-17.1, RF-17.4, RF-17.6). */
-describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
-  const AHORA = new Date('2026-11-26T22:00:00Z');
+/** TSK-015-N25 / TSK-015-N27-7 — contextoProtocolo: acceso, visibilidad, estado del resultado y permisos (RF-17.1 v1.6.8, RF-17.4, RF-17.6). */
+describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25, TSK-015-N27-7)', () => {
   const PASADA = new Date('2026-11-20T15:00:00Z');
   const CONV = '1d2e3f40-1111-4222-8333-444455556666';
   const INVESTIGADOR_PRINCIPAL = 1;
   const SECRETARIA = {
     id: 99,
-    permissions: [
-      Permission.PLENO_RESULTADO_REGISTRAR,
-      Permission.RESOLUCION_CREAR,
-      Permission.RESOLUCION_HISTORIAL,
-    ],
+    permissions: [Permission.RESOLUCION_CREAR, Permission.RESOLUCION_HISTORIAL],
   };
   const PRINCIPAL = { id: INVESTIGADOR_PRINCIPAL, permissions: [] as string[] };
   const AJENO = { id: 42, permissions: [] as string[] };
+  const COMPLETADA = 7;
+  const COMPLETADAS_DICTAMEN_1 = [
+    { estado: COMPLETADA, resultado: 1 },
+    { estado: COMPLETADA, resultado: 1 },
+    { estado: COMPLETADA, resultado: 1 },
+  ];
 
   function fila(over: Fila = {}): Fila {
     return {
@@ -493,7 +494,7 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
       numero_convocatoria: 'CONV-2026-01',
       fecha_reunion: PASADA,
       convocatoria_estado: 'PROGRAMADA',
-      dictamen_resultado: 'APROBADO_DEFINITIVO',
+      version_id: 9,
       dictamen_motivo: 'Motivo interno',
       dictamen_observaciones: 'Observación interna',
       numero_version: 1,
@@ -507,17 +508,23 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
       convocatoria_protocolo_id: CP,
       numero_version: 1,
       anexo_codigo: 'ANEXO_13',
+      resultado: 'APROBADO_DEFINITIVO',
       subido_en: new Date('2026-11-25T10:00:00Z'),
       clave_archivo: CLAVE_V1,
       ...over,
     };
   }
 
-  function ctx(opts: {
+  interface OpcionesCtx {
     principal?: number | null;
     filas?: Fila[];
     cartas?: Fila[];
-  }): Handler {
+    asignaciones?: Array<{ estado: number; resultado: number | null }>;
+    /** Fila de resolucion.resoluciones para la versión (flujo legacy). */
+    legacy?: { tipoResolucionId: number | null } | null;
+  }
+
+  function ctx(opts: OpcionesCtx): Handler {
     return (sql) => {
       if (
         sql.includes('SELECT investigador_principal_id FROM public.protocolos')
@@ -529,6 +536,17 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
       if (sql.includes('LEFT JOIN catalogos.tipos_estudio')) {
         return opts.filas ?? [];
       }
+      if (sql.includes('FROM evaluacion.asignaciones_evaluacion a')) {
+        return (opts.asignaciones ?? COMPLETADAS_DICTAMEN_1).map((a) => ({
+          estado_id: a.estado,
+          resultado_id: a.resultado,
+        }));
+      }
+      if (sql.includes('FROM resolucion.resoluciones r')) {
+        return opts.legacy
+          ? [{ tipo_resolucion_id: opts.legacy.tipoResolucionId }]
+          : [];
+      }
       if (sql.includes('FROM resolucion.cartas_firmadas')) {
         return opts.cartas ?? [];
       }
@@ -537,11 +555,11 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
   }
 
   function contextoDe(
-    opts: Parameters<typeof ctx>[0],
+    opts: OpcionesCtx,
     lector: { id: number; permissions?: string[] },
   ) {
     const { svc } = servicio(ctx(opts));
-    return svc.contextoProtocolo(5, lector, AHORA);
+    return svc.contextoProtocolo(5, lector);
   }
 
   it('404 «Protocolo no encontrado.» para un ajeno sin RESOLUCION_HISTORIAL', async () => {
@@ -556,29 +574,45 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
     ).rejects.toThrow(NotFoundException);
   });
 
-  it('principal sin carta vigente: sin resultado, sin anexo, sin motivo ni observaciones', async () => {
+  it('principal sin carta: estado CALCULADO pero sin resultado, anexo, motivo, observaciones ni resumen', async () => {
     const [item] = await contextoDe(
       { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
       PRINCIPAL,
     );
+    expect(item.estadoResultado).toBe('CALCULADO');
     expect(item.resultado).toBeNull();
+    expect(item.resultadoCalculado).toBeNull();
     expect(item.anexoEsperado).toBeNull();
     expect(item.cartaVigente).toBeNull();
+    expect(item.resolucionAnterior).toBeNull();
     expect(item).not.toHaveProperty('motivo');
     expect(item).not.toHaveProperty('observaciones');
+    expect(item).not.toHaveProperty('resumenDictamenes');
+    expect(item).not.toHaveProperty('puedeRegistrarResultado');
     expect(item.versionEvaluada).toBe(1);
   });
 
-  it('principal con carta vigente: ve resultado, anexo y cartaVigente sin subidoPor ni motivoReemplazo', async () => {
+  it('principal con carta vigente: ve el resultado congelado (no el calculado), anexo y cartaVigente sin subidoPor ni motivoReemplazo', async () => {
     const [item] = await contextoDe(
-      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [carta()] },
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila()],
+        cartas: [carta({ resultado: 'NO_APROBADO', anexo_codigo: 'ANEXO_16' })],
+        // Asignaciones coherentes con el congelado: todos dictamen 3 → NO_APROBADO.
+        asignaciones: [
+          { estado: COMPLETADA, resultado: 3 },
+          { estado: COMPLETADA, resultado: 3 },
+        ],
+      },
       PRINCIPAL,
     );
-    expect(item.resultado).toBe('APROBADO_DEFINITIVO');
-    expect(item.anexoEsperado).toBe('ANEXO_13');
+    expect(item.estadoResultado).toBe('CONGELADO');
+    expect(item.resultado).toBe('NO_APROBADO');
+    expect(item.resultadoCalculado).toBe('NO_APROBADO');
+    expect(item.anexoEsperado).toBe('ANEXO_16');
     expect(item.cartaVigente).toEqual({
       numeroVersion: 1,
-      anexoCodigo: 'ANEXO_13',
+      anexoCodigo: 'ANEXO_16',
       subidoEn: new Date('2026-11-25T10:00:00Z'),
       claveArchivo: CLAVE_V1,
     });
@@ -587,18 +621,98 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
     const json = JSON.stringify(item);
     expect(json).not.toContain('subidoPor');
     expect(json).not.toContain('motivoReemplazo');
+    expect(json).not.toContain('resumenDictamenes');
   });
 
-  it('RESOLUCION_HISTORIAL ve motivo, observaciones y resultado aunque no haya carta', async () => {
+  it('RESOLUCION_HISTORIAL sin carta ve el calculado, motivo, observaciones y resumen por conteo', async () => {
     const [item] = await contextoDe(
       { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
       SECRETARIA,
     );
+    expect(item.estadoResultado).toBe('CALCULADO');
     expect(item.resultado).toBe('APROBADO_DEFINITIVO');
+    expect(item.resultadoCalculado).toBe('APROBADO_DEFINITIVO');
     expect(item.anexoEsperado).toBe('ANEXO_13');
     expect(item.motivo).toBe('Motivo interno');
     expect(item.observaciones).toBe('Observación interna');
+    expect(item.resumenDictamenes).toEqual({
+      aprobado: 3,
+      conCondicion: 0,
+      noAprobado: 0,
+      pendientes: 0,
+    });
     expect(item.cartaVigente).toBeNull();
+  });
+
+  it('el resumen cuenta dictámenes sin identidad de evaluadores (solo las cuatro claves)', async () => {
+    const [item] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila()],
+        cartas: [],
+        asignaciones: [
+          { estado: COMPLETADA, resultado: 1 },
+          { estado: COMPLETADA, resultado: 2 },
+          { estado: COMPLETADA, resultado: 3 },
+          { estado: COMPLETADA, resultado: 3 },
+        ],
+      },
+      SECRETARIA,
+    );
+    expect(Object.keys(item.resumenDictamenes ?? {}).sort()).toEqual([
+      'aprobado',
+      'conCondicion',
+      'noAprobado',
+      'pendientes',
+    ]);
+    expect(item.resumenDictamenes).toEqual({
+      aprobado: 1,
+      conCondicion: 1,
+      noAprobado: 2,
+      pendientes: 0,
+    });
+    expect(item.resultado).toBe('APROBADO_CON_CONDICION');
+    expect(item.anexoEsperado).toBe('ANEXO_15');
+    expect(JSON.stringify(item)).not.toMatch(/evaluador|email|cedula/i);
+  });
+
+  it('asignación activa sin completar: PENDIENTE, sin resultado calculado y con pendientes contados', async () => {
+    const [item] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila()],
+        cartas: [],
+        asignaciones: [
+          { estado: COMPLETADA, resultado: 1 },
+          { estado: 6, resultado: null },
+        ],
+      },
+      SECRETARIA,
+    );
+    expect(item.estadoResultado).toBe('PENDIENTE');
+    expect(item.resultado).toBeNull();
+    expect(item.resultadoCalculado).toBeNull();
+    expect(item.anexoEsperado).toBeNull();
+    expect(item.puedeSubirCarta).toBe(false);
+    expect(item.resumenDictamenes?.pendientes).toBe(1);
+  });
+
+  it('flujo legacy (resolución anterior y sin carta): RESUELTO_LEGACY, resolucionAnterior y sin subida', async () => {
+    const [item] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila()],
+        cartas: [],
+        legacy: { tipoResolucionId: 1 },
+      },
+      SECRETARIA,
+    );
+    expect(item.estadoResultado).toBe('RESUELTO_LEGACY');
+    expect(item.resolucionAnterior).toEqual({ tipoResolucionId: 1 });
+    expect(item.resultado).toBeNull();
+    expect(item.resultadoCalculado).toBeNull();
+    expect(item.anexoEsperado).toBeNull();
+    expect(item.puedeSubirCarta).toBe(false);
   });
 
   it('claveArchivo solo aparece dentro de cartaVigente', async () => {
@@ -610,76 +724,22 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
     expect(item.cartaVigente?.claveArchivo).toBe(CLAVE_V1);
   });
 
-  it('EX: anexoEsperado null, puedeSubirCarta y puedeRegistrarResultado false', async () => {
+  it('EX: anexoEsperado null y puedeSubirCarta false', async () => {
     const [item] = await contextoDe(
       {
         principal: INVESTIGADOR_PRINCIPAL,
-        filas: [fila({ tipo_codigo: 'EX', dictamen_resultado: null })],
+        filas: [fila({ tipo_codigo: 'EX' })],
         cartas: [],
       },
       SECRETARIA,
     );
     expect(item.anexoEsperado).toBeNull();
     expect(item.puedeSubirCarta).toBe(false);
-    expect(item.puedeRegistrarResultado).toBe(false);
+    expect(item).not.toHaveProperty('puedeRegistrarResultado');
   });
 
-  it('puedeRegistrarResultado true con permiso, ventana abierta y no EX', async () => {
-    const [item] = await contextoDe(
-      {
-        principal: INVESTIGADOR_PRINCIPAL,
-        filas: [fila({ dictamen_resultado: null })],
-        cartas: [],
-      },
-      SECRETARIA,
-    );
-    expect(item.puedeRegistrarResultado).toBe(true);
-  });
-
-  it('puedeRegistrarResultado false si la convocatoria está cancelada', async () => {
-    const [item] = await contextoDe(
-      {
-        principal: INVESTIGADOR_PRINCIPAL,
-        filas: [fila({ convocatoria_estado: 'CANCELADA' })],
-        cartas: [],
-      },
-      SECRETARIA,
-    );
-    expect(item.puedeRegistrarResultado).toBe(false);
-  });
-
-  it('puedeRegistrarResultado false si la reunión es futura o no tiene fecha', async () => {
-    const [futura, sinFecha] = await contextoDe(
-      {
-        principal: INVESTIGADOR_PRINCIPAL,
-        filas: [
-          fila({ fecha_reunion: new Date('2026-11-30T15:00:00Z') }),
-          fila({ fecha_reunion: null }),
-        ],
-        cartas: [],
-      },
-      SECRETARIA,
-    );
-    expect(futura.puedeRegistrarResultado).toBe(false);
-    expect(sinFecha.puedeRegistrarResultado).toBe(false);
-  });
-
-  it('puedeRegistrarResultado false sin PLENO_RESULTADO_REGISTRAR', async () => {
-    const [item] = await contextoDe(
-      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
-      {
-        id: 99,
-        permissions: [
-          Permission.RESOLUCION_HISTORIAL,
-          Permission.RESOLUCION_CREAR,
-        ],
-      },
-    );
-    expect(item.puedeRegistrarResultado).toBe(false);
-  });
-
-  it('puedeSubirCarta exige RESOLUCION_CREAR, resultado y anexo; no mira la ventana', async () => {
-    const [conVentanaFutura] = await contextoDe(
+  it('puedeSubirCarta exige RESOLUCION_CREAR y resultado calculado; no mira la fecha de la reunión', async () => {
+    const [conFechaFutura] = await contextoDe(
       {
         principal: INVESTIGADOR_PRINCIPAL,
         filas: [fila({ fecha_reunion: new Date('2026-12-30T15:00:00Z') })],
@@ -687,7 +747,7 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
       },
       SECRETARIA,
     );
-    expect(conVentanaFutura.puedeSubirCarta).toBe(true);
+    expect(conFechaFutura.puedeSubirCarta).toBe(true);
     const [sinCrear] = await contextoDe(
       { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
       { id: 99, permissions: [Permission.RESOLUCION_HISTORIAL] },
@@ -695,28 +755,25 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
     expect(sinCrear.puedeSubirCarta).toBe(false);
   });
 
-  it('puedeSubirCarta false sin resultado registrado', async () => {
+  it('principal con RESOLUCION_CREAR sin HISTORIAL: puede subir aunque no vea el resultado', async () => {
     const [item] = await contextoDe(
+      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
       {
-        principal: INVESTIGADOR_PRINCIPAL,
-        filas: [fila({ dictamen_resultado: null })],
-        cartas: [],
+        id: INVESTIGADOR_PRINCIPAL,
+        permissions: [Permission.RESOLUCION_CREAR],
       },
-      SECRETARIA,
     );
-    expect(item.puedeSubirCarta).toBe(false);
+    expect(item.resultado).toBeNull();
+    expect(item.anexoEsperado).toBeNull();
+    expect(item.puedeSubirCarta).toBe(true);
   });
 
-  it('el principal sin permisos no recibe puedeRegistrarResultado ni puedeSubirCarta', async () => {
+  it('el principal sin permisos no recibe puedeSubirCarta ni resumen', async () => {
     const [item] = await contextoDe(
-      {
-        principal: INVESTIGADOR_PRINCIPAL,
-        filas: [fila({ dictamen_resultado: null })],
-        cartas: [],
-      },
+      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
       PRINCIPAL,
     );
-    expect(item.puedeRegistrarResultado).toBe(false);
     expect(item.puedeSubirCarta).toBe(false);
+    expect(item).not.toHaveProperty('resumenDictamenes');
   });
 });
