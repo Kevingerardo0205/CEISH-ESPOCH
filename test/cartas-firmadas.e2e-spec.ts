@@ -180,6 +180,8 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
     resultado: string | null,
     orden: number,
     textos: { motivo?: string; observaciones?: string } = {},
+    // TSK-015-N27-6 (v1.6.9): convocatoria de la fila; por defecto la del bloque principal.
+    convocatoriaIdParam: string = convocatoriaId,
   ): Promise<string> {
     const [vid] = await ds.query(
       `SELECT version_actual_id FROM public.protocolos WHERE id = $1`,
@@ -193,7 +195,7 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
           dictamen_motivo, dictamen_observaciones)
        VALUES ($1, $2, $3, CURRENT_DATE + 30, $4, $5, $6) RETURNING id`,
       [
-        convocatoriaId,
+        convocatoriaIdParam,
         protocoloIdParam,
         vid.version_actual_id,
         orden,
@@ -910,6 +912,221 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
         .send({});
       expect(res.status).toBe(409);
       expect(JSON.stringify(res.body)).toContain('flujo anterior');
+    });
+  });
+
+  describe('guardas v1.6.9: reunión realizada, cancelada y versión única (TSK-015-N27-6, RF-17.2)', () => {
+    const DIA_MS = 24 * 60 * 60 * 1000;
+    let convFuturaId: string;
+    let convSinFechaId: string;
+    let convCanceladaId: string;
+    let convDobleA: string;
+    let convDobleB: string;
+    let convConA: string;
+    let convConB: string;
+    let cpFutura: string;
+    let cpSinFecha: string;
+    let cpCancelada: string;
+    let protocoloDobleId: number;
+    let cpDobleA: string;
+    let cpDobleB: string;
+    let protocoloConId: number;
+    let cpConA: string;
+    let cpConB: string;
+    let fetchSpy: jest.SpyInstance;
+
+    async function convocatoriaDe(
+      numero: string,
+      fecha: string | null,
+      estado = 'PROGRAMADA',
+    ): Promise<string> {
+      const [c] = await ds.query(
+        `INSERT INTO evaluacion.convocatorias (numero_convocatoria, fecha_reunion, estado)
+         VALUES ($1, $2::timestamptz, $3) RETURNING id`,
+        [`${PREFIX}${numero}`, fecha, estado],
+      );
+      return c.id as string;
+    }
+
+    beforeAll(async () => {
+      const pasada = new Date(Date.now() - 10 * DIA_MS).toISOString();
+      const futura = new Date(Date.now() + 10 * DIA_MS).toISOString();
+      convFuturaId = await convocatoriaDe('FUT', futura);
+      convSinFechaId = await convocatoriaDe('SINF', null);
+      convCanceladaId = await convocatoriaDe('CANC', pasada, 'CANCELADA');
+      convDobleA = await convocatoriaDe('DOBLE-A', pasada);
+      convDobleB = await convocatoriaDe('DOBLE-B', pasada);
+      convConA = await convocatoriaDe('CON-A', pasada);
+      convConB = await convocatoriaDe('CON-B', pasada);
+
+      // Reunión futura, sin fecha y cancelada: cada una con su propio protocolo y dictámenes completos.
+      cpFutura = await convocatoriaProtocolo(
+        await protocolo(TIPO_IO, 'futura'),
+        'APROBADO_DEFINITIVO',
+        41,
+        {},
+        convFuturaId,
+      );
+      cpSinFecha = await convocatoriaProtocolo(
+        await protocolo(TIPO_IO, 'sinfecha'),
+        'APROBADO_DEFINITIVO',
+        42,
+        {},
+        convSinFechaId,
+      );
+      cpCancelada = await convocatoriaProtocolo(
+        await protocolo(TIPO_IO, 'cancelada'),
+        'APROBADO_DEFINITIVO',
+        43,
+        {},
+        convCanceladaId,
+      );
+
+      // Misma versión en dos convocatorias: los dictámenes se siembran una sola vez (en A).
+      protocoloDobleId = await protocolo(TIPO_IO, 'doble');
+      cpDobleA = await convocatoriaProtocolo(
+        protocoloDobleId,
+        'APROBADO_DEFINITIVO',
+        44,
+        {},
+        convDobleA,
+      );
+      cpDobleB = await convocatoriaProtocolo(
+        protocoloDobleId,
+        null,
+        45,
+        {},
+        convDobleB,
+      );
+
+      // Misma situación para la subida concurrente.
+      protocoloConId = await protocolo(TIPO_IO, 'concurrente');
+      cpConA = await convocatoriaProtocolo(
+        protocoloConId,
+        'APROBADO_DEFINITIVO',
+        46,
+        {},
+        convConA,
+      );
+      cpConB = await convocatoriaProtocolo(
+        protocoloConId,
+        null,
+        47,
+        {},
+        convConB,
+      );
+
+      fetchSpy = jest
+        .spyOn(global, 'fetch')
+        .mockImplementation(() =>
+          Promise.resolve(new Response(PDF, { status: 200 })),
+        );
+    });
+
+    afterAll(() => {
+      fetchSpy?.mockRestore();
+    });
+
+    const urlDe = (conv: string, cp: string) =>
+      `/api/resolutions/convocatorias/${conv}/protocolos/${cp}/cartas`;
+
+    it('reunión futura: upload-url y registro responden 409 «aún no se ha realizado»', async () => {
+      const up = await api()
+        .post(`${urlDe(convFuturaId, cpFutura)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(up.status).toBe(409);
+      expect(JSON.stringify(up.body)).toContain('aún no se ha realizado');
+      const reg = await api()
+        .post(urlDe(convFuturaId, cpFutura))
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ claveArchivo: 'ZZ_TEST_sin_subida.pdf' });
+      expect(reg.status).toBe(409);
+      expect(JSON.stringify(reg.body)).toContain('aún no se ha realizado');
+    });
+
+    it('sin fecha de reunión: 409 «aún no se ha realizado»', async () => {
+      const res = await api()
+        .post(`${urlDe(convSinFechaId, cpSinFecha)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(res.status).toBe(409);
+      expect(JSON.stringify(res.body)).toContain('aún no se ha realizado');
+    });
+
+    it('convocatoria cancelada: 409 «fue cancelada» aunque la fecha ya haya pasado', async () => {
+      const res = await api()
+        .post(`${urlDe(convCanceladaId, cpCancelada)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(res.status).toBe(409);
+      expect(JSON.stringify(res.body)).toContain('fue cancelada');
+    });
+
+    it('una carta por versión: la segunda convocatoria responde 409 con el número de la primera', async () => {
+      const up = await api()
+        .post(`${urlDe(convDobleA, cpDobleA)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(up.status).toBe(201);
+      const clave = up.body.data.claveArchivo as string;
+      subirAlBucket(clave, PDF);
+      const reg = await api()
+        .post(urlDe(convDobleA, cpDobleA))
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ claveArchivo: clave });
+      expect(reg.status).toBe(201);
+
+      const upB = await api()
+        .post(`${urlDe(convDobleB, cpDobleB)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(upB.status).toBe(409);
+      expect(JSON.stringify(upB.body)).toContain(
+        `ya tiene carta en la convocatoria ${PREFIX}DOBLE-A`,
+      );
+      const regB = await api()
+        .post(urlDe(convDobleB, cpDobleB))
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ claveArchivo: 'ZZ_TEST_sin_subida.pdf' });
+      expect(regB.status).toBe(409);
+    });
+
+    it('dos registros concurrentes de la misma versión: solo uno pasa y queda una carta', async () => {
+      const upA = await api()
+        .post(`${urlDe(convConA, cpConA)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      const upB = await api()
+        .post(`${urlDe(convConB, cpConB)}/upload-url`)
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({});
+      expect(upA.status).toBe(201);
+      expect(upB.status).toBe(201);
+      const claveA = upA.body.data.claveArchivo as string;
+      const claveB = upB.body.data.claveArchivo as string;
+      subirAlBucket(claveA, PDF);
+      subirAlBucket(claveB, PDF);
+
+      const [rA, rB] = await Promise.all([
+        api()
+          .post(urlDe(convConA, cpConA))
+          .set('Authorization', `Bearer ${secretariaToken}`)
+          .send({ claveArchivo: claveA }),
+        api()
+          .post(urlDe(convConB, cpConB))
+          .set('Authorization', `Bearer ${secretariaToken}`)
+          .send({ claveArchivo: claveB }),
+      ]);
+      expect([rA.status, rB.status].sort()).toEqual([201, 409]);
+
+      const [{ n }] = await ds.query(
+        `SELECT count(*)::int AS n FROM resolucion.cartas_firmadas
+          WHERE version_id = (SELECT version_actual_id FROM public.protocolos WHERE id = $1)
+            AND vigente`,
+        [protocoloConId],
+      );
+      expect(n).toBe(1);
     });
   });
 });
