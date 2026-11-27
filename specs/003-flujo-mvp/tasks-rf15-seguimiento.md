@@ -885,6 +885,13 @@
   - **Fuga de lectura**: `GET /api/resolutions/protocol/:id` (`resolutions.controller.ts:84-94`) devuelve la entidad ORM completa con las relaciones `protocol` y `version` (`resolutions.service.ts:285-307`), sin DTO. Pendiente revisar qué campos expone y tarea aparte (gravedad no verificada).
   - **Limpieza N08** (tarea aparte): tabla `evaluacion.convocatoria_protocolo_resultados`, permiso `PLENO_RESULTADO_REGISTRAR`, columnas `dictamen_*` y sus CHECK.
   - **5 evaluaciones sin dictamen** (ids 1, 3, 4, 5, 6; versión 118 fuera de convocatoria): revisar si son datos de prueba antes de limpiar.
+- **Resultados medidos (27/11/2026, rama fix/tsk-015-n27-bloqueo-resuelto-legacy)**:
+  - Commits: N27-0 `ada0af4` + corrección de orden `c6a5f89`; N27-3 `7ee16ce`; N27-5 `ed89820`; N27-6 `1235d20` y e2e `0cb2f5f`; N27-7 `0bcb7a8` y e2e `ded52ce`.
+  - `npx tsc --noEmit`: exit 0. `npx jest` (unitarias) tras N27-7: 77 suites, 877 pruebas, todas pasan. Tras c6a5f89: `reassign-evaluator.use-case.spec.ts` 19/19.
+  - E2E completo (`--runInBand`): 38 suites, 29 pasan; 9 suites **NO EJECUTADAS** por entorno (`ABORT: falta E2E_TEST_ACCOUNTS_PASSWORD`: meetings-next, protocol-read-access, protocols-list, protocol-draft-submit, audit-secrets, protocol-thesis, protocol-created-audit, secretaria-pendientes, evaluator-profiles). Pruebas E2E del alcance: cartas-firmadas 25/25, resolutions-contexto 15/15, reassignment-history 8/8 (incluye RH-08), meetings-resultado-pleno y evaluations-contract en PASS.
+  - Residuos `ZZ_TEST_` tras la corrida: 0 protocolos, 0 convocatorias, 0 usuarios. Convocatorias huérfanas: 57 (igual que la línea base).
+  - Mutaciones (ruptura del código real, restaurada y verificada con sha256): M1 resumen visible al investigador → 3 pruebas fallan; M2 reemplazo recalcula en vez de usar el congelado → 2 pruebas fallan; N27-0 y N27-3 según su commit de código.
+  - Pendiente: N27-8 (frontend, repo aparte). Limpieza: `ventana-resultado-pleno.ts` queda sin uso en producción (solo su spec); se retira en tarea aparte.
 - **Tests afectados**: unitarias `registrar-resultado-pleno.use-case.spec.ts`, `ventana-resultado-pleno.spec.ts`, `cartas-firmadas.service.spec.ts`, `carta-firmada-rules.spec.ts`, `resolutions.service.spec.ts`, `meetings.controller.spec.ts:433-442`, `convocatoria-protocolo.orm-entity.spec.ts`. E2E: `meetings-resultado-pleno`, `cartas-firmadas`, `resolutions-contexto`, `resolutions-permisos`, `resolutions-legacy-v1-v3`, `resolutions-legacy-v2`. `storage-access` no verificado.
 
 ### Task TSK-015-N21 - [ ] PENDIENTE (frontend, repo aparte)
