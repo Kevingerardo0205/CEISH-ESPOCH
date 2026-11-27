@@ -450,10 +450,10 @@ describe('Contexto de resolución — TSK-015-N25 (ceish_test_db)', () => {
     expect(conCarta.observaciones).toBe('Observación interna');
   });
 
-  it('SECRETARIA: puedeSubirCarta sigue al estado y al anexo, no a la fecha; no hay puedeRegistrarResultado', async () => {
+  it('SECRETARIA: puedeSubirCarta exige reunión realizada, estado y anexo (RF-17.2 v1.6.9); no hay puedeRegistrarResultado', async () => {
     const res = await contexto(protocoloId, tokens.SECRETARIA);
     const [futura, celebrada] = res.body.data;
-    // Reunión futura sin dictámenes: pendiente, no se puede subir carta.
+    // Reunión futura: no se puede subir carta aunque el cálculo esté listo (RF-17.2 v1.6.9).
     expect(futura.puedeSubirCarta).toBe(false);
     // Con carta congelada: el reemplazo sigue permitido.
     expect(celebrada.puedeSubirCarta).toBe(true);
@@ -499,11 +499,17 @@ describe('Contexto de resolución — TSK-015-N25 (ceish_test_db)', () => {
       );
     });
 
-    it('estadoResultado: CONGELADO con carta, PENDIENTE sin dictámenes y resultadoCalculado null', async () => {
+    it('estadoResultado: CONGELADO con carta propia; la versión resuelta en otra convocatoria aparece CONGELADA con su número (RF-17.2 v1.6.9)', async () => {
       const res = await contexto(protocoloId, tokens.SECRETARIA);
       const [futura, celebrada] = res.body.data;
       expect(celebrada.estadoResultado).toBe('CONGELADO');
-      expect(futura.estadoResultado).toBe('PENDIENTE');
+      expect(celebrada.resueltoEnConvocatoria).toBe(
+        celebrada.numeroConvocatoria,
+      );
+      // Misma versión que la celebrada: no se puede subir otra carta; muestra la convocatoria donde se resolvió.
+      expect(futura.estadoResultado).toBe('CONGELADO');
+      expect(futura.resueltoEnConvocatoria).toBe(celebrada.numeroConvocatoria);
+      expect(futura.puedeSubirCarta).toBe(false);
       expect(futura.resultadoCalculado).toBeNull();
     });
 

@@ -558,6 +558,8 @@ describe('CartasFirmadasService (TSK-015-N09, TSK-015-N27-6)', () => {
 /** TSK-015-N25 / TSK-015-N27-7 — contextoProtocolo: acceso, visibilidad, estado del resultado y permisos (RF-17.1 v1.6.8, RF-17.4, RF-17.6). */
 describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25, TSK-015-N27-7)', () => {
   const PASADA = new Date('2026-11-20T15:00:00Z');
+  /** TSK-015-N27-7 (RF-17.2 v1.6.9): NOW() de la base del falso del contexto. */
+  const AHORA_CTX = new Date('2026-11-27T15:00:00Z');
   const CONV = '1d2e3f40-1111-4222-8333-444455556666';
   const INVESTIGADOR_PRINCIPAL = 1;
   const SECRETARIA = {
@@ -580,6 +582,7 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25, TSK-015-N27-7)',
       numero_convocatoria: 'CONV-2026-01',
       fecha_reunion: PASADA,
       convocatoria_estado: 'PROGRAMADA',
+      ahora: AHORA_CTX,
       version_id: 9,
       dictamen_motivo: 'Motivo interno',
       dictamen_observaciones: 'Observación interna',
@@ -597,6 +600,7 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25, TSK-015-N27-7)',
       resultado: 'APROBADO_DEFINITIVO',
       subido_en: new Date('2026-11-25T10:00:00Z'),
       clave_archivo: CLAVE_V1,
+      numero_convocatoria: 'CONV-2026-01',
       ...over,
     };
   }
@@ -824,7 +828,7 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25, TSK-015-N27-7)',
     expect(item).not.toHaveProperty('puedeRegistrarResultado');
   });
 
-  it('puedeSubirCarta exige RESOLUCION_CREAR y resultado calculado; no mira la fecha de la reunión', async () => {
+  it('puedeSubirCarta exige RESOLUCION_CREAR, resultado calculado y reunión realizada (RF-17.2 v1.6.9)', async () => {
     const [conFechaFutura] = await contextoDe(
       {
         principal: INVESTIGADOR_PRINCIPAL,
@@ -833,12 +837,46 @@ describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25, TSK-015-N27-7)',
       },
       SECRETARIA,
     );
-    expect(conFechaFutura.puedeSubirCarta).toBe(true);
+    expect(conFechaFutura.puedeSubirCarta).toBe(false);
+    expect(conFechaFutura.estadoResultado).toBe('CALCULADO');
+    const [conFechaPasada] = await contextoDe(
+      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
+      SECRETARIA,
+    );
+    expect(conFechaPasada.puedeSubirCarta).toBe(true);
     const [sinCrear] = await contextoDe(
       { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
       { id: 99, permissions: [Permission.RESOLUCION_HISTORIAL] },
     );
     expect(sinCrear.puedeSubirCarta).toBe(false);
+  });
+
+  it('versión con carta en otra convocatoria: CONGELADO, resueltoEnConvocatoria y sin subida (RF-17.2 v1.6.9)', async () => {
+    const [item] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila()],
+        cartas: [
+          carta({
+            convocatoria_protocolo_id: 'OTRA-CP',
+            version_id: 9,
+            numero_convocatoria: 'CONV-2026-02',
+          }),
+        ],
+      },
+      SECRETARIA,
+    );
+    expect(item.estadoResultado).toBe('CONGELADO');
+    expect(item.resueltoEnConvocatoria).toBe('CONV-2026-02');
+    expect(item.puedeSubirCarta).toBe(false);
+  });
+
+  it('sin carta de la versión: resueltoEnConvocatoria es null', async () => {
+    const [item] = await contextoDe(
+      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
+      SECRETARIA,
+    );
+    expect(item.resueltoEnConvocatoria).toBeNull();
   });
 
   it('principal con RESOLUCION_CREAR sin HISTORIAL: puede subir aunque no vea el resultado', async () => {
