@@ -69,6 +69,7 @@ import { RegistrarResultadoPlenoUseCase } from '../../application/use-cases/regi
 import { RegistrarResultadoPlenoDto } from '../../application/dtos/registrar-resultado-pleno.dto';
 import type { IMeetingRepositoryPort } from '../../domain/ports/meeting-repository.port';
 import type { IMeetingPdfGeneratorPort } from '../../domain/ports/meeting-pdf-generator.port';
+import { UUID_PARAM_PIPE } from '../../../../shared/pipes/uuid-param.pipe';
 
 @ApiTags('meetings')
 @ApiBearerAuth()
@@ -179,8 +180,8 @@ export class MeetingsController {
   })
   @ApiOkResponse({ description: 'Resultado registrado en el historial.' })
   async registrarResultadoPleno(
-    @Param('id', ParseUUIDPipe) id: string,
-    @Param('convocatoriaProtocoloId', ParseUUIDPipe)
+    @Param('id', UUID_PARAM_PIPE) id: string,
+    @Param('convocatoriaProtocoloId', UUID_PARAM_PIPE)
     convocatoriaProtocoloId: string,
     @Body() dto: RegistrarResultadoPlenoDto,
     @Req() req: Request & { user: JwtPayload },

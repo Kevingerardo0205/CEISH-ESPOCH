@@ -472,6 +472,15 @@ describe('TSK-015-N08 — PATCH /api/evaluations/meetings/:id/protocolos/:cpId/r
       expect(await historial(cpId)).toHaveLength(0);
     });
 
+    it('400 «Identificador inválido.» si el punto no es UUID (TSK-015-N25)', async () => {
+      const { convId } = await sembrar('UUID');
+      const res = await patch('secretaria', convId, 'no-es-uuid', {
+        resultado: 'APROBADO_DEFINITIVO',
+      });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Identificador inválido.');
+    });
+
     it('409 en español si el estudio es EX (TSK-015-N20): sin historial ni valor vigente', async () => {
       const { convId, cpId, protocolId } = await sembrar('EX');
       await ds.query(

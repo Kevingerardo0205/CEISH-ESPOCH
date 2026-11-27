@@ -3,7 +3,6 @@ import {
   Controller,
   Get,
   Param,
-  ParseUUIDPipe,
   Post,
   Request,
   UseGuards,
@@ -20,6 +19,7 @@ import { Permissions } from '../../../../shared/decorators/permissions.decorator
 import { Audit } from '../../../../shared/decorators/audit.decorator';
 import { Permission } from '../../../../shared/enums/permission.enum';
 import type { RequestWithUser } from './resolutions.controller';
+import { UUID_PARAM_PIPE } from '../../../../shared/pipes/uuid-param.pipe';
 
 /**
  * TSK-015-N09 — spec-003 RF-17.4 y RF-17.7 (v1.6.6). Carta firmada por versiones.
@@ -36,8 +36,8 @@ export class CartasFirmadasController {
   @Post('upload-url')
   @Permissions(Permission.RESOLUCION_CREAR)
   async solicitarSubida(
-    @Param('convocatoriaId', ParseUUIDPipe) convocatoriaId: string,
-    @Param('convocatoriaProtocoloId', ParseUUIDPipe)
+    @Param('convocatoriaId', UUID_PARAM_PIPE) convocatoriaId: string,
+    @Param('convocatoriaProtocoloId', UUID_PARAM_PIPE)
     convocatoriaProtocoloId: string,
     @Body() dto: SolicitarSubidaCartaDto,
   ) {
@@ -52,8 +52,8 @@ export class CartasFirmadasController {
   @Permissions(Permission.RESOLUCION_CREAR)
   @Audit('CARTA_FIRMADA_REGISTRADA')
   async registrar(
-    @Param('convocatoriaId', ParseUUIDPipe) convocatoriaId: string,
-    @Param('convocatoriaProtocoloId', ParseUUIDPipe)
+    @Param('convocatoriaId', UUID_PARAM_PIPE) convocatoriaId: string,
+    @Param('convocatoriaProtocoloId', UUID_PARAM_PIPE)
     convocatoriaProtocoloId: string,
     @Body() dto: RegistrarCartaFirmadaDto,
     @Request() req: RequestWithUser,
@@ -68,8 +68,8 @@ export class CartasFirmadasController {
 
   @Get('vigente')
   async vigente(
-    @Param('convocatoriaId', ParseUUIDPipe) convocatoriaId: string,
-    @Param('convocatoriaProtocoloId', ParseUUIDPipe)
+    @Param('convocatoriaId', UUID_PARAM_PIPE) convocatoriaId: string,
+    @Param('convocatoriaProtocoloId', UUID_PARAM_PIPE)
     convocatoriaProtocoloId: string,
     @Request() req: RequestWithUser,
   ) {
@@ -82,8 +82,8 @@ export class CartasFirmadasController {
 
   @Get()
   async historial(
-    @Param('convocatoriaId', ParseUUIDPipe) convocatoriaId: string,
-    @Param('convocatoriaProtocoloId', ParseUUIDPipe)
+    @Param('convocatoriaId', UUID_PARAM_PIPE) convocatoriaId: string,
+    @Param('convocatoriaProtocoloId', UUID_PARAM_PIPE)
     convocatoriaProtocoloId: string,
     @Request() req: RequestWithUser,
   ) {

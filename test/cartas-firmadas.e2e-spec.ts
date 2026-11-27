@@ -363,6 +363,17 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
       expect(datos.uploadUrl).toContain('https://upload.test/');
     });
 
+    it('400 «Identificador inválido.» si un id de ruta no es UUID (TSK-015-N25)', async () => {
+      const res = await api()
+        .post(
+          `/api/resolutions/convocatorias/no-es-uuid/protocolos/${cpId}/cartas/upload-url`,
+        )
+        .set('Authorization', `Bearer ${secretariaToken}`)
+        .send({ anexoCodigo: 'ANEXO_13' });
+      expect(res.status).toBe(400);
+      expect(res.body.message).toBe('Identificador inválido.');
+    });
+
     it('403 para INVESTIGADOR (no tiene RESOLUCION_CREAR)', async () => {
       const res = await api()
         .post(`${base()}/upload-url`)
