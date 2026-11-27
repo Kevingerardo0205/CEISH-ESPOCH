@@ -123,6 +123,20 @@ export class ReassignEvaluatorUseCase {
       );
     }
 
+    // TSK-015-N27-0 (RF-17.1 v1.6.8): una evaluación ya enviada no se reasigna; su dictamen forma
+    // parte del resultado calculado del pleno. Va antes de resolver el perfil: una asignación enviada
+    // responde 409 aunque su perfil no esté en el catálogo.
+    const estadoActual: number =
+      currentAssignmentRaw instanceof EvaluationAssignmentEntity
+        ? currentAssignmentRaw.status
+        : currentAssignmentRaw.statusId;
+    const estadoEnviada: number = AssignmentStatus.COMPLETED;
+    if (estadoActual === estadoEnviada) {
+      throw new ConflictException(
+        'No se puede reasignar una evaluación que ya fue enviada.',
+      );
+    }
+
     // Adaptar entidad cruda/ORM a entidad de dominio si es necesario.
     // rawOrmProfileId solo existe en la ruta ORM; es undefined en la ruta de entidad de dominio.
     let currentAssignment: EvaluationAssignmentEntity;
@@ -147,14 +161,6 @@ export class ReassignEvaluatorUseCase {
         deadlineDate: orm.deadline ?? null,
         status: orm.statusId,
       });
-    }
-
-    // TSK-015-N27-0 (RF-17.1 v1.6.8): una evaluación ya enviada no se reasigna; su dictamen forma
-    // parte del resultado calculado del pleno.
-    if (currentAssignment.status === AssignmentStatus.COMPLETED) {
-      throw new ConflictException(
-        'No se puede reasignar una evaluación que ya fue enviada.',
-      );
     }
 
     const numReplacementId =
