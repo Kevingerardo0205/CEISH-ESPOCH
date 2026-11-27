@@ -1,13 +1,12 @@
 import { IsIn, IsOptional, IsString, MaxLength } from 'class-validator';
 
-/** Resultados del pleno por protocolo (spec-003 RF-17.1, TSK-015-N08). SUSPENDIDO no es resultado del pleno. */
-export const RESULTADOS_PLENO = [
-  'APROBADO_DEFINITIVO',
-  'APROBADO_CON_CONDICION',
-  'NO_APROBADO',
-] as const;
+import {
+  RESULTADOS_PLENO,
+  type ResultadoPleno,
+} from '../../domain/services/calcular-resultado-pleno';
 
-export type ResultadoPleno = (typeof RESULTADOS_PLENO)[number];
+/** Reexportado desde el dominio (TSK-015-N27-3): los importadores existentes no cambian. */
+export { RESULTADOS_PLENO, type ResultadoPleno };
 
 const MAX_TEXTO = 2000;
 

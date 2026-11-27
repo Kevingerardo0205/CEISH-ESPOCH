@@ -6,3 +6,10 @@ export enum AssignmentStatus {
   REASIGNED_VENCIMIENTO = 26, // Reasignado por vencimiento de plazo operativo
   REASIGNED_COI = 27, // Reasignado por conflicto de interés (COI)
 }
+
+/** Asignaciones activas de una versión (RF-12.7 c.2; RF-17.1 v1.6.8): SUGERIDO, ASIGNADO, COMPLETADO. */
+export const ACTIVE_ASSIGNMENT_STATES: readonly AssignmentStatus[] = [
+  AssignmentStatus.SUGGESTED,
+  AssignmentStatus.ASSIGNED,
+  AssignmentStatus.COMPLETED,
+];

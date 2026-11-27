@@ -39,7 +39,10 @@ import { ProtocolOrmEntity } from '../../../protocols/infrastructure/database/pr
 import { ProtocolStatus } from '../../../protocols/domain/enums/protocol-status.enum';
 import { MeetingNumberValueObject } from '../../domain/value-objects/meeting-number.vo';
 import { AgendaItemType } from '../../../../shared/enums/agenda-section.enum';
-import { AssignmentStatus } from '../../domain/enums/assignment-status.enum';
+import {
+  ACTIVE_ASSIGNMENT_STATES,
+  AssignmentStatus,
+} from '../../domain/enums/assignment-status.enum';
 import { toCalendarDateString } from '../../../../shared/services/deadline-calculator.service';
 import {
   ENTREGA_EVALUACION_DIAS_HABILES_TRAS_REUNION,
@@ -48,12 +51,8 @@ import {
 } from '../../../../shared/deadlines/deadline-rules';
 import { toSafeDate } from '../../../../shared/utils/to-safe-date.util';
 
-/** Asignaciones activas de una versión (RF-12.7 c.2): SUGERIDO, ASIGNADO, COMPLETADO. */
-const ACTIVE_ASSIGNMENT_STATES = [
-  AssignmentStatus.SUGGESTED,
-  AssignmentStatus.ASSIGNED,
-  AssignmentStatus.COMPLETED,
-].join(', ');
+/** Asignaciones activas de una versión (RF-12.7 c.2), movidas a dominio en TSK-015-N27-3. */
+const ACTIVE_ASSIGNMENT_STATES_SQL = ACTIVE_ASSIGNMENT_STATES.join(', ');
 
 /** Asignaciones que fijan la fecha límite de la versión: las activas y las reasignadas (RF-12.7 c.2 y c.5). */
 const REVIEW_DEADLINE_ASSIGNMENT_STATES = [
@@ -71,7 +70,7 @@ const REVIEW_DEADLINE_ASSIGNMENT_STATES = [
  */
 const VERSION_REVIEW_DEADLINE_SQL = `
   SELECT a.version_id,
-         bool_or(a.estado_id IN (${ACTIVE_ASSIGNMENT_STATES})) AS has_active,
+         bool_or(a.estado_id IN (${ACTIVE_ASSIGNMENT_STATES_SQL})) AS has_active,
          MAX(a.fecha_limite_revision) AS review_deadline
     FROM evaluacion.asignaciones_evaluacion a
    WHERE a.estado_id IN (${REVIEW_DEADLINE_ASSIGNMENT_STATES})
