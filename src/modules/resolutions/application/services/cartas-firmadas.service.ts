@@ -24,6 +24,7 @@ import {
 } from '../../../storage-access/application/storage-key-access.policy';
 import { canReadResolution, ResolutionReader } from './resolutions.service';
 import type { ResumenDictamenes } from '../../../evaluations/domain/services/calcular-resultado-pleno';
+import { evaluarReunionRealizada } from '../../../evaluations/domain/services/reunion-realizada';
 import {
   ResultadoResolucionService,
   TipoResolucion,
@@ -102,6 +103,11 @@ interface ContextoCarta {
   versionId: number;
   investigadorId: number;
   tipoCodigo: string | null;
+  /** TSK-015-N27-6 (RF-17.2 v1.6.9): convocatoria, reunión y NOW() de la base. */
+  convocatoriaEstado: string;
+  numeroConvocatoria: string;
+  fechaReunion: Date | null;
+  ahora: Date;
 }
 
 export interface SubidaCartaRespuesta {
@@ -156,6 +162,7 @@ export class CartasFirmadasService {
       convocatoriaProtocoloId,
     );
     this.assertCartaAplicable(ctx);
+    await this.assertVersionSinCartaOtra(this.dataSource, ctx);
     const { anexo } = await this.resultadoParaCarta(
       this.dataSource,
       ctx,
@@ -191,6 +198,7 @@ export class CartasFirmadasService {
       convocatoriaProtocoloId,
     );
     this.assertCartaAplicable(ctxInicial);
+    await this.assertVersionSinCartaOtra(this.dataSource, ctxInicial);
     const versionClave = this.versionDeClave(dto.claveArchivo, ctxInicial);
 
     const versionEsperada = numeroVersionSiguiente(
@@ -223,6 +231,13 @@ export class CartasFirmadasService {
         `SELECT id FROM public.protocolos WHERE id = $1 FOR UPDATE`,
         [ctxInicial.protocoloId],
       );
+      // Versión única (RF-17.2 v1.6.9): dos registros a convocatorias distintas de la misma versión
+      // se serializan aquí; el segundo ve la carta del primero y responde 409.
+      await qr.query(
+        `SELECT id FROM public.versiones_protocolo WHERE id = $1 FOR UPDATE`,
+        [ctxInicial.versionId],
+      );
+      await this.assertVersionSinCartaOtra(qr, ctxInicial);
       // Primera carta: se calcula ahora, bajo bloqueo, y se congela. Reemplazo: usa el congelado.
       ({ resultado, anexo } = await this.resultadoParaCarta(
         qr,
@@ -512,9 +527,12 @@ export class CartasFirmadasService {
     convocatoriaProtocoloId: string,
   ): Promise<ContextoCarta> {
     const [fila] = await this.dataSource.query<Fila[]>(
-      `SELECT cp.id, cp.protocolo_id, cp.version_id, cp.dictamen_resultado,
-              p.investigador_principal_id, te.codigo AS tipo_codigo
+      `SELECT cp.id, cp.protocolo_id, cp.version_id,
+              p.investigador_principal_id, te.codigo AS tipo_codigo,
+              c.estado AS convocatoria_estado, c.numero_convocatoria,
+              c.fecha_reunion, NOW() AS ahora
          FROM evaluacion.convocatoria_protocolos cp
+         JOIN evaluacion.convocatorias c ON c.id = cp.convocatoria_id
          JOIN public.protocolos p ON p.id = cp.protocolo_id
          LEFT JOIN catalogos.tipos_estudio te ON te.id = p.tipo_estudio_id
         WHERE cp.id = $1 AND cp.convocatoria_id = $2 AND cp.eliminado_en IS NULL`,
@@ -531,10 +549,14 @@ export class CartasFirmadasService {
       versionId: fila.version_id as number,
       investigadorId: fila.investigador_principal_id as number,
       tipoCodigo: (fila.tipo_codigo as string | null) ?? null,
+      convocatoriaEstado: fila.convocatoria_estado as string,
+      numeroConvocatoria: fila.numero_convocatoria as string,
+      fechaReunion: (fila.fecha_reunion as Date | null) ?? null,
+      ahora: fila.ahora as Date,
     };
   }
 
-  /** Reglas de RF-17.2 (TSK-015-N27-6): sin tipo de estudio → 409; EX → 409. */
+  /** Reglas de RF-17.2 (TSK-015-N27-6): sin tipo de estudio → 409; EX → 409; RF-17.2 v1.6.9: cancelada y reunión no realizada → 409. */
   private assertCartaAplicable(ctx: ContextoCarta): void {
     if (ctx.tipoCodigo === null) {
       throw new ConflictException(
@@ -544,6 +566,57 @@ export class CartasFirmadasService {
     if (esEstudioExento(ctx.tipoCodigo)) {
       throw new ConflictException(
         'El estudio exento (EX) no pasa por el pleno y no tiene carta de resolución.',
+      );
+    }
+    const motivo = evaluarReunionRealizada({
+      convocatoriaEstado: ctx.convocatoriaEstado,
+      fechaReunion: ctx.fechaReunion,
+      ahora: ctx.ahora,
+    });
+    if (motivo === 'CANCELADA') {
+      throw new ConflictException('La convocatoria fue cancelada.');
+    }
+    if (motivo !== null) {
+      throw new ConflictException(
+        'La reunión de esta convocatoria aún no se ha realizado.',
+      );
+    }
+  }
+
+  /**
+   * Otra convocatoria-protocolo de la misma versión con carta (cualquier estado): RF-17.2 v1.6.9,
+   * una carta por versión evaluada. Devuelve el número de esa convocatoria o null.
+   */
+  private async cartaEnOtraConvocatoria(
+    runner: Pick<DataSource, 'query'>,
+    versionId: number,
+    convocatoriaProtocoloId: string,
+  ): Promise<string | null> {
+    const [fila] = await runner.query<Fila[]>(
+      `SELECT c.numero_convocatoria
+         FROM resolucion.cartas_firmadas cs
+         JOIN evaluacion.convocatoria_protocolos cp ON cp.id = cs.convocatoria_protocolo_id
+         JOIN evaluacion.convocatorias c ON c.id = cp.convocatoria_id
+        WHERE cs.version_id = $1 AND cs.convocatoria_protocolo_id <> $2
+        LIMIT 1`,
+      [versionId, convocatoriaProtocoloId],
+    );
+    return fila ? (fila.numero_convocatoria as string) : null;
+  }
+
+  /** 409 si la versión ya tiene carta en otra convocatoria (RF-17.2 v1.6.9). */
+  private async assertVersionSinCartaOtra(
+    runner: Pick<DataSource, 'query'>,
+    ctx: ContextoCarta,
+  ): Promise<void> {
+    const numero = await this.cartaEnOtraConvocatoria(
+      runner,
+      ctx.versionId,
+      ctx.convocatoriaProtocoloId,
+    );
+    if (numero !== null) {
+      throw new ConflictException(
+        `Esta versión ya tiene carta en la convocatoria ${numero}.`,
       );
     }
   }

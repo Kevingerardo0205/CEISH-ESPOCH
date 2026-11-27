@@ -129,6 +129,11 @@ function servicio(handler: Handler, storage = almacenamiento({})) {
 
 interface Escenario {
   tipo: string | null;
+  /** TSK-015-N27-6 (v1.6.9): estado y fecha de la convocatoria; por defecto PROGRAMADA y reunión pasada. */
+  estado?: string;
+  fecha?: Date | null;
+  /** Número de otra convocatoria de la misma versión con carta (cualquier estado). */
+  otraCarta?: string;
   /** Asignaciones de la versión (estado y resultado_id). Por defecto: 3 completadas con dictamen 1. */
   asignaciones?: Array<{ estado: number; resultado: number | null }>;
   /** Resultado de la carta vigente; undefined = sin carta vigente. */
@@ -149,6 +154,9 @@ const POR_DEFECTO = [
 function escenario(e: Escenario): Handler {
   const asignaciones = e.asignaciones ?? POR_DEFECTO;
   return (sql, params) => {
+    if (sql.includes('cs.convocatoria_protocolo_id <> $2')) {
+      return e.otraCarta ? [{ numero_convocatoria: e.otraCarta }] : [];
+    }
     if (sql.includes('FROM evaluacion.convocatoria_protocolos cp')) {
       return [
         {
@@ -157,6 +165,10 @@ function escenario(e: Escenario): Handler {
           version_id: 9,
           investigador_principal_id: 1,
           tipo_codigo: e.tipo,
+          convocatoria_estado: e.estado ?? 'PROGRAMADA',
+          numero_convocatoria: 'CONV-2026-01',
+          fecha_reunion: e.fecha === undefined ? PASADA_CARTA : e.fecha,
+          ahora: AHORA_CARTA,
         },
       ];
     }
@@ -214,6 +226,9 @@ function escenario(e: Escenario): Handler {
 }
 
 const CARTA_V1 = { claveArchivo: CLAVE_V1 };
+/** TSK-015-N27-6 (RF-17.2 v1.6.9): reunión pasada por defecto y NOW() de la base del falso. */
+const PASADA_CARTA = new Date('2026-11-20T15:00:00Z');
+const AHORA_CARTA = new Date('2026-11-27T15:00:00Z');
 
 describe('CartasFirmadasService (TSK-015-N09, TSK-015-N27-6)', () => {
   describe('upload-url: anexo derivado del resultado calculado o congelado (RF-17.1 v1.6.8, RF-17.2)', () => {
@@ -432,6 +447,77 @@ describe('CartasFirmadasService (TSK-015-N09, TSK-015-N27-6)', () => {
         BadRequestException,
       );
       expect(storage.deleteFile).toHaveBeenCalledWith(CLAVE_V1);
+    });
+  });
+
+  describe('guardas v1.6.9: reunión realizada, cancelada y versión única (RF-17.2)', () => {
+    it('reunión futura: upload-url y registro responden 409 sin llegar al storage', async () => {
+      const storage = almacenamiento({});
+      const { svc, qr } = servicio(
+        escenario({ tipo: 'IO', fecha: new Date('2026-12-30T15:00:00Z') }),
+        storage,
+      );
+      await expect(svc.solicitarSubida('conv', CP, {})).rejects.toThrow(
+        'aún no se ha realizado',
+      );
+      await expect(svc.registrar('conv', CP, CARTA_V1, 7)).rejects.toThrow(
+        ConflictException,
+      );
+      expect(storage.generateUploadUrl).not.toHaveBeenCalled();
+      expect(storage.getMetadata).not.toHaveBeenCalled();
+      expect(
+        qr.query.mock.calls
+          .map(([sql]) => String(sql))
+          .some((q) => q.includes('INSERT INTO resolucion.cartas_firmadas')),
+      ).toBe(false);
+    });
+
+    it('sin fecha de reunión responde 409', async () => {
+      const { svc } = servicio(escenario({ tipo: 'IO', fecha: null }));
+      await expect(svc.solicitarSubida('conv', CP, {})).rejects.toThrow(
+        'aún no se ha realizado',
+      );
+    });
+
+    it('convocatoria cancelada responde 409 aunque la fecha ya haya pasado', async () => {
+      const { svc } = servicio(escenario({ tipo: 'IO', estado: 'CANCELADA' }));
+      await expect(svc.solicitarSubida('conv', CP, {})).rejects.toThrow(
+        'fue cancelada',
+      );
+      await expect(svc.registrar('conv', CP, CARTA_V1, 7)).rejects.toThrow(
+        'fue cancelada',
+      );
+    });
+
+    it('versión con carta en otra convocatoria: upload-url y registro responden 409 con el número', async () => {
+      const { svc, qr } = servicio(
+        escenario({ tipo: 'IO', otraCarta: 'CONV-2026-02' }),
+      );
+      await expect(svc.solicitarSubida('conv', CP, {})).rejects.toThrow(
+        'ya tiene carta en la convocatoria CONV-2026-02',
+      );
+      await expect(svc.registrar('conv', CP, CARTA_V1, 7)).rejects.toThrow(
+        'ya tiene carta en la convocatoria CONV-2026-02',
+      );
+      const sqls = qr.query.mock.calls.map(([sql]) => String(sql));
+      expect(
+        sqls.some((q) => q.includes('INSERT INTO resolucion.cartas_firmadas')),
+      ).toBe(false);
+    });
+
+    it('registro bloquea la versión (FOR UPDATE) antes de comprobar la carta de otra convocatoria', async () => {
+      const { svc, qr } = servicio(escenario({ tipo: 'IO' }));
+      await svc.registrar('conv', CP, CARTA_V1, 7);
+      const sqls = qr.query.mock.calls.map(([sql]) => String(sql));
+      const iVersion = sqls.findIndex((q) =>
+        q.includes('public.versiones_protocolo WHERE id = $1 FOR UPDATE'),
+      );
+      const iOtra = sqls.findIndex(
+        (q, i) =>
+          i > iVersion && q.includes('cs.convocatoria_protocolo_id <> $2'),
+      );
+      expect(iVersion).toBeGreaterThanOrEqual(0);
+      expect(iOtra).toBeGreaterThan(iVersion);
     });
   });
 

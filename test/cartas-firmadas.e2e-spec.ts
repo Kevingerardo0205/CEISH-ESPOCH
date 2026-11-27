@@ -325,7 +325,8 @@ describe('Carta firmada por versiones — TSK-015-N09 (ceish_test_db)', () => {
     presidenteToken = await login('PRESIDENTE');
 
     const [conv] = await ds.query(
-      `INSERT INTO evaluacion.convocatorias (numero_convocatoria) VALUES ($1) RETURNING id`,
+      `INSERT INTO evaluacion.convocatorias (numero_convocatoria, fecha_reunion)
+       VALUES ($1, now() - interval '10 days') RETURNING id`,
       [`${PREFIX}${randomBytes(4).toString('hex')}`],
     );
     convocatoriaId = conv.id;
