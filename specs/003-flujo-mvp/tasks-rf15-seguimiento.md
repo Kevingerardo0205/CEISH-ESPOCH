@@ -885,6 +885,10 @@
   - **Fuga de lectura**: `GET /api/resolutions/protocol/:id` (`resolutions.controller.ts:84-94`) devuelve la entidad ORM completa con las relaciones `protocol` y `version` (`resolutions.service.ts:285-307`), sin DTO. Pendiente revisar qué campos expone y tarea aparte (gravedad no verificada).
   - **Limpieza N08** (tarea aparte): tabla `evaluacion.convocatoria_protocolo_resultados`, permiso `PLENO_RESULTADO_REGISTRAR`, columnas `dictamen_*` y sus CHECK.
   - **5 evaluaciones sin dictamen** (ids 1, 3, 4, 5, 6; versión 118 fuera de convocatoria): revisar si son datos de prueba antes de limpiar.
+- **Decisión 27/11/2026 (v1.6.9)**: guardas de la carta (RF-17.2 v1.6.9). Subtareas: **N27-6b** guardas de fecha (reunión realizada, instante) y cancelada, y bloqueo de versión única; **N27-7b** contexto: `puedeSubirCarta` con esas guardas y campo `resueltoEnConvocatoria` (número de convocatoria donde se resolvió la versión, `null` si no hay carta).
+  - Archivos afectados (CREAR): `src/modules/evaluations/domain/services/reunion-realizada.ts` (función pura `evaluarReunionRealizada`: cancelada, sin fecha, futura, realizada) y su `reunion-realizada.spec.ts`. Buscado antes: `ventana-resultado-pleno.ts` compara días de calendario, no instantes; no se reutiliza.
+  - `ventana-resultado-pleno.ts` y su spec quedan como código muerto pendiente de limpieza (tarea aparte).
+  - Modificados: `cartas-firmadas.service.ts` (cargarContexto con `NOW()`, guardas, bloqueo de versión, contexto), `cartas-firmadas.dto.ts` sin cambios, `cartas-firmadas.e2e-spec.ts` (la convocatoria del fixture recibe fecha pasada).
 - **Resultados medidos (27/11/2026, rama fix/tsk-015-n27-bloqueo-resuelto-legacy)**:
   - Commits: N27-0 `ada0af4` + corrección de orden `c6a5f89`; N27-3 `7ee16ce`; N27-5 `ed89820`; N27-6 `1235d20` y e2e `0cb2f5f`; N27-7 `0bcb7a8` y e2e `ded52ce`.
   - `npx tsc --noEmit`: exit 0. `npx jest` (unitarias) tras N27-7: 77 suites, 877 pruebas, todas pasan. Tras c6a5f89: `reassign-evaluator.use-case.spec.ts` 19/19.
