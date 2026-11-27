@@ -1,14 +1,17 @@
 import {
+  BadRequestException,
   Controller,
   Get,
   Post,
   Body,
   Param,
+  ParseIntPipe,
   UseGuards,
   Request,
   Redirect,
 } from '@nestjs/common';
 import { ResolutionsService } from '../../application/services/resolutions.service';
+import { CartasFirmadasService } from '../../application/services/cartas-firmadas.service';
 import { JwtAuthGuard } from '../../../../shared/guards/jwt-auth.guard';
 import { RolesGuard } from '../../../../shared/guards/roles.guard';
 import { Audit } from '../../../../shared/decorators/audit.decorator';
@@ -39,7 +42,10 @@ export interface RequestWithUser {
 @Controller('resolutions')
 @UseGuards(JwtAuthGuard, RolesGuard, PermissionsGuard)
 export class ResolutionsController {
-  constructor(private readonly resolutionsService: ResolutionsService) {}
+  constructor(
+    private readonly resolutionsService: ResolutionsService,
+    private readonly cartasFirmadasService: CartasFirmadasService,
+  ) {}
 
   /**
    * LEGACY (spec-003 v1.6.6, TSK-015-N09): flujo anterior, se mantiene solo porque el frontend lo usa.
@@ -83,6 +89,33 @@ export class ResolutionsController {
     return this.resolutionsService.findByProtocolIdForReader(
       Number(protocolId),
       req.user,
+    );
+  }
+
+  /**
+   * TSK-015-N25 (RF-17.1, RF-17.4, RF-17.6): contexto de la etapa Resolución de un protocolo.
+   * Acceso y visibilidad en CartasFirmadasService.contextoProtocolo (404 «Protocolo no encontrado.»
+   * para cualquier lector sin acceso).
+   */
+  @Get('protocol/:protocolId/contexto')
+  async contextoProtocolo(
+    @Param(
+      'protocolId',
+      new ParseIntPipe({
+        exceptionFactory: () =>
+          new BadRequestException('ID de protocolo inválido'),
+      }),
+    )
+    protocolId: number,
+    @Request() req: RequestWithUser,
+  ) {
+    if (protocolId < 1) {
+      throw new BadRequestException('ID de protocolo inválido');
+    }
+    return this.cartasFirmadasService.contextoProtocolo(
+      protocolId,
+      req.user,
+      new Date(),
     );
   }
 }

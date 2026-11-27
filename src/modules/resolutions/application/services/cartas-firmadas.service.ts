@@ -18,6 +18,7 @@ import {
   parseStorageKey,
 } from '../../../storage-access/application/storage-key-access.policy';
 import { canReadResolution, ResolutionReader } from './resolutions.service';
+import { ventanaResultadoPlenoAbierta } from '../../../evaluations/domain/services/ventana-resultado-pleno';
 import {
   ResultadoResolucionService,
   TipoResolucion,
@@ -49,6 +50,32 @@ const MENSAJE_CARRERA_VERSION =
 
 /** Fila cruda de una consulta SQL nativa. */
 type Fila = Record<string, unknown>;
+
+/** TSK-015-N25: carta vigente de una convocatoria, tal como la ve el contexto de resolución. */
+export interface CartaVigenteContexto {
+  numeroVersion: number;
+  anexoCodigo: AnexoCarta;
+  subidoEn: Date;
+  claveArchivo: string;
+}
+
+/** TSK-015-N25: una convocatoria del protocolo en la etapa Resolución. */
+export interface ContextoResolucionConvocatoria {
+  convocatoriaId: string;
+  convocatoriaProtocoloId: string;
+  numeroConvocatoria: string;
+  fechaReunion: Date | null;
+  versionEvaluada: number;
+  resultado: ResultadoPleno | null;
+  anexoEsperado: AnexoCarta | null;
+  cartaVigente: CartaVigenteContexto | null;
+  puedeRegistrarResultado: boolean;
+  puedeSubirCarta: boolean;
+  /** Solo para lectores con RESOLUCION_HISTORIAL. */
+  motivo?: string | null;
+  /** Solo para lectores con RESOLUCION_HISTORIAL. */
+  observaciones?: string | null;
+}
 
 interface ContextoCarta {
   convocatoriaProtocoloId: string;
@@ -319,6 +346,109 @@ export class CartasFirmadasService {
   }
 
   // ---------------------------------------------------------------------------------------------
+
+  /**
+   * TSK-015-N25 (RF-17.1, RF-17.4, RF-17.6): etapa Resolución de un protocolo. Lista todas sus
+   * convocatorias (fecha de reunión descendente). Acceso: investigador principal o RESOLUCION_HISTORIAL;
+   * el resto recibe 404. Visibilidad: sin RESOLUCION_HISTORIAL, `resultado` y `anexoEsperado` solo
+   * con carta vigente, y sin `motivo` ni `observaciones`. `claveArchivo` solo dentro de `cartaVigente`.
+   */
+  async contextoProtocolo(
+    protocoloId: number,
+    lector: ResolutionReader,
+    ahora: Date,
+  ): Promise<ContextoResolucionConvocatoria[]> {
+    const [protocolo] = await this.dataSource.query<Fila[]>(
+      `SELECT investigador_principal_id FROM public.protocolos WHERE id = $1`,
+      [protocoloId],
+    );
+    if (
+      !protocolo ||
+      !canReadResolution(
+        protocolo.investigador_principal_id as number | null,
+        lector,
+      )
+    ) {
+      throw new NotFoundException('Protocolo no encontrado.');
+    }
+
+    const filas = await this.dataSource.query<Fila[]>(
+      `SELECT cp.id AS convocatoria_protocolo_id, c.id AS convocatoria_id,
+              c.numero_convocatoria, c.fecha_reunion, c.estado AS convocatoria_estado,
+              cp.dictamen_resultado, cp.dictamen_motivo, cp.dictamen_observaciones,
+              v.numero_version, te.codigo AS tipo_codigo
+         FROM evaluacion.convocatoria_protocolos cp
+         JOIN evaluacion.convocatorias c ON c.id = cp.convocatoria_id
+         JOIN public.versiones_protocolo v ON v.id = cp.version_id
+         JOIN public.protocolos p ON p.id = cp.protocolo_id
+         LEFT JOIN catalogos.tipos_estudio te ON te.id = p.tipo_estudio_id
+        WHERE cp.protocolo_id = $1 AND cp.eliminado_en IS NULL
+        ORDER BY c.fecha_reunion DESC NULLS LAST`,
+      [protocoloId],
+    );
+    const cartas = await this.dataSource.query<Fila[]>(
+      `SELECT convocatoria_protocolo_id, numero_version, anexo_codigo, subido_en, clave_archivo
+         FROM resolucion.cartas_firmadas
+        WHERE protocolo_id = $1 AND vigente`,
+      [protocoloId],
+    );
+    const cartaPorCp = new Map(
+      cartas.map((c) => [c.convocatoria_protocolo_id as string, c]),
+    );
+
+    const permisos = lector.permissions ?? [];
+    const completa = permisos.includes(Permission.RESOLUCION_HISTORIAL);
+    return filas.map((f) => {
+      const resultado = (f.dictamen_resultado as ResultadoPleno | null) ?? null;
+      const tipo = (f.tipo_codigo as string | null) ?? null;
+      const anexo =
+        resultado !== null && tipo !== null
+          ? anexoParaResultado(resultado, tipo)
+          : null;
+      const carta = cartaPorCp.get(f.convocatoria_protocolo_id as string);
+      const cartaVigente: CartaVigenteContexto | null = carta
+        ? {
+            numeroVersion: carta.numero_version as number,
+            anexoCodigo: carta.anexo_codigo as AnexoCarta,
+            subidoEn: carta.subido_en as Date,
+            claveArchivo: carta.clave_archivo as string,
+          }
+        : null;
+      const verResultado = completa || cartaVigente !== null;
+      const exento = tipo !== null && esEstudioExento(tipo);
+      const fechaReunion = (f.fecha_reunion as Date | null) ?? null;
+
+      return {
+        convocatoriaId: f.convocatoria_id as string,
+        convocatoriaProtocoloId: f.convocatoria_protocolo_id as string,
+        numeroConvocatoria: f.numero_convocatoria as string,
+        fechaReunion,
+        versionEvaluada: f.numero_version as number,
+        resultado: verResultado ? resultado : null,
+        anexoEsperado: verResultado ? anexo : null,
+        cartaVigente,
+        puedeRegistrarResultado:
+          permisos.includes(Permission.PLENO_RESULTADO_REGISTRAR) &&
+          !exento &&
+          ventanaResultadoPlenoAbierta({
+            convocatoriaEstado: f.convocatoria_estado as string,
+            fechaReunion,
+            ahora,
+          }),
+        puedeSubirCarta:
+          permisos.includes(Permission.RESOLUCION_CREAR) &&
+          resultado !== null &&
+          anexo !== null,
+        ...(completa
+          ? {
+              motivo: (f.dictamen_motivo as string | null) ?? null,
+              observaciones:
+                (f.dictamen_observaciones as string | null) ?? null,
+            }
+          : {}),
+      };
+    });
+  }
 
   private async cargarContexto(
     convocatoriaId: string,

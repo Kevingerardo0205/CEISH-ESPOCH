@@ -8,6 +8,7 @@ import { CartasFirmadasService } from './cartas-firmadas.service';
 import { VersionSubsanacionService } from './version-subsanacion.service';
 import { IStorageService } from '../../../../shared/storage/domain/ports/storage.service.port';
 import { IEmailServicePort } from '../../../notifications/domain/ports/email.service.port';
+import { Permission } from '../../../../shared/enums/permission.enum';
 
 /** TSK-015-N09 — pruebas unitarias de CartasFirmadasService (RF-17.2, RF-17.4, RF-17.7 v1.6.6). */
 
@@ -17,6 +18,7 @@ const CLAVE_V2 = `protocols/5/resolutions/${CP}/v2/b.pdf`;
 const PDF = Buffer.from('%PDF-1.4 contenido', 'latin1');
 
 type Sql = string;
+type Fila = Record<string, unknown>;
 type Handler = (sql: Sql, params: unknown[]) => unknown[];
 
 /** DataSource falso: responde a cada consulta según un fragmento del SQL. */
@@ -291,5 +293,257 @@ describe('CartasFirmadasService (TSK-015-N09)', () => {
         svc.vigente('conv', CP, { id: 99, permissions: [] }),
       ).rejects.toThrow(NotFoundException);
     });
+  });
+});
+
+/** TSK-015-N25 — contextoProtocolo: acceso, visibilidad y permisos de botón (RF-17.1, RF-17.4, RF-17.6). */
+describe('CartasFirmadasService.contextoProtocolo (TSK-015-N25)', () => {
+  const AHORA = new Date('2026-11-26T22:00:00Z');
+  const PASADA = new Date('2026-11-20T15:00:00Z');
+  const CONV = '1d2e3f40-1111-4222-8333-444455556666';
+  const INVESTIGADOR_PRINCIPAL = 1;
+  const SECRETARIA = {
+    id: 99,
+    permissions: [
+      Permission.PLENO_RESULTADO_REGISTRAR,
+      Permission.RESOLUCION_CREAR,
+      Permission.RESOLUCION_HISTORIAL,
+    ],
+  };
+  const PRINCIPAL = { id: INVESTIGADOR_PRINCIPAL, permissions: [] as string[] };
+  const AJENO = { id: 42, permissions: [] as string[] };
+
+  function fila(over: Fila = {}): Fila {
+    return {
+      convocatoria_protocolo_id: CP,
+      convocatoria_id: CONV,
+      numero_convocatoria: 'CONV-2026-01',
+      fecha_reunion: PASADA,
+      convocatoria_estado: 'PROGRAMADA',
+      dictamen_resultado: 'APROBADO_DEFINITIVO',
+      dictamen_motivo: 'Motivo interno',
+      dictamen_observaciones: 'Observación interna',
+      numero_version: 1,
+      tipo_codigo: 'IO',
+      ...over,
+    };
+  }
+
+  function carta(over: Fila = {}): Fila {
+    return {
+      convocatoria_protocolo_id: CP,
+      numero_version: 1,
+      anexo_codigo: 'ANEXO_13',
+      subido_en: new Date('2026-11-25T10:00:00Z'),
+      clave_archivo: CLAVE_V1,
+      ...over,
+    };
+  }
+
+  function ctx(opts: {
+    principal?: number | null;
+    filas?: Fila[];
+    cartas?: Fila[];
+  }): Handler {
+    return (sql) => {
+      if (
+        sql.includes('SELECT investigador_principal_id FROM public.protocolos')
+      ) {
+        return opts.principal === undefined
+          ? []
+          : [{ investigador_principal_id: opts.principal }];
+      }
+      if (sql.includes('LEFT JOIN catalogos.tipos_estudio')) {
+        return opts.filas ?? [];
+      }
+      if (sql.includes('FROM resolucion.cartas_firmadas')) {
+        return opts.cartas ?? [];
+      }
+      return [];
+    };
+  }
+
+  function contextoDe(
+    opts: Parameters<typeof ctx>[0],
+    lector: { id: number; permissions?: string[] },
+  ) {
+    const { svc } = servicio(ctx(opts));
+    return svc.contextoProtocolo(5, lector, AHORA);
+  }
+
+  it('404 «Protocolo no encontrado.» para un ajeno sin RESOLUCION_HISTORIAL', async () => {
+    await expect(
+      contextoDe({ principal: INVESTIGADOR_PRINCIPAL, filas: [fila()] }, AJENO),
+    ).rejects.toThrow(new NotFoundException('Protocolo no encontrado.'));
+  });
+
+  it('404 para un protocolo inexistente', async () => {
+    await expect(
+      contextoDe({ principal: undefined, filas: [] }, SECRETARIA),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('principal sin carta vigente: sin resultado, sin anexo, sin motivo ni observaciones', async () => {
+    const [item] = await contextoDe(
+      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
+      PRINCIPAL,
+    );
+    expect(item.resultado).toBeNull();
+    expect(item.anexoEsperado).toBeNull();
+    expect(item.cartaVigente).toBeNull();
+    expect(item).not.toHaveProperty('motivo');
+    expect(item).not.toHaveProperty('observaciones');
+    expect(item.versionEvaluada).toBe(1);
+  });
+
+  it('principal con carta vigente: ve resultado, anexo y cartaVigente sin subidoPor ni motivoReemplazo', async () => {
+    const [item] = await contextoDe(
+      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [carta()] },
+      PRINCIPAL,
+    );
+    expect(item.resultado).toBe('APROBADO_DEFINITIVO');
+    expect(item.anexoEsperado).toBe('ANEXO_13');
+    expect(item.cartaVigente).toEqual({
+      numeroVersion: 1,
+      anexoCodigo: 'ANEXO_13',
+      subidoEn: new Date('2026-11-25T10:00:00Z'),
+      claveArchivo: CLAVE_V1,
+    });
+    expect(item).not.toHaveProperty('motivo');
+    expect(item).not.toHaveProperty('observaciones');
+    const json = JSON.stringify(item);
+    expect(json).not.toContain('subidoPor');
+    expect(json).not.toContain('motivoReemplazo');
+  });
+
+  it('RESOLUCION_HISTORIAL ve motivo, observaciones y resultado aunque no haya carta', async () => {
+    const [item] = await contextoDe(
+      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
+      SECRETARIA,
+    );
+    expect(item.resultado).toBe('APROBADO_DEFINITIVO');
+    expect(item.anexoEsperado).toBe('ANEXO_13');
+    expect(item.motivo).toBe('Motivo interno');
+    expect(item.observaciones).toBe('Observación interna');
+    expect(item.cartaVigente).toBeNull();
+  });
+
+  it('claveArchivo solo aparece dentro de cartaVigente', async () => {
+    const [item] = await contextoDe(
+      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [carta()] },
+      SECRETARIA,
+    );
+    expect(item).not.toHaveProperty('claveArchivo');
+    expect(item.cartaVigente?.claveArchivo).toBe(CLAVE_V1);
+  });
+
+  it('EX: anexoEsperado null, puedeSubirCarta y puedeRegistrarResultado false', async () => {
+    const [item] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila({ tipo_codigo: 'EX', dictamen_resultado: null })],
+        cartas: [],
+      },
+      SECRETARIA,
+    );
+    expect(item.anexoEsperado).toBeNull();
+    expect(item.puedeSubirCarta).toBe(false);
+    expect(item.puedeRegistrarResultado).toBe(false);
+  });
+
+  it('puedeRegistrarResultado true con permiso, ventana abierta y no EX', async () => {
+    const [item] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila({ dictamen_resultado: null })],
+        cartas: [],
+      },
+      SECRETARIA,
+    );
+    expect(item.puedeRegistrarResultado).toBe(true);
+  });
+
+  it('puedeRegistrarResultado false si la convocatoria está cancelada', async () => {
+    const [item] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila({ convocatoria_estado: 'CANCELADA' })],
+        cartas: [],
+      },
+      SECRETARIA,
+    );
+    expect(item.puedeRegistrarResultado).toBe(false);
+  });
+
+  it('puedeRegistrarResultado false si la reunión es futura o no tiene fecha', async () => {
+    const [futura, sinFecha] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [
+          fila({ fecha_reunion: new Date('2026-11-30T15:00:00Z') }),
+          fila({ fecha_reunion: null }),
+        ],
+        cartas: [],
+      },
+      SECRETARIA,
+    );
+    expect(futura.puedeRegistrarResultado).toBe(false);
+    expect(sinFecha.puedeRegistrarResultado).toBe(false);
+  });
+
+  it('puedeRegistrarResultado false sin PLENO_RESULTADO_REGISTRAR', async () => {
+    const [item] = await contextoDe(
+      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
+      {
+        id: 99,
+        permissions: [
+          Permission.RESOLUCION_HISTORIAL,
+          Permission.RESOLUCION_CREAR,
+        ],
+      },
+    );
+    expect(item.puedeRegistrarResultado).toBe(false);
+  });
+
+  it('puedeSubirCarta exige RESOLUCION_CREAR, resultado y anexo; no mira la ventana', async () => {
+    const [conVentanaFutura] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila({ fecha_reunion: new Date('2026-12-30T15:00:00Z') })],
+        cartas: [],
+      },
+      SECRETARIA,
+    );
+    expect(conVentanaFutura.puedeSubirCarta).toBe(true);
+    const [sinCrear] = await contextoDe(
+      { principal: INVESTIGADOR_PRINCIPAL, filas: [fila()], cartas: [] },
+      { id: 99, permissions: [Permission.RESOLUCION_HISTORIAL] },
+    );
+    expect(sinCrear.puedeSubirCarta).toBe(false);
+  });
+
+  it('puedeSubirCarta false sin resultado registrado', async () => {
+    const [item] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila({ dictamen_resultado: null })],
+        cartas: [],
+      },
+      SECRETARIA,
+    );
+    expect(item.puedeSubirCarta).toBe(false);
+  });
+
+  it('el principal sin permisos no recibe puedeRegistrarResultado ni puedeSubirCarta', async () => {
+    const [item] = await contextoDe(
+      {
+        principal: INVESTIGADOR_PRINCIPAL,
+        filas: [fila({ dictamen_resultado: null })],
+        cartas: [],
+      },
+      PRINCIPAL,
+    );
+    expect(item.puedeRegistrarResultado).toBe(false);
+    expect(item.puedeSubirCarta).toBe(false);
   });
 });

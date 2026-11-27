@@ -432,7 +432,7 @@
 
 ### Task TSK-015-N10 - [ ] PENDIENTE
 - **Hallazgo (26/11/2026, obligatorio para esta tarea)**: el pendiente «Subir resolución» se calcula con `resolution_emitted` en `src/modules/secretaria/infrastructure/repositories/pending-items.typeorm.repository.ts` (`EXISTS … resolucion.resoluciones WHERE version_id = p.version_actual_id`). Tras ANEXO_15 la fila del puente queda en la **versión evaluada** (19) y la activa es la **v2.0**, así que el pendiente seguiría mostrándose. La fila «Subir resolución firmada» de N10 debe basarse en la **carta vigente de `resolucion.cartas_firmadas`** por convocatoria-protocolo (o, como mínimo, en la versión evaluada `convocatoria_protocolos.version_id`), **no** en `version_actual_id`. Mismo problema que ya existía con el legado tipo 2.
-- **Hallazgo (26/11/2026, no resuelto aquí)**: `convocatorias.fecha_reunion` es `date` sin hora; el plazo de 96 h «desde la hora de la reunión» necesita la hora. Existe `convocatorias.hora` (time). Decidir la fuente de la hora antes de implementar.
+- **Hallazgo (26/11/2026, corregido el mismo día)**: `convocatorias.fecha_reunion` es `timestamptz` (verificado con `\d evaluacion.convocatorias` en `ceish_test_db` y en la entidad ORM), así que lleva fecha **y** hora. La nota anterior («`date` sin hora») era incorrecta. Las columnas `convocatorias.fecha` (date) y `convocatorias.hora` (time) existen en la base, pero no están mapeadas en la entidad y el código no las usa. Fuente de la hora del plazo de 96 h: `fecha_reunion`.
 - **ID Único**: `TSK-015-N10`
 - **Requisito Relacionado**: `RF-17.3` (spec-003 v1.6.1), `RF-ALR.f.8`
 - **Criterio EARS**: `EARS 5` (RF-17.3)
@@ -796,6 +796,55 @@
   - E2E `meetings-resultado-pleno.e2e-spec.ts`: 12 en verde, incluido EX → 409 en español, sin historial ni dictamen.
   - Mutación (quitar la comprobación EX): 1 fallo en la unitaria y 1 en la e2e. Restaurado y verificado con `cmp`.
   - Reutiliza `esEstudioExento` de `carta-firmada-rules.ts` (la capa de evaluaciones importa una función pura de resoluciones; anotado).
+
+### Task TSK-015-N25 - [x] COMPLETADO (commits 629fcc4 ventana, c54d80d pipe, 6c78e0a contexto)
+- **Resultados (26/11/2026)**: `npx tsc --noEmit` sin errores; `npx eslint` sobre lo tocado sin errores; `npm test` 77 suites / 874 tests en verde; e2e `resolutions-contexto`, `cartas-firmadas`, `meetings-resultado-pleno`, `resolutions-permisos`: 4 suites / 56 tests en verde en total (`resolutions-contexto` 11/11 verificado por separado), con residuos 0.
+- **Mutaciones** (todas detectadas): motivo visible al investigador (2 fallos en unitarias, 2 en e2e); acceso ajeno sin 404 (1 y 1); quitar la comprobación de EX (1 y 1); quitar la ventana (2 y 1); quitar el mensaje de `exceptionFactory` del pipe de UUID (2 e2e) y del `ParseIntPipe` del contexto (1 e2e).
+- **Desviaciones registradas**: `ResolutionsController` inyecta `CartasFirmadasService` para la ruta nueva (mismo módulo). El id de protocolo se valida con `ParseIntPipe` + `< 1` → 400 «ID de protocolo inválido».
+- **Cross-module**: `evaluations` importa `esEstudioExento` de `resolutions` (ya marcado en N20) y `resolutions` importa `evaluarVentanaResultadoPleno` de `evaluations/domain`. Dependencia bidireccional de módulos sin ciclo de imports; pendiente revisar en una tarea futura.
+- **ID Único**: `TSK-015-N25`
+- **Requisito Relacionado**: `RF-17.1`, `RF-17.4`, `RF-17.6` (spec-003 v1.6.7)
+- **Criterio EARS**: `EARS 5` (RF-17.1, RF-17.4, RF-17.6)
+- **Acción**: `CREAR` la ruta de lectura `GET /api/resolutions/protocol/:protocolId/contexto` (etapa Resolución del frontend). `MODIFICAR` los controladores de cartas y del PATCH de resultado para usar el pipe compartido.
+- **Archivos Afectados**:
+  - `src/shared/pipes/uuid-param.pipe.ts` — CREAR (aprobado 26/11/2026): `ParseUUIDPipe` con `exceptionFactory` que responde «Identificador inválido.». Lo usan `cartas-firmadas.controller.ts` y el PATCH de `meetings.controller.ts`.
+  - `src/modules/evaluations/domain/services/ventana-resultado-pleno.ts` — CREAR (aprobado 26/11/2026): función pura de la ventana de registro (convocatoria no `CANCELADA` y `fecha_reunion` ≤ hoy en America/Guayaquil), extraída de `RegistrarResultadoPlenoUseCase` sin cambio de comportamiento.
+  - `src/modules/evaluations/domain/services/ventana-resultado-pleno.spec.ts` — CREAR: pruebas de esa función.
+  - `src/modules/evaluations/application/use-cases/registrar-resultado-pleno.use-case.ts` — MODIFICAR: usa la función pura; sus pruebas deben seguir verdes sin cambios.
+  - `src/modules/resolutions/application/services/cartas-firmadas.service.ts` — MODIFICAR: método `contextoProtocolo(protocoloId, lector)`.
+  - `src/modules/resolutions/infrastructure/controllers/resolutions.controller.ts` — MODIFICAR: ruta `GET protocol/:protocolId/contexto`.
+  - `src/modules/resolutions/infrastructure/controllers/cartas-firmadas.controller.ts` — MODIFICAR: pipe compartido.
+  - `src/modules/evaluations/infrastructure/controllers/meetings.controller.ts` — MODIFICAR: pipe compartido en el PATCH de resultado.
+  - `src/modules/resolutions/application/services/cartas-firmadas.service.spec.ts` — MODIFICAR: pruebas de visibilidad y de `contextoProtocolo`.
+  - `test/resolutions-contexto.e2e-spec.ts` — CREAR: e2e con login real de cuatro roles.
+- **Dependencias**: TSK-015-N08 (resultado), TSK-015-N09 (`cartas_firmadas`), TSK-015-N20 (EX).
+- **Respuesta**: lista de convocatorias del protocolo, ordenada por `fecha_reunion` descendente (lista completa, sin filtro). Cada elemento:
+  - `convocatoriaId`, `convocatoriaProtocoloId`, `numeroConvocatoria`;
+  - `fechaReunion`: ISO 8601 de `fecha_reunion` (timestamptz);
+  - `versionEvaluada`: `numero_version` de `convocatoria_protocolos.version_id`;
+  - `resultado`: `dictamen_resultado` o `null`;
+  - `anexoEsperado`: `anexoParaResultado` de `carta-firmada-rules`; `null` si EX o sin resultado;
+  - `cartaVigente`: `{ numeroVersion, anexoCodigo, subidoEn, claveArchivo }` o `null`;
+  - `puedeRegistrarResultado`, `puedeSubirCarta`;
+  - `motivo` y `observaciones`: solo para lectores con `RESOLUCION_HISTORIAL`.
+- **Acceso** (aprobado): igual que `canReadResolution` (investigador principal o `RESOLUCION_HISTORIAL`). Cualquier otro → `404 «Protocolo no encontrado.»`. Id no entero positivo → `400 «ID de protocolo inválido»`. Protocolo inexistente → `404` con el mismo mensaje.
+- **Visibilidad por rol** (aprobada):
+  - Investigador principal: `resultado` y `anexoEsperado` solo si hay carta vigente para esa convocatoria. Nunca `motivo`, `observaciones`, `subidoPor`, `motivoReemplazo` ni datos de evaluadores. `cartaVigente` sin `subidoPor` ni `motivoReemplazo`.
+  - `RESOLUCION_HISTORIAL` (SECRETARIA, PRESIDENTE): todo, incluidos `motivo` y `observaciones`.
+- **Reglas de los botones** (aprobadas):
+  - `puedeRegistrarResultado` = `PLENO_RESULTADO_REGISTRAR` && ventana (función pura) && no EX. Solo SECRETARIA tiene el permiso hoy.
+  - `puedeSubirCarta` = `RESOLUCION_CREAR` && `resultado` ≠ null && `anexoEsperado` ≠ null. No aplica la ventana; el reemplazo de una carta vigente se permite (la subida exige motivo).
+- **Clave del archivo** (aprobado): `claveArchivo` solo dentro de `cartaVigente`. Sirve para `/storage/download-url`, que aplica la regla `CARTA_FIRMADA`.
+- **Pruebas**:
+  - Unitarias: visibilidad por rol, `puedeRegistrarResultado`, `puedeSubirCarta`, proyección de `cartaVigente` y la función pura de ventana.
+  - E2E `test/resolutions-contexto.e2e-spec.ts` con login real de SECRETARIA, PRESIDENTE, INVESTIGADOR principal e INVESTIGADOR ajeno (→ 404). Datos `ZZ_TEST_`, residuos 0, `ResponseInterceptor`. Casos: sin carta (principal sin `resultado` ni `anexoEsperado`); con carta (principal ve `cartaVigente` sin `subidoPor`); SECRETARIA ve `motivo` y `observaciones`; EX → `anexoEsperado` null y `puedeSubirCarta` false; id inválido → 400 «ID de protocolo inválido»; id no UUID en cartas y en el PATCH → 400 «Identificador inválido.».
+- **Mutaciones**: quitar el filtro de visibilidad de `motivo` para el investigador; quitar `canReadResolution`; quitar la comprobación de EX en `puedeRegistrarResultado`; quitar la ventana; quitar el `exceptionFactory` del pipe.
+- **Criterio de aceptación**:
+  1. Un ajeno recibe 404 con el mensaje de acceso.
+  2. El investigador nunca recibe `motivo`, `observaciones`, `subidoPor` ni `motivoReemplazo`.
+  3. Los botones solo se activan según permiso, ventana y EX.
+  4. `claveArchivo` solo aparece dentro de `cartaVigente`.
+  5. Los ids no UUID en cartas y en el PATCH responden 400 «Identificador inválido.».
 
 ### Task TSK-015-N21 - [ ] PENDIENTE (frontend, repo aparte)
 - **ID Único**: `TSK-015-N21`

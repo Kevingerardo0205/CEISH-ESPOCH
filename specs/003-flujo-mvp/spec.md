@@ -2,7 +2,7 @@
 
 **Código de Especificación:** `specs/003-flujo-mvp/spec.md`  
 **Proyecto:** CEISH-ESPOCH Backend  
-**Versión:** 1.6.6  
+**Versión:** 1.6.7  
 **Estado:** Aprobado  
 **Historial:** 2026-10-10 — v1.4.0: alineado con decisiones de Secretaría/Tutor (ver Pendientes por confirmar)  
 **Historial:** 2026-10-10 — v1.4.1: RF-ALR renovación cambia a `alerta_renovacion_offsets_dias` [90, 60, 15]; HU-015 EARS 3 usa el parámetro  
@@ -195,6 +195,8 @@ Especificar las reglas operativas, funcionales y de integridad para:
 ---
 
 ### RF-17: Resultado del Pleno, Carta Firmada y Versiones de la Resolución
+
+- **v1.6.7 (26/11/2026, TSK-015-N25)**: contexto de la etapa Resolución para el frontend, `GET /api/resolutions/protocol/:protocolId/contexto`. Devuelve la lista completa de convocatorias del protocolo (`fecha_reunion` descendente) con resultado, anexo esperado, carta vigente y permisos de botón. Visibilidad: el investigador principal ve `resultado` y `anexoEsperado` solo con carta vigente, sin `motivo` ni `observaciones`; `RESOLUCION_HISTORIAL` ve todo. `claveArchivo` solo dentro de `cartaVigente`. Ids no UUID en cartas y en el PATCH de resultado responden «Identificador inválido.».
 
 > Decisiones de la reunión del 24/11/2026. La resolución se firma **fuera del sistema**; el sistema solo recibe la carta firmada. RF-16 queda reservado para renovaciones (ver `src/shared/deadlines/deadline-rules.ts`).
 
