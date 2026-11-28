@@ -898,6 +898,60 @@
   - Pendiente: N27-8 (frontend, repo aparte). Limpieza: `ventana-resultado-pleno.ts` queda sin uso en producción (solo su spec); se retira en tarea aparte.
 - **Tests afectados**: unitarias `registrar-resultado-pleno.use-case.spec.ts`, `ventana-resultado-pleno.spec.ts`, `cartas-firmadas.service.spec.ts`, `carta-firmada-rules.spec.ts`, `resolutions.service.spec.ts`, `meetings.controller.spec.ts:433-442`, `convocatoria-protocolo.orm-entity.spec.ts`. E2E: `meetings-resultado-pleno`, `cartas-firmadas`, `resolutions-contexto`, `resolutions-permisos`, `resolutions-legacy-v1-v3`, `resolutions-legacy-v2`. `storage-access` no verificado.
 
+### Task TSK-015-N28 - [ ] PENDIENTE (fase 1; spec-003 v1.7.0; migración aditiva que aplica la usuaria en ceish_db)
+- **ID Único**: `TSK-015-N28` (subtareas N28-1 a N28-8; cada una puede ir en commit propio con su ID)
+- **Requisito Relacionado**: `RF-14.2` a `RF-14.8` (spec-003 v1.7.0). Verificación previa en `RF-14.9`.
+- **Criterio EARS**: `EARS RF-14.2` a `EARS RF-14.4` (v1.7.0): solicitudes solo en M1 y M2, snapshot por versión sin modificar la versión anterior.
+- **Descripción**: solicitudes de documentos en la subsanación de versión mayor: M1 y M2 con listbox del catálogo; snapshot de requisitos por versión; lecturas y guardas por versión; herencia de evaluadores; plazo de la v2.0; frontend y e2e. Decisión de origen: la usuaria, 28/11/2026 (documento de referencia no encontrado en el repositorio).
+- **Subtareas**:
+  - **N28-1 — migración (aditiva)**: `public.protocolo_requisitos.version_id` (integer, FK a `versiones_protocolo(id)`), backfill a la versión 1 e índice único `(protocolo_id, version_id, codigo_requisito)`. **Bloqueante**: hay 140 pares (protocolo, código) con más de una fila y la tabla no tiene versión (RF-14.9). Antes de escribir la migración hay que presentar a la usuaria la regla de asignación de esas filas a versiones. La aplica la usuaria en `ceish_db`; sin SQL de corrección para los protocolos de prueba 152, 153, 154, 155, 162 y 164.
+    - Criterio: 0 filas sin `version_id`; índice único sin violaciones; conteos antes y después registrados.
+  - **N28-2 — snapshot por versión al crear la v2.0**: reemplazar el paso 4 de `version-subsanacion.service.ts:70-83`, que hoy modifica la versión anterior en sitio. Las filas de la v2.0 quedan con `solicitud_tipo` NULL (arrastrado, «Sin cambios (de la v1)») o `CORREGIR` / `AGREGAR`.
+    - Criterio: tras crear la v2.0, las filas de la v1.0 no cambian (conteo y estados iguales).
+  - **N28-3 — lecturas por versión y guardas**: `getValidationDetail` (`reception.service.ts:55`) y `findDocumentsByProtocolId` (`reception.typeorm.repository.ts:63`; llamadas en `reception.service.ts:92`, `:214`, `:777`) filtran por versión. Guardas: no enviar (`submit`) ni finalizar la revisión si hay solicitados sin documento de la v2.0 (RF-14.8).
+    - Criterio: con un solicitado sin documento, `submit` y finalizar responden 409 en español.
+  - **N28-4 — solicitudes M1 y M2**: decisión de modelo en RF-14.4 (columnas en la fila del requisito por versión). Columnas: `solicitud_tipo` (`CORREGIR` | `AGREGAR`), `solicitud_origen` (`RECEPCION` | `CARTA`), `solicitado_por`, `solicitado_en`, `observacion_origen_id` NULL (para N29). M2 = campo aditivo `solicitudes` en `POST …/cartas` (RF-17.2), aceptado solo si el resultado calculado es `APROBADO_CON_CONDICION`; atómico con la carta y la v2.0 (`cartas-firmadas.service.ts`, `version-subsanacion.service.ts`). Regla de M2 (al menos una solicitud): **[PENDIENTE-CONFIRMAR]**.
+    - Criterio: `solicitudes` con resultado distinto de `APROBADO_CON_CONDICION` responde 409 y no crea carta ni v2.0; error en la v2.0 revierte la carta.
+  - **N28-5 — plazo de la v2.0 y acceso a archivos**: `plazo_condicion_dias` separado de `plazo_subsanacion_documental_dias` **[PROPUESTA]** (RF-14.6); vencimiento → no aprobado o archivado (según PET 4.2.4, por verificar). `StorageKeyAccessPolicy` (`requisitoAdmiteSubida`, `storage-key-access.policy.ts:328`) coherente con la v2.0 (subida permitida solo a requisitos con solicitud).
+    - Criterio: la clave de un requisito «Sin cambios» no admite subida; la de un solicitado sí.
+  - **N28-6 — heredar evaluadores**: conectar `InheritEvaluatorsUseCase` (`inherit-evaluators.use-case.ts:25`, hoy sin uso) al crear la v2.0. Copia asignaciones activas (estados 6 y 7) con `computeReviewDeadline` (`evaluation.repository.port.ts:187`); omite evaluadores inactivos y reporta el caso; no exige exactamente cuatro (RF-14.5).
+    - Criterio: la v2.0 tiene los mismos evaluadores activos que la v1.0; los inactivos aparecen en el reporte.
+  - **N28-7 — frontend (repo aparte)**: `isSubsanacionMode` reconoce el estado 21; aviso con el Anexo 15 descargable y el plazo; listbox en M1 y M2; estados «Solicitado: corregir», «Solicitado: nuevo» y «Sin cambios (de la v1)». Ruta del repo por confirmar.
+  - **N28-8 — e2e del ciclo completo**: condición → solicitudes → v2.0 → entrega → validación → convocatoria con los mismos evaluadores. Datos `ZZ_TEST_` y 0 residuos.
+- **Archivos afectados**: (lista de partida; confirmar en el Paso 0 de código)
+  - `src/migrations/<timestamp>-ProtocoloRequisitosVersion.ts` — CREAR (N28-1; única migración nueva; la aplica la usuaria)
+  - `src/modules/resolutions/application/services/version-subsanacion.service.ts` — MODIFICAR (N28-2, N28-5, N28-6)
+  - `src/modules/resolutions/application/services/cartas-firmadas.service.ts` — MODIFICAR (N28-4, M2)
+  - DTO de `POST …/cartas` (ruta por confirmar; `dtos/cartas-firmadas.dto.ts`) — MODIFICAR (N28-4: campo `solicitudes`)
+  - `src/modules/reception/application/services/reception.service.ts` — MODIFICAR (N28-3)
+  - `src/modules/reception/infrastructure/repositories/reception.typeorm.repository.ts` — MODIFICAR (N28-3)
+  - `src/modules/storage-access/application/storage-key-access.policy.ts` — MODIFICAR (N28-5)
+  - `src/modules/protocols/application/services/protocol-deadline.service.ts` — MODIFICAR (N28-5)
+  - `src/modules/evaluations/application/use-cases/inherit-evaluators.use-case.ts` — MODIFICAR (N28-6)
+  - Pruebas unitarias: `version-subsanacion` y `cartas-firmadas.service.spec.ts` — MODIFICAR; `inherit-evaluators.use-case.spec.ts` — MODIFICAR (N28-6)
+  - Prueba e2e del ciclo — CREAR (N28-8; nombre por confirmar en `test/`)
+  - Frontend (repo aparte) — MODIFICAR (N28-7)
+- **Tests**: unitarios de N28-2 a N28-6; e2e de N28-8. Comandos del cierre: `npx tsc --noEmit`, `npm test`, `npx jest --config ./test/jest-e2e.json --forceExit --runInBand` (salida real).
+- **Riesgos**: (1) backfill de N28-1 con 140 pares duplicados (RF-14.9); (2) el reset de N28-2 modifica hoy la versión anterior; (3) regla de M2 sin confirmar; (4) discrepancia 15 vs 30 días; (5) `addBusinessDays` propio en `protocol-deadline.service.ts` frente a AGENTS.md; (6) si N29 necesita varias observaciones por requisito, `observacion_origen_id` no basta (ver N29).
+- **Dependencias**: TSK-015-N09 y TSK-015-N13 (hechas: carta firmada y v2.0 de RF-17.5). Comparte `cartas-firmadas.service.ts` con TSK-015-N27: hacerlas en secuencia.
+- **Hecho cuando**: N28-1 a N28-8 cumplen su criterio; el e2e de N28-8 pasa con 0 residuos; la spec v1.7.0 y esta tarea están actualizadas; los comandos de cierre (tsc, npm test y e2e) se ejecutaron y su salida se reporta.
+
+### Task TSK-015-N29 - [ ] PENDIENTE (SOLO DISEÑO; no implementar; spec-003 v1.7.0)
+- **ID Único**: `TSK-015-N29`
+- **Requisito Relacionado**: `RF-14.2`, `RF-14.3` (v1.7.0) y `RF-17.2` (Anexo 15). Depende de TSK-015-N28-4 (`observacion_origen_id`).
+- **Descripción**: el evaluador marca a qué requisito se refiere cada observación. La marca es obligatoria solo si el dictamen es `APROBADO_CON_CONDICION`; la opción «general» existe para observaciones que no se refieren a un requisito. El sistema consolida las marcas y propone las solicitudes en M2; la Secretaría confirma o ajusta antes de crear la v2.0.
+- **Análisis de impacto (Paso 0, punto 3; RF-14.9)**:
+  - Hoy la observación es texto libre en `evaluacion.evaluaciones.observaciones` y un archivo (`ruta_informe_pdf`). Ninguna se vincula a un requisito. Hace falta un vínculo nuevo observación → requisito de la versión. **Propuesta**: tabla nueva `evaluacion.observacion_requisito` (N:M, `requisito_id` NULL = «general»), porque una observación puede referirse a varios requisitos. Cambiar el esquema requiere consulta previa (AGENTS.md); no se implementa en esta fase.
+  - El resultado que dispara la marca es `evaluacion.evaluaciones.resultado_id` (1/2/3), que ya alimenta el cálculo del pleno (TSK-015-N27). La regla de N29 debe usar la misma función, sin duplicarla.
+  - El archivo del informe (Anexo 9/10) no contiene las marcas; la consolidación debe leer la tabla nueva, no el PDF.
+  - `evaluacion.convocatoria_protocolos.dictamen_observaciones` no se usa: hoy no hay dictamen del pleno registrado (RF-14.9).
+  - `observacion_origen_id` de N28-4 apunta a esa tabla. Si la Secretaría prefiere una sola observación por solicitud, basta la columna; si no, la solicitud necesita su propia tabla de vínculos.
+- **Sub-tema abierto**: «carta de respuesta» (archivo con `ANEXO_15`, respuestas por observación dentro del sistema, o eliminarla). Pendiente de la Secretaría.
+- **Preguntas a la Secretaría**: si acepta que la marca del evaluador proponga las solicitudes (pendiente 17 de la Sección 9); la carta de respuesta (pendiente 18).
+- **Archivos afectados**: ninguno (diseño). Cualquier implementación exige una tarea nueva.
+- **Dependencias**: TSK-015-N28 (columnas) y TSK-015-N27 (cálculo del resultado).
+- **Hecho cuando**: la usuaria aprueba el diseño (tabla, regla de obligatoriedad, opción «general» y carta de respuesta) y se abre la tarea de implementación.
+
 ### Task TSK-015-N21 - [ ] PENDIENTE (frontend, repo aparte)
 - **ID Único**: `TSK-015-N21`
 - **Requisito Relacionado**: `RF-17.7` (spec-003 v1.6.4), tras TSK-015-N11.
@@ -928,6 +982,7 @@
 11. TSK-015-N10: fila «Subir resolución firmada».
 12. TSK-015-N18: retirar `POST /resolutions` **cuando el frontend ya use el flujo nuevo**.
 13. TSK-015-N19: carta de exención, en su propia especificación.
+14. TSK-015-N28 (fase 1) y TSK-015-N29 (diseño), registradas 28/11/2026 sin orden fijado. N28-1 queda bloqueada hasta decidir la asignación de los 140 pares (protocolo, código) duplicados a versiones (spec-003 RF-14.9).
 
 Frontend (repo aparte, fuera de esta secuencia): TSK-015-N21 (acciones de PRESIDENTE) y TSK-015-N23 (sin fallback a la clave fija en subsanaciones).
 
